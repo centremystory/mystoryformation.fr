@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "app/api/conventions/send/route.ts": {
+      "memory": 3009,
+      "maxDuration": 60
+    }
+  }
+}
