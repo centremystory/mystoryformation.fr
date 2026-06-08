@@ -1,14 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    // Ne pas bundler le moteur de rendu PDF : il est chargé tel quel côté serveur.
-    serverComponentsExternalPackages: ["puppeteer-core", "@sparticuz/chromium"],
-    // Inclure dans la fonction : les templates ET le binaire Chromium (sinon "Failed to launch").
+    // Chromium chargé à l'exécution depuis un paquet distant (chromium-min) — ne pas bundler.
+    serverComponentsExternalPackages: ["puppeteer-core", "@sparticuz/chromium-min"],
+    // Inclure les templates dans la fonction de génération de la convention.
     outputFileTracingIncludes: {
-      "/api/conventions/send": [
-        "./templates/**",
-        "./node_modules/@sparticuz/chromium/bin/**"
-      ],
+      "/api/conventions/send": ["./templates/**"],
     },
   },
 };
