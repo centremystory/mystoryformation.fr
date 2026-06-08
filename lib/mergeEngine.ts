@@ -145,6 +145,11 @@ function resolveBalises(fiche: FicheStagiaire, cfg: TemplateConfig): Record<stri
     // CALCULÉS / FORCÉS :
     date_signature:   todayParisFR(),
     lieu_signature:   site.ville,        // « Fait à Gagny »
+    // PRÉ-SIGNATURE OF (option A) — images statiques optionnelles, pilotées par variables d'env.
+    // Référencées uniquement dans des blocs {{#if ...}} du template → absentes = rien ne casse.
+    of_signature_img: process.env.MYSTORY_OF_SIGNATURE_URL ?? null,
+    cachet_img:       process.env.MYSTORY_CACHET_URL ?? null,
+    cachet_absent:    process.env.MYSTORY_CACHET_URL ? null : "1",  // fallback cachet dessiné
   };
 }
 
