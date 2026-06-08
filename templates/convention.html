@@ -24,12 +24,14 @@
   table.fields td.v { font-weight: 600; }
   .clause { font-size: 9.4pt; margin: 6px 0; }
   .sign { display: flex; gap: 18px; margin-top: 18px; }
-  .sign .box { flex: 1; border: 1px solid #c9d3e4; border-radius: 6px; padding: 8px 10px; min-height: 120px; position: relative; }
+  .sign .box { flex: 1; border: 1px solid #c9d3e4; border-radius: 6px; padding: 8px 10px; min-height: 130px; position: relative; }
   .sign .who { font-size: 9pt; font-weight: 700; color: #2F72DE; }
   .sign .sub { font-size: 7.8pt; color: #5b6472; margin-bottom: 6px; }
-  .sign .field { border: 1px dashed #2F72DE; border-radius: 4px; height: 52px; display: flex; align-items: center; justify-content: center; color: #2F72DE; font-size: 7.6pt; }
-  .sign .ds { font-size: 6.6pt; color: #93a0b5; margin-top: 4px; font-family: monospace; }
-  .cachet { position: absolute; right: 8px; bottom: 8px; width: 74px; height: 74px; border: 2px solid #2F72DE; border-radius: 50%; color: #2F72DE; font-size: 6.4pt; text-align: center; display: flex; align-items: center; justify-content: center; transform: rotate(-9deg); opacity: .85; padding: 4px; }
+  .sign .presign { font-size: 7.6pt; color: #5b6472; margin-top: 6px; }
+  .sign .sig-img { max-height: 54px; margin-top: 6px; }
+  .sign .daterow { font-size: 8pt; color: #5b6472; margin-top: 8px; }
+  .cachet { position: absolute; right: 8px; bottom: 8px; width: 78px; height: 78px; border: 2px solid #2F72DE; border-radius: 50%; color: #2F72DE; font-size: 6.2pt; line-height: 1.25; text-align: center; display: flex; align-items: center; justify-content: center; transform: rotate(-9deg); opacity: .9; padding: 4px; }
+  .cachet-img { position: absolute; right: 6px; bottom: 6px; width: 82px; height: auto; opacity: .95; }
   .madeat { margin-top: 14px; font-size: 9.6pt; }
   footer { position: fixed; bottom: 0; left: 0; right: 0; border-top: 1px solid #e3e8f0; padding-top: 4px; font-size: 6.9pt; color: #7a8290; text-align: center; }
 </style>
@@ -73,7 +75,7 @@
   </table>
 
   <h3>Article 3 — Dispositions financières</h3>
-  <p class="clause">Coût total de l'action : <strong>{{montant}} €</strong>, dans la limite du plafond CPF applicable, le reliquat éventuel restant à la charge du stagiaire et accepté avant l'entrée en formation.</p>
+  <p class="clause">Coût total de l'action : <strong>{{montant}}</strong>, dans la limite du plafond CPF applicable, le reliquat éventuel restant à la charge du stagiaire et accepté avant l'entrée en formation.</p>
 
   <h3>Article 4 — Documents contractuels remis</h3>
   <p class="clause">La signature de la présente convention vaut acceptation du <strong>programme (Annexe 1)</strong>, du <strong>règlement intérieur (Annexe 2)</strong> et du <strong>planning (Annexe 3)</strong>, remis au stagiaire et faisant partie intégrante de la convention.</p>
@@ -84,15 +86,16 @@
     <div class="box">
       <div class="who">Pour l'organisme de formation</div>
       <div class="sub">M. Arudhan NATKUNASINGAM — Président</div>
-      <div class="field">Signature électronique — Président</div>
-      <div class="ds">{{Signature Président;role=Organisme/Président;type=signature}}</div>
-      <div class="cachet">Cachet<br>MYSTORY<br>(MYSTORY_cachet.png)</div>
+      {{#if of_signature_img}}<img class="sig-img" src="{{of_signature_img}}" alt="Signature du Président">{{/if}}
+      <div class="presign">Convention pré-signée par l'organisme · Fait à Gagny le {{date_signature}}</div>
+      {{#if cachet_img}}<img class="cachet-img" src="{{cachet_img}}" alt="Cachet MYSTORY">{{/if}}
+      {{#if cachet_absent}}<div class="cachet">MYSTORY<br>Gagny<br>NDA 11756521775</div>{{/if}}
     </div>
     <div class="box">
       <div class="who">Le ou la stagiaire</div>
       <div class="sub">{{civilite}} {{prenom}} {{nom}}</div>
-      <div class="field">Signature électronique — Stagiaire</div>
-      <div class="ds">{{Signature stagiaire;role=Stagiaire;type=signature}}</div>
+      <signature-field name="Signature stagiaire" role="Stagiaire" required="true" style="width: 210px; height: 60px; display: block; margin-top: 6px;"></signature-field>
+      <div class="daterow">Le <date-field name="Date stagiaire" role="Stagiaire" format="DD/MM/YYYY" required="true" style="width: 110px; height: 20px; display: inline-block;"></date-field></div>
     </div>
   </div>
 
