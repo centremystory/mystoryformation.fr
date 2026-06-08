@@ -94,3 +94,4 @@ async function finalizeSignature(dossierId: string, submissionId: number, event:
     dossierId, piece: "convention", status: "signee",
     docusealSubmissionId: submissionId, at: new Date().toISOString(),
   });
+ }
