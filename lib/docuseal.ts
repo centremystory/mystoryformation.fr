@@ -1,11 +1,19 @@
 /**
- * MYSTORY — Client DocuSeal  (Brique 2D)
- * --------------------------------------
+ * MYSTORY — Client DocuSeal  (Brique 2D — variante HTML)
+ * ------------------------------------------------------
  * Envoi de la Convention en signature + vérification du webhook de retour.
  *
- * Réalité terrain actée : la Convention sort DÉJÀ signée côté OF (cachet + signature
- * d'Arudhan gravés à l'émission). DocuSeal ne collecte donc QUE la signature du STAGIAIRE
- * → 1 seul signataire (SIGNERS_COUNT = 1). Mettre 2 si un jour l'OF signe aussi via DocuSeal.
+ * PIVOT HTML : on n'envoie plus un PDF que l'on a rendu nous-mêmes (plus de Chromium).
+ * On envoie le HTML de la convention à DocuSeal via `POST {base}/submissions/html` :
+ * DocuSeal génère le PDF À PARTIR du HTML *et* prépare la demande de signature en un seul appel.
+ *
+ * Option A (retenue) : l'organisme PRÉ-SIGNE la convention — la signature + le cachet du Président
+ * sont GRAVÉS dans le HTML (images). DocuSeal ne collecte donc QUE la signature du STAGIAIRE.
+ *   -> 1 seul signataire. SIGNERS_COUNT = 1.
+ *
+ * Les champs signables sont posés dans le HTML sous forme de balises HTML DocuSeal
+ * (<signature-field>, <date-field>), avec role="Stagiaire". Ces balises ne sont PAS des {{...}}
+ * et traversent donc le moteur de fusion sans être touchées.
  *
  * Sécurité câblée ici :
  *  - Vérification d'authenticité du webhook AVANT tout traitement (sinon ignoré).
@@ -14,10 +22,12 @@
  *  - L'appelant gère l'idempotence (clé = submissionId + eventType).
  *
  * Variables d'environnement attendues :
- *  - DOCUSEAL_BASE_URL        ex. https://sign.mystoryformation.fr  (instance auto-hébergée)
+ *  - DOCUSEAL_BASE_URL        BASE D'API, pas l'URL de connexion :
+ *                               . cloud        -> https://api.docuseal.com  (ou .eu)
+ *                               . auto-hébergé -> https://ton-domaine/api
  *  - DOCUSEAL_API_KEY         clé API (en-tête X-Auth-Token)
- *  - DOCUSEAL_WEBHOOK_SECRET  whsec_... (HMAC)  — recommandé
- *  - DOCUSEAL_WEBHOOK_HEADER  / DOCUSEAL_WEBHOOK_HEADER_VALUE  — fallback secret statique
+ *  - DOCUSEAL_WEBHOOK_SECRET  whsec_... (HMAC) — recommandé
+ *  - DOCUSEAL_WEBHOOK_HEADER  / DOCUSEAL_WEBHOOK_HEADER_VALUE — fallback secret statique
  */
 
 import crypto from "crypto";
@@ -25,27 +35,10 @@ import crypto from "crypto";
 const BASE_URL = (process.env.DOCUSEAL_BASE_URL ?? "").replace(/\/+$/, "");
 const API_KEY = process.env.DOCUSEAL_API_KEY ?? "";
 
-/** Nombre de signataires DocuSeal : OF (Président) + stagiaire. */
-export const SIGNERS_COUNT = 2;
+/** Option A : seul le stagiaire signe dans DocuSeal (l'OF est pré-signé dans le HTML). */
+export const SIGNERS_COUNT = 1;
 
-/** Identité OF signataire (côté organisme). */
-const OF_NOM = "Arudhan NATKUNASINGAM";
-const OF_EMAIL = process.env.DOCUSEAL_OF_EMAIL ?? "contact@mystoryformation.fr";
-const OF_ROLE = "Organisme/Président";
 const STAGIAIRE_ROLE = "Stagiaire";
-
-/**
- * Auto-signature OF (mode retenu) : la signature enregistrée du Président est appliquée
- * automatiquement à la création de la submission → aucun geste manuel par convention.
- *
- * DOCUSEAL_OF_SIGNATURE_URL = URL téléchargeable de l'image de signature, OU base64.
- *   ⚠️ Préférer un asset à accès contrôlé ou une URL signée/éphémère (ou du base64 depuis un
- *      secret) plutôt qu'une URL publique permanente : `readonly:true` empêche la modification
- *      du champ, mais pas la récupération de l'image si l'URL est publique.
- * DOCUSEAL_OF_AUTO_SIGN = "false" pour repasser l'OF en signature manuelle (après le stagiaire).
- */
-const OF_AUTO_SIGN = (process.env.DOCUSEAL_OF_AUTO_SIGN ?? "true") !== "false";
-const OF_SIGNATURE_URL = process.env.DOCUSEAL_OF_SIGNATURE_URL;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -78,79 +71,53 @@ export interface DocusealEvent {
 }
 
 // ---------------------------------------------------------------------------
-// 1. Envoi de la Convention en signature
+// 1. Envoi de la Convention en signature (à partir du HTML)
 // ---------------------------------------------------------------------------
 
 /**
- * Crée une submission DocuSeal à partir du PDF de Convention déjà rendu par notre pipeline.
+ * Crée une submission DocuSeal directement à partir du HTML fusionné de la Convention.
+ * DocuSeal rend le PDF (lieu = Gagny, déjà forcé par le moteur de fusion) et ouvre la
+ * signature pour le stagiaire.
  *
- * DEUX signataires :
- *   - Stagiaire  (rôle « Stagiaire »)            → signe via l'email DocuSeal.
- *   - OF/Président (rôle « Organisme/Président ») → auto-signé si DOCUSEAL_OF_SIGNATURE_URL est
- *     défini (completed:true + image de signature pré-remplie), sinon signe après le stagiaire.
+ * UN seul signataire :
+ *   - Stagiaire (rôle « Stagiaire ») -> reçoit l'email DocuSeal et signe.
+ * Le positionnement de sa signature vient des balises <signature-field role="Stagiaire">
+ * présentes dans le HTML. La signature + le cachet de l'OF sont des images gravées dans le HTML.
  *
- * Le positionnement des signatures se fait par TAGS TEXTE embarqués dans le HTML de la convention :
- *     {{Signature stagiaire;role=Stagiaire;type=signature}}
- *     {{Signature Président;role=Organisme/Président;type=signature}}
- * DocuSeal détecte ces tags dans le PDF, les remplace par des champs signables, et les retire du
- * rendu. → aucune coordonnée pixel à maintenir. Le cachet (MYSTORY_cachet.png) est une image gravée
- * dans le document, DISTINCTE du champ signature OF.
- *
- * `order: 'preserved'` → le stagiaire (1er) reçoit l'email ; l'OF (2e) ne reçoit le sien qu'après,
- * sauf s'il est déjà auto-signé.
- *
- * @param conventionPdfBase64  le PDF de Convention (lieu = Gagny) encodé base64, SANS le data: prefix
- * @param dossierId            posé en external_id → permet de retrouver le dossier au webhook
+ * @param html       HTML complet de la convention, déjà fusionné (avec les <signature-field>).
+ * @param dossierId  posé en external_id du stagiaire -> permet de retrouver le dossier au webhook.
  */
-export async function createConventionSubmission(params: {
-  conventionPdfBase64: string;
+export async function createConventionSubmissionFromHtml(params: {
+  html: string;
   stagiaire: ConventionSignataire;
   dossierId: string;
   sendEmail?: boolean;
 }): Promise<CreateSubmissionResult> {
   assertConfigured();
 
-  const { conventionPdfBase64, stagiaire, dossierId, sendEmail = true } = params;
-
-  // Signataire OF. Mode retenu : auto-signé via la signature enregistrée du Président.
-  const ofSubmitter: Record<string, unknown> = {
-    role: OF_ROLE,
-    email: OF_EMAIL,
-    name: OF_NOM,
-    external_id: `${dossierId}#of`,
-  };
-  if (OF_AUTO_SIGN) {
-    // Garde-fou : on n'envoie JAMAIS une convention si l'auto-signature OF est attendue mais
-    // non configurée (sinon dossier bloqué + email de signature manuelle inattendu à l'OF).
-    if (!OF_SIGNATURE_URL) {
-      throw new Error(
-        "DocuSeal: auto-signature OF activée mais DOCUSEAL_OF_SIGNATURE_URL manquant " +
-        "(définir l'image de signature du Président, ou DOCUSEAL_OF_AUTO_SIGN=false).",
-      );
-    }
-    ofSubmitter.completed = true; // OF marqué signé via API, aucun geste manuel
-    ofSubmitter.fields = [
-      { name: "Signature Président", default_value: OF_SIGNATURE_URL, readonly: true },
-    ];
-  }
+  const { html, stagiaire, dossierId, sendEmail = true } = params;
 
   const body = {
     name: `Convention de formation — ${stagiaire.prenom} ${stagiaire.nom}`,
     send_email: sendEmail,
-    order: "preserved", // stagiaire d'abord, OF ensuite (si non auto-signé)
-    documents: [{ name: "Convention de formation", file: conventionPdfBase64 }],
+    documents: [
+      {
+        name: "Convention de formation",
+        html,
+        size: "A4",
+      },
+    ],
     submitters: [
       {
         role: STAGIAIRE_ROLE,
         email: stagiaire.email,
         name: `${stagiaire.prenom} ${stagiaire.nom}`,
-        external_id: dossierId, // ← clé de rattachement au dossier CRM (signataire principal)
+        external_id: dossierId, // <- clé de rattachement au dossier CRM
       },
-      ofSubmitter,
     ],
   };
 
-  const res = await fetch(`${BASE_URL}/submissions/pdf`, {
+  const res = await fetch(`${BASE_URL}/submissions/html`, {
     method: "POST",
     headers: { "X-Auth-Token": API_KEY, "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -158,28 +125,47 @@ export async function createConventionSubmission(params: {
 
   if (!res.ok) {
     const detail = await safeText(res);
-    throw new Error(`DocuSeal createConventionSubmission ${res.status}: ${detail}`);
+    throw new Error(`DocuSeal createConventionSubmissionFromHtml ${res.status}: ${detail}`);
   }
 
-  // L'API renvoie la liste des submitters créés (un par signataire).
-  const created = (await res.json()) as Array<{ id: number; submission_id: number; role?: string }>;
-  const submissionId = created[0]?.submission_id;
+  const json = (await res.json()) as unknown;
+  const { submissionId, submitterIds } = extractSubmission(json);
   if (!submissionId) {
     throw new Error("DocuSeal: submission_id absent de la réponse");
   }
 
-  return {
-    submissionId,
-    submitterIds: created.map((s) => s.id),
-    raw: created,
+  return { submissionId, submitterIds, raw: json };
+}
+
+/**
+ * La réponse de création peut être un tableau de submitters (forme habituelle des
+ * endpoints /submissions*) ou un objet submission. On gère les deux défensivement.
+ */
+function extractSubmission(json: unknown): { submissionId?: number; submitterIds: number[] } {
+  if (Array.isArray(json)) {
+    const arr = json as Array<{ id?: number; submission_id?: number }>;
+    return {
+      submissionId: arr[0]?.submission_id ?? undefined,
+      submitterIds: arr.map((s) => s.id).filter((n): n is number => typeof n === "number"),
+    };
+  }
+  const obj = (json ?? {}) as {
+    id?: number;
+    submission_id?: number;
+    submitters?: Array<{ id?: number }>;
   };
+  const submissionId = obj.submission_id ?? obj.id ?? undefined;
+  const submitterIds = (obj.submitters ?? [])
+    .map((s) => s.id)
+    .filter((n): n is number => typeof n === "number");
+  return { submissionId, submitterIds };
 }
 
 // ---------------------------------------------------------------------------
-// 2. Récupération du/des PDF signé(s)
+// 2. Récupération du/des PDF (généré ou signé)
 // ---------------------------------------------------------------------------
 
-/** Télécharge un document signé depuis l'URL fournie par le webhook (URL temporaire DocuSeal). */
+/** Télécharge un document depuis l'URL fournie par DocuSeal (URL temporaire). */
 export async function downloadSignedDocument(url: string): Promise<Buffer> {
   const res = await fetch(url);
   if (!res.ok) {
@@ -188,7 +174,10 @@ export async function downloadSignedDocument(url: string): Promise<Buffer> {
   return Buffer.from(await res.arrayBuffer());
 }
 
-/** Filet de sécurité : si le webhook n'a pas porté les documents, on va les chercher par API. */
+/**
+ * Documents d'une submission. Avant signature -> PDF rendu par DocuSeal (= « généré »).
+ * Après complétion -> PDF signé. Sert de filet de sécurité si le webhook ne porte pas les URLs.
+ */
 export async function getSubmissionDocuments(
   submissionId: number,
 ): Promise<Array<{ name?: string; url: string }>> {
@@ -209,7 +198,7 @@ export async function getSubmissionDocuments(
 
 /**
  * Vérifie qu'un webhook provient bien de DocuSeal.
- * À appeler AVANT de parser/traiter. Renvoie false → on ignore (200 silencieux ou 401).
+ * À appeler AVANT de parser/traiter. Renvoie false -> on ignore (401).
  *
  * @param rawBody  le corps BRUT (octets exacts reçus), pas un JSON re-sérialisé.
  * @param headers  les en-têtes de la requête.
@@ -222,7 +211,7 @@ export function verifyWebhook(rawBody: string, headers: Headers): boolean {
     return verifyHmac(rawBody, sigHeader, hmacSecret);
   }
 
-  // (b) Fallback : secret statique en en-tête (onglet Security → Secret de DocuSeal).
+  // (b) Fallback : secret statique en en-tête (onglet Security -> Secret de DocuSeal).
   const headerName = process.env.DOCUSEAL_WEBHOOK_HEADER;
   const headerValue = process.env.DOCUSEAL_WEBHOOK_HEADER_VALUE;
   if (headerName && headerValue) {
@@ -230,7 +219,7 @@ export function verifyWebhook(rawBody: string, headers: Headers): boolean {
     return timingSafeEqualStr(received, headerValue);
   }
 
-  // Aucun secret configuré → on REFUSE (un webhook non vérifié = pièce conforme falsifiable).
+  // Aucun secret configuré -> on REFUSE (un webhook non vérifié = pièce conforme falsifiable).
   return false;
 }
 
