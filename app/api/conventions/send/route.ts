@@ -1,12 +1,16 @@
 /**
- * MYSTORY — POST /api/conventions/send  (Brique 2D + Phase 2, branché Supabase)
- * Auth obligatoire (middleware + requireUser). Gates 2B → 409 + recap si KO.
- * Génère la Convention (lieu = Gagny), archive, envoie en signature DocuSeal (OF auto-signé + stagiaire).
+ * MYSTORY — POST /api/conventions/send  (Brique 2D — variante HTML, branché Supabase)
+ * Auth obligatoire (middleware + requireUser). Gates 2B -> 409 + recap si KO.
+ * Fusionne la Convention (lieu = Gagny), l'envoie en signature DocuSeal qui REND le PDF
+ * à partir du HTML (plus de Chromium). Archive « généré » en best-effort.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { mergeTemplate } from "@/lib/mergeEngine";
-import { renderPdf } from "@/lib/renderPdf";
-import { createConventionSubmission } from "@/lib/docuseal";
+import {
+  createConventionSubmissionFromHtml,
+  getSubmissionDocuments,
+  downloadSignedDocument,
+} from "@/lib/docuseal";
 import { requireUser, UnauthorizedError } from "@/lib/auth";
 import { getFiche, archiveDocument, setPieceStatus, getConventionStatus } from "@/lib/crm";
 import { checkConformite } from "@/lib/gates";
@@ -37,7 +41,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, dossierId, status: "deja_envoye", skipped: true });
   }
 
-  // Gates de conformité 2B → 409 + recap (n8n lit le 409, ne refait pas les contrôles)
+  // Gates de conformité 2B -> 409 + recap (n8n lit le 409, ne refait pas les contrôles)
   const gate = await checkConformite(dossierId);
   if (!gate.ok) {
     return NextResponse.json({ ok: false, dossierId, status: "gate_ko", recap: gate.recap }, { status: 409 });
@@ -55,21 +59,33 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const pdf = await renderPdf(merge.html);
-  await archiveDocument({
-    dossierId, piece: "convention", variant: "genere", pdf, generatedAt: new Date().toISOString(),
-  });
-
   try {
-    const submission = await createConventionSubmission({
-      conventionPdfBase64: pdf.toString("base64"),
+    // DocuSeal rend le PDF à partir du HTML ET ouvre la signature stagiaire en un appel.
+    const submission = await createConventionSubmissionFromHtml({
+      html: merge.html,
       dossierId,
-      stagiaire: { email: fiche.email, nom: fiche.nom, prenom: fiche.prenom },
+      stagiaire: { email: fiche.email!, nom: fiche.nom, prenom: fiche.prenom },
     });
+
     await setPieceStatus({
       dossierId, piece: "convention", status: "envoye_a_signer",
       docusealSubmissionId: submission.submissionId, at: new Date().toISOString(),
     });
+
+    // Archivage « généré » (best-effort) : on récupère le PDF non signé rendu par DocuSeal.
+    // Un échec ici NE doit PAS bloquer l'envoi en signature (déjà réussi). Le « signé » fera foi.
+    try {
+      const docs = await getSubmissionDocuments(submission.submissionId);
+      if (docs[0]?.url) {
+        const pdf = await downloadSignedDocument(docs[0].url);
+        await archiveDocument({
+          dossierId, piece: "convention", variant: "genere", pdf, generatedAt: new Date().toISOString(),
+        });
+      }
+    } catch (archiveErr) {
+      console.warn(`[convention.send] archivage 'généré' ignoré pour ${dossierId}:`, String(archiveErr));
+    }
+
     return NextResponse.json({ ok: true, dossierId, submissionId: submission.submissionId, status: "envoye_a_signer" });
   } catch (e) {
     await setPieceStatus({ dossierId, piece: "convention", status: "erreur_envoi", at: new Date().toISOString() });
