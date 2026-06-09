@@ -17,7 +17,7 @@ export const maxDuration = 60;
 
 // Documents NON signés autorisés ici (la convention a sa propre route /api/conventions/send).
 // On étendra au fur et à mesure : attestation, certificat, fiche_besoin, evaluation...
-const ALLOWED = new Set<string>(["convocation"]);
+const ALLOWED = new Set<string>(["convocation", "emargement"]);
 
 export async function POST(req: NextRequest) {
   try {
