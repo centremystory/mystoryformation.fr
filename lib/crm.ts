@@ -32,7 +32,7 @@ export async function getFiche(dossierId: string): Promise<FicheStagiaire | null
         adresse, cp, ville, email, telephone, agence
       ),
       formatrice:formatrices!formatrice_id ( nom, prenom ),
-      planning ( date_seance, heures )
+      planning ( date_seance, demi_journee, heures )
     `)
     .eq("id", dossierId)
     .single();
@@ -50,7 +50,7 @@ export async function getFiche(dossierId: string): Promise<FicheStagiaire | null
     formatrice, niveauAtteint: d.niveau_atteint,
     heuresPrevues: d.heures_prevues, dateDebut: d.date_debut, dateFin: d.date_fin,
     montant: d.montant,
-    planning: (d.planning ?? []).map((p: any) => ({ date: p.date_seance, heures: Number(p.heures) })),
+    planning: (d.planning ?? []).map((p: any) => ({ date: p.date_seance, demiJournee: p.demi_journee, heures: Number(p.heures) })),
   } as unknown as FicheStagiaire;
 }
 
