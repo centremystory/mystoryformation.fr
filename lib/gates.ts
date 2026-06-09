@@ -10,15 +10,67 @@ export interface GateResult {
   recap: string[];
 }
 
-/** Jours ouvrés (lun–ven). NB : jours fériés FR non déduits ici — à brancher (gate plus strict). */
+/** Date au format YYYY-MM-DD (référentiel UTC, cohérent quel que soit le fuseau serveur). */
+function isoUTC(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+/** Dimanche de Pâques (computus grégorien, Meeus) pour une année donnée. */
+function paques(year: number): Date {
+  const a = year % 19;
+  const b = Math.floor(year / 100);
+  const c = year % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const mois = Math.floor((h + l - 7 * m + 114) / 31); // 3 = mars, 4 = avril
+  const jour = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(Date.UTC(year, mois - 1, jour));
+}
+
+const _feriesCache = new Map<number, Set<string>>();
+/** Jours fériés nationaux français (métropole hors Alsace-Moselle) d'une année, en YYYY-MM-DD. */
+function joursFeriesFR(year: number): Set<string> {
+  const cached = _feriesCache.get(year);
+  if (cached) return cached;
+  const p = paques(year);
+  const apresPaques = (days: number) => {
+    const x = new Date(p);
+    x.setUTCDate(x.getUTCDate() + days);
+    return isoUTC(x);
+  };
+  const s = new Set<string>([
+    `${year}-01-01`, // Jour de l'an
+    `${year}-05-01`, // Fête du Travail
+    `${year}-05-08`, // Victoire 1945
+    `${year}-07-14`, // Fête nationale
+    `${year}-08-15`, // Assomption
+    `${year}-11-01`, // Toussaint
+    `${year}-11-11`, // Armistice
+    `${year}-12-25`, // Noël
+    apresPaques(1),  // Lundi de Pâques
+    apresPaques(39), // Ascension
+    apresPaques(50), // Lundi de Pentecôte
+  ]);
+  _feriesCache.set(year, s);
+  return s;
+}
+
+/** Jours ouvrés (lun–ven) hors jours fériés nationaux français, entre `from` (exclu) et `to` (inclus). */
 function joursOuvres(from: Date, to: Date): number {
   let n = 0;
   const d = new Date(from);
-  d.setDate(d.getDate() + 1);
+  d.setUTCDate(d.getUTCDate() + 1);
   while (d <= to) {
-    const day = d.getDay();
-    if (day !== 0 && day !== 6) n++;
-    d.setDate(d.getDate() + 1);
+    const day = d.getUTCDay();
+    if (day !== 0 && day !== 6 && !joursFeriesFR(d.getUTCFullYear()).has(isoUTC(d))) n++;
+    d.setUTCDate(d.getUTCDate() + 1);
   }
   return n;
 }
