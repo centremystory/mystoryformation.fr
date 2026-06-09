@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 16mm 16mm 22mm 16mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; color: #1c2433; font-size: 10pt; line-height: 1.45; margin: 0; }
+  .brandbar { height: 5px; background: #2F72DE; border-radius: 3px; }
+  header { display: flex; justify-content: space-between; align-items: flex-start; margin-top: 10px; }
+  .org h1 { color: #2F72DE; font-size: 16pt; margin: 0 0 2px; letter-spacing: .5px; }
+  .org .legal { font-size: 7.4pt; color: #5b6472; line-height: 1.35; }
+  .doctype { text-align: right; }
+  .doctype .tag { display: inline-block; background: #2F72DE; color: #fff; font-size: 7.4pt; padding: 3px 8px; border-radius: 3px; letter-spacing: .5px; }
+  .doctype .ref { font-size: 7.6pt; color: #5b6472; margin-top: 6px; }
+  h2.title { text-align: center; font-size: 14pt; margin: 18px 0 4px; }
+  .to { background: #f3f7fe; border: 1px solid #d8e4fb; border-radius: 6px; padding: 8px 12px; margin: 12px 0; font-size: 9.6pt; }
+  .to .who { font-weight: 700; }
+  h3 { color: #2F72DE; font-size: 9.8pt; margin: 13px 0 4px; border-bottom: 1px solid #e3e8f0; padding-bottom: 2px; }
+  table.fields { width: 100%; border-collapse: collapse; font-size: 9.4pt; margin: 4px 0; }
+  table.fields td { padding: 3px 6px; vertical-align: top; border-bottom: 1px solid #eef1f6; }
+  table.fields td.k { color: #5b6472; width: 32%; }
+  table.fields td.v { font-weight: 600; }
+  .consigne { background: #fff8e9; border: 1px solid #f3e2b8; border-radius: 6px; padding: 7px 11px; margin: 8px 0; font-size: 8.8pt; color: #6b5a2a; }
+  table.emarg { width: 100%; border-collapse: collapse; font-size: 8.8pt; margin: 6px 0; }
+  table.emarg th { background: #2F72DE; color: #fff; font-size: 7.8pt; padding: 6px 6px; text-align: left; }
+  table.emarg td { border: 1px solid #d8e4fb; padding: 4px 6px; vertical-align: bottom; }
+  table.emarg .sig { width: 27%; }
+  table.emarg tr:nth-child(even) td { background: #f7faff; }
+  .recap { margin-top: 10px; font-size: 9.2pt; }
+  .recap b { color: #2F72DE; }
+  .attest { margin-top: 14px; display: flex; justify-content: space-between; gap: 20px; }
+  .attest .box { flex: 1; border: 1px solid #d8e4fb; border-radius: 6px; padding: 8px 10px; min-height: 80px; }
+  .attest .lbl { font-size: 8.2pt; font-weight: 700; color: #2F72DE; }
+  .attest .sub { font-size: 7.4pt; color: #5b6472; }
+  footer { position: fixed; bottom: 0; left: 0; right: 0; border-top: 1px solid #e3e8f0; padding-top: 4px; font-size: 6.6pt; color: #7a8290; text-align: center; line-height: 1.3; }
+</style>
+</head>
+<body>
+  <footer>
+    MYSTORY — SASU · RCS Paris 913 423 083 · SIRET 913 423 083 00017 · Déclaration d'activité n° 11756521775 (ne vaut pas agrément de l'État)<br>
+    Gagny : 3 bis av. de Gagny, 93220 · Sarcelles : 18 av. du 8 Mai 1945, 95200 · Rosny : 46 bis rue d'Estienne d'Orves, 93110 Rosny-sous-Bois · 06 81 43 16 54 · contact@mystoryformation.fr
+  </footer>
+ 
+  <div class="brandbar"></div>
+  <header>
+    <div class="org">
+      <h1>MYSTORY</h1>
+      <div class="legal">
+        SASU · RCS Paris 913 423 083 · SIRET 913 423 083 00017<br>
+        Déclaration d'activité n° 11756521775<br>
+        06 81 43 16 54 · contact@mystoryformation.fr
+      </div>
+    </div>
+    <div class="doctype">
+      <span class="tag">ÉMARGEMENT</span>
+      <div class="ref">N° dossier EDOF : {{numero_dossier}}<br>{{certif_intitule}} ({{certif_code}})</div>
+    </div>
+  </header>
+ 
+  <h2 class="title">Feuille d'émargement</h2>
+ 
+  <div class="to">
+    <div class="who">{{civilite}} {{prenom}} {{nom}}</div>
+    Formation : {{certif_intitule}} — {{certif_code}}
+  </div>
+ 
+  <h3>Informations</h3>
+  <table class="fields">
+    <tr><td class="k">Durée prévue</td><td class="v">{{duree_heures}} heures</td></tr>
+    <tr><td class="k">Période</td><td class="v">du {{date_debut}} au {{date_fin}}</td></tr>
+    <tr><td class="k">Lieu de formation</td><td class="v">Gagny — 3 bis av. de Gagny, 93220 Gagny</td></tr>
+    <tr><td class="k">Formateur / formatrice</td><td class="v">{{formateur}}</td></tr>
+    <tr><td class="k">Horaires</td><td class="v">Matin 9h30 – 12h30 · Après-midi 14h – 17h</td></tr>
+  </table>
+ 
+  <div class="consigne">
+    <strong>Émargement par demi-journée.</strong> Chaque présence est signée le jour même, à chaque demi-journée suivie, par le stagiaire <em>et</em> par le formateur. Aucune signature anticipée ou différée. Une demi-journée non suivie est laissée vierge.
+  </div>
+ 
+  <table class="emarg">
+    <tr><th>Date</th><th>Demi-journée</th><th class="sig">Signature du stagiaire</th><th class="sig">Signature du formateur</th></tr>
+    <!--EMARGEMENT_ROWS-->
+  </table>
+ 
+  <div class="recap">
+    Total demi-journées planifiées : <b>{{nb_seances}}</b> · Durée prévue : <b>{{duree_heures}} h</b> · Total heures réalisées (à compléter en fin de formation) : <b>__________ h</b>
+  </div>
+ 
+  <div class="attest">
+    <div class="box">
+      <div class="lbl">Le formateur</div>
+      <div class="sub">Certifie l'exactitude des présences ci-dessus.<br>Nom, date et signature :</div>
+    </div>
+    <div class="box">
+      <div class="lbl">Pour l'Organisme de formation</div>
+      <div class="sub">Arudhan NATKUNASINGAM, Président<br>Cachet et signature :</div>
+    </div>
+  </div>
+</body>
+</html>
+ 
