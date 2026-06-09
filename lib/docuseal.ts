@@ -193,6 +193,57 @@ export async function getSubmissionDocuments(
 }
 
 // ---------------------------------------------------------------------------
+// 2bis. Rendu pur HTML -> PDF (documents NON signés : convocation, attestation, ...)
+// ---------------------------------------------------------------------------
+
+/**
+ * Utilise DocuSeal comme simple moteur de rendu HTML -> PDF, SANS signature.
+ * On crée une submission à partir du HTML (qui ne contient AUCUNE balise de champ),
+ * sans envoi d'email, puis on récupère le PDF rendu. Aucun signataire à solliciter.
+ *
+ * @returns le PDF (Buffer) + l'id de submission DocuSeal (traçabilité).
+ */
+export async function renderHtmlToPdf(params: {
+  html: string;
+  name: string;
+}): Promise<{ pdf: Buffer; submissionId: number }> {
+  assertConfigured();
+  const { html, name } = params;
+
+  const body = {
+    name,
+    send_email: false, // aucun email : ce n'est pas une demande de signature
+    documents: [{ name, html, size: "A4" }],
+    submitters: [
+      { role: "Organisme", email: process.env.DOCUSEAL_OF_EMAIL ?? "contact@mystoryformation.fr" },
+    ],
+  };
+
+  const res = await fetch(`${BASE_URL}/submissions/html`, {
+    method: "POST",
+    headers: { "X-Auth-Token": API_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw new Error(`DocuSeal renderHtmlToPdf ${res.status}: ${await safeText(res)}`);
+  }
+  const { submissionId } = extractSubmission((await res.json()) as unknown);
+  if (!submissionId) throw new Error("DocuSeal renderHtmlToPdf : submission_id absent");
+
+  // Le rendu peut être très légèrement asynchrone : on retente quelques fois.
+  let docs: Array<{ name?: string; url: string }> = [];
+  for (let i = 0; i < 4; i++) {
+    docs = await getSubmissionDocuments(submissionId);
+    if (docs[0]?.url) break;
+    await new Promise((r) => setTimeout(r, 800));
+  }
+  if (!docs[0]?.url) throw new Error("DocuSeal renderHtmlToPdf : PDF rendu introuvable");
+
+  const pdf = await downloadSignedDocument(docs[0].url);
+  return { pdf, submissionId };
+}
+
+// ---------------------------------------------------------------------------
 // 3. Vérification d'authenticité du webhook
 // ---------------------------------------------------------------------------
 
