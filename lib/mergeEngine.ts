@@ -169,6 +169,8 @@ export function buildEmargementRows(planning?: FicheStagiaire["planning"]): stri
     })
     .join("");
 }
+
+export function todayParisFR(): string {
   const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" }));
   return `${now.getDate()} ${MOIS[now.getMonth()]} ${now.getFullYear()}`;
 }
