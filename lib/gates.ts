@@ -29,7 +29,7 @@ export async function checkConformite(dossierId: string): Promise<GateResult> {
   const { data: d, error } = await supabaseAdmin
     .from("dossiers")
     .select(`
-      financement, montant, reste_a_charge_accepte,
+      certif, financement, montant, reste_a_charge_accepte,
       heures_prevues, heures_edof, date_validation_commande, formatrice_id,
       formatrice:formatrices!formatrice_id ( nom, justificatif_fle ),
       planning ( date_seance, heures )
@@ -58,6 +58,21 @@ export async function checkConformite(dossierId: string): Promise<GateResult> {
   // Cohérence EDOF (si la valeur a été saisie)
   if (d.heures_edof != null && Number(d.heures_edof) !== Number(d.heures_prevues)) {
     recap.push(`Heures EDOF (${d.heures_edof} h) ≠ heures prévues (${d.heures_prevues} h).`);
+  }
+
+  // Cohérence FORMULE (source unique : table public.formules) — heures/prix officiels.
+  // Garantit l'impossibilité d'un écart prix ↔ EDOF (durée et prix verrouillés ensemble).
+  const { data: formule } = await supabaseAdmin
+    .from("formules")
+    .select("prix_eur")
+    .eq("certif", (d as any).certif)
+    .eq("heures", Number(d.heures_prevues))
+    .eq("actif", true)
+    .maybeSingle();
+  if (!formule) {
+    recap.push(`Aucune formule officielle pour ${d.heures_prevues} h (${(d as any).certif}). Formules valides : 6 h, 16 h, 26 h.`);
+  } else if (Number(formule.prix_eur) !== Number(d.montant)) {
+    recap.push(`Tarif non conforme : la formule ${d.heures_prevues} h doit être facturée ${formule.prix_eur} € (dossier : ${d.montant} €).`);
   }
 
   // FLE — formatrice référent
