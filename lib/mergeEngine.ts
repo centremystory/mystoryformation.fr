@@ -46,6 +46,7 @@ export interface FicheStagiaire {
   montant?: number;
   agence: Site;
   certif: Certif;
+  planning?: Array<{ date?: string; demiJournee?: string; heures: number }>;
 }
 
 export interface TemplateConfig {
@@ -97,6 +98,49 @@ export function formatDateFR(iso?: string): string | null {
 export function formatEuro(n?: number): string | null {
   if (n === undefined || n === null) return null;
   return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(n);
+}
+
+/** Heures lisibles : 6 -> « 6 h », 3.5 -> « 3,5 h ». */
+export function formatHeures(n?: number): string {
+  if (n === undefined || n === null || isNaN(n)) return "—";
+  const s = Number.isInteger(n) ? String(n) : n.toFixed(1).replace(".", ",");
+  return `${s} h`;
+}
+
+/** Créneaux standard MYSTORY par demi-journée. */
+const HORAIRES: Record<string, string> = {
+  matin: "9h30 – 12h30",
+  apres_midi: "14h – 17h",
+};
+
+/**
+ * Construit les lignes <tr> de l'Annexe 3 (Planning) à partir des séances du dossier.
+ * HTML BRUT (injecté via le marqueur <!--PLANNING_ROWS-->), donc PAS passé dans escapeHtml :
+ * les valeurs sont contrôlées (dates formatées, énum demi-journée, nombres) — aucun texte libre.
+ * Le total des heures = Σ séances = durée contractuelle (source unique).
+ */
+export function buildPlanningRows(planning?: FicheStagiaire["planning"]): string {
+  if (!planning || planning.length === 0) {
+    return `<tr><td colspan="5" style="text-align:center;color:#7a8290;padding:10px">Planning des séances en cours de finalisation.</td></tr>`;
+  }
+  const sorted = [...planning].sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""));
+  const box = (on: boolean) => (on ? "☑" : "☐");
+  return sorted
+    .map((s) => {
+      const matin = s.demiJournee === "matin";
+      const aprem = s.demiJournee === "apres_midi";
+      const horaire = HORAIRES[s.demiJournee ?? ""] ?? "—";
+      return (
+        `<tr>` +
+        `<td>${formatDateFR(s.date) ?? "—"}</td>` +
+        `<td style="text-align:center">${box(matin)}</td>` +
+        `<td style="text-align:center">${box(aprem)}</td>` +
+        `<td>${horaire}</td>` +
+        `<td style="text-align:center">${formatHeures(s.heures)}</td>` +
+        `</tr>`
+      );
+    })
+    .join("");
 }
 
 export function todayParisFR(): string {
@@ -169,6 +213,9 @@ export function merge(template: string, fiche: FicheStagiaire, cfg: TemplateConf
     .replace(/__SITE_ADRESSE__/g, site.adresse)
     .replace(/__SITE_ACCES__/g, site.acces);
 
+  // Annexe 3 — Planning : injection HTML brute (avant l'échappement des {{...}}).
+  html = html.split("<!--PLANNING_ROWS-->").join(buildPlanningRows(fiche.planning));
+
   // Sections conditionnelles {{#if balise}}...{{/if}}
   html = html.replace(/\{\{#if\s+([a-z_]+)\s*\}\}([\s\S]*?)\{\{\/if\}\}/g, (_m, key, body) => {
     const v = values[key];
@@ -207,7 +254,7 @@ export const TEMPLATES: Record<string, TemplateConfig> = {
   convention: {
     id: "convention",
     durationSource: "prevues",
-    required: ["civilite", "nom", "prenom", "adresse_complete", "numero_dossier", "duree_heures", "date_debut", "date_fin", "montant", "formateur"],
+    required: ["civilite", "nom", "prenom", "adresse_complete", "numero_dossier", "duree_heures", "date_debut", "date_fin", "montant"],
   },
 };
 
