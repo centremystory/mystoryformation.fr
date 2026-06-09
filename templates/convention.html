@@ -3,104 +3,274 @@
 <head>
 <meta charset="utf-8">
 <style>
-  @page { size: A4; margin: 16mm 16mm 22mm 16mm; }
+  @page { size: A4; margin: 14mm 14mm 20mm 14mm; }
   * { box-sizing: border-box; }
-  body { font-family: "Helvetica Neue", Arial, sans-serif; color: #1c2433; font-size: 10.5pt; line-height: 1.45; margin: 0; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; color: #1c2433; font-size: 9.8pt; line-height: 1.42; margin: 0; }
   .brandbar { height: 5px; background: #2F72DE; border-radius: 3px; }
   header { display: flex; justify-content: space-between; align-items: flex-start; margin-top: 10px; }
-  .org h1 { color: #2F72DE; font-size: 17pt; margin: 0 0 2px; letter-spacing: .5px; }
-  .org .legal { font-size: 7.6pt; color: #5b6472; line-height: 1.35; }
+  .org h1 { color: #2F72DE; font-size: 16pt; margin: 0 0 2px; letter-spacing: .5px; }
+  .org .legal { font-size: 7.2pt; color: #5b6472; line-height: 1.35; }
   .doctype { text-align: right; }
-  .doctype .tag { display: inline-block; background: #2F72DE; color: #fff; font-size: 7.5pt; padding: 3px 8px; border-radius: 3px; letter-spacing: .5px; }
-  .doctype .ref { font-size: 7.6pt; color: #5b6472; margin-top: 6px; }
-  h2.title { text-align: center; font-size: 13pt; margin: 18px 0 4px; }
-  h2.title small { display: block; font-size: 8pt; color: #5b6472; font-weight: normal; margin-top: 2px; }
-  .parties { background: #f3f7fe; border: 1px solid #d8e4fb; border-radius: 6px; padding: 10px 14px; margin: 12px 0; font-size: 9.6pt; }
-  .parties p { margin: 4px 0; }
-  h3 { color: #2F72DE; font-size: 10pt; margin: 14px 0 4px; border-bottom: 1px solid #e3e8f0; padding-bottom: 2px; }
-  table.fields { width: 100%; border-collapse: collapse; font-size: 9.6pt; margin: 4px 0; }
-  table.fields td { padding: 3px 6px; vertical-align: top; }
-  table.fields td.k { color: #5b6472; width: 38%; }
+  .doctype .tag { display: inline-block; background: #2F72DE; color: #fff; font-size: 7.2pt; padding: 3px 8px; border-radius: 3px; letter-spacing: .5px; }
+  .doctype .ref { font-size: 7.4pt; color: #5b6472; margin-top: 6px; }
+  h2.title { text-align: center; font-size: 13pt; margin: 16px 0 2px; }
+  h2.title small { display: block; font-size: 7.8pt; color: #5b6472; font-weight: normal; font-style: italic; margin-top: 3px; }
+  table.parties { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 9.2pt; }
+  table.parties td { border: 1px solid #d8e4fb; padding: 7px 10px; vertical-align: top; }
+  table.parties td.lbl { background: #f3f7fe; color: #2F72DE; font-weight: 700; width: 22%; }
+  .intro { font-size: 9.2pt; margin: 8px 0; }
+  h3 { color: #2F72DE; font-size: 9.8pt; margin: 13px 0 4px; border-bottom: 1px solid #e3e8f0; padding-bottom: 2px; }
+  table.fields { width: 100%; border-collapse: collapse; font-size: 9.2pt; margin: 4px 0; }
+  table.fields td { padding: 3px 6px; vertical-align: top; border-bottom: 1px solid #eef1f6; }
+  table.fields td.k { color: #5b6472; width: 30%; }
   table.fields td.v { font-weight: 600; }
-  .clause { font-size: 9.4pt; margin: 6px 0; }
-  .sign { display: flex; gap: 18px; margin-top: 18px; }
+  p.clause { margin: 5px 0; text-align: justify; }
+  p.clause .h { font-weight: 700; }
+  .madeat { margin-top: 14px; font-size: 9.6pt; font-weight: 600; }
+  .sign { display: flex; gap: 16px; margin-top: 12px; }
   .sign .box { flex: 1; border: 1px solid #c9d3e4; border-radius: 6px; padding: 8px 10px; min-height: 130px; position: relative; }
-  .sign .who { font-size: 9pt; font-weight: 700; color: #2F72DE; }
-  .sign .sub { font-size: 7.8pt; color: #5b6472; margin-bottom: 6px; }
-  .sign .presign { font-size: 7.6pt; color: #5b6472; margin-top: 6px; }
-  .sign .sig-img { max-height: 54px; margin-top: 6px; }
-  .sign .daterow { font-size: 8pt; color: #5b6472; margin-top: 8px; }
-  .cachet { position: absolute; right: 8px; bottom: 8px; width: 78px; height: 78px; border: 2px solid #2F72DE; border-radius: 50%; color: #2F72DE; font-size: 6.2pt; line-height: 1.25; text-align: center; display: flex; align-items: center; justify-content: center; transform: rotate(-9deg); opacity: .9; padding: 4px; }
-  .cachet-img { position: absolute; right: 6px; bottom: 6px; width: 82px; height: auto; opacity: .95; }
-  .madeat { margin-top: 14px; font-size: 9.6pt; }
-  footer { position: fixed; bottom: 0; left: 0; right: 0; border-top: 1px solid #e3e8f0; padding-top: 4px; font-size: 6.9pt; color: #7a8290; text-align: center; }
+  .sign .who { font-size: 8.6pt; font-weight: 700; color: #2F72DE; }
+  .sign .sub { font-size: 7.6pt; color: #5b6472; margin-bottom: 4px; }
+  .sign .presign { font-size: 7.4pt; color: #5b6472; margin-top: 6px; }
+  .sign .sig-img { max-height: 50px; margin-top: 6px; display: block; }
+  .sign .mention { font-size: 7.8pt; color: #1c2433; margin-top: 6px; }
+  .sign .daterow { font-size: 7.8pt; color: #5b6472; margin-top: 8px; }
+  .cachet { position: absolute; right: 8px; bottom: 8px; width: 74px; height: 74px; border: 2px solid #2F72DE; border-radius: 50%; color: #2F72DE; font-size: 6pt; line-height: 1.25; text-align: center; display: flex; align-items: center; justify-content: center; transform: rotate(-9deg); opacity: .9; padding: 4px; }
+  .cachet-img { position: absolute; right: 6px; bottom: 6px; width: 80px; height: auto; opacity: .95; }
+  .annexe { page-break-before: always; }
+  .annexe-tag { display: inline-block; background: #eaf1fd; color: #2F72DE; font-size: 7.6pt; font-weight: 700; padding: 3px 9px; border-radius: 3px; letter-spacing: .4px; }
+  .annexe h2 { font-size: 12.5pt; margin: 8px 0 2px; color: #1c2433; }
+  .annexe .subt { font-size: 8pt; color: #5b6472; font-style: italic; margin-bottom: 6px; }
+  h4 { color: #2F72DE; font-size: 9.2pt; margin: 10px 0 3px; }
+  ul { margin: 4px 0 4px 0; padding-left: 18px; }
+  li { margin: 2px 0; text-align: justify; }
+  table.plan { width: 100%; border-collapse: collapse; font-size: 8.8pt; margin: 6px 0; }
+  table.plan th { background: #2F72DE; color: #fff; font-size: 7.8pt; padding: 5px 6px; text-align: left; }
+  table.plan td { border: 1px solid #d8e4fb; padding: 4px 6px; }
+  table.plan tr:nth-child(even) td { background: #f7faff; }
+  .plan-total { margin-top: 6px; font-size: 9.2pt; font-weight: 700; color: #2F72DE; }
+  .accept-note { font-size: 7.8pt; color: #5b6472; font-style: italic; margin-top: 8px; border-left: 3px solid #d8e4fb; padding-left: 8px; }
+  footer { position: fixed; bottom: 0; left: 0; right: 0; border-top: 1px solid #e3e8f0; padding-top: 4px; font-size: 6.4pt; color: #7a8290; text-align: center; line-height: 1.3; }
 </style>
 </head>
 <body>
+  <footer>
+    MYSTORY — SASU · RCS Paris 913 423 083 · SIRET 913 423 083 00017 · Déclaration d'activité n° 11756521775 (ne vaut pas agrément de l'État)<br>
+    Gagny : 3 bis av. de Gagny, 93220 · Sarcelles : 18 av. du 8 Mai 1945, 95200 · Rosny : 46 bis rue d'Estienne d'Orves, 93110 Rosny-sous-Bois · 06 81 43 16 54 · contact@mystoryformation.fr
+  </footer>
+
+  <!-- ================= CONTRAT ================= -->
   <div class="brandbar"></div>
   <header>
     <div class="org">
       <h1>MYSTORY</h1>
       <div class="legal">
-        SASU au capital social — RCS Paris 913 423 083 · SIRET 913 423 083 00017<br>
-        Déclaration d'activité enregistrée sous le n° 11756521775 (ne vaut pas agrément de l'État)<br>
-        contact@mystoryformation.fr · 06 81 43 16 54 · mystoryformation.fr
+        SASU · RCS Paris 913 423 083 · SIRET 913 423 083 00017<br>
+        Déclaration d'activité n° 11756521775 · 14 rue Bichat, 75010 Paris<br>
+        06 81 43 16 54 · contact@mystoryformation.fr
       </div>
     </div>
     <div class="doctype">
-      <span class="tag">CONVENTION</span>
-      <div class="ref">N° dossier : {{numero_dossier}}<br>Certification : {{certif_intitule}} ({{certif_code}})</div>
+      <span class="tag">CONTRAT DE FORMATION</span>
+      <div class="ref">N° dossier EDOF : {{numero_dossier}}<br>{{certif_intitule}} ({{certif_code}})</div>
     </div>
   </header>
 
-  <h2 class="title">Convention de formation professionnelle
-    <small>(articles L.6353-1 et suivants du Code du travail)</small>
+  <h2 class="title">Contrat de formation professionnelle
+    <small>Articles L.6353-1 et D.6353-1 du Code du travail · Action financée par le compte personnel de formation (CPF)</small>
   </h2>
 
-  <div class="parties">
-    <p><strong>Entre l'organisme de formation :</strong> MYSTORY, représenté par M. Arudhan NATKUNASINGAM, Président,</p>
-    <p><strong>Et le ou la stagiaire :</strong> {{civilite}} {{prenom}} {{nom}}, né(e) le {{date_naissance}} à {{lieu_naissance}}, demeurant {{adresse_complete}}.</p>
-  </div>
-
-  <h3>Article 1 — Objet et nature de la formation</h3>
-  <p class="clause">La présente convention a pour objet la préparation à la certification <strong>{{certif_intitule}}</strong> (code RNCP/RS {{certif_code}}), action de formation au sens de l'article L.6313-1 du Code du travail.</p>
-
-  <h3>Article 2 — Lieu, durée et dates</h3>
-  <table class="fields">
-    <tr><td class="k">Lieu de formation</td><td class="v">{{site_adresse}}</td></tr>
-    <tr><td class="k">Accès</td><td class="v">{{site_acces}}</td></tr>
-    <tr><td class="k">Durée totale</td><td class="v">{{duree_heures}} heures</td></tr>
-    <tr><td class="k">Période</td><td class="v">du {{date_debut}} au {{date_fin}}</td></tr>
-    <tr><td class="k">Formateur / formatrice</td><td class="v">{{formateur}}</td></tr>
+  <table class="parties">
+    <tr>
+      <td class="lbl">Organisme</td>
+      <td><strong>MYSTORY</strong> — SASU, 14 rue Bichat, 75010 Paris · SIRET 913 423 083 00017 · NDA 11756521775. Représentée par Arudhan NATKUNASINGAM, Président.</td>
+    </tr>
+    <tr>
+      <td class="lbl">Bénéficiaire</td>
+      <td><strong>{{civilite}} {{prenom}} {{nom}}</strong> · né(e) le {{date_naissance}} à {{lieu_naissance}} · {{adresse_complete}} · {{email}} · {{telephone}}</td>
+    </tr>
   </table>
 
-  <h3>Article 3 — Dispositions financières</h3>
-  <p class="clause">Coût total de l'action : <strong>{{montant}}</strong>, dans la limite du plafond CPF applicable, le reliquat éventuel restant à la charge du stagiaire et accepté avant l'entrée en formation.</p>
+  <p class="intro">Il est conclu, entre les parties ci-dessus, le présent contrat de formation professionnelle régi par les articles L.6353-1 et suivants du Code du travail.</p>
 
-  <h3>Article 4 — Documents contractuels remis</h3>
-  <p class="clause">La signature de la présente convention vaut acceptation du <strong>programme (Annexe 1)</strong>, du <strong>règlement intérieur (Annexe 2)</strong> et du <strong>planning (Annexe 3)</strong>, remis au stagiaire et faisant partie intégrante de la convention.</p>
+  <h3>Article 1 — Objet et nature de l'action</h3>
+  <table class="fields">
+    <tr><td class="k">Intitulé</td><td class="v">Préparer son test d'évaluation de français — TEF IRN</td></tr>
+    <tr><td class="k">Certification</td><td class="v">{{certif_intitule}} — Répertoire spécifique {{certif_code}} (CCI Paris Île-de-France)</td></tr>
+    <tr><td class="k">Nature</td><td class="v">Action de formation (art. L.6313-1, 1° du Code du travail)</td></tr>
+    <tr><td class="k">N° de dossier EDOF</td><td class="v">{{numero_dossier}}</td></tr>
+    <tr><td class="k">Durée · Période</td><td class="v">{{duree_heures}} heures · du {{date_debut}} au {{date_fin}}</td></tr>
+    <tr><td class="k">Modalité · Lieu</td><td class="v">100 % présentiel (taux de distanciel : 0 %) · Gagny — 3 bis av. de Gagny, 93220 Gagny</td></tr>
+    <tr><td class="k">Programme</td><td class="v">Détaillé en Annexe 1 (objectifs, contenu, moyens, évaluation)</td></tr>
+  </table>
 
-  <p class="madeat">Fait à <strong>{{lieu_signature}}</strong>, le {{date_signature}}, en deux exemplaires.</p>
+  <h3>Article 2 — Prix et financement</h3>
+  <p class="clause"><span class="h">Prix total : {{montant}}</span> net de taxes — exonéré de TVA (art. 261-4-4° a du CGI). Action financée par le CPF du Bénéficiaire via la Caisse des Dépôts (CDC), qui règle l'Organisme après validation du service fait (art. L.6323-12 du Code du travail).</p>
+  <p class="clause">Le Bénéficiaire s'acquitte, lors de la souscription sur Mon Compte Formation, de la participation forfaitaire obligatoire dont le montant en vigueur à la date de souscription lui est communiqué (150 € en 2026, montant révisable par voie réglementaire). En sont dispensés notamment les demandeurs d'emploi et les bénéficiaires d'un abondement (employeur, France Travail). Hors cette participation, aucun coût direct n'est supporté, sauf reste à charge complémentaire expressément accepté au préalable.</p>
+  <p class="clause"><span class="h">Plafond CPF.</span> Conformément à l'article D.6323-1 A du Code du travail (décret n° 2026-127 du 24 février 2026), la prise en charge par le CPF des actions sanctionnées par une certification enregistrée au Répertoire spécifique est plafonnée à 1 500 €. Si le prix de la formation excède ce plafond, la différence constitue un reste à charge complémentaire, financé par le Bénéficiaire ou par un cofinancement (employeur, OPCO, France Travail) expressément accepté avant l'entrée en formation.</p>
+
+  <h3>Article 3 — Déroulement, suivi et évaluation</h3>
+  <ul>
+    <li>Présence attestée par feuilles d'émargement signées par le stagiaire et le formateur, par demi-journée.</li>
+    <li>Positionnement initial sur les 4 compétences du CECRL (CO, CE, EO, EE), puis évaluation finale mesurant l'atteinte des objectifs.</li>
+    <li>Questionnaire de satisfaction à l'issue de la formation.</li>
+    <li>Remise d'une attestation de fin de formation (objectifs, nature, durée, résultats de l'évaluation des acquis — art. L.6353-1).</li>
+  </ul>
+
+  <h3>Article 4 — Sanction de la formation</h3>
+  <p class="clause">À l'issue de l'action, l'Organisme délivre l'attestation de fin de formation et procède à l'inscription au TEF IRN auprès de la CCI. Le TEF IRN évalue le niveau de français de A1 à B2 (CECRL) ; l'attestation de résultats est remise au candidat par la CCI. Les exigences administratives liées au titre de séjour ou à la naturalisation relèvent de l'autorité préfectorale et sont susceptibles d'évolution ; l'Organisme informe le Bénéficiaire des exigences en vigueur à la date de son inscription.</p>
+
+  <h3>Article 5 — Rétractation, abandon, force majeure</h3>
+  <p class="clause"><span class="h">Rétractation.</span> La formation est souscrite sur Mon Compte Formation : le Bénéficiaire peut annuler sa demande sans frais, directement via la plateforme, avant le démarrage, dans les conditions et délais prévus par les CGU EDOF. Un délai d'accès minimum de 11 jours ouvrés est respecté entre la validation de la commande et l'entrée en formation.</p>
+  <p class="clause"><span class="h">Abandon.</span> En cas d'abandon, seules les heures effectivement suivies sont dues ; la CDC est facturée au prorata du taux de réalisation (art. L.6323-12).</p>
+  <p class="clause"><span class="h">Force majeure.</span> En cas de force majeure dûment justifiée (art. 1218 du Code civil ; cf. art. L.6354-1 du Code du travail), le Bénéficiaire est libéré de toute obligation au-delà des prestations effectivement réalisées, sans pénalité.</p>
+
+  <h3>Article 6 — Accessibilité, réclamations, données personnelles</h3>
+  <p class="clause"><span class="h">Référent handicap.</span> Arudhan NATKUNASINGAM — contact@mystoryformation.fr — 06 81 43 16 54. Toute adaptation est étudiée ; locaux accessibles PMR.</p>
+  <p class="clause"><span class="h">Réclamations.</span> Toute réclamation est adressée par écrit à contact@mystoryformation.fr (accusé de réception sous 48 h, réponse sous 15 jours ouvrés). À défaut de solution, le Bénéficiaire, en sa qualité de consommateur, peut saisir gratuitement le médiateur de la consommation dont relève MYSTORY : CM2C — 49 rue de Ponthieu, 75008 Paris — www.cm2c.net (litiges@cm2c.net).</p>
+  <p class="clause"><span class="h">Données personnelles (RGPD).</span> Responsable de traitement : MYSTORY (SASU), 14 rue Bichat 75010 Paris. Référent RGPD : Arudhan NATKUNASINGAM — contact@mystoryformation.fr. Les données collectées (identité, coordonnées, n° CPF, pièces justificatives) sont traitées pour l'exécution du présent contrat, le suivi qualité et le respect des obligations légales liées au financement CPF (bases légales : exécution du contrat et obligation légale). Destinataires : MYSTORY, la Caisse des Dépôts et consignations, le certificateur (CCI Paris Île-de-France) et, le cas échéant, les financeurs. Durée de conservation : 5 ans à compter de la fin de la relation contractuelle. Le Bénéficiaire dispose des droits d'accès, de rectification, d'effacement, de limitation, de portabilité et d'opposition, exerçables auprès de contact@mystoryformation.fr, ainsi que du droit d'introduire une réclamation auprès de la CNIL (www.cnil.fr).</p>
+
+  <h3>Article 7 — Médiation et litiges</h3>
+  <p class="clause">En cas de différend, les parties recherchent en priorité une solution amiable. À défaut de résolution dans les 30 jours suivant la première réclamation écrite, et après recours éventuel au médiateur de la consommation (cf. article 6), le litige peut être porté devant la juridiction compétente selon les règles de droit commun ; le Bénéficiaire, en sa qualité de consommateur, peut notamment saisir à son choix la juridiction de son lieu de domicile.</p>
+
+  <h3>Documents remis et acceptés</h3>
+  <p class="clause">Le Bénéficiaire reconnaît avoir reçu, préalablement à son entrée en formation, le <strong>programme (Annexe 1)</strong>, le <strong>règlement intérieur (Annexe 2)</strong> et le <strong>planning des sessions (Annexe 3)</strong>, et en avoir pris connaissance. Sa signature de la présente convention vaut acceptation de ces documents.</p>
+
+  <p class="madeat">Fait à {{lieu_signature}}, le {{date_signature}}, en deux exemplaires.</p>
 
   <div class="sign">
     <div class="box">
-      <div class="who">Pour l'organisme de formation</div>
-      <div class="sub">M. Arudhan NATKUNASINGAM — Président</div>
+      <div class="who">Pour l'Organisme de formation</div>
+      <div class="sub">Arudhan NATKUNASINGAM, Président</div>
       {{#if of_signature_img}}<img class="sig-img" src="{{of_signature_img}}" alt="Signature du Président">{{/if}}
-      <div class="presign">Convention pré-signée par l'organisme · Fait à Gagny le {{date_signature}}</div>
+      <div class="presign">Convention pré-signée par l'organisme.</div>
       {{#if cachet_img}}<img class="cachet-img" src="{{cachet_img}}" alt="Cachet MYSTORY">{{/if}}
       {{#if cachet_absent}}<div class="cachet">MYSTORY<br>Gagny<br>NDA 11756521775</div>{{/if}}
     </div>
     <div class="box">
-      <div class="who">Le ou la stagiaire</div>
+      <div class="who">Le Bénéficiaire</div>
       <div class="sub">{{civilite}} {{prenom}} {{nom}}</div>
-      <signature-field name="Signature stagiaire" role="Stagiaire" required="true" style="width: 210px; height: 60px; display: block; margin-top: 6px;"></signature-field>
-      <div class="daterow">Le <date-field name="Date stagiaire" role="Stagiaire" format="DD/MM/YYYY" required="true" style="width: 110px; height: 20px; display: inline-block;"></date-field></div>
+      <div class="mention">Mention « Lu et approuvé » :
+        <text-field name="Mention lu et approuve" role="Stagiaire" required="true" style="width: 150px; height: 18px; display: inline-block;"></text-field>
+      </div>
+      <signature-field name="Signature stagiaire" role="Stagiaire" required="true" style="width: 200px; height: 52px; display: block; margin-top: 6px;"></signature-field>
+      <div class="daterow">Le <date-field name="Date stagiaire" role="Stagiaire" format="DD/MM/YYYY" required="true" style="width: 100px; height: 18px; display: inline-block;"></date-field></div>
     </div>
   </div>
 
-  <footer>
-    MYSTORY — Sites : Gagny (3 bis av. de Gagny, 93220) · Sarcelles (18 av. du 8 Mai 1945, 95200) · Rosny-sous-Bois (46 bis rue d'Estienne d'Orves, 93110) — contact@mystoryformation.fr
-  </footer>
+  <!-- ================= ANNEXE 1 — PROGRAMME ================= -->
+  <div class="annexe">
+    <span class="annexe-tag">ANNEXE 1 — PROGRAMME DE FORMATION</span>
+    <h2>Préparer son test d'évaluation de français (TEF IRN)</h2>
+    <div class="subt">Intégration, résidence et nationalité</div>
+
+    <table class="fields">
+      <tr><td class="k">Certification</td><td class="v">TEF IRN — {{certif_code}} (valable jusqu'au 01/10/2027) · certificateur : Direction de l'activité internationale (CCI Paris IDF)</td></tr>
+      <tr><td class="k">Objectif général · Niveau de sortie</td><td class="v">Certification · A1 à B2 (CECRL)</td></tr>
+      <tr><td class="k">Durée · Modalité · Lieu</td><td class="v">{{duree_heures}} heures · 100 % présentiel · Gagny — 3 bis av. de Gagny, 93220 Gagny</td></tr>
+      <tr><td class="k">Public</td><td class="v">Personne étrangère/non francophone en situation régulière, visant A1 à B2 (séjour, résidence, naturalisation)</td></tr>
+      <tr><td class="k">Prérequis</td><td class="v">Niveau d'entrée justifié (test de positionnement ou justificatif) ; ne pas être en situation d'analphabétisme</td></tr>
+      <tr><td class="k">Délai d'accès</td><td class="v">Min. 11 jours ouvrés entre la validation EDOF et le démarrage</td></tr>
+      <tr><td class="k">Type de parcours</td><td class="v">Modularisé, selon les modules nécessaires</td></tr>
+    </table>
+
+    <h4>Objectif pédagogique</h4>
+    <p class="clause">Le TEF IRN mesure le niveau de compétences en français (expression et compréhension orales et écrites, interaction) en contexte professionnel et quotidien, du niveau A1 au B2 du CECRL. Il s'adresse à toute personne étrangère/non francophone en situation régulière souhaitant certifier son niveau pour une naturalisation (B2) ou une carte de résident de longue durée (A2) ; il répond aux besoins d'intégration professionnelle (accès à la formation, à l'emploi, mobilité) et sociale.</p>
+    <p class="clause">À l'issue de la formation, le participant sera capable de :</p>
+    <ul>
+      <li>Comprendre des messages oraux simples liés à la vie quotidienne et professionnelle.</li>
+      <li>Lire et comprendre des textes courts (documents d'information, correspondances simples).</li>
+      <li>S'exprimer oralement de manière simple et cohérente (présenter, demander, répondre, échanger).</li>
+      <li>Rédiger un texte court et structuré (formulaire, lettre, message) selon les consignes du TEF IRN.</li>
+      <li>Se familiariser avec le format et les consignes du TEF IRN (entraînements, simulations).</li>
+      <li>Acquérir des stratégies de réussite (gestion du temps, compréhension des consignes, organisation des réponses).</li>
+    </ul>
+
+    <h4>Contenu</h4>
+    <p class="clause"><span class="h">Module I — Compréhension écrite.</span> Lire et comprendre des documents de la vie quotidienne et administrative ; repérer les informations clés (dates, lieux, montants, consignes) ; comprendre la structure et l'intention d'un message écrit ; gérer le temps imparti et la stratégie de réponse au QCM ; enrichir le vocabulaire thématique (logement, santé, travail, démarches).</p>
+    <p class="clause"><span class="h">Module II — Compréhension orale.</span> Comprendre messages, annonces et dialogues de la vie courante à débit normal ; identifier l'essentiel (qui, quoi, où, quand) ; reconnaître accents, registres et situations ; s'entraîner à l'écoute unique dans les conditions de l'examen ; décoder consignes et informations pratiques.</p>
+    <p class="clause"><span class="h">Module III — Expression écrite.</span> Rédiger des textes courts et structurés (message, courrier simple, formulaire) ; utiliser un vocabulaire et une grammaire adaptés ; organiser ses idées clairement ; respecter consignes et format TEF IRN ; s'entraîner à la production écrite chronométrée.</p>
+    <p class="clause"><span class="h">Module IV — Expression orale.</span> S'exprimer de façon claire et cohérente ; participer à un entretien et interagir ; argumenter simplement et exprimer son opinion ; mobiliser le vocabulaire des situations courantes ; s'entraîner à l'entretien individuel dans les conditions de l'examen.</p>
+    <p class="clause"><span class="h">Module V — Préparation et simulation de l'examen.</span> Épreuves blanches en conditions réelles ; feedback individualisé sur les 4 compétences ; stratégies de gestion du temps et du stress ; derniers conseils avant le passage.</p>
+
+    <h4>Points forts · Résultats attendus</h4>
+    <p class="clause">Formateurs expérimentés (plus de trois ans), connaissant les exigences des tests officiels et les stratégies de réussite. Le TEF IRN comporte 4 épreuves obligatoires et indissociables (CE, CO, EE, EO), évaluant de A1 à B2 (scores : A1 = 100-199 · A2 = 200-299 · B1 = 300-399 · B2 = 400-499). Chaque candidat reçoit une attestation de résultats précisant le niveau global atteint.</p>
+
+    <h4>Équipe, ressources, accessibilité</h4>
+    <p class="clause">Formateurs FLE qualifiés (CV/diplômes disponibles). Salle équipée, supports papier et numériques, manuels TEF IRN, outils de simulation. Locaux accessibles PMR — référent handicap : Arudhan NATKUNASINGAM (contact@mystoryformation.fr · 06 81 43 16 54). Indicateurs de résultats (réussite, satisfaction, recommandation) publiés sur le site.</p>
+  </div>
+
+  <!-- ================= ANNEXE 2 — RÈGLEMENT INTÉRIEUR ================= -->
+  <div class="annexe">
+    <span class="annexe-tag">ANNEXE 2 — RÈGLEMENT INTÉRIEUR DU STAGIAIRE</span>
+    <h2>Règlement intérieur</h2>
+    <div class="subt">Articles L.6352-3, L.6352-4 et R.6352-1 à R.6352-15 du Code du travail</div>
+
+    <p class="clause"><span class="h">Article 1 — Objet et champ d'application.</span> Le présent règlement détermine les principales mesures applicables en matière de santé, de sécurité et de discipline aux stagiaires de MYSTORY. Tout stagiaire en respecte les termes pendant toute la durée de l'action. Lorsque la formation se déroule dans une entreprise dotée de son propre règlement, les mesures de santé et de sécurité applicables sont celles de cette entreprise.</p>
+    <p class="clause"><span class="h">Article 2 — Hygiène et sécurité.</span> Chaque stagiaire respecte les consignes d'hygiène et de sécurité, sous peine de sanctions. Propreté des locaux (interdiction d'y manger). Introduction et consommation de stupéfiants ou d'alcool strictement interdites ; interdiction de se présenter en état d'ivresse ou sous l'emprise de stupéfiants. Consignes incendie et issues de secours affichées ; évacuation sans délai. Tout accident est immédiatement déclaré (art. R.6342-3). Interdiction de fumer et de vapoter dans les locaux.</p>
+    <p class="clause"><span class="h">Article 3 — Horaires, absences et retards.</span> Les horaires communiqués doivent être respectés. Sauf autorisation, le stagiaire ne s'absente pas et émarge par demi-journée. Toute absence ou retard est signalé et justifié sous 48 h ; l'employeur est informé le cas échéant. Pour les formations financées, les absences non justifiées entraînent une retenue proportionnelle sur la prise en charge.</p>
+    <p class="clause"><span class="h">Article 4 — Comportement.</span> Comportement respectueux des règles de savoir-vivre et de la vie en collectivité. Interdiction de modifier/diffuser les supports sans autorisation, de modifier les réglages des ordinateurs, d'utiliser son téléphone à des fins étrangères. Conformément aux art. L.1152-1 et L.1153-1, aucun harcèlement moral ou sexuel ni agissement sexiste n'est toléré ; tout fait est signalé au référent.</p>
+    <p class="clause"><span class="h">Article 5 — Accès aux locaux.</span> Accès exclusivement pour suivre la formation ; pas d'accompagnant non inscrit sauf autorisation.</p>
+    <p class="clause"><span class="h">Article 6 — Utilisation du matériel.</span> Le stagiaire conserve en bon état le matériel et la documentation ; usage personnel interdit ; ne diffuse pas ses codes d'accès. Restitution en fin de stage (hors supports distribués). Documentation protégée par le droit d'auteur, usage strictement personnel. Sauf dérogation, interdiction d'enregistrer ou de filmer les sessions.</p>
+    <p class="clause"><span class="h">Article 7 — Vidéosurveillance.</span> Pour la sécurité des personnes et des biens, les sessions font l'objet d'un enregistrement vidéo (finalité sécurité, intérêt légitime). Images conservées un mois maximum, accessibles aux seules personnes habilitées. Droits d'accès, d'effacement et d'opposition auprès de contact@mystoryformation.fr ; saisine possible de la CNIL. En signant, le stagiaire reconnaît être informé de ce dispositif.</p>
+    <p class="clause"><span class="h">Article 8 — Vol ou dégradation.</span> L'organisme décline toute responsabilité en cas de perte, vol ou détérioration des objets personnels déposés dans les locaux.</p>
+    <p class="clause"><span class="h">Article 9 — Sanctions.</span> Tout agissement fautif peut donner lieu, selon sa gravité : rappel à l'ordre, avertissement écrit, blâme, exclusion temporaire ou définitive. Aucune sanction pécuniaire. L'employeur/l'administration et/ou le financeur sont informés le cas échéant.</p>
+    <p class="clause"><span class="h">Article 10 — Procédure disciplinaire.</span> Aucune sanction sans information préalable des griefs (art. R.6352-4). Convocation par LRAR ou remise contre décharge précisant objet, date, heure et lieu de l'entretien (sauf sanction sans incidence). Le stagiaire peut se faire assister. Sanction motivée, notifiée par écrit entre un jour franc et quinze jours après l'entretien. Une mesure conservatoire d'exclusion temporaire peut être prise dans le respect des droits de la défense.</p>
+    <p class="clause"><span class="h">Article 11 — Représentation des stagiaires.</span> Pour les stages de plus de 500 heures, élection de délégués (art. R.6352-9 et s.). Les formations MYSTORY étant d'une durée inférieure à 500 heures, l'élection n'est pas requise ; le stagiaire adresse ses réclamations au référent.</p>
+    <p class="clause"><span class="h">Article 12 — Référent handicap et réclamations.</span> Référent : Arudhan NATKUNASINGAM — contact@mystoryformation.fr — 06 81 43 16 54. Locaux accessibles PMR. Réclamations par écrit à la même adresse (accusé sous 48 h, réponse sous 15 jours ouvrés).</p>
+    <p class="clause"><span class="h">Article 13 — Publicité.</span> Le règlement est affiché dans les locaux et sur le site ; un exemplaire est remis à chaque stagiaire.</p>
+
+    <div class="sign">
+      <div class="box">
+        <div class="who">Pour l'organisme</div>
+        <div class="sub">Arudhan NATKUNASINGAM, Président — Fait à Gagny, le {{date_signature}}</div>
+        {{#if of_signature_img}}<img class="sig-img" src="{{of_signature_img}}" alt="Signature du Président">{{/if}}
+        {{#if cachet_img}}<img class="cachet-img" src="{{cachet_img}}" alt="Cachet MYSTORY">{{/if}}
+        {{#if cachet_absent}}<div class="cachet">MYSTORY<br>Gagny<br>NDA 11756521775</div>{{/if}}
+      </div>
+      <div class="box">
+        <div class="who">Attestation de prise de connaissance</div>
+        <div class="sub">{{civilite}} {{prenom}} {{nom}}</div>
+        <p class="accept-note">Le stagiaire atteste avoir reçu un exemplaire du présent règlement intérieur et en avoir pris connaissance. Cette attestation est acceptée par la signature de la convention (voir contrat, « Documents remis et acceptés »).</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ANNEXE 3 — PLANNING ================= -->
+  <div class="annexe">
+    <span class="annexe-tag">ANNEXE 3 — PLANNING DES SESSIONS</span>
+    <h2>Planning des sessions</h2>
+    <div class="subt">Calendrier détaillé pour {{civilite}} {{prenom}} {{nom}}</div>
+
+    <table class="fields">
+      <tr><td class="k">Formation</td><td class="v">TEF IRN ({{certif_code}})</td></tr>
+      <tr><td class="k">Durée totale</td><td class="v">{{duree_heures}} heures</td></tr>
+      <tr><td class="k">Lieu</td><td class="v">Gagny — 3 bis av. de Gagny, 93220 Gagny</td></tr>
+    </table>
+
+    <table class="plan">
+      <tr>
+        <th>Date</th><th>Matin</th><th>Après-midi</th><th>Horaire (début – fin)</th><th>Durée</th>
+      </tr>
+      <!--PLANNING_ROWS-->
+    </table>
+    <div class="plan-total">Total des heures planifiées : {{duree_heures}} heures</div>
+    <p class="accept-note">Cochez la demi-journée concernée (Matin 9h30–12h30 / Après-midi 14h–17h). Les horaires précis de chaque créneau sont repris sur les feuilles d'émargement signées par demi-journée.</p>
+
+    <div class="sign">
+      <div class="box">
+        <div class="who">Pour MYSTORY</div>
+        <div class="sub">Arudhan NATKUNASINGAM, Président — Fait à Gagny, le {{date_signature}}</div>
+        {{#if of_signature_img}}<img class="sig-img" src="{{of_signature_img}}" alt="Signature du Président">{{/if}}
+        {{#if cachet_img}}<img class="cachet-img" src="{{cachet_img}}" alt="Cachet MYSTORY">{{/if}}
+        {{#if cachet_absent}}<div class="cachet">MYSTORY<br>Gagny<br>NDA 11756521775</div>{{/if}}
+      </div>
+      <div class="box">
+        <div class="who">Le Bénéficiaire</div>
+        <div class="sub">{{civilite}} {{prenom}} {{nom}}</div>
+        <p class="accept-note">Le Bénéficiaire accepte le présent planning par la signature de la convention (voir contrat, « Documents remis et acceptés »).</p>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
