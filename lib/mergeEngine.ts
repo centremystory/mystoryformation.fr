@@ -143,7 +143,32 @@ export function buildPlanningRows(planning?: FicheStagiaire["planning"]): string
     .join("");
 }
 
-export function todayParisFR(): string {
+/**
+ * Lignes <tr> de la feuille d'émargement (une par demi-journée planifiée).
+ * Colonnes : Date · Demi-journée (créneau + horaire) · Signature stagiaire (vide) · Signature formateur (vide).
+ * Signées à la main sur place, le jour même. HTML brut (valeurs contrôlées).
+ */
+export function buildEmargementRows(planning?: FicheStagiaire["planning"]): string {
+  if (!planning || planning.length === 0) {
+    return `<tr><td colspan="4" style="text-align:center;color:#7a8290;padding:10px">Planning des séances en cours de finalisation.</td></tr>`;
+  }
+  const sorted = [...planning].sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""));
+  const LABEL: Record<string, string> = { matin: "Matin", apres_midi: "Après-midi" };
+  return sorted
+    .map((s) => {
+      const creneau = LABEL[s.demiJournee ?? ""] ?? "—";
+      const horaire = HORAIRES[s.demiJournee ?? ""] ?? "—";
+      return (
+        `<tr style="height:54px">` +
+        `<td>${formatDateFR(s.date) ?? "—"}</td>` +
+        `<td>${creneau} <span style="color:#7a8290">(${horaire})</span></td>` +
+        `<td class="sig"></td>` +
+        `<td class="sig"></td>` +
+        `</tr>`
+      );
+    })
+    .join("");
+}
   const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" }));
   return `${now.getDate()} ${MOIS[now.getMonth()]} ${now.getFullYear()}`;
 }
@@ -179,6 +204,7 @@ function resolveBalises(fiche: FicheStagiaire, cfg: TemplateConfig): Record<stri
     formateur:        fiche.formatrice ?? null,
     niveau_cecrl:     fiche.niveauAtteint ?? null,
     duree_heures:     heures !== undefined && heures !== null ? String(heures) : null,
+    nb_seances:       fiche.planning && fiche.planning.length > 0 ? String(fiche.planning.length) : null,
     date_debut:       formatDateFR(fiche.dateDebut),
     date_fin:         computeDateFin(fiche),
     montant:          formatEuro(fiche.montant),
@@ -215,6 +241,9 @@ export function merge(template: string, fiche: FicheStagiaire, cfg: TemplateConf
 
   // Annexe 3 — Planning : injection HTML brute (avant l'échappement des {{...}}).
   html = html.split("<!--PLANNING_ROWS-->").join(buildPlanningRows(fiche.planning));
+
+  // Feuille d'émargement : lignes par demi-journée (signatures vides).
+  html = html.split("<!--EMARGEMENT_ROWS-->").join(buildEmargementRows(fiche.planning));
 
   // Sections conditionnelles {{#if balise}}...{{/if}}
   html = html.replace(/\{\{#if\s+([a-z_]+)\s*\}\}([\s\S]*?)\{\{\/if\}\}/g, (_m, key, body) => {
@@ -255,6 +284,11 @@ export const TEMPLATES: Record<string, TemplateConfig> = {
     id: "convention",
     durationSource: "prevues",
     required: ["civilite", "nom", "prenom", "adresse_complete", "numero_dossier", "duree_heures", "date_debut", "date_fin", "montant"],
+  },
+  emargement: {
+    id: "emargement",
+    durationSource: "prevues",
+    required: ["civilite", "nom", "prenom", "formateur", "date_debut", "date_fin", "duree_heures"],
   },
 };
 
