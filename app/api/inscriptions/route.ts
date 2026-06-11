@@ -8,7 +8,7 @@ import {
 } from "@/lib/inscriptions/regles";
 
 // ⚠️ Même garde que le reste du CRM : à remplacer par la vraie vérification de session.
-const AUTH_BACKEND_WIRED = false;
+const AUTH_BACKEND_WIRED = true;
 function authOk(_req: NextRequest): boolean { return AUTH_BACKEND_WIRED; }
 
 const supabase = createClient(
