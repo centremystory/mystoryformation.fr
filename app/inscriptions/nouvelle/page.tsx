@@ -21,6 +21,7 @@ export default function NouvelleInscription() {
     numeroEdof: "", dateCommandeValidee: "",
     formule: "16H" as CodeFormule, niveauVise: "B1" as const,
     agenceInscription: "GAGNY" as const, resteAChargeAccepte: false,
+    declencherContractualisation: true,
   });
   const [seances, setSeances] = useState<SeanceInput[]>([]);
   const [gen, setGen] = useState({ premiere: "", creneau: "MATIN" as "MATIN" | "APRES_MIDI", jours: [2, 6] });
@@ -62,7 +63,9 @@ export default function NouvelleInscription() {
     <main className="max-w-2xl mx-auto p-8 text-center space-y-4">
       <div className="text-5xl">✅</div>
       <h1 className="text-2xl font-bold">Inscription enregistrée</h1>
-      <p>Dossier créé avec planning conforme ({f.libelle}). La contractualisation peut être déclenchée depuis la fiche dossier.</p>
+      <p>{form.declencherContractualisation
+        ? "Dossier créé et conforme — la convention part automatiquement en signature DocuSeal (le stagiaire la reçoit par email dans quelques minutes)."
+        : "Dossier créé et conforme. La convention partira quand tu déclencheras la contractualisation depuis la fiche dossier."}</p>
       <a href="/inscriptions/nouvelle" className="inline-block px-4 py-2 rounded text-white" style={{ background: BLEU }}
          onClick={() => location.reload()}>Nouvelle inscription</a>
     </main>
@@ -184,6 +187,13 @@ export default function NouvelleInscription() {
           {erreursApi.map((e, i) => <p key={i}>{e}</p>)}
         </section>
       )}
+
+      <label className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm cursor-pointer">
+        <input type="checkbox" checked={form.declencherContractualisation}
+          onChange={e => set("declencherContractualisation", e.target.checked)} />
+        <span>🚀 <b>Envoyer la convention en signature dès l'enregistrement</b> — la validation EDOF étant faite,
+        la convention + annexes partent automatiquement au stagiaire via DocuSeal. Décocher pour différer.</span>
+      </label>
 
       <button disabled={!conforme || envoi === "loading"} onClick={enregistrer}
         className="w-full py-3 rounded-lg text-white font-bold disabled:opacity-40 disabled:cursor-not-allowed"
