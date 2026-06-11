@@ -114,6 +114,24 @@ const HORAIRES: Record<string, string> = {
 };
 
 /**
+ * Horaire RÉEL d'une séance selon sa demi-journée ET sa durée.
+ * Les séances finales (1h oral 16h / 2h bilan 26h) ont lieu pendant un créneau
+ * normal mais sur ses DERNIÈRES heures — l'horaire imprimé doit être exact
+ * (jamais « 9h30 – 12h30 » pour une séance d'1h : durées identiques partout).
+ */
+function horaireSeance(demiJournee?: string, heures?: number): string {
+  const dj = demiJournee ?? "";
+  if (heures === 1) return dj === "matin" ? "11h30 – 12h30" : dj === "apres_midi" ? "16h – 17h" : "—";
+  if (heures === 2) return dj === "matin" ? "10h30 – 12h30" : dj === "apres_midi" ? "15h – 17h" : "—";
+  return HORAIRES[dj] ?? "—";
+}
+
+/** Une séance < 3h est une séance finale (oral/simulation ou bilan). */
+function estSeanceFinale(heures?: number): boolean {
+  return heures !== undefined && heures !== null && heures < 3;
+}
+
+/**
  * Construit les lignes <tr> de l'Annexe 3 (Planning) à partir des séances du dossier.
  * HTML BRUT (injecté via le marqueur <!--PLANNING_ROWS-->), donc PAS passé dans escapeHtml :
  * les valeurs sont contrôlées (dates formatées, énum demi-journée, nombres) — aucun texte libre.
@@ -129,10 +147,12 @@ export function buildPlanningRows(planning?: FicheStagiaire["planning"]): string
     .map((s) => {
       const matin = s.demiJournee === "matin";
       const aprem = s.demiJournee === "apres_midi";
-      const horaire = HORAIRES[s.demiJournee ?? ""] ?? "—";
+      const horaire = horaireSeance(s.demiJournee, s.heures);
+      const finale = estSeanceFinale(s.heures)
+        ? ` <span style="color:#7a8290;font-size:11px">(séance finale)</span>` : "";
       return (
         `<tr>` +
-        `<td>${formatDateFR(s.date) ?? "—"}</td>` +
+        `<td>${formatDateFR(s.date) ?? "—"}${finale}</td>` +
         `<td style="text-align:center">${box(matin)}</td>` +
         `<td style="text-align:center">${box(aprem)}</td>` +
         `<td>${horaire}</td>` +
@@ -156,8 +176,9 @@ export function buildEmargementRows(planning?: FicheStagiaire["planning"]): stri
   const LABEL: Record<string, string> = { matin: "Matin", apres_midi: "Après-midi" };
   return sorted
     .map((s) => {
-      const creneau = LABEL[s.demiJournee ?? ""] ?? "—";
-      const horaire = HORAIRES[s.demiJournee ?? ""] ?? "—";
+      const finale = estSeanceFinale(s.heures);
+      const creneau = (LABEL[s.demiJournee ?? ""] ?? "—") + (finale ? " — Séance finale" : "");
+      const horaire = horaireSeance(s.demiJournee, s.heures);
       return (
         `<tr style="height:54px">` +
         `<td>${formatDateFR(s.date) ?? "—"}</td>` +
