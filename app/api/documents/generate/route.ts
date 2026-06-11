@@ -10,7 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { mergeTemplate, TEMPLATES } from "@/lib/mergeEngine";
 import { renderHtmlToPdf } from "@/lib/docuseal";
 import { requireUser, UnauthorizedError } from "@/lib/auth";
-import { getFiche, archiveDocument, setPieceStatus } from "@/lib/crm";
+import { getFiche, archiveDocument, setPieceStatus, getSignedUrl } from "@/lib/crm";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -59,9 +59,23 @@ export async function POST(req: NextRequest) {
     await archiveDocument({ dossierId, piece: type, variant: "genere", pdf, generatedAt: new Date().toISOString() });
     await setPieceStatus({ dossierId, piece: type, status: "genere", at: new Date().toISOString() });
 
-    return NextResponse.json({ ok: true, dossierId, type, submissionId, status: "genere" });
+    // URL signée (1 h) + infos stagiaire : permet à n8n de joindre le PDF
+    // et de personnaliser l'email sans requête supplémentaire.
+    const pdfUrl = await getSignedUrl(`${dossierId}/${type}_genere.pdf`, 3600);
+    const f = fiche as unknown as {
+      civilite?: string; nom: string; prenom: string; email: string;
+      certif?: string; dateDebut?: string;
+    };
+    return NextResponse.json({
+      ok: true, dossierId, type, submissionId, status: "genere",
+      pdfUrl,
+      stagiaire: { civilite: f.civilite ?? "", nom: f.nom, prenom: f.prenom, email: f.email },
+      certif: f.certif ?? "",
+      dateDebut: f.dateDebut ?? "",
+    });
   } catch (e) {
     await setPieceStatus({ dossierId, piece: type, status: "erreur_envoi", at: new Date().toISOString() });
     return NextResponse.json({ ok: false, dossierId, type, status: "erreur", error: String(e) }, { status: 502 });
   }
 }
+
