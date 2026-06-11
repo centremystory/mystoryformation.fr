@@ -83,7 +83,7 @@ export const TEL_FR_RE = /^(?:\+33|0033|0)[1-9](?:[\s.\-]?\d{2}){4}$/;
 export interface InscriptionInput {
   nom: string; prenom: string; email: string; telephone: string;
   certification: "TEF_IRN" | "LEVELTEL";
-  financement: "CPF" | "FONDS_PROPRES" | "OPCO" | "FRANCE_TRAVAIL";
+  financement: "CPF" | "OPCO" | "PoleEmploi" | "Perso"; // valeurs exactes du CHECK Supabase
   numeroEdof?: string | null;
   formule: CodeFormule;
   agenceInscription: "GAGNY" | "SARCELLES";
@@ -91,7 +91,19 @@ export interface InscriptionInput {
   dateCommandeValidee?: string | null; // ISO — validation commande EDOF (CPF)
 }
 
-export interface SeanceInput { date: string; creneau: Creneau; }
+export interface SeanceInput {
+  date: string;
+  creneau: Creneau;
+  /** Obligatoire pour les séances finales : sur quel créneau normal elle a lieu */
+  demiJournee?: "MATIN" | "APRES_MIDI";
+}
+
+/** Horaires réels des séances finales (option 1 : dernières heures du créneau).
+ *  Utilisé par l'émargement et l'Annexe 3 — jamais d'horaire 3h pour une séance d'1h. */
+export const HORAIRES_FINALES = {
+  FINALE_1H: { MATIN: { debut: "11:30", fin: "12:30" }, APRES_MIDI: { debut: "16:00", fin: "17:00" } },
+  FINALE_2H: { MATIN: { debut: "10:30", fin: "12:30" }, APRES_MIDI: { debut: "15:00", fin: "17:00" } },
+} as const;
 
 export interface Verdict { ok: boolean; erreurs: string[]; avertissements: string[]; }
 
@@ -130,6 +142,7 @@ export function validerPlanning(formule: CodeFormule, seances: SeanceInput[], da
     else {
       const maxDate = seances.reduce((m, s) => (s.date > m ? s.date : m), "");
       if (finales[0].date !== maxDate) erreurs.push("La séance finale doit être la dernière séance du planning.");
+      if (!finales[0].demiJournee) erreurs.push("Préciser si la séance finale a lieu sur le créneau du matin ou de l'après-midi.");
     }
   }
 
@@ -161,7 +174,7 @@ export function proposerPlanning(formule: CodeFormule, premiereSeance: string, c
   }
   if (f.seanceFinaleHeures > 0) {
     while (!joursSemaine.includes(d.getUTCDay())) d = addJours(d, 1);
-    out.push({ date: iso(d), creneau: f.seanceFinaleHeures === 1 ? "FINALE_1H" : "FINALE_2H" });
+    out.push({ date: iso(d), creneau: f.seanceFinaleHeures === 1 ? "FINALE_1H" : "FINALE_2H", demiJournee: creneau });
   }
   return out;
 }
