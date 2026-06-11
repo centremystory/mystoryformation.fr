@@ -26,6 +26,19 @@ function dbDemiJournee(s: { creneau: Creneau; demiJournee?: "MATIN" | "APRES_MID
   return s.demiJournee === "APRES_MIDI" ? "apres_midi" : "matin";
 }
 
+/** Liste des formatrices éligibles pour le formulaire (actives + justificatif FLE). */
+export async function GET(req: NextRequest) {
+  if (!authOk(req)) return NextResponse.json({ erreur: "Non autorisé" }, { status: 401 });
+  const { data, error } = await supabase
+    .from("formatrices")
+    .select("id, nom, prenom")
+    .eq("actif", true)
+    .eq("justificatif_fle", true)
+    .order("nom");
+  if (error) return NextResponse.json({ formatrices: [] }, { status: 200 });
+  return NextResponse.json({ formatrices: data ?? [] });
+}
+
 export async function POST(req: NextRequest) {
   if (!authOk(req)) return NextResponse.json({ erreur: "Non autorisé" }, { status: 401 });
 
@@ -45,6 +58,8 @@ export async function POST(req: NextRequest) {
     inscription.financement === "CPF" ? inscription.dateCommandeValidee : null
   );
   const erreurs = [...v1.erreurs, ...v2.erreurs];
+  if (!inscription.formatriceId)
+    erreurs.push("Formatrice référente obligatoire (justificatif FLE requis au dossier).");
   if (erreurs.length > 0)
     return NextResponse.json({ ok: false, erreurs }, { status: 422 });
 
@@ -88,6 +103,7 @@ export async function POST(req: NextRequest) {
       niveau_vise: inscription.niveauVise,
       heures_prevues: f.dureeHeures,
       date_validation_commande: inscription.dateCommandeValidee ?? null,
+      formatrice_id: inscription.formatriceId,
       statut: "incomplet",
     },
     p_seances: seances.map((s: any) => ({
