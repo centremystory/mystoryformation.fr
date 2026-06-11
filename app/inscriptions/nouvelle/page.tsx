@@ -1,7 +1,7 @@
 "use client";
 // app/inscriptions/nouvelle/page.tsx — Nouvelle inscription formation
 // Le bouton Enregistrer reste grisé tant que le dossier n'est pas 100 % conforme.
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CATALOGUE, CRENEAUX, CodeFormule, Creneau, SeanceInput,
   validerInscription, validerPlanning, proposerPlanning,
@@ -21,8 +21,13 @@ export default function NouvelleInscription() {
     numeroEdof: "", dateCommandeValidee: "",
     formule: "16H" as CodeFormule, niveauVise: "B1" as const,
     agenceInscription: "GAGNY" as const, resteAChargeAccepte: false,
-    declencherContractualisation: true,
+    declencherContractualisation: true, formatriceId: "",
   });
+  const [formatrices, setFormatrices] = useState<{ id: string; nom: string; prenom: string | null }[]>([]);
+  useEffect(() => {
+    fetch("/api/inscriptions").then(r => r.json())
+      .then(d => setFormatrices(d.formatrices ?? [])).catch(() => {});
+  }, []);
   const [seances, setSeances] = useState<SeanceInput[]>([]);
   const [gen, setGen] = useState({ premiere: "", creneau: "MATIN" as "MATIN" | "APRES_MIDI", jours: [2, 6] });
   const [envoi, setEnvoi] = useState<"idle" | "loading" | "ok" | "erreur">("idle");
@@ -35,7 +40,7 @@ export default function NouvelleInscription() {
   const vIns = useMemo(() => validerInscription({ ...form, numeroEdof: form.numeroEdof || null, dateCommandeValidee: form.dateCommandeValidee || null }), [form]);
   const vPlan = useMemo(() => validerPlanning(form.formule, seances, cpf ? form.dateCommandeValidee || null : null), [form.formule, seances, form.dateCommandeValidee, cpf]);
   const totalH = seances.reduce((s, x) => s + CRENEAUX[x.creneau].heures, 0);
-  const conforme = vIns.ok && vPlan.ok;
+  const conforme = vIns.ok && vPlan.ok && !!form.formatriceId;
 
   const genererPlan = () => {
     if (!gen.premiere || gen.jours.length === 0) return;
@@ -108,6 +113,13 @@ export default function NouvelleInscription() {
         <div><label className={label}>Agence d'inscription (interne)</label>
           <select className={champ} value={form.agenceInscription} onChange={e => set("agenceInscription", e.target.value)}>
             <option value="GAGNY">Gagny</option><option value="SARCELLES">Sarcelles</option></select></div>
+        <div><label className={label}>Formatrice référente *</label>
+          <select className={champ} value={form.formatriceId} onChange={e => set("formatriceId", e.target.value)}>
+            <option value="">— choisir —</option>
+            {formatrices.map(fm => <option key={fm.id} value={fm.id}>{fm.prenom ? `${fm.prenom} ${fm.nom}` : fm.nom}</option>)}
+          </select>
+          {formatrices.length === 0 && <p className="text-xs text-red-600 mt-1">Aucune formatrice active avec justificatif FLE — à compléter dans la table formatrices.</p>}
+        </div>
         <div><label className={label}>Financement *</label>
           <select className={champ} value={form.financement} onChange={e => set("financement", e.target.value)}>
             <option value="CPF">CPF</option><option value="Perso">Fonds propres (Perso)</option>
@@ -174,11 +186,13 @@ export default function NouvelleInscription() {
       </section>
 
       {/* Verdict */}
-      {(!vIns.ok || !vPlan.ok) && (
+      {(!vIns.ok || !vPlan.ok || !form.formatriceId) && (
         <section className="bg-red-50 border border-red-200 rounded-lg p-4">
           <h3 className="font-bold text-red-700 mb-1">⛔ Dossier non conforme — enregistrement bloqué</h3>
           <ul className="list-disc ml-5 text-sm text-red-700">
-            {[...vIns.erreurs, ...vPlan.erreurs].map((e, i) => <li key={i}>{e}</li>)}
+            {[...vIns.erreurs, ...vPlan.erreurs,
+              ...(!form.formatriceId ? ["Formatrice référente obligatoire (justificatif FLE requis)."] : [])
+             ].map((e, i) => <li key={i}>{e}</li>)}
           </ul>
         </section>
       )}
