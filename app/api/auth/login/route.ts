@@ -1,34 +1,18 @@
 import { NextResponse } from "next/server";
+import { SignJWT } from "jose";
 
 /**
- * MYSTORY — Connexion équipe.
- * POST { motDePasse } → si correct, pose le cookie de session signé (30 jours).
- * Variables d'environnement requises (Vercel) : ACCESS_PASSWORD, AUTH_SECRET.
+ * MYSTORY — Connexion équipe (v2, harmonisée avec lib/auth.ts).
+ * POST { motDePasse } → si correct, pose un cookie de session contenant un JWT
+ * signé avec AUTH_SECRET, valable 30 jours. Ce JWT est reconnu par
+ * `verifySession` / `requireUser` (lib/auth.ts) : middleware ET routes parlent
+ * désormais la même langue.
+ *
+ * Env requises (Vercel) : ACCESS_PASSWORD, AUTH_SECRET.
  */
 
-const COOKIE_NAME = "mystory_session";
+const COOKIE_NAME = process.env.AUTH_COOKIE ?? "mystory_session";
 const TRENTE_JOURS = 60 * 60 * 24 * 30;
-
-/** Même calcul que dans middleware.ts — ne pas modifier l'un sans l'autre. */
-async function jetonAttendu(): Promise<string> {
-  const secret = process.env.AUTH_SECRET ?? "";
-  const enc = new TextEncoder();
-  const cle = await crypto.subtle.importKey(
-    "raw",
-    enc.encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-  const signature = await crypto.subtle.sign(
-    "HMAC",
-    cle,
-    enc.encode("mystory-acces-equipe-v1")
-  );
-  return Array.from(new Uint8Array(signature))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
 
 export async function POST(req: Request) {
   if (!process.env.ACCESS_PASSWORD || !process.env.AUTH_SECRET) {
@@ -45,8 +29,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ erreur: "Mot de passe incorrect" }, { status: 401 });
   }
 
+  const jwt = await new SignJWT({ role: "staff" })
+    .setProtectedHeader({ alg: "HS256" })
+    .setSubject("equipe-mystory")
+    .setIssuedAt()
+    .setExpirationTime("30d")
+    .sign(new TextEncoder().encode(process.env.AUTH_SECRET));
+
   const res = NextResponse.json({ ok: true });
-  res.cookies.set(COOKIE_NAME, await jetonAttendu(), {
+  res.cookies.set(COOKIE_NAME, jwt, {
     httpOnly: true,
     secure: true,
     sameSite: "lax",
