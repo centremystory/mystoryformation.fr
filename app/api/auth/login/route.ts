@@ -1,24 +1,15 @@
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
 
 /**
- * MYSTORY — Garde d'accès global.
- * Tout le site (pages + API) exige le cookie de session d'équipe,
- * SAUF les chemins listés ci-dessous, qui ont leur propre sécurité
- * ou qui sont publics par nature.
+ * MYSTORY — Connexion équipe.
+ * POST { motDePasse } → si correct, pose le cookie de session signé (30 jours).
+ * Variables d'environnement requises (Vercel) : ACCESS_PASSWORD, AUTH_SECRET.
  */
-const CHEMINS_PUBLICS = [
-  "/connexion",            // page de connexion
-  "/api/auth/login",       // vérification du mot de passe
-  "/api/webhooks/docuseal", // DocuSeal : vérifie sa signature HMAC lui-même
-  "/api/conventions/send", // n8n : vérifie son Bearer token lui-même
-  "/positionnement",       // test de positionnement public (stagiaires)
-  "/api/positionnement",
-];
 
 const COOKIE_NAME = "mystory_session";
+const TRENTE_JOURS = 60 * 60 * 24 * 30;
 
-/** Jeton attendu = HMAC-SHA256(AUTH_SECRET, message fixe), en hexadécimal. */
+/** Même calcul que dans middleware.ts — ne pas modifier l'un sans l'autre. */
 async function jetonAttendu(): Promise<string> {
   const secret = process.env.AUTH_SECRET ?? "";
   const enc = new TextEncoder();
@@ -39,35 +30,28 @@ async function jetonAttendu(): Promise<string> {
     .join("");
 }
 
-export async function middleware(req: NextRequest) {
-  const { pathname } = req.nextUrl;
-
-  // 1) Chemins publics → on laisse passer
-  if (
-    CHEMINS_PUBLICS.some((p) => pathname === p || pathname.startsWith(p + "/"))
-  ) {
-    return NextResponse.next();
+export async function POST(req: Request) {
+  if (!process.env.ACCESS_PASSWORD || !process.env.AUTH_SECRET) {
+    return NextResponse.json(
+      { erreur: "Configuration serveur incomplète (ACCESS_PASSWORD / AUTH_SECRET)" },
+      { status: 500 }
+    );
   }
 
-  // 2) Cookie de session valide → on laisse passer
-  const cookie = req.cookies.get(COOKIE_NAME)?.value;
-  if (cookie && cookie === (await jetonAttendu())) {
-    return NextResponse.next();
+  const corps = await req.json().catch(() => ({} as { motDePasse?: string }));
+  const motDePasse = typeof corps?.motDePasse === "string" ? corps.motDePasse : "";
+
+  if (motDePasse !== process.env.ACCESS_PASSWORD) {
+    return NextResponse.json({ erreur: "Mot de passe incorrect" }, { status: 401 });
   }
 
-  // 3) Sinon : API → 401, page → redirection vers /connexion
-  if (pathname.startsWith("/api/")) {
-    return NextResponse.json({ erreur: "Non autorisé" }, { status: 401 });
-  }
-  const url = req.nextUrl.clone();
-  url.pathname = "/connexion";
-  url.search = "";
-  return NextResponse.redirect(url);
+  const res = NextResponse.json({ ok: true });
+  res.cookies.set(COOKIE_NAME, await jetonAttendu(), {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: TRENTE_JOURS,
+  });
+  return res;
 }
-
-export const config = {
-  // Tout, sauf les fichiers statiques de Next.js et les images/assets
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|gif|webp|ico|css|js|woff2?)).*)",
-  ],
-};
