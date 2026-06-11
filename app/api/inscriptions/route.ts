@@ -8,7 +8,7 @@ import {
 } from "@/lib/inscriptions/regles";
 
 // ⚠️ Même garde que le reste du CRM : à remplacer par la vraie vérification de session.
-const AUTH_BACKEND_WIRED = true;
+const AUTH_BACKEND_WIRED = false;
 function authOk(_req: NextRequest): boolean { return AUTH_BACKEND_WIRED; }
 
 const supabase = createClient(
@@ -65,6 +65,10 @@ export async function POST(req: NextRequest) {
     }, { status: 409 });
 
   // 3) Création atomique via RPC
+  // Déclenchement auto de la contractualisation (webhook Supabase → n8n → DocuSeal).
+  // Le formulaire l'active par défaut ; l'équipe peut décocher pour différer.
+  const declencher = inscription.declencherContractualisation === true;
+
   const { data, error } = await supabase.rpc("creer_inscription_formation", {
     p_stagiaire: {
       civilite: stagiaire.civilite ?? null,
@@ -91,6 +95,7 @@ export async function POST(req: NextRequest) {
       demi_journee: dbDemiJournee(s),
       heures: CRENEAUX[s.creneau as Creneau].heures,
     })),
+    p_declencher: declencher,
   });
 
   if (error) {
