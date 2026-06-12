@@ -1,13 +1,22 @@
 /**
  * MYSTORY — POST /api/documents/generate  (documents NON signés)
- * Génère un document (convocation, puis attestation, certificat...) à partir de son gabarit,
- * le fait rendre en PDF par DocuSeal (rendu pur, sans signature), l'archive et met à jour la pièce.
+ * Génère un document à partir de son gabarit, le fait rendre en PDF par DocuSeal
+ * (rendu pur, sans signature), l'archive et met à jour la pièce du dossier.
  *
- * Body : { dossierId: string, type: string }   ex. type = "convocation"
- * Auth obligatoire (middleware + requireUser). Lieu = Gagny forcé par le moteur de fusion.
+ * Body : { dossierId: string, type: string }
+ * Types pris en charge : convocation, emargement, programme, reglement_interieur,
+ * planning, attestation_fin, certificat_realisation.
+ * (La convention a sa propre route /api/conventions/send — circuit signature.)
+ *
+ * Verrous de conformité :
+ *  - Lieu = Gagny forcé par le moteur de fusion (jamais fiche.agence).
+ *  - attestation_fin / certificat_realisation : INTERDITS tant que la formation
+ *    n'est pas terminée (anti-antidate — jamais de document de fin avant la fin),
+ *    et durée = heures RÉALISÉES (cohérence service fait).
+ *  - programme : gabarit LEVELTEL non fourni → génération bloquée pour LEVELTEL.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { mergeTemplate, TEMPLATES } from "@/lib/mergeEngine";
+import { mergeTemplate, TEMPLATES, FicheStagiaire } from "@/lib/mergeEngine";
 import { renderHtmlToPdf } from "@/lib/docuseal";
 import { requireUser, UnauthorizedError } from "@/lib/auth";
 import { getFiche, archiveDocument, setPieceStatus, getSignedUrl } from "@/lib/crm";
@@ -15,9 +24,32 @@ import { getFiche, archiveDocument, setPieceStatus, getSignedUrl } from "@/lib/c
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-// Documents NON signés autorisés ici (la convention a sa propre route /api/conventions/send).
-// On étendra au fur et à mesure : attestation, certificat, fiche_besoin, evaluation...
-const ALLOWED = new Set<string>(["convocation", "emargement"]);
+// Type moteur (gabarit) → type de pièce dans la table `pieces`.
+// NB : corrige le bug emargement/feuille_emargement (la pièce ne passait pas en « généré »).
+const PIECE_TYPE: Record<string, string> = {
+  convocation: "convocation",
+  emargement: "feuille_emargement",
+  programme: "programme",
+  reglement_interieur: "reglement_interieur",
+  planning: "planning",
+  attestation_fin: "attestation_fin",
+  certificat_realisation: "certificat_realisation",
+};
+
+// Documents de FIN de formation : générables uniquement quand la formation est terminée.
+const DOCS_FIN = new Set(["attestation_fin", "certificat_realisation"]);
+
+/** Date du jour (Europe/Paris) au format YYYY-MM-DD. */
+function aujourdHuiParisISO(): string {
+  return new Intl.DateTimeFormat("fr-CA", { timeZone: "Europe/Paris" }).format(new Date());
+}
+
+/** Dernière date de séance (ou date_fin du dossier) au format YYYY-MM-DD, sinon null. */
+function dateFinISO(fiche: FicheStagiaire): string | null {
+  const dates = (fiche.planning ?? []).map((s) => s.date).filter(Boolean) as string[];
+  if (dates.length > 0) return [...dates].sort().slice(-1)[0];
+  return fiche.dateFin ?? null;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -34,12 +66,39 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "JSON invalide" }, { status: 400 });
   }
   if (!dossierId || !type) return NextResponse.json({ error: "dossierId et type requis" }, { status: 400 });
-  if (!ALLOWED.has(type) || !TEMPLATES[type]) {
+  if (!PIECE_TYPE[type] || !TEMPLATES[type]) {
     return NextResponse.json({ error: `Type de document non pris en charge : ${type}` }, { status: 400 });
   }
+  const pieceType = PIECE_TYPE[type];
 
   const fiche = await getFiche(dossierId);
   if (!fiche) return NextResponse.json({ error: "Dossier introuvable" }, { status: 404 });
+
+  // Gabarit programme : contenu juridique propre à chaque certification.
+  // Le contenu LEVELTEL n'a pas encore été fourni → on bloque plutôt que d'inventer.
+  if (type === "programme" && fiche.certif === "LEVELTEL") {
+    return NextResponse.json(
+      { ok: false, dossierId, type, status: "gate_ko",
+        recap: ["Programme LEVELTEL : gabarit non fourni — envoie le modèle v3 LEVELTEL pour activer la génération (jamais de contenu inventé sur un document juridique)."] },
+      { status: 409 },
+    );
+  }
+
+  // Anti-antidate : pas d'attestation ni de certificat avant la fin réelle de la formation.
+  if (DOCS_FIN.has(type)) {
+    const fin = dateFinISO(fiche);
+    const recap: string[] = [];
+    if (!fin) recap.push("Date de fin introuvable (aucune séance au planning).");
+    else if (fin > aujourdHuiParisISO()) {
+      recap.push(`La formation se termine le ${fin} : impossible de générer un document de fin avant cette date (anti-antidate).`);
+    }
+    if (fiche.heuresRealisees === undefined || fiche.heuresRealisees === null) {
+      recap.push("Heures réalisées non renseignées sur le dossier — à saisir avant de produire les documents de fin (durée = heures réellement effectuées).");
+    }
+    if (recap.length > 0) {
+      return NextResponse.json({ ok: false, dossierId, type, status: "gate_ko", recap }, { status: 409 });
+    }
+  }
 
   // Fusion (lieu = Gagny forcé) ; champs requis manquants -> 409 + recap
   const merge = mergeTemplate(type, fiche);
@@ -56,12 +115,12 @@ export async function POST(req: NextRequest) {
       name: `${type} — ${fiche.prenom} ${fiche.nom}`,
     });
 
-    await archiveDocument({ dossierId, piece: type, variant: "genere", pdf, generatedAt: new Date().toISOString() });
-    await setPieceStatus({ dossierId, piece: type, status: "genere", at: new Date().toISOString() });
+    await archiveDocument({ dossierId, piece: pieceType, variant: "genere", pdf, generatedAt: new Date().toISOString() });
+    await setPieceStatus({ dossierId, piece: pieceType, status: "genere", at: new Date().toISOString() });
 
     // URL signée (1 h) + infos stagiaire : permet à n8n de joindre le PDF
     // et de personnaliser l'email sans requête supplémentaire.
-    const pdfUrl = await getSignedUrl(`${dossierId}/${type}_genere.pdf`, 3600);
+    const pdfUrl = await getSignedUrl(`${dossierId}/${pieceType}_genere.pdf`, 3600);
     const f = fiche as unknown as {
       civilite?: string; nom: string; prenom: string; email: string;
       certif?: string; dateDebut?: string;
@@ -74,8 +133,7 @@ export async function POST(req: NextRequest) {
       dateDebut: f.dateDebut ?? "",
     });
   } catch (e) {
-    await setPieceStatus({ dossierId, piece: type, status: "erreur_envoi", at: new Date().toISOString() });
+    await setPieceStatus({ dossierId, piece: pieceType, status: "erreur_envoi", at: new Date().toISOString() });
     return NextResponse.json({ ok: false, dossierId, type, status: "erreur", error: String(e) }, { status: 502 });
   }
 }
-
