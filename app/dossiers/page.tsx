@@ -5,7 +5,7 @@
 // convention en signature, consulter le PDF archivé — et le journal de remarques.
 // Toute génération passe par le moteur existant (fusion lieu=Gagny, portes de conformité 2B) :
 // cette page n'invente AUCUNE règle, elle appuie sur les routes déjà validées.
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const LIBELLE_PIECE: Record<string, string> = {
   fiche_analyse_besoin: "Fiche d'analyse du besoin",
@@ -22,7 +22,11 @@ const LIBELLE_PIECE: Record<string, string> = {
   certificat_realisation: "Certificat de réalisation",
   satisfaction_froid: "Satisfaction à froid (3 mois)",
   justificatif_participation: "Justificatif participation forfaitaire",
+  justificatif_examen: "Justificatif de passage d'examen",
 };
+
+// Pièces déposées (fichier externe → archives du dossier). Affichées même si absentes en base.
+const DEPOSABLES = new Set(["justificatif_participation", "justificatif_examen"]);
 
 const STATUT_PIECE: Record<string, { label: string; classes: string }> = {
   manquant: { label: "À faire", classes: "bg-gray-100 text-gray-600" },
@@ -265,7 +269,43 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
   const [busy, setBusy] = useState<string | null>(null);
   const [erreurs, setErreurs] = useState<string[]>([]);
   const [formOuvert, setFormOuvert] = useState<string | null>(null);
-  const pieces = [...(d.pieces ?? [])].sort((a, b) => a.ordre - b.ordre);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cibleDepotRef = useRef<string | null>(null);
+
+  const reelles = [...(d.pieces ?? [])].sort((a, b) => a.ordre - b.ordre);
+  const presentes = new Set(reelles.map((p) => p.type));
+  const virtuelles: Piece[] = ["justificatif_participation", "justificatif_examen"]
+    .filter((t) => !presentes.has(t))
+    .map((t, i) => ({ type: t, statut: "manquant", optionnelle: true, exige_signature: false, ordre: 90 + i }));
+  const pieces = [...reelles, ...virtuelles];
+
+  function ouvrirDepot(pieceType: string) {
+    cibleDepotRef.current = pieceType;
+    fileInputRef.current?.click();
+  }
+
+  async function fichierChoisi(e: React.ChangeEvent<HTMLInputElement>) {
+    const fichier = e.target.files?.[0];
+    const pieceType = cibleDepotRef.current;
+    e.target.value = "";
+    if (!fichier || !pieceType) return;
+    setBusy(pieceType); setErreurs([]);
+    try {
+      const fd = new FormData();
+      fd.append("dossierId", d.id);
+      fd.append("piece", pieceType);
+      fd.append("fichier", fichier);
+      const r = await fetch("/api/documents/justificatif", { method: "POST", body: fd });
+      const j = await r.json();
+      if (!j.ok) { setErreurs([j.erreur || "Échec du dépôt."]); return; }
+      await recharger();
+    } catch (e: any) {
+      setErreurs([e?.message || "Échec du dépôt."]);
+    } finally {
+      setBusy(null);
+      cibleDepotRef.current = null;
+    }
+  }
 
   async function voir(piece: Piece) {
     setBusy(piece.type); setErreurs([]);
@@ -344,6 +384,23 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
             <button onClick={() => voir(p)} disabled={occupé}
                     className="px-3 py-1 rounded-lg text-xs border border-gray-300 text-gray-700 bg-white disabled:opacity-50">
               {occupé ? "…" : "Voir le PDF"}
+            </button>
+          )}
+        </>
+      );
+    }
+
+    if (DEPOSABLES.has(p.type)) {
+      return (
+        <>
+          <button onClick={() => ouvrirDepot(p.type)} disabled={occupé}
+                  className="px-3 py-1 rounded-lg text-xs text-white bg-mystory disabled:opacity-50">
+            {occupé ? "Envoi…" : consultable ? "Remplacer le fichier" : "Déposer le fichier"}
+          </button>
+          {consultable && (
+            <button onClick={() => voir(p)} disabled={occupé}
+                    className="px-3 py-1 rounded-lg text-xs border border-gray-300 text-gray-700 bg-white disabled:opacity-50">
+              {occupé ? "…" : "Voir la pièce"}
             </button>
           )}
         </>
@@ -432,6 +489,8 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
 
   return (
     <div>
+      <input ref={fileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+             className="hidden" onChange={fichierChoisi} />
       <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Pièces du dossier</p>
       {erreurs.length > 0 && (
         <div className="mb-3 px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm">
