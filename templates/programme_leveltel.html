@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 16mm 16mm 22mm 16mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; color: #1c2433; font-size: 10pt; line-height: 1.45; margin: 0; }
+  .brandbar { height: 5px; background: #2F72DE; border-radius: 3px; }
+  header { display: flex; justify-content: space-between; align-items: flex-start; margin-top: 10px; }
+  .org h1 { color: #2F72DE; font-size: 16pt; margin: 0 0 2px; letter-spacing: .5px; }
+  .org .legal { font-size: 7.4pt; color: #5b6472; line-height: 1.35; }
+  .doctype { text-align: right; }
+  .doctype .tag { display: inline-block; background: #2F72DE; color: #fff; font-size: 7.4pt; padding: 3px 8px; border-radius: 3px; letter-spacing: .5px; }
+  .doctype .ref { font-size: 7.6pt; color: #5b6472; margin-top: 6px; }
+  h2.title { text-align: center; font-size: 14pt; margin: 18px 0 4px; }
+  .to { background: #f3f7fe; border: 1px solid #d8e4fb; border-radius: 6px; padding: 8px 12px; margin: 12px 0; font-size: 9.6pt; }
+  .to .who { font-weight: 700; }
+  p.intro { margin: 10px 0; text-align: justify; }
+  h3 { color: #2F72DE; font-size: 9.8pt; margin: 13px 0 4px; border-bottom: 1px solid #e3e8f0; padding-bottom: 2px; }
+  table.fields { width: 100%; border-collapse: collapse; font-size: 9.4pt; margin: 4px 0; }
+  table.fields td { padding: 3px 6px; vertical-align: top; border-bottom: 1px solid #eef1f6; }
+  table.fields td.k { color: #5b6472; width: 32%; }
+  table.fields td.v { font-weight: 600; }
+  table.plan { width: 100%; border-collapse: collapse; font-size: 8.8pt; margin: 6px 0; }
+  table.plan th { background: #2F72DE; color: #fff; font-size: 7.8pt; padding: 5px 6px; text-align: left; }
+  table.plan td { border: 1px solid #d8e4fb; padding: 4px 6px; }
+  table.plan tr:nth-child(even) td { background: #f7faff; }
+  ul { margin: 4px 0; padding-left: 18px; }
+  li { margin: 2px 0; }
+  .madeat { margin-top: 16px; font-size: 9.6pt; }
+  .ofsign { margin-top: 6px; min-height: 90px; position: relative; }
+  .ofsign .who { font-size: 8.6pt; font-weight: 700; color: #2F72DE; }
+  .ofsign .sub { font-size: 7.6pt; color: #5b6472; }
+  .ofsign .sig-img { max-height: 50px; margin-top: 6px; display: block; }
+  .cachet { position: absolute; right: 8px; top: 8px; width: 74px; height: 74px; border: 2px solid #2F72DE; border-radius: 50%; color: #2F72DE; font-size: 6pt; line-height: 1.25; text-align: center; display: flex; align-items: center; justify-content: center; transform: rotate(-9deg); opacity: .9; padding: 4px; }
+  .cachet-img { position: absolute; right: 6px; top: 6px; width: 80px; height: auto; opacity: .95; }
+  footer { position: fixed; bottom: 0; left: 0; right: 0; border-top: 1px solid #e3e8f0; padding-top: 4px; font-size: 6.6pt; color: #7a8290; text-align: center; line-height: 1.3; }
+</style>
+</head>
+<body>
+  <footer>
+    MYSTORY — SASU · RCS Paris 913 423 083 · SIRET 913 423 083 00017 · Déclaration d'activité n° 11756521775 (ne vaut pas agrément de l'État)<br>
+    Gagny : 3 bis av. de Gagny, 93220 · Sarcelles : 18 av. du 8 Mai 1945, 95200 · Rosny : 46 bis rue d'Estienne d'Orves, 93110 Rosny-sous-Bois · 06 81 43 16 54 · contact@mystoryformation.fr
+  </footer>
+
+  <div class="brandbar"></div>
+  <header>
+    <div class="org">
+      <h1>MYSTORY</h1>
+      <div class="legal">
+        SASU · RCS Paris 913 423 083 · SIRET 913 423 083 00017<br>
+        Déclaration d'activité n° 11756521775<br>
+        06 81 43 16 54 · contact@mystoryformation.fr
+      </div>
+    </div>
+    <div class="doctype">
+      <span class="tag">PROGRAMME DE FORMATION — ANNEXE 1</span>
+      <div class="ref">{{certif_intitule}} ({{certif_code}})</div>
+    </div>
+  </header>
+
+  <h2 class="title">Programme de formation — Annexe 1</h2>
+  <p style="text-align:center; font-size:8.6pt; color:#5b6472; margin-top:-2px;"><em>Français langue étrangère à visée professionnelle (LEVELTEL FLE)</em></p>
+
+  <table class="fields">
+    <tr><td class="k">Certification</td><td class="v">LEVELTEL FLE — RS6427 (valable jusqu'au 15/11/2026) · certificateur : ECSPLICITE</td></tr>
+    <tr><td class="k">Intitulé de l'offre</td><td class="v">Français langue étrangère à visée professionnelle</td></tr>
+    <tr><td class="k">Objectif général · Niveau de sortie</td><td class="v">Certification · A2+ à C1 (CECRL)</td></tr>
+    <tr><td class="k">Durée · Modalité · Lieu</td><td class="v">{{duree_heures}} heures · 100 % présentiel · {{site_ville}} — {{site_adresse}}</td></tr>
+    <tr><td class="k">Public</td><td class="v">Personne non francophone ou allophone en contexte professionnel (ou en insertion), visant à communiquer en français au travail (A2+ à C1)</td></tr>
+    <tr><td class="k">Prérequis</td><td class="v">Niveau d'entrée justifié (test de positionnement ou justificatif) ; ne pas être en situation d'analphabétisme</td></tr>
+    <tr><td class="k">Délai d'accès</td><td class="v">Min. 11 jours ouvrés entre la validation EDOF et le démarrage (Qualiopi ind. 5)</td></tr>
+    <tr><td class="k">Type de parcours</td><td class="v">Mixte : individualisé et modularisé</td></tr>
+  </table>
+
+  <h3>Objectif pédagogique</h3>
+  <p>Préparer au passage de la certification LEVELTEL Certifiant en travaillant les 5 compétences visées par la certification :</p>
+  <ul>
+    <li>Prendre la parole en français sur des sujets professionnels (expression / production orale — s'exprimer oralement en continu).</li>
+    <li>Identifier le sens d'un énoncé oral (compréhension / réception orale — écouter).</li>
+    <li>Écrire un texte en français sur des sujets professionnels (expression écrite — rédaction).</li>
+    <li>Participer à un échange oral (interaction orale — prendre part à une conversation).</li>
+    <li>Comprendre un texte français sur des sujets professionnels (compréhension écrite — lecture).</li>
+  </ul>
+
+  <h3>Contenu</h3>
+  <h4>Module I — Compréhension orale</h4>
+    <ul>
+      <li>Comprendre des dialogues et instructions, simples à complexes, sur des sujets de la vie professionnelle, prononcés à un rythme normal.</li>
+      <li>Identifier les informations essentielles dans des messages professionnels courts et simples.</li>
+      <li>Reconnaître les mots et expressions courants liés aux thèmes professionnels abordés.</li>
+      <li>Décoder les informations clés dans des messages vocaux professionnels.</li>
+      <li>Comprendre les nuances et les intentions derrière des communications orales.</li>
+    </ul>
+  <h4>Module II — Expression orale et interaction orale</h4>
+    <ul>
+      <li>Participer à des conversations professionnelles, simples à complexes, sur des sujets de la vie quotidienne et professionnelle.</li>
+      <li>Utiliser des expressions et tournures de phrases adaptées au contexte professionnel.</li>
+      <li>Exprimer ses opinions et sentiments professionnels de manière claire et structurée.</li>
+      <li>Utiliser un vocabulaire varié et des structures grammaticales appropriées pour exprimer des nuances.</li>
+      <li>Demander et donner des directions de manière précise ; effectuer des achats et passer des commandes (contexte commercial).</li>
+      <li>Préparer et effectuer des présentations professionnelles.</li>
+      <li>Participer à des négociations (exprimer des arguments, répondre aux contre-arguments).</li>
+    </ul>
+  <h4>Module III — Compréhension écrite</h4>
+    <ul>
+      <li>Lire et comprendre des textes courts et longs (articles de presse, courriels, publicités).</li>
+      <li>Identifier les informations clés et les détails pertinents dans des documents professionnels.</li>
+      <li>Décoder et interpréter des tableaux, graphiques et rapports professionnels.</li>
+      <li>Comprendre la structure et le contenu des documents administratifs et commerciaux.</li>
+      <li>Enrichir son vocabulaire avec des termes spécifiques à divers domaines professionnels.</li>
+    </ul>
+  <h4>Module IV — Expression écrite</h4>
+    <ul>
+      <li>Rédiger des textes courts et longs (lettres, comptes rendus d'événements).</li>
+      <li>Utiliser un style clair et concis, adapté au contexte professionnel.</li>
+      <li>Écrire des messages et documents professionnels courts (emails, notes, mémos).</li>
+      <li>Structurer ses écrits de manière logique et cohérente.</li>
+      <li>Améliorer la précision et la fluidité de ses écrits grâce à des exercices pratiques réguliers.</li>
+    </ul>
+  <h4>Module V — Préparation à l'examen</h4>
+    <ul>
+      <li>Simulation d'épreuves d'examen.</li>
+      <li>Feedback individualisé sur les performances.</li>
+      <li>Derniers conseils pour la préparation à l'examen.</li>
+    </ul>
+
+  <h3>Points forts</h3>
+  <p>Formateurs expérimentés : une expertise approfondie de l'enseignement du français aux apprenants étrangers, avec des méthodes pédagogiques adaptées aux besoins individuels.</p>
+
+  <h3>Résultats attendus</h3>
+  <p>La passation et l'obtention de la certification en fin de formation. La certification LEVELTEL est délivrée à partir du niveau A2+ jusqu'au niveau C1 ; elle évalue les cinq compétences du CECRL : compréhension orale, compréhension écrite, expression écrite, expression orale et interaction à l'oral. Le parchemin LEVELTEL Certifiant est délivré en fonction du niveau atteint en sortie de formation, avec un minimum requis de A2+ ; en dessous, seule une attestation de niveau est transmise. Le passage de la certification LEVELTEL Certifiant est obligatoire.</p>
+
+  <h3>Équipe, ressources, accessibilité, indicateurs</h3>
+  <p>Formateurs FLE qualifiés (CV/diplômes disponibles — Qualiopi ind. 21). Salle équipée, supports papier et numériques, manuels LEVELTEL FLE, outils de simulation. Locaux accessibles PMR — référent handicap : Arudhan NATKUNASINGAM (contact@mystoryformation.fr · 06 81 43 16 54). Indicateurs de résultats (réussite, satisfaction, recommandation) publiés sur le site.</p>
+
+</body>
+</html>
