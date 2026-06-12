@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 16mm 16mm 22mm 16mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; color: #1c2433; font-size: 10pt; line-height: 1.45; margin: 0; }
+  .brandbar { height: 5px; background: #2F72DE; border-radius: 3px; }
+  header { display: flex; justify-content: space-between; align-items: flex-start; margin-top: 10px; }
+  .org h1 { color: #2F72DE; font-size: 16pt; margin: 0 0 2px; letter-spacing: .5px; }
+  .org .legal { font-size: 7.4pt; color: #5b6472; line-height: 1.35; }
+  .doctype { text-align: right; }
+  .doctype .tag { display: inline-block; background: #2F72DE; color: #fff; font-size: 7.4pt; padding: 3px 8px; border-radius: 3px; letter-spacing: .5px; }
+  .doctype .ref { font-size: 7.6pt; color: #5b6472; margin-top: 6px; }
+  h2.title { text-align: center; font-size: 14pt; margin: 18px 0 4px; }
+  .to { background: #f3f7fe; border: 1px solid #d8e4fb; border-radius: 6px; padding: 8px 12px; margin: 12px 0; font-size: 9.6pt; }
+  .to .who { font-weight: 700; }
+  p.intro { margin: 10px 0; text-align: justify; }
+  h3 { color: #2F72DE; font-size: 9.8pt; margin: 13px 0 4px; border-bottom: 1px solid #e3e8f0; padding-bottom: 2px; }
+  table.fields { width: 100%; border-collapse: collapse; font-size: 9.4pt; margin: 4px 0; }
+  table.fields td { padding: 3px 6px; vertical-align: top; border-bottom: 1px solid #eef1f6; }
+  table.fields td.k { color: #5b6472; width: 32%; }
+  table.fields td.v { font-weight: 600; }
+  table.plan { width: 100%; border-collapse: collapse; font-size: 8.8pt; margin: 6px 0; }
+  table.plan th { background: #2F72DE; color: #fff; font-size: 7.8pt; padding: 5px 6px; text-align: left; }
+  table.plan td { border: 1px solid #d8e4fb; padding: 4px 6px; }
+  table.plan tr:nth-child(even) td { background: #f7faff; }
+  ul { margin: 4px 0; padding-left: 18px; }
+  li { margin: 2px 0; }
+  .madeat { margin-top: 16px; font-size: 9.6pt; }
+  .ofsign { margin-top: 6px; min-height: 90px; position: relative; }
+  .ofsign .who { font-size: 8.6pt; font-weight: 700; color: #2F72DE; }
+  .ofsign .sub { font-size: 7.6pt; color: #5b6472; }
+  .ofsign .sig-img { max-height: 50px; margin-top: 6px; display: block; }
+  .cachet { position: absolute; right: 8px; top: 8px; width: 74px; height: 74px; border: 2px solid #2F72DE; border-radius: 50%; color: #2F72DE; font-size: 6pt; line-height: 1.25; text-align: center; display: flex; align-items: center; justify-content: center; transform: rotate(-9deg); opacity: .9; padding: 4px; }
+  .cachet-img { position: absolute; right: 6px; top: 6px; width: 80px; height: auto; opacity: .95; }
+  footer { position: fixed; bottom: 0; left: 0; right: 0; border-top: 1px solid #e3e8f0; padding-top: 4px; font-size: 6.6pt; color: #7a8290; text-align: center; line-height: 1.3; }
+
+  .rgpd { margin-top: 12px; font-size: 7.4pt; color: #5b6472; border-top: 1px solid #e3e8f0; padding-top: 6px; }
+  .check { font-size: 9.4pt; margin: 6px 0; }
+  .warn { background: #FCEBEB; border: 1px solid #e8b9b9; border-radius: 6px; padding: 7px 10px; font-size: 9pt; font-weight: 600; margin: 8px 0; }
+  .twocol { display: flex; gap: 24px; margin-top: 14px; }
+  .twocol > div { flex: 1; }
+  .sigline { margin-top: 28px; border-top: 1px dotted #9aa1ad; }
+  .sigwho { font-size: 8.6pt; font-weight: 700; color: #2F72DE; }
+</style>
+</head>
+<body>
+  <footer>
+    MYSTORY — SASU · RCS Paris 913 423 083 · SIRET 913 423 083 00017 · Déclaration d'activité n° 11756521775 (ne vaut pas agrément de l'État)<br>
+    Gagny : 3 bis av. de Gagny, 93220 · Sarcelles : 18 av. du 8 Mai 1945, 95200 · Rosny : 46 bis rue d'Estienne d'Orves, 93110 Rosny-sous-Bois · 06 81 43 16 54 · contact@mystoryformation.fr
+  </footer>
+
+  <div class="brandbar"></div>
+  <header>
+    <div class="org">
+      <h1>MYSTORY</h1>
+      <div class="legal">
+        SASU · RCS Paris 913 423 083 · SIRET 913 423 083 00017<br>
+        Déclaration d'activité n° 11756521775<br>
+        06 81 43 16 54 · contact@mystoryformation.fr
+      </div>
+    </div>
+    <div class="doctype">
+      <span class="tag">CONVOCATION À L'EXAMEN CIVIQUE</span>
+      <div class="ref">Session du {{date_examen}}</div>
+    </div>
+  </header>
+
+  <h2 class="title">Convocation à l'examen civique</h2>
+  <p style="text-align:center; font-size:8.6pt; color:#5b6472; margin-top:-2px;"><em>Centre d'examen — mention carte de séjour / résident / naturalisation</em></p>
+
+  <p><strong>{{civilite}} {{nom}} {{prenom}},</strong></p>
+  <p>Vous êtes convoqué(e) à la session suivante :</p>
+  <table class="fields">
+    <tr><td class="k">Date · Horaire</td><td class="v">Le <strong>{{date_examen}}</strong> de <strong>{{heure_debut}}</strong> à {{heure_fin}} (heure de fin indicative, n'engage pas MYSTORY)</td></tr>
+    <tr><td class="k">Lieu du test</td><td class="v">3 bis avenue de Gagny, 93220 Gagny</td></tr>
+    <tr><td class="k">Contact</td><td class="v">06 81 43 16 54 · contact@mystoryformation.fr</td></tr>
+  </table>
+
+  <p class="check"><strong>Mention visée :</strong> {{civ_pluriannuelle}} Carte de séjour pluriannuelle &nbsp; {{civ_resident}} Carte de résident &nbsp; {{civ_naturalisation}} Naturalisation</p>
+
+  <h3>À apporter le jour de l'examen</h3>
+  <ul>
+    <li>Une pièce d'identité en cours de validité.</li>
+    <li>La convocation (imprimée ou sur le téléphone).</li>
+  </ul>
+  <p><strong>Présentez-vous à l'accueil 15 minutes avant le début du test.</strong></p>
+
+  <h3>Photo de l'attestation</h3>
+  <p>Votre attestation devant comporter votre photo, celle-ci sera prise le jour de l'examen par MYSTORY, tête découverte. Elle sera détruite après la remise de votre attestation. En vous présentant à la session, vous acceptez cette prise de vue.</p>
+
+  <h3>Attention — fraude</h3>
+  <p>Toute tentative de fraude sera signalée à la Commission des examens et punie de sanctions pouvant aller jusqu'à 5 ans d'interdiction d'examen.</p>
+
+  <h3>Obtenir vos résultats</h3>
+  <p>La CCI Paris Île-de-France vous enverra un email avec un lien vers votre coffre-fort numérique pour obtenir votre attestation de résultats sous 24 à 48 heures (délai indicatif).</p>
+
+  <h3>Informations générales</h3>
+  <p>L'examen civique est une évaluation officielle vérifiant la connaissance des valeurs, principes et symboles de la République française, ainsi que des droits et devoirs liés à la vie en société (laïcité, égalité, liberté, fraternité, fonctionnement des institutions). Il est obligatoire pour une première demande de carte de séjour pluriannuelle, de carte de résident ou de naturalisation. Pour obtenir l'attestation de réussite, le candidat doit atteindre un score minimum de 32. Une fois obtenu, l'examen civique ne possède pas de date de validité.</p>
+
+  <h3>Règlement</h3>
+  <ul>
+    <li>Se présenter à l'heure indiquée sur la convocation ; aucun retard ne sera accepté.</li>
+    <li>En cas d'absence ou de retard : ni report ni remboursement.</li>
+    <li>Tout retard entraîne des frais de pénalité : 30 € jusqu'à 15 min de retard, 50 € de 15 à 30 min, 80 € au-delà de 30 min.</li>
+  </ul>
+
+  <h3>Déroulé de l'examen</h3>
+  <p>QCM sur ordinateur : 40 questions à traiter en 45 minutes, portant sur 5 thématiques officielles — principes et valeurs de la République ; système institutionnel et politique ; droits et devoirs ; histoire, géographie et culture ; vivre ensemble dans la société française. Détails : lefrancaisdesaffaires.fr/candidat/examen-civique/presentation.</p>
+
+  <h3>Accès</h3>
+  <p>MYSTORY — 3 bis avenue de Gagny, 93220 Gagny. RER E : station Gagny. Bus : 602, 603, 604, 605, 114, 221, 303. En voiture : autoroute A3, sortie Le Raincy / Villemomble. Le centre ne dispose pas de parking privatif : stationnement dans les emplacements autorisés à proximité.</p>
+
+  <p>Fait à Gagny, le {{date_emission}}.</p>
+  <div class="ofsign">
+    <div class="who">Signature et cachet du centre</div>
+    <div class="sub">Arudhan NATKUNASINGAM, Président</div>
+    {{#if of_signature_img}}<img class="sig-img" src="{{of_signature_img}}" alt="Signature du Président">{{/if}}
+    {{#if cachet_img}}<img class="cachet-img" src="{{cachet_img}}" alt="Cachet MYSTORY">{{/if}}
+    {{#if cachet_absent}}<div class="cachet">MYSTORY<br>Gagny<br>NDA 11756521775</div>{{/if}}
+  </div>
+  <p class="rgpd"><strong>Données personnelles (RGPD).</strong> Données traitées par MYSTORY (SASU) pour le suivi de la formation et les obligations liées au financement CPF. Conservation : 5 ans. Droits d'accès, rectification, effacement, opposition : contact@mystoryformation.fr — réclamation possible auprès de la CNIL (www.cnil.fr).</p>
+</body>
+</html>
