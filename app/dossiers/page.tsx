@@ -350,6 +350,33 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
       );
     }
 
+    if (p.type === "satisfaction_chaud" || p.type === "satisfaction_froid") {
+      const variante = p.type === "satisfaction_chaud" ? "chaud" : "froid";
+      return (
+        <>
+          {!consultable && (
+            <button
+              onClick={async () => {
+                const lien = `${window.location.origin}/satisfaction?token=${d.token}&type=${variante}`;
+                try { await navigator.clipboard.writeText(lien); } catch {}
+                setErreurs([]);
+                window.prompt("Lien du questionnaire copié — envoie-le au stagiaire (email, SMS, WhatsApp) :", lien);
+              }}
+              className="px-3 py-1 rounded-lg text-xs text-white bg-mystory"
+            >
+              Copier le lien du questionnaire
+            </button>
+          )}
+          {consultable && (
+            <button onClick={() => voir(p)} disabled={occupé}
+                    className="px-3 py-1 rounded-lg text-xs border border-gray-300 text-gray-700 bg-white disabled:opacity-50">
+              {occupé ? "…" : "Voir la réponse (PDF)"}
+            </button>
+          )}
+        </>
+      );
+    }
+
     if (COMPLETABLES.has(p.type)) {
       return (
         <>
