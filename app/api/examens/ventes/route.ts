@@ -15,6 +15,7 @@ import {
   chargerVente, genererDocumentsVente, envoyerDocumentsVente, journal,
   SOUS_TYPES_CIVIQUE, MOTIVATIONS_TEF, PLATEFORMES,
 } from "@/lib/examens";
+import { facturerVente, envoyerFacture } from "@/lib/factures";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -161,11 +162,26 @@ export async function POST(req: NextRequest) {
     await journal("ventes_examen", venteId, "documents_echec", { erreur: erreurDocs }, venduPar);
   }
 
+  // ----- Facturation AUTOMATIQUE à la vente (§6, règle du 05/06/2026) -----
+  // La vente reste valide même si la facture échoue (regénérable depuis /factures).
+  let facture: { numero: string; envoyee: boolean; erreur?: string } | null = null;
+  if (!["Annulé", "Remboursé"].includes(statutPaiement)) {
+    try {
+      const f = await facturerVente(venteId, venduPar);
+      const envoiFacture = await envoyerFacture(f.id, "emission", venduPar);
+      facture = { numero: f.numero, envoyee: envoiFacture.ok, erreur: envoiFacture.erreur };
+    } catch (e: any) {
+      facture = { numero: "", envoyee: false, erreur: e?.message ?? String(e) };
+      await journal("ventes_examen", venteId, "facture_echec", { erreur: facture.erreur }, venduPar);
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     venteId,
     numeroAttestation: numero,
     documents,
+    facture,
     email: envoi.ok
       ? { envoye: true, a: email }
       : { envoye: false, erreur: envoi.erreur ?? erreurDocs ?? "Échec de l'envoi." },
