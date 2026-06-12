@@ -38,6 +38,7 @@ export default function PageExamens() {
   const [gen, setGen] = useState({ type: "TEF_IRN", du: "", au: "", capacite: 12 });
   const [genBusy, setGenBusy] = useState(false);
   const [edition, setEdition] = useState<string | null>(null);
+  const [alertes, setAlertes] = useState<{ cci: any[]; acomptes: any[]; relances: any } | null>(null);
   const [editVal, setEditVal] = useState({ capacite: 12, note: "" });
 
   const recharger = useCallback(async () => {
@@ -54,6 +55,10 @@ export default function PageExamens() {
     }
   }, []);
   useEffect(() => { recharger(); }, [recharger]);
+  useEffect(() => {
+    fetch("/api/examens/alertes", { cache: "no-store" }).then((r) => r.json())
+      .then((j) => { if (j.ok) setAlertes(j); }).catch(() => {});
+  }, []);
 
   const visibles = useMemo(
     () => sessions.filter((s) => filtre === "tous" || s.type === filtre),
@@ -115,6 +120,12 @@ export default function PageExamens() {
           <Link href="/examens/vente" className="px-4 py-2 rounded-lg text-sm text-white bg-mystory font-medium">
             + Vendre un examen
           </Link>
+          <Link href="/examens/jour" className="px-4 py-2 rounded-lg text-sm border border-gray-300 bg-white text-gray-700">
+            Jour J / Résultats
+          </Link>
+          <Link href="/examens/corrections" className="px-4 py-2 rounded-lg text-sm border border-gray-300 bg-white text-gray-700">
+            Corrections
+          </Link>
           <button onClick={() => setGenOuvert(!genOuvert)}
                   className="px-4 py-2 rounded-lg text-sm border border-gray-300 bg-white text-gray-700">
             Générer les sessions
@@ -145,6 +156,28 @@ export default function PageExamens() {
             {genBusy ? "Création…" : "Créer les créneaux"}
           </button>
           <span className="text-xs text-gray-500">Les créneaux déjà existants sont conservés tels quels.</span>
+        </div>
+      )}
+
+      {alertes && (alertes.cci.length > 0 || alertes.acomptes.length > 0 || (alertes.relances?.sans_resultat_saisi?.length ?? 0) > 0) && (
+        <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-5 text-sm space-y-2">
+          <p className="font-semibold text-orange-900">🔔 Alertes du jour</p>
+          {alertes.cci.length > 0 && (
+            <div>
+              <p className="font-medium text-orange-900">⚠️ {alertes.cci.length} candidat(s) à examen sous 5 jours ouvrés NON inscrits CCI :</p>
+              {alertes.cci.map((a: any) => (
+                <p key={a.id} className="text-orange-800">
+                  · <strong>{a.stagiaires?.nom}</strong> {a.stagiaires?.prenom} — {a.sessions_examen?.date_examen} {a.sessions_examen?.horaire} ({a.jours_ouvres} j ouvré{a.jours_ouvres > 1 ? "s" : ""}) · {a.numero_attestation}
+                </p>
+              ))}
+            </div>
+          )}
+          {alertes.acomptes.length > 0 && (
+            <p className="text-orange-800">💶 {alertes.acomptes.length} acompte(s) à solder — {alertes.acomptes.map((a: any) => `${a.stagiaires?.nom} (reste ${a.reste_a_payer} €)`).join(" · ")}</p>
+          )}
+          {(alertes.relances?.sans_resultat_saisi?.length ?? 0) > 0 && (
+            <p className="text-orange-800">📝 {alertes.relances.sans_resultat_saisi.length} examen(s) passé(s) sans résultat saisi → <Link className="underline" href="/examens/jour">saisir</Link></p>
+          )}
         </div>
       )}
 
