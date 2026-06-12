@@ -75,14 +75,8 @@ export async function POST(req: NextRequest) {
   if (!fiche) return NextResponse.json({ error: "Dossier introuvable" }, { status: 404 });
 
   // Gabarit programme : contenu juridique propre à chaque certification.
-  // Le contenu LEVELTEL n'a pas encore été fourni → on bloque plutôt que d'inventer.
-  if (type === "programme" && fiche.certif === "LEVELTEL") {
-    return NextResponse.json(
-      { ok: false, dossierId, type, status: "gate_ko",
-        recap: ["Programme LEVELTEL : gabarit non fourni — envoie le modèle v3 LEVELTEL pour activer la génération (jamais de contenu inventé sur un document juridique)."] },
-      { status: 409 },
-    );
-  }
+  // TEF IRN → templates/programme.html · LEVELTEL FLE → templates/programme_leveltel.html (modèle v3 fourni).
+  const templateId = type === "programme" && fiche.certif === "LEVELTEL" ? "programme_leveltel" : type;
 
   // Anti-antidate : pas d'attestation ni de certificat avant la fin réelle de la formation.
   if (DOCS_FIN.has(type)) {
@@ -101,7 +95,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Fusion (lieu = Gagny forcé) ; champs requis manquants -> 409 + recap
-  const merge = mergeTemplate(type, fiche);
+  const merge = mergeTemplate(templateId, fiche);
   if (merge.missing.length > 0) {
     return NextResponse.json(
       { ok: false, dossierId, type, status: "champs_manquants", recap: merge.missing.map((m) => `Champ requis manquant : ${m}`) },
