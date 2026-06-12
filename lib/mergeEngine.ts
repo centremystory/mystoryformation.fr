@@ -378,6 +378,16 @@ export const TEMPLATES: Record<string, TemplateConfig> = {
     durationSource: "realisees",
     required: ["nom", "prenom", "date_debut", "date_fin"],
   },
+  satisfaction_chaud: {
+    id: "satisfaction_chaud",
+    durationSource: "prevues",
+    required: ["nom", "prenom"],
+  },
+  satisfaction_froid: {
+    id: "satisfaction_froid",
+    durationSource: "prevues",
+    required: ["nom", "prenom", "date_debut", "date_fin"],
+  },
 };
 
 // ---------------------------------------------------------------------------
