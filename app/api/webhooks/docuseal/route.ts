@@ -3,6 +3,7 @@
  * 1) corps brut → 2) vérif HMAC → 3) idempotence (webhook_events) → 4) maj pièces + recompute.
  */
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 import {
   verifyWebhook, downloadSignedDocument, getSubmissionDocuments, SIGNERS_COUNT, type DocusealEvent,
 } from "@/lib/docuseal";
@@ -13,10 +14,26 @@ import {
 
 export const runtime = "nodejs";
 
+/**
+ * Vérification par jeton secret dans l'URL (?token=...).
+ * Utilisée quand l'instance DocuSeal ne propose QUE le champ URL pour le webhook
+ * (ni secret HMAC, ni en-tête personnalisé). Comparaison en temps constant.
+ */
+function verifyQueryToken(req: NextRequest): boolean {
+  const attendu = process.env.DOCUSEAL_WEBHOOK_TOKEN ?? "";
+  if (!attendu) return false;
+  const recu = req.nextUrl.searchParams.get("token") ?? "";
+  const a = Buffer.from(recu);
+  const b = Buffer.from(attendu);
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
+
 export async function POST(req: NextRequest) {
   const rawBody = await req.text();
 
-  if (!verifyWebhook(rawBody, req.headers)) {
+  // Authenticité : jeton d'URL (instance sans champ secret) OU HMAC/en-tête (verifyWebhook).
+  if (!verifyQueryToken(req) && !verifyWebhook(rawBody, req.headers)) {
     return NextResponse.json({ error: "Signature invalide" }, { status: 401 });
   }
 
