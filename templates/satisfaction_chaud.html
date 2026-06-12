@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 16mm 16mm 22mm 16mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; color: #1c2433; font-size: 10pt; line-height: 1.45; margin: 0; }
+  .brandbar { height: 5px; background: #2F72DE; border-radius: 3px; }
+  header { display: flex; justify-content: space-between; align-items: flex-start; margin-top: 10px; }
+  .org h1 { color: #2F72DE; font-size: 16pt; margin: 0 0 2px; letter-spacing: .5px; }
+  .org .legal { font-size: 7.4pt; color: #5b6472; line-height: 1.35; }
+  .doctype { text-align: right; }
+  .doctype .tag { display: inline-block; background: #2F72DE; color: #fff; font-size: 7.4pt; padding: 3px 8px; border-radius: 3px; letter-spacing: .5px; }
+  .doctype .ref { font-size: 7.6pt; color: #5b6472; margin-top: 6px; }
+  h2.title { text-align: center; font-size: 14pt; margin: 18px 0 4px; }
+  .to { background: #f3f7fe; border: 1px solid #d8e4fb; border-radius: 6px; padding: 8px 12px; margin: 12px 0; font-size: 9.6pt; }
+  .to .who { font-weight: 700; }
+  p.intro { margin: 10px 0; text-align: justify; }
+  h3 { color: #2F72DE; font-size: 9.8pt; margin: 13px 0 4px; border-bottom: 1px solid #e3e8f0; padding-bottom: 2px; }
+  table.fields { width: 100%; border-collapse: collapse; font-size: 9.4pt; margin: 4px 0; }
+  table.fields td { padding: 3px 6px; vertical-align: top; border-bottom: 1px solid #eef1f6; }
+  table.fields td.k { color: #5b6472; width: 32%; }
+  table.fields td.v { font-weight: 600; }
+  table.plan { width: 100%; border-collapse: collapse; font-size: 8.8pt; margin: 6px 0; }
+  table.plan th { background: #2F72DE; color: #fff; font-size: 7.8pt; padding: 5px 6px; text-align: left; }
+  table.plan td { border: 1px solid #d8e4fb; padding: 4px 6px; }
+  table.plan tr:nth-child(even) td { background: #f7faff; }
+  ul { margin: 4px 0; padding-left: 18px; }
+  li { margin: 2px 0; }
+  .madeat { margin-top: 16px; font-size: 9.6pt; }
+  .ofsign { margin-top: 6px; min-height: 90px; position: relative; }
+  .ofsign .who { font-size: 8.6pt; font-weight: 700; color: #2F72DE; }
+  .ofsign .sub { font-size: 7.6pt; color: #5b6472; }
+  .ofsign .sig-img { max-height: 50px; margin-top: 6px; display: block; }
+  .cachet { position: absolute; right: 8px; top: 8px; width: 74px; height: 74px; border: 2px solid #2F72DE; border-radius: 50%; color: #2F72DE; font-size: 6pt; line-height: 1.25; text-align: center; display: flex; align-items: center; justify-content: center; transform: rotate(-9deg); opacity: .9; padding: 4px; }
+  .cachet-img { position: absolute; right: 6px; top: 6px; width: 80px; height: auto; opacity: .95; }
+  footer { position: fixed; bottom: 0; left: 0; right: 0; border-top: 1px solid #e3e8f0; padding-top: 4px; font-size: 6.6pt; color: #7a8290; text-align: center; line-height: 1.3; }
+
+  .rgpd { margin-top: 14px; font-size: 7.4pt; color: #5b6472; border-top: 1px solid #e3e8f0; padding-top: 6px; }
+  .scale { font-size: 9.4pt; margin: 2px 0 10px; }
+  .scale .lab { color: #5b6472; font-size: 8.2pt; }
+  .q { font-size: 9.4pt; font-weight: 600; margin: 10px 0 2px; }
+  .manus { white-space: pre-wrap; border: 1px solid #e3e8f0; border-radius: 6px; background: #fbfcfe; padding: 8px 10px; font-size: 9.2pt; min-height: 30px; margin: 4px 0 10px; }
+  .meta { font-size: 8.6pt; color: #5b6472; margin-top: 14px; }
+</style>
+</head>
+<body>
+  <footer>
+    MYSTORY — SASU · RCS Paris 913 423 083 · SIRET 913 423 083 00017 · Déclaration d'activité n° 11756521775 (ne vaut pas agrément de l'État)<br>
+    Gagny : 3 bis av. de Gagny, 93220 · Sarcelles : 18 av. du 8 Mai 1945, 95200 · Rosny : 46 bis rue d'Estienne d'Orves, 93110 Rosny-sous-Bois · 06 81 43 16 54 · contact@mystoryformation.fr
+  </footer>
+
+  <div class="brandbar"></div>
+  <header>
+    <div class="org">
+      <h1>MYSTORY</h1>
+      <div class="legal">
+        SASU · RCS Paris 913 423 083 · SIRET 913 423 083 00017<br>
+        Déclaration d'activité n° 11756521775<br>
+        06 81 43 16 54 · contact@mystoryformation.fr
+      </div>
+    </div>
+    <div class="doctype">
+      <span class="tag">SATISFACTION À CHAUD</span>
+      <div class="ref">{{certif_intitule}} ({{certif_code}})</div>
+    </div>
+  </header>
+
+  <h2 class="title">Questionnaire de satisfaction</h2>
+  <p style="text-align:center; font-size:8.6pt; color:#5b6472; margin-top:-2px;"><em>Recueil des appréciations du stagiaire</em></p>
+
+  <table class="fields">
+    <tr><td class="k">Stagiaire</td><td class="v">{{civilite}} {{nom}} {{prenom}}</td></tr>
+    <tr><td class="k">Formation</td><td class="v">{{certif_intitule}} — {{certif_code}}</td></tr>
+    <tr><td class="k">Date de la réponse</td><td class="v">{{date_reponse}}</td></tr>
+  </table>
+
+  <p class="q">Recommanderiez-vous cette formation à un proche ?</p>
+<p class="scale"><span class="lab">Non</span> &nbsp; {{nps_0}} 0 &nbsp;{{nps_1}} 1 &nbsp;{{nps_2}} 2 &nbsp;{{nps_3}} 3 &nbsp;{{nps_4}} 4 &nbsp;{{nps_5}} 5 &nbsp;{{nps_6}} 6 &nbsp;{{nps_7}} 7 &nbsp;{{nps_8}} 8 &nbsp;{{nps_9}} 9 &nbsp;{{nps_10}} 10 &nbsp; <span class="lab">Oui</span></p>
+  <p class="q">Information reçue avant la formation (programme, objectifs, organisation).</p>
+<p class="scale"><span class="lab">Pas du tout</span> &nbsp; {{q_info_1}} 1 &nbsp; {{q_info_2}} 2 &nbsp; {{q_info_3}} 3 &nbsp; {{q_info_4}} 4 &nbsp; {{q_info_5}} 5 &nbsp; <span class="lab">Tout à fait</span></p>
+  <p class="q">Conditions matérielles et accueil (salle, matériel, accès).</p>
+<p class="scale"><span class="lab">Pas du tout</span> &nbsp; {{q_conditions_1}} 1 &nbsp; {{q_conditions_2}} 2 &nbsp; {{q_conditions_3}} 3 &nbsp; {{q_conditions_4}} 4 &nbsp; {{q_conditions_5}} 5 &nbsp; <span class="lab">Tout à fait</span></p>
+  <p class="q">Qualité pédagogique et adaptation du formateur à mes besoins.</p>
+<p class="scale"><span class="lab">Pas du tout</span> &nbsp; {{q_pedago_1}} 1 &nbsp; {{q_pedago_2}} 2 &nbsp; {{q_pedago_3}} 3 &nbsp; {{q_pedago_4}} 4 &nbsp; {{q_pedago_5}} 5 &nbsp; <span class="lab">Tout à fait</span></p>
+  <p class="q">Rythme et progression de la formation.</p>
+<p class="scale"><span class="lab">Pas du tout</span> &nbsp; {{q_rythme_1}} 1 &nbsp; {{q_rythme_2}} 2 &nbsp; {{q_rythme_3}} 3 &nbsp; {{q_rythme_4}} 4 &nbsp; {{q_rythme_5}} 5 &nbsp; <span class="lab">Tout à fait</span></p>
+  <p class="q">La formation répond à mon projet et à mes attentes.</p>
+<p class="scale"><span class="lab">Pas du tout</span> &nbsp; {{q_projet_1}} 1 &nbsp; {{q_projet_2}} 2 &nbsp; {{q_projet_3}} 3 &nbsp; {{q_projet_4}} 4 &nbsp; {{q_projet_5}} 5 &nbsp; <span class="lab">Tout à fait</span></p>
+  <p class="q">Points forts / axes d'amélioration :</p>
+  <div class="manus">{{commentaire}}</div>
+
+  <p class="meta">Réponse enregistrée en ligne le {{date_reponse}} via le lien personnel et sécurisé du stagiaire (vaut recueil dématérialisé — aucune signature manuscrite requise).</p>
+  <p class="rgpd"><strong>Données personnelles (RGPD).</strong> Données traitées par MYSTORY (SASU) pour le suivi de la formation et les obligations liées au financement CPF. Conservation : 5 ans. Droits d'accès, rectification, effacement, opposition : contact@mystoryformation.fr — réclamation possible auprès de la CNIL (www.cnil.fr).</p>
+</body>
+</html>
