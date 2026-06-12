@@ -35,11 +35,15 @@ const STATUT_PIECE: Record<string, { label: string; classes: string }> = {
 
 const LIBELLE_CERTIF: Record<string, string> = { TEF_IRN: "TEF IRN", LEVELTEL: "LEVELTEL" };
 
-// Pièces générables par /api/documents/generate (mapping type de pièce → type moteur).
-// Le moteur s'étendra pièce par pièce ; cette liste suit.
+// Pièces générables par /api/documents/generate (type de pièce → type moteur).
 const GENERABLES: Record<string, string> = {
   convocation: "convocation",
   feuille_emargement: "emargement",
+  programme: "programme",
+  reglement_interieur: "reglement_interieur",
+  planning: "planning",
+  attestation_fin: "attestation_fin",
+  certificat_realisation: "certificat_realisation",
 };
 
 type Piece = { type: string; statut: string; optionnelle: boolean; exige_signature: boolean; ordre: number };
