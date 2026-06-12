@@ -4,7 +4,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import NavBar from "@/components/NavBar";
 
 type Vendeur = { vendeur: string; ventes: number; ca: number; prime_acquise: number; prime_attente: number };
 type Agence = { nom: string; vendeurs: Vendeur[]; totaux: { ventes: number; ca: number; prime_acquise: number; prime_attente: number } };
@@ -47,7 +46,6 @@ export default function ClassementPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <NavBar />
       <main className="mx-auto max-w-5xl px-4 py-8">
         <h1 className="text-2xl font-bold text-gray-900">🏆 Classement vendeurs — Examens</h1>
 
