@@ -171,3 +171,32 @@ export async function POST(req: NextRequest) {
       : { envoye: false, erreur: envoi.erreur ?? erreurDocs ?? "Échec de l'envoi." },
   });
 }
+
+export async function PATCH(req: NextRequest) {
+  const refus = await garde(req); if (refus) return refus;
+  let body: any;
+  try { body = await req.json(); }
+  catch { return NextResponse.json({ ok: false, erreur: "JSON invalide." }, { status: 400 }); }
+
+  const id = String(body?.id ?? "").trim();
+  if (!id) return NextResponse.json({ ok: false, erreur: "id requis." }, { status: 400 });
+  const { data: avant } = await supabaseAdmin.from("ventes_examen").select("inscrit_cci, statut_paiement, reste_a_payer, vendu_par").eq("id", id).maybeSingle();
+  if (!avant) return NextResponse.json({ ok: false, erreur: "Vente introuvable." }, { status: 404 });
+
+  const maj: Record<string, unknown> = {};
+  if (typeof body.inscrit_cci === "boolean") maj.inscrit_cci = body.inscrit_cci;
+  if (body.acompte_solde === true) { maj.statut_paiement = "Payé"; maj.reste_a_payer = 0; }
+  if (Object.keys(maj).length === 0) return NextResponse.json({ ok: false, erreur: "Rien à modifier (inscrit_cci ou acompte_solde)." }, { status: 400 });
+
+  const { error } = await supabaseAdmin.from("ventes_examen").update(maj).eq("id", id);
+  if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
+
+  const auteur = String(body?.auteur ?? "").trim() || null;
+  if (maj.inscrit_cci !== undefined) {
+    await journal("ventes_examen", id, maj.inscrit_cci ? "inscrit_cci_coche" : "inscrit_cci_decoche", { avant: (avant as any).inscrit_cci }, auteur);
+  }
+  if (body.acompte_solde === true) {
+    await journal("ventes_examen", id, "acompte_solde", { reste_avant: (avant as any).reste_a_payer }, auteur);
+  }
+  return NextResponse.json({ ok: true });
+}
