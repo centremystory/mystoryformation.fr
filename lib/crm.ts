@@ -26,7 +26,7 @@ export async function getFiche(dossierId: string): Promise<FicheStagiaire | null
     .select(`
       id, certif, financement, montant, numero_edof, session_edof,
       niveau_initial, niveau_vise, niveau_atteint,
-      heures_prevues, date_debut, date_fin,
+      heures_prevues, heures_realisees, date_debut, date_fin,
       stagiaire:stagiaires!inner (
         civilite, nom, prenom, date_naissance, ville_naissance,
         adresse, cp, ville, email, telephone, agence
@@ -47,8 +47,9 @@ export async function getFiche(dossierId: string): Promise<FicheStagiaire | null
     adresse: s.adresse, cp: s.cp, ville: s.ville, email: s.email, telephone: s.telephone,
     agence: s.agence, certif: d.certif,
     numeroDossier: d.numero_edof, sessionEdof: d.session_edof,
-    formatrice, niveauAtteint: d.niveau_atteint,
-    heuresPrevues: d.heures_prevues, dateDebut: d.date_debut, dateFin: d.date_fin,
+    formatrice, niveauAtteint: d.niveau_atteint, niveauVise: d.niveau_vise,
+    heuresPrevues: d.heures_prevues, heuresRealisees: d.heures_realisees,
+    dateDebut: d.date_debut, dateFin: d.date_fin,
     montant: d.montant,
     planning: (d.planning ?? []).map((p: any) => ({ date: p.date_seance, demiJournee: p.demi_journee, heures: Number(p.heures) })),
   } as unknown as FicheStagiaire;
@@ -190,3 +191,4 @@ export async function getConventionStatus(dossierId: string): Promise<PieceStatu
   if (error) throw error;
   return ((data as any)?.statut ?? null) as PieceStatut | null;
 }
+
