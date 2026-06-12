@@ -39,6 +39,7 @@ export interface FicheStagiaire {
   sessionEdof?: string;
   formatrice?: string;
   niveauAtteint?: string;
+  niveauVise?: string;
   heuresPrevues?: number;
   heuresRealisees?: number;
   dateDebut?: string;
@@ -204,6 +205,22 @@ export function computeDateFin(fiche: FicheStagiaire): string | null {
 // ---------------------------------------------------------------------------
 // 4. Résolution des balises
 // ---------------------------------------------------------------------------
+/** Exécution totale : heures réalisées = heures prévues. null si l'une des deux manque. */
+function execTotale(fiche: FicheStagiaire): boolean | null {
+  if (fiche.heuresRealisees === undefined || fiche.heuresRealisees === null) return null;
+  if (fiche.heuresPrevues === undefined || fiche.heuresPrevues === null) return null;
+  return fiche.heuresRealisees === fiche.heuresPrevues;
+}
+
+/** Objectifs atteints : niveau de sortie >= niveau visé (échelle CECRL). null si donnée manquante. */
+const ECHELLE_CECRL = ["A0", "A1", "A2", "B1", "B2", "C1", "C2"];
+function objectifsAtteints(fiche: FicheStagiaire): boolean | null {
+  const atteint = ECHELLE_CECRL.indexOf(fiche.niveauAtteint ?? "");
+  const vise = ECHELLE_CECRL.indexOf(fiche.niveauVise ?? "");
+  if (atteint < 0 || vise < 0) return null;
+  return atteint >= vise;
+}
+
 function resolveBalises(fiche: FicheStagiaire, cfg: TemplateConfig): Record<string, string | null> {
   const heures = cfg.durationSource === "realisees" ? fiche.heuresRealisees : fiche.heuresPrevues;
   const site = SITES[SITE_FORMATION];   // Gagny forcé, jamais fiche.agence
@@ -235,6 +252,16 @@ function resolveBalises(fiche: FicheStagiaire, cfg: TemplateConfig): Record<stri
     certif_code:      certif.code,
     site_adresse:     site.adresse,
     site_acces:       site.acces,
+    // BALISES ÉTENDUES (attestation / certificat / annexes) :
+    heures_prevues:   fiche.heuresPrevues !== undefined && fiche.heuresPrevues !== null ? String(fiche.heuresPrevues) : null,
+    heures_realisees: fiche.heuresRealisees !== undefined && fiche.heuresRealisees !== null ? String(fiche.heuresRealisees) : null,
+    niveau_vise:      fiche.niveauVise ?? null,
+    est_tef:          fiche.certif === "TEF_IRN" ? "1" : null,
+    est_leveltel:     fiche.certif === "LEVELTEL" ? "1" : null,
+    execution_totale:    execTotale(fiche) === true  ? "1" : null,
+    execution_partielle: execTotale(fiche) === false ? "1" : null,
+    objectifs_atteints:  objectifsAtteints(fiche) === true  ? "1" : null,
+    objectifs_partiels:  objectifsAtteints(fiche) === false ? "1" : null,
     // CALCULÉS / FORCÉS :
     date_signature:   todayParisFR(),
     lieu_signature:   site.ville,        // « Fait à Gagny »
@@ -313,6 +340,32 @@ export const TEMPLATES: Record<string, TemplateConfig> = {
     durationSource: "prevues",
     required: ["civilite", "nom", "prenom", "formateur", "date_debut", "date_fin", "duree_heures"],
   },
+  programme: {
+    id: "programme",
+    durationSource: "prevues",
+    required: ["duree_heures"],
+  },
+  reglement_interieur: {
+    id: "reglement_interieur",
+    durationSource: "prevues",
+    required: ["nom", "prenom"],
+  },
+  planning: {
+    id: "planning",
+    durationSource: "prevues",
+    required: ["nom", "prenom", "duree_heures", "date_debut", "date_fin"],
+  },
+  attestation_fin: {
+    id: "attestation_fin",
+    durationSource: "realisees",
+    // niveau_cecrl est neutralisé pour LEVELTEL → exigé de fait uniquement pour TEF IRN.
+    required: ["civilite", "nom", "prenom", "date_naissance", "duree_heures", "date_debut", "date_fin", "niveau_cecrl"],
+  },
+  certificat_realisation: {
+    id: "certificat_realisation",
+    durationSource: "realisees",
+    required: ["civilite", "nom", "prenom", "duree_heures", "heures_prevues", "date_debut", "date_fin"],
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -325,3 +378,4 @@ export function mergeTemplate(templateId: string, fiche: FicheStagiaire): MergeR
   const tpl = readFileSync(file, "utf8");
   return merge(tpl, fiche, cfg);
 }
+
