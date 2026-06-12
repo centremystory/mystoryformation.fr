@@ -281,9 +281,10 @@ export async function relancesDues(): Promise<Array<{ factureId: string; numero:
     .select("id, numero, statut, date_emission")
     .in("statut", ["émise", "relance_1"]);
 
-  return (data ?? []).flatMap((f: any) => {
-    if (f.statut === "émise" && f.date_emission <= jMoins(7)) return [{ factureId: f.id, numero: f.numero, mode: "relance_1" as const }];
-    if (f.statut === "relance_1" && f.date_emission <= jMoins(15)) return [{ factureId: f.id, numero: f.numero, mode: "relance_2" as const }];
-    return [];
-  });
+  const dues: Array<{ factureId: string; numero: string; mode: "relance_1" | "relance_2" }> = [];
+  for (const f of (data ?? []) as any[]) {
+    if (f.statut === "émise" && f.date_emission <= jMoins(7)) dues.push({ factureId: f.id, numero: f.numero, mode: "relance_1" });
+    else if (f.statut === "relance_1" && f.date_emission <= jMoins(15)) dues.push({ factureId: f.id, numero: f.numero, mode: "relance_2" });
+  }
+  return dues;
 }
