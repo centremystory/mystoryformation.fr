@@ -1,0 +1,234 @@
+"use client";
+
+/**
+ * MYSTORY — /factures : registre des factures (§6, règle du 05/06/2026).
+ * · Registre : 50 dernières factures, statut (émise / relance 1 / relance 2 / payée),
+ *   actions « Marquer payée » (tampon PAYÉE + PDF regénéré) et « Renvoyer par email ».
+ * · À facturer : dossiers sans facture (CPF bloqué tant que le service fait n'est pas
+ *   validé EDOF — verrou art. L.6323-12) et ventes d'examen de rattrapage.
+ * · « Lancer les relances dues » : J+7 → relance 1, J+15 → relance 2 (jamais CPF).
+ * Le numéro FAC-AAAA-NNNNN est attribué par le serveur — séquence comptable sans trou.
+ */
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+interface Facture {
+  id: string; numero: string; montant: number; designation: string; client: string;
+  statut: string; date_emission: string; date_paiement: string | null;
+  dossier_id: string | null; vente_id: string | null;
+}
+interface DossierAFacturer {
+  dossierId: string; certif: string; montant: number; client: string;
+  estCpf: boolean; facturable: boolean; motifBlocage: string | null;
+}
+interface VenteAFacturer {
+  venteId: string; numeroAttestation: string; type: string; montant: number; client: string;
+}
+
+const BADGE: Record<string, string> = {
+  "émise": "bg-blue-50 border-blue-200 text-blue-800",
+  "relance_1": "bg-orange-100 border-orange-300 text-orange-800",
+  "relance_2": "bg-red-100 border-red-300 text-red-800",
+  "payée": "bg-green-100 border-green-300 text-green-800",
+};
+const LIBELLE_STATUT: Record<string, string> = {
+  "émise": "Émise", "relance_1": "Relance 1 (J+7)", "relance_2": "Relance 2 (J+15)", "payée": "Payée",
+};
+
+function dateFR(iso: string | null): string {
+  if (!iso) return "";
+  const [a, m, j] = iso.split("-").map(Number);
+  return new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", year: "numeric" }).format(new Date(a, m - 1, j));
+}
+
+export default function PageFactures() {
+  const [factures, setFactures] = useState<Facture[]>([]);
+  const [aFacturer, setAFacturer] = useState<DossierAFacturer[]>([]);
+  const [ventes, setVentes] = useState<VenteAFacturer[]>([]);
+  const [chargement, setChargement] = useState(true);
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const recharger = useCallback(async () => {
+    setErreur(null);
+    try {
+      const r = await fetch("/api/factures", { cache: "no-store" });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.erreur);
+      setFactures(j.factures); setAFacturer(j.aFacturer ?? []); setVentes(j.ventesAFacturer ?? []);
+    } catch (e: any) {
+      setErreur(e?.message ?? "Erreur de chargement.");
+    } finally {
+      setChargement(false);
+    }
+  }, []);
+  useEffect(() => { recharger(); }, [recharger]);
+
+  const totaux = useMemo(() => {
+    const emis = factures.reduce((s, f) => s + Number(f.montant || 0), 0);
+    const encaisse = factures.filter((f) => f.statut === "payée").reduce((s, f) => s + Number(f.montant || 0), 0);
+    return { emis, encaisse, attente: emis - encaisse, enAttenteN: factures.filter((f) => f.statut !== "payée").length };
+  }, [factures]);
+
+  async function action(url: string, corps: Record<string, unknown>, cle: string, message: string) {
+    setBusy(cle); setErreur(null); setInfo(null);
+    try {
+      const r = await fetch(url, { method: corps.action ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corps) });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.erreur);
+      setInfo(message + (j.numero ? ` (${j.numero})` : "") + (j.email && !j.email.envoye ? ` — ⚠️ email non envoyé : ${j.email.erreur}` : ""));
+      await recharger();
+    } catch (e: any) {
+      setErreur(e?.message ?? "Erreur.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function lancerRelances() {
+    setBusy("relances"); setErreur(null); setInfo(null);
+    try {
+      const r = await fetch("/api/factures/relances", { method: "POST" });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.erreur);
+      setInfo(j.total === 0 ? "Aucune relance due aujourd'hui." : `${j.envoyees}/${j.total} relance(s) envoyée(s).`);
+      await recharger();
+    } catch (e: any) {
+      setErreur(e?.message ?? "Erreur.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <main className="max-w-5xl mx-auto px-4 md:px-6 py-6">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h1 className="text-2xl font-semibold">Factures</h1>
+        <button
+          onClick={lancerRelances}
+          disabled={busy !== null}
+          className="px-3 py-1.5 rounded-md text-sm bg-mystory text-white hover:opacity-90 disabled:opacity-50"
+        >
+          {busy === "relances" ? "Relances en cours…" : "Lancer les relances dues (J+7 / J+15)"}
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+        <div className="rounded-lg border bg-white p-3"><div className="text-xs text-gray-500">Émis (50 dernières)</div><div className="text-lg font-semibold">{totaux.emis.toLocaleString("fr-FR")} €</div></div>
+        <div className="rounded-lg border bg-white p-3"><div className="text-xs text-gray-500">Encaissé</div><div className="text-lg font-semibold text-green-700">{totaux.encaisse.toLocaleString("fr-FR")} €</div></div>
+        <div className="rounded-lg border bg-white p-3"><div className="text-xs text-gray-500">En attente</div><div className="text-lg font-semibold text-orange-700">{totaux.attente.toLocaleString("fr-FR")} €</div></div>
+        <div className="rounded-lg border bg-white p-3"><div className="text-xs text-gray-500">Factures non payées</div><div className="text-lg font-semibold">{totaux.enAttenteN}</div></div>
+      </div>
+
+      {erreur && <div className="mt-4 rounded-md border border-red-300 bg-red-50 text-red-800 px-3 py-2 text-sm">{erreur}</div>}
+      {info && <div className="mt-4 rounded-md border border-green-300 bg-green-50 text-green-800 px-3 py-2 text-sm">{info}</div>}
+
+      {(aFacturer.length > 0 || ventes.length > 0) && (
+        <section className="mt-6">
+          <h2 className="text-lg font-semibold">À facturer</h2>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Payeur direct : facture à l&apos;inscription · CPF : facture après service fait validé EDOF (verrou).
+            Les ventes d&apos;examen sont facturées automatiquement à la vente — cette liste sert de rattrapage.
+          </p>
+          <div className="mt-2 space-y-2">
+            {aFacturer.map((d) => (
+              <div key={d.dossierId} className="rounded-lg border bg-white p-3 flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <span className="font-medium">{d.client || "(sans nom)"}</span>
+                  <span className="text-sm text-gray-500"> · {d.certif} · {Number(d.montant).toLocaleString("fr-FR")} €</span>
+                  {d.estCpf && <span className="ml-2 text-xs px-2 py-0.5 rounded border bg-blue-50 border-blue-200 text-blue-800">CPF</span>}
+                  {d.motifBlocage && <div className="text-xs text-orange-700 mt-0.5">⏳ {d.motifBlocage}</div>}
+                </div>
+                <button
+                  onClick={() => action("/api/factures", { dossier_id: d.dossierId }, d.dossierId, "Facture émise et envoyée")}
+                  disabled={!d.facturable || busy !== null}
+                  className="px-3 py-1.5 rounded-md text-sm bg-mystory text-white hover:opacity-90 disabled:opacity-40"
+                >
+                  {busy === d.dossierId ? "Émission…" : "Facturer"}
+                </button>
+              </div>
+            ))}
+            {ventes.map((v) => (
+              <div key={v.venteId} className="rounded-lg border bg-white p-3 flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <span className="font-medium">{v.client || "(sans nom)"}</span>
+                  <span className="text-sm text-gray-500"> · Examen {v.type} · {v.numeroAttestation} · {Number(v.montant).toLocaleString("fr-FR")} €</span>
+                </div>
+                <button
+                  onClick={() => action("/api/factures", { vente_id: v.venteId }, v.venteId, "Facture émise et envoyée")}
+                  disabled={busy !== null}
+                  className="px-3 py-1.5 rounded-md text-sm bg-mystory text-white hover:opacity-90 disabled:opacity-40"
+                >
+                  {busy === v.venteId ? "Émission…" : "Facturer"}
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section className="mt-6">
+        <h2 className="text-lg font-semibold">Registre</h2>
+        {chargement ? (
+          <p className="text-sm text-gray-500 mt-2">Chargement…</p>
+        ) : factures.length === 0 ? (
+          <p className="text-sm text-gray-500 mt-2">Aucune facture émise pour le moment.</p>
+        ) : (
+          <div className="mt-2 overflow-x-auto rounded-lg border bg-white">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 text-left text-xs text-gray-500">
+                  <th className="px-3 py-2">N°</th>
+                  <th className="px-3 py-2">Client</th>
+                  <th className="px-3 py-2">Désignation</th>
+                  <th className="px-3 py-2">Montant</th>
+                  <th className="px-3 py-2">Émise le</th>
+                  <th className="px-3 py-2">Statut</th>
+                  <th className="px-3 py-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {factures.map((f) => (
+                  <tr key={f.id} className="border-t align-top">
+                    <td className="px-3 py-2 font-mono whitespace-nowrap">{f.numero}</td>
+                    <td className="px-3 py-2">{f.client}</td>
+                    <td className="px-3 py-2 text-gray-600 max-w-[280px]">{f.designation}</td>
+                    <td className="px-3 py-2 whitespace-nowrap font-medium">{Number(f.montant).toLocaleString("fr-FR")} €</td>
+                    <td className="px-3 py-2 whitespace-nowrap">{dateFR(f.date_emission)}</td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <span className={`text-xs px-2 py-0.5 rounded border ${BADGE[f.statut] ?? "bg-gray-50 border-gray-200 text-gray-700"}`}>
+                        {LIBELLE_STATUT[f.statut] ?? f.statut}
+                      </span>
+                      {f.statut === "payée" && f.date_paiement && <div className="text-xs text-gray-400 mt-0.5">le {dateFR(f.date_paiement)}</div>}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-right">
+                      {f.statut !== "payée" && (
+                        <button
+                          onClick={() => action("/api/factures", { id: f.id, action: "payee" }, `p-${f.id}`, `Facture ${f.numero} marquée payée`)}
+                          disabled={busy !== null}
+                          className="px-2 py-1 rounded-md text-xs border border-green-300 text-green-700 hover:bg-green-50 disabled:opacity-40 mr-1"
+                        >
+                          {busy === `p-${f.id}` ? "…" : "Marquer payée"}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => action("/api/factures", { id: f.id, action: "renvoyer" }, `r-${f.id}`, `Facture ${f.numero} renvoyée`)}
+                        disabled={busy !== null}
+                        className="px-2 py-1 rounded-md text-xs border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+                      >
+                        {busy === `r-${f.id}` ? "…" : "Renvoyer"}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="text-xs text-gray-400 mt-2">
+          Numérotation FAC-AAAA-NNNNN séquentielle sans trou, attribuée par le serveur — document comptable : aucune suppression possible.
+        </p>
+      </section>
+    </main>
+  );
+}
