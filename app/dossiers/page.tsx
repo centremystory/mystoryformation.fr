@@ -1,9 +1,11 @@
 "use client";
-// app/dossiers/page.tsx — Suivi des dossiers (équipe)
-// Tous les dossiers en un tableau : badge complet/incomplet, avancement des pièces,
-// détail des pièces à traiter d'un clic, recherche par nom, lien vers la page suivi stagiaire.
-// Même catalogue de pièces et de statuts que la page /suivi (brique 2C) — un seul langage de conformité.
-import { useEffect, useMemo, useState } from "react";
+// app/dossiers/page.tsx — Suivi des dossiers (équipe) : le poste de pilotage
+// Tableau de tous les dossiers (badge complet/incomplet, avancement des pièces, recherche, filtres).
+// Ligne dépliée = la check-list des pièces AVEC actions : générer le document, envoyer la
+// convention en signature, consulter le PDF archivé — et le journal de remarques.
+// Toute génération passe par le moteur existant (fusion lieu=Gagny, portes de conformité 2B) :
+// cette page n'invente AUCUNE règle, elle appuie sur les routes déjà validées.
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 const LIBELLE_PIECE: Record<string, string> = {
   fiche_analyse_besoin: "Fiche d'analyse du besoin",
@@ -32,6 +34,13 @@ const STATUT_PIECE: Record<string, { label: string; classes: string }> = {
 };
 
 const LIBELLE_CERTIF: Record<string, string> = { TEF_IRN: "TEF IRN", LEVELTEL: "LEVELTEL" };
+
+// Pièces générables par /api/documents/generate (mapping type de pièce → type moteur).
+// Le moteur s'étendra pièce par pièce ; cette liste suit.
+const GENERABLES: Record<string, string> = {
+  convocation: "convocation",
+  feuille_emargement: "emargement",
+};
 
 type Piece = { type: string; statut: string; optionnelle: boolean; exige_signature: boolean; ordre: number };
 type Dossier = {
@@ -68,16 +77,21 @@ export default function PageDossiers() {
   const [filtre, setFiltre] = useState<"tous" | "incomplet" | "complet">("tous");
   const [ouvert, setOuvert] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch("/api/dossiers", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((j) => {
-        if (!j.ok) throw new Error(j.erreur || "Erreur de chargement.");
-        setDossiers(j.dossiers);
-      })
-      .catch((e) => setErreur(e?.message || "Erreur de chargement."))
-      .finally(() => setChargement(false));
+  const charger = useCallback(async () => {
+    try {
+      const r = await fetch("/api/dossiers", { cache: "no-store" });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.erreur || "Erreur de chargement.");
+      setDossiers(j.dossiers);
+      setErreur(null);
+    } catch (e: any) {
+      setErreur(e?.message || "Erreur de chargement.");
+    } finally {
+      setChargement(false);
+    }
   }, []);
+
+  useEffect(() => { charger(); }, [charger]);
 
   const visibles = useMemo(() => {
     const q = recherche.trim().toLowerCase();
@@ -96,7 +110,7 @@ export default function PageDossiers() {
       <header className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Suivi des dossiers</h1>
         <p className="text-sm text-gray-500 mt-1">
-          L'état de conformité de chaque dossier, en temps réel — clique sur une ligne pour voir les pièces à traiter.
+          L'état de conformité de chaque dossier — clique sur une ligne pour générer les documents et suivre les pièces.
         </p>
       </header>
 
@@ -153,48 +167,40 @@ export default function PageDossiers() {
               </tr>
             </thead>
             <tbody>
-              {visibles.map((d) => {
-                const obligatoires = (d.pieces ?? []).filter((p) => !p.optionnelle);
-                const faites = obligatoires.filter(pieceFaite).length;
-                const aTraiter = (d.pieces ?? [])
-                  .filter((p) => !pieceFaite(p))
-                  .sort((a, b) => a.ordre - b.ordre);
-                const estOuvert = ouvert === d.id;
-                const pct = obligatoires.length ? Math.round((faites / obligatoires.length) * 100) : 0;
-                return (
-                  <FragmentLigne
-                    key={d.id}
-                    d={d}
-                    faites={faites}
-                    total={obligatoires.length}
-                    pct={pct}
-                    aTraiter={aTraiter}
-                    estOuvert={estOuvert}
-                    onToggle={() => setOuvert(estOuvert ? null : d.id)}
-                  />
-                );
-              })}
+              {visibles.map((d) => (
+                <LigneDossier
+                  key={d.id}
+                  d={d}
+                  estOuvert={ouvert === d.id}
+                  onToggle={() => setOuvert(ouvert === d.id ? null : d.id)}
+                  recharger={charger}
+                />
+              ))}
             </tbody>
           </table>
         </div>
       )}
 
       <p className="text-xs text-gray-400 mt-4">
-        Une pièce compte « faite » quand elle est générée — ou signée si une signature est exigée (convention,
-        émargement…). Le badge du dossier est celui calculé par le moteur de conformité.
+        Une pièce compte « faite » quand elle est générée — ou signée si une signature est exigée. Toute génération
+        passe par le moteur de conformité : si une porte bloque (champs manquants, délai, plafond CPF…), le détail
+        s'affiche et rien n'est produit.
       </p>
     </main>
   );
 }
 
-function FragmentLigne({
-  d, faites, total, pct, aTraiter, estOuvert, onToggle,
+function LigneDossier({
+  d, estOuvert, onToggle, recharger,
 }: {
-  d: Dossier; faites: number; total: number; pct: number;
-  aTraiter: Piece[]; estOuvert: boolean; onToggle: () => void;
+  d: Dossier; estOuvert: boolean; onToggle: () => void; recharger: () => Promise<void>;
 }) {
+  const obligatoires = (d.pieces ?? []).filter((p) => !p.optionnelle);
+  const faites = obligatoires.filter(pieceFaite).length;
+  const pct = obligatoires.length ? Math.round((faites / obligatoires.length) * 100) : 0;
   const nomStagiaire = d.stagiaires ? `${d.stagiaires.prenom ?? ""} ${d.stagiaires.nom}`.trim() : "—";
   const nomFormatrice = d.formatrices ? `${d.formatrices.prenom ?? ""} ${d.formatrices.nom}`.trim() : "—";
+
   return (
     <>
       <tr onClick={onToggle} className="border-t border-gray-100 cursor-pointer hover:bg-gray-50">
@@ -215,7 +221,7 @@ function FragmentLigne({
                 style={{ width: `${pct}%` }}
               />
             </div>
-            <span className="text-gray-600 whitespace-nowrap">{faites}/{total}</span>
+            <span className="text-gray-600 whitespace-nowrap">{faites}/{obligatoires.length}</span>
           </div>
         </td>
         <td className="px-4 py-3">
@@ -230,22 +236,7 @@ function FragmentLigne({
       {estOuvert && (
         <tr className="border-t border-gray-100 bg-gray-50/60">
           <td colSpan={7} className="px-4 py-4">
-            {aTraiter.length === 0 ? (
-              <p className="text-sm text-green-800">Toutes les pièces sont en règle 🎉</p>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {aTraiter.map((p) => {
-                  const s = STATUT_PIECE[p.statut] ?? STATUT_PIECE.manquant;
-                  return (
-                    <span key={p.type}
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs ${s.classes}`}>
-                      {LIBELLE_PIECE[p.type] ?? p.type}
-                      <span className="opacity-70">· {s.label}{p.optionnelle ? " (optionnelle)" : ""}</span>
-                    </span>
-                  );
-                })}
-              </div>
-            )}
+            <PiecesActions d={d} recharger={recharger} />
             <a
               href={`/suivi?token=${d.token}`}
               target="_blank"
@@ -260,6 +251,160 @@ function FragmentLigne({
         </tr>
       )}
     </>
+  );
+}
+
+function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<void> }) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [erreurs, setErreurs] = useState<string[]>([]);
+  const pieces = [...(d.pieces ?? [])].sort((a, b) => a.ordre - b.ordre);
+
+  async function voir(piece: Piece) {
+    setBusy(piece.type); setErreurs([]);
+    try {
+      const r = await fetch(`/api/documents/url?dossier=${d.id}&piece=${piece.type}`, { cache: "no-store" });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.erreur || "PDF introuvable.");
+      window.open(j.url, "_blank", "noreferrer");
+    } catch (e: any) {
+      setErreurs([e?.message || "PDF introuvable."]);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function generer(piece: Piece) {
+    setBusy(piece.type); setErreurs([]);
+    try {
+      const r = await fetch("/api/documents/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dossierId: d.id, type: GENERABLES[piece.type] }),
+      });
+      const j = await r.json();
+      if (!j.ok) {
+        setErreurs(j.recap ?? [j.error || j.erreur || "Erreur lors de la génération."]);
+        return;
+      }
+      await recharger();
+    } catch (e: any) {
+      setErreurs([e?.message || "Erreur lors de la génération."]);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function envoyerConvention(piece: Piece) {
+    setBusy(piece.type); setErreurs([]);
+    try {
+      const r = await fetch("/api/conventions/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dossierId: d.id }),
+      });
+      const j = await r.json();
+      if (!j.ok) {
+        setErreurs(j.recap ?? [j.error || j.erreur || "Erreur lors de l'envoi en signature."]);
+        return;
+      }
+      await recharger();
+    } catch (e: any) {
+      setErreurs([e?.message || "Erreur lors de l'envoi en signature."]);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  function boutons(p: Piece) {
+    const occupé = busy === p.type;
+    const consultable = p.statut === "genere" || p.statut === "signee"
+      || p.statut === "envoye_a_signer" || p.statut === "signature_en_cours";
+
+    if (p.type === "convention") {
+      return (
+        <>
+          {(p.statut === "manquant" || p.statut === "erreur_envoi") && (
+            <button onClick={() => envoyerConvention(p)} disabled={occupé}
+                    className="px-3 py-1 rounded-lg text-xs text-white bg-mystory disabled:opacity-50">
+              {occupé ? "Envoi…" : "Envoyer à signer ✍️"}
+            </button>
+          )}
+          {(p.statut === "envoye_a_signer" || p.statut === "signature_en_cours") && (
+            <span className="text-xs text-gray-400">en attente du stagiaire</span>
+          )}
+          {consultable && (
+            <button onClick={() => voir(p)} disabled={occupé}
+                    className="px-3 py-1 rounded-lg text-xs border border-gray-300 text-gray-700 bg-white disabled:opacity-50">
+              {occupé ? "…" : "Voir le PDF"}
+            </button>
+          )}
+        </>
+      );
+    }
+
+    if (GENERABLES[p.type]) {
+      return (
+        <>
+          {(p.statut === "manquant" || p.statut === "erreur_envoi") && (
+            <button onClick={() => generer(p)} disabled={occupé}
+                    className="px-3 py-1 rounded-lg text-xs text-white bg-mystory disabled:opacity-50">
+              {occupé ? "Génération…" : "Générer"}
+            </button>
+          )}
+          {consultable && (
+            <>
+              <button onClick={() => voir(p)} disabled={occupé}
+                      className="px-3 py-1 rounded-lg text-xs border border-gray-300 text-gray-700 bg-white disabled:opacity-50">
+                {occupé ? "…" : "Voir le PDF"}
+              </button>
+              <button onClick={() => generer(p)} disabled={occupé}
+                      className="px-3 py-1 rounded-lg text-xs text-gray-400 hover:text-mystory">
+                Regénérer
+              </button>
+            </>
+          )}
+        </>
+      );
+    }
+
+    if (consultable) {
+      return (
+        <button onClick={() => voir(p)} disabled={occupé}
+                className="px-3 py-1 rounded-lg text-xs border border-gray-300 text-gray-700 bg-white disabled:opacity-50">
+          {occupé ? "…" : "Voir le PDF"}
+        </button>
+      );
+    }
+    return <span className="text-xs text-gray-300">génération bientôt</span>;
+  }
+
+  return (
+    <div>
+      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Pièces du dossier</p>
+      {erreurs.length > 0 && (
+        <div className="mb-3 px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm">
+          <p className="font-medium mb-1">Le moteur de conformité a bloqué :</p>
+          <ul className="list-disc pl-5 space-y-0.5">
+            {erreurs.map((e, i) => <li key={i}>{e}</li>)}
+          </ul>
+        </div>
+      )}
+      <ul className="divide-y divide-gray-100 bg-white border border-gray-200 rounded-lg">
+        {pieces.map((p) => {
+          const s = STATUT_PIECE[p.statut] ?? STATUT_PIECE.manquant;
+          return (
+            <li key={p.type} className="flex flex-wrap items-center gap-2 px-3 py-2">
+              <span className="text-sm text-gray-800 flex-1 min-w-[180px]">
+                {LIBELLE_PIECE[p.type] ?? p.type}
+                {p.optionnelle && <span className="text-gray-400 text-xs"> (optionnelle)</span>}
+              </span>
+              <span className={`inline-block px-2 py-0.5 rounded-full text-xs ${s.classes}`}>{s.label}</span>
+              <span className="flex items-center gap-1.5">{boutons(p)}</span>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }
 
