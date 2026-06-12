@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 16mm 16mm 22mm 16mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; color: #1c2433; font-size: 10pt; line-height: 1.45; margin: 0; }
+  .brandbar { height: 5px; background: #2F72DE; border-radius: 3px; }
+  header { display: flex; justify-content: space-between; align-items: flex-start; margin-top: 10px; }
+  .org h1 { color: #2F72DE; font-size: 16pt; margin: 0 0 2px; letter-spacing: .5px; }
+  .org .legal { font-size: 7.4pt; color: #5b6472; line-height: 1.35; }
+  .doctype { text-align: right; }
+  .doctype .tag { display: inline-block; background: #2F72DE; color: #fff; font-size: 7.4pt; padding: 3px 8px; border-radius: 3px; letter-spacing: .5px; }
+  .doctype .ref { font-size: 7.6pt; color: #5b6472; margin-top: 6px; }
+  h2.title { text-align: center; font-size: 14pt; margin: 18px 0 4px; }
+  .to { background: #f3f7fe; border: 1px solid #d8e4fb; border-radius: 6px; padding: 8px 12px; margin: 12px 0; font-size: 9.6pt; }
+  .to .who { font-weight: 700; }
+  p.intro { margin: 10px 0; text-align: justify; }
+  h3 { color: #2F72DE; font-size: 9.8pt; margin: 13px 0 4px; border-bottom: 1px solid #e3e8f0; padding-bottom: 2px; }
+  table.fields { width: 100%; border-collapse: collapse; font-size: 9.4pt; margin: 4px 0; }
+  table.fields td { padding: 3px 6px; vertical-align: top; border-bottom: 1px solid #eef1f6; }
+  table.fields td.k { color: #5b6472; width: 32%; }
+  table.fields td.v { font-weight: 600; }
+  table.plan { width: 100%; border-collapse: collapse; font-size: 8.8pt; margin: 6px 0; }
+  table.plan th { background: #2F72DE; color: #fff; font-size: 7.8pt; padding: 5px 6px; text-align: left; }
+  table.plan td { border: 1px solid #d8e4fb; padding: 4px 6px; }
+  table.plan tr:nth-child(even) td { background: #f7faff; }
+  ul { margin: 4px 0; padding-left: 18px; }
+  li { margin: 2px 0; }
+  .madeat { margin-top: 16px; font-size: 9.6pt; }
+  .ofsign { margin-top: 6px; min-height: 90px; position: relative; }
+  .ofsign .who { font-size: 8.6pt; font-weight: 700; color: #2F72DE; }
+  .ofsign .sub { font-size: 7.6pt; color: #5b6472; }
+  .ofsign .sig-img { max-height: 50px; margin-top: 6px; display: block; }
+  .cachet { position: absolute; right: 8px; top: 8px; width: 74px; height: 74px; border: 2px solid #2F72DE; border-radius: 50%; color: #2F72DE; font-size: 6pt; line-height: 1.25; text-align: center; display: flex; align-items: center; justify-content: center; transform: rotate(-9deg); opacity: .9; padding: 4px; }
+  .cachet-img { position: absolute; right: 6px; top: 6px; width: 80px; height: auto; opacity: .95; }
+  footer { position: fixed; bottom: 0; left: 0; right: 0; border-top: 1px solid #e3e8f0; padding-top: 4px; font-size: 6.6pt; color: #7a8290; text-align: center; line-height: 1.3; }
+
+  .rgpd { margin-top: 14px; font-size: 7.4pt; color: #5b6472; border-top: 1px solid #e3e8f0; padding-top: 6px; }
+  .check { font-size: 10pt; margin: 6px 0; }
+  .manus { white-space: pre-wrap; border: 1px solid #e3e8f0; border-radius: 6px; background: #fbfcfe; padding: 8px 10px; font-size: 9.2pt; min-height: 34px; margin: 4px 0 10px; }
+  .twocol { display: flex; gap: 24px; margin-top: 18px; }
+  .twocol > div { flex: 1; }
+  .sigline { margin-top: 30px; border-top: 1px dotted #9aa1ad; }
+  .sigwho { font-size: 8.6pt; font-weight: 700; color: #2F72DE; }
+  table.grille { width: 100%; border-collapse: collapse; font-size: 9pt; margin: 6px 0; }
+  table.grille th { background: #2F72DE; color: #fff; font-size: 8pt; padding: 5px 6px; }
+  table.grille td { border: 1px solid #d8e4fb; padding: 5px 6px; text-align: center; }
+  table.grille td.comp { text-align: left; font-weight: 600; }
+</style>
+</head>
+<body>
+  <footer>
+    MYSTORY — SASU · RCS Paris 913 423 083 · SIRET 913 423 083 00017 · Déclaration d'activité n° 11756521775 (ne vaut pas agrément de l'État)<br>
+    Gagny : 3 bis av. de Gagny, 93220 · Sarcelles : 18 av. du 8 Mai 1945, 95200 · Rosny : 46 bis rue d'Estienne d'Orves, 93110 Rosny-sous-Bois · 06 81 43 16 54 · contact@mystoryformation.fr
+  </footer>
+
+  <div class="brandbar"></div>
+  <header>
+    <div class="org">
+      <h1>MYSTORY</h1>
+      <div class="legal">
+        SASU · RCS Paris 913 423 083 · SIRET 913 423 083 00017<br>
+        Déclaration d'activité n° 11756521775<br>
+        06 81 43 16 54 · contact@mystoryformation.fr
+      </div>
+    </div>
+    <div class="doctype">
+      <span class="tag">FICHE D'ANALYSE DU BESOIN</span>
+      <div class="ref">{{certif_intitule}} ({{certif_code}})</div>
+    </div>
+  </header>
+
+  <h2 class="title">Fiche d'analyse du besoin</h2>
+  <p style="text-align:center; font-size:8.6pt; color:#5b6472; margin-top:-2px;"><em>Analyse du besoin du bénéficiaire</em></p>
+
+  <table class="fields">
+    <tr><td class="k">Bénéficiaire</td><td class="v">{{civilite}} {{nom}} {{prenom}}</td></tr>
+    <tr><td class="k">Contact</td><td class="v">{{email}} · {{telephone}}</td></tr>
+    <tr><td class="k">Formation visée</td><td class="v">{{certif_intitule}} — {{certif_code}}</td></tr>
+    <tr><td class="k">Date</td><td class="v">{{date_signature}}</td></tr>
+  </table>
+
+  <h3>Objectif professionnel</h3>
+  <p class="check"><strong>Objectif principal (nécessairement professionnel) :</strong><br>
+    {{obj_emploi}} Accès / retour à l'emploi &nbsp;&nbsp; {{obj_maintien}} Maintien dans l'emploi / adaptation au poste &nbsp;&nbsp; {{obj_mobilite}} Mobilité / évolution professionnelle
+  </p>
+  <p style="font-size:9.2pt; margin:6px 0 2px;"><strong>Description du projet professionnel :</strong></p>
+  <div class="manus">{{projet}}</div>
+  <p style="font-size:9.2pt; margin:6px 0 2px;"><strong>En quoi la maîtrise du français sert ce projet :</strong></p>
+  <div class="manus">{{apport_francais}}</div>
+  <p style="font-size:8.4pt; color:#5b6472;"><strong>Démarche administrative éventuelle (résidence / naturalisation) :</strong> le cas échéant, conséquence du projet professionnel ci-dessus — elle ne peut constituer l'objectif principal d'une formation financée par le CPF.</p>
+
+  <h3>Niveau et besoins</h3>
+  <p class="check"><strong>Niveau estimé (CECRL) :</strong> {{est_a0}} A0 &nbsp; {{est_a1}} A1 &nbsp; {{est_a2}} A2 &nbsp; {{est_b1}} B1 &nbsp; {{est_b2}} B2</p>
+  <p class="check"><strong>Niveau visé :</strong> {{vise_a2}} A2 &nbsp; {{vise_b1}} B1 &nbsp; {{vise_b2}} B2</p>
+  <p class="check"><strong>Besoin de compensation (handicap) :</strong> {{comp_non}} Non &nbsp; {{comp_oui}} Oui{{#if compensation_detail}} — préciser : <strong>{{compensation_detail}}</strong>{{/if}}</p>
+  <p class="check"><strong>Cohérence durée / écart de niveau vérifiée :</strong> ☑ Oui &nbsp; ☐ Non</p>
+
+  <div class="twocol">
+    <div><div class="sigwho">Signature du bénéficiaire</div><div class="sigline">&nbsp;</div></div>
+    <div><div class="sigwho">Signature du référent MYSTORY{{#if auteur_completion}} — {{auteur_completion}}{{/if}}</div><div class="sigline">&nbsp;</div></div>
+  </div>
+  <p class="rgpd"><strong>Données personnelles (RGPD).</strong> Données traitées par MYSTORY (SASU) pour le suivi de la formation et les obligations liées au financement CPF. Conservation : 5 ans. Droits d'accès, rectification, effacement, opposition : contact@mystoryformation.fr — réclamation possible auprès de la CNIL (www.cnil.fr).</p>
+</body>
+</html>
