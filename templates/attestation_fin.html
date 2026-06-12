@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 16mm 16mm 22mm 16mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; color: #1c2433; font-size: 10pt; line-height: 1.45; margin: 0; }
+  .brandbar { height: 5px; background: #2F72DE; border-radius: 3px; }
+  header { display: flex; justify-content: space-between; align-items: flex-start; margin-top: 10px; }
+  .org h1 { color: #2F72DE; font-size: 16pt; margin: 0 0 2px; letter-spacing: .5px; }
+  .org .legal { font-size: 7.4pt; color: #5b6472; line-height: 1.35; }
+  .doctype { text-align: right; }
+  .doctype .tag { display: inline-block; background: #2F72DE; color: #fff; font-size: 7.4pt; padding: 3px 8px; border-radius: 3px; letter-spacing: .5px; }
+  .doctype .ref { font-size: 7.6pt; color: #5b6472; margin-top: 6px; }
+  h2.title { text-align: center; font-size: 14pt; margin: 18px 0 4px; }
+  .to { background: #f3f7fe; border: 1px solid #d8e4fb; border-radius: 6px; padding: 8px 12px; margin: 12px 0; font-size: 9.6pt; }
+  .to .who { font-weight: 700; }
+  p.intro { margin: 10px 0; text-align: justify; }
+  h3 { color: #2F72DE; font-size: 9.8pt; margin: 13px 0 4px; border-bottom: 1px solid #e3e8f0; padding-bottom: 2px; }
+  table.fields { width: 100%; border-collapse: collapse; font-size: 9.4pt; margin: 4px 0; }
+  table.fields td { padding: 3px 6px; vertical-align: top; border-bottom: 1px solid #eef1f6; }
+  table.fields td.k { color: #5b6472; width: 32%; }
+  table.fields td.v { font-weight: 600; }
+  table.plan { width: 100%; border-collapse: collapse; font-size: 8.8pt; margin: 6px 0; }
+  table.plan th { background: #2F72DE; color: #fff; font-size: 7.8pt; padding: 5px 6px; text-align: left; }
+  table.plan td { border: 1px solid #d8e4fb; padding: 4px 6px; }
+  table.plan tr:nth-child(even) td { background: #f7faff; }
+  ul { margin: 4px 0; padding-left: 18px; }
+  li { margin: 2px 0; }
+  .madeat { margin-top: 16px; font-size: 9.6pt; }
+  .ofsign { margin-top: 6px; min-height: 90px; position: relative; }
+  .ofsign .who { font-size: 8.6pt; font-weight: 700; color: #2F72DE; }
+  .ofsign .sub { font-size: 7.6pt; color: #5b6472; }
+  .ofsign .sig-img { max-height: 50px; margin-top: 6px; display: block; }
+  .cachet { position: absolute; right: 8px; top: 8px; width: 74px; height: 74px; border: 2px solid #2F72DE; border-radius: 50%; color: #2F72DE; font-size: 6pt; line-height: 1.25; text-align: center; display: flex; align-items: center; justify-content: center; transform: rotate(-9deg); opacity: .9; padding: 4px; }
+  .cachet-img { position: absolute; right: 6px; top: 6px; width: 80px; height: auto; opacity: .95; }
+  footer { position: fixed; bottom: 0; left: 0; right: 0; border-top: 1px solid #e3e8f0; padding-top: 4px; font-size: 6.6pt; color: #7a8290; text-align: center; line-height: 1.3; }
+
+  .rgpd { margin-top: 14px; font-size: 7.4pt; color: #5b6472; border-top: 1px solid #e3e8f0; padding-top: 6px; }
+  .check { font-size: 10.5pt; }
+  .sigline { margin-top: 22px; border-top: 1px dotted #9aa1ad; width: 60%; }
+  .twocol { display: flex; gap: 24px; margin-top: 14px; }
+  .twocol > div { flex: 1; }
+  .attbox { border: 1px solid #d8e4fb; background: #f3f7fe; border-radius: 6px; padding: 10px 12px; margin-top: 16px; font-size: 9.4pt; }
+</style>
+</head>
+<body>
+  <footer>
+    MYSTORY — SASU · RCS Paris 913 423 083 · SIRET 913 423 083 00017 · Déclaration d'activité n° 11756521775 (ne vaut pas agrément de l'État)<br>
+    Gagny : 3 bis av. de Gagny, 93220 · Sarcelles : 18 av. du 8 Mai 1945, 95200 · Rosny : 46 bis rue d'Estienne d'Orves, 93110 Rosny-sous-Bois · 06 81 43 16 54 · contact@mystoryformation.fr
+  </footer>
+
+  <div class="brandbar"></div>
+  <header>
+    <div class="org">
+      <h1>MYSTORY</h1>
+      <div class="legal">
+        SASU · RCS Paris 913 423 083 · SIRET 913 423 083 00017<br>
+        Déclaration d'activité n° 11756521775<br>
+        06 81 43 16 54 · contact@mystoryformation.fr
+      </div>
+    </div>
+    <div class="doctype">
+      <span class="tag">ATTESTATION DE FIN</span>
+      <div class="ref">N° dossier EDOF : {{numero_dossier}}<br>{{certif_intitule}} ({{certif_code}})</div>
+    </div>
+  </header>
+
+  <h2 class="title">Attestation de fin de formation</h2>
+  <p style="text-align:center; font-size:8.6pt; color:#5b6472; margin-top:-2px;"><em>Article L.6353-1 du Code du travail</em></p>
+
+  <p class="intro">Je soussigné, <strong>Arudhan NATKUNASINGAM</strong>, Président de MYSTORY (NDA 11756521775), atteste que :</p>
+
+  <p class="intro"><strong>{{civilite}} {{nom}} {{prenom}}</strong>, né(e) le <strong>{{date_naissance}}</strong>, a suivi l'action de formation suivante :</p>
+
+  <table class="fields">
+    <tr><td class="k">Intitulé</td><td class="v">{{certif_intitule}} — {{certif_code}}</td></tr>
+    <tr><td class="k">Nature</td><td class="v">Action de formation (art. L.6313-1, 1°)</td></tr>
+    {{#if est_tef}}<tr><td class="k">Objectifs</td><td class="v">Préparer le TEF IRN ; consolider les compétences CO, CE, EO, EE selon le CECRL</td></tr>{{/if}}
+    {{#if est_leveltel}}<tr><td class="k">Objectifs</td><td class="v">Développer la communication en français dans un contexte professionnel (LEVELTEL FLE)</td></tr>{{/if}}
+    <tr><td class="k">Période · Durée</td><td class="v">du {{date_debut}} au {{date_fin}} · {{duree_heures}} heures (présentiel)</td></tr>
+    {{#if niveau_cecrl}}<tr><td class="k">Résultats de l'évaluation des acquis</td><td class="v">Niveau global atteint : {{niveau_cecrl}} (CECRL) — voir grille d'évaluation finale</td></tr>{{/if}}
+  </table>
+
+  <p class="check"><strong>Atteinte des objectifs :</strong>
+    {{#if objectifs_atteints}}☑{{/if}}{{#if objectifs_partiels}}☐{{/if}} Atteints &nbsp;&nbsp;
+    {{#if objectifs_atteints}}☐{{/if}}{{#if objectifs_partiels}}☑{{/if}} Partiellement atteints &nbsp;&nbsp;
+    ☐ Non atteints
+  </p>
+
+  <p class="intro">Attestation délivrée pour servir et valoir ce que de droit.</p>
+
+  <p class="madeat">Fait à {{lieu_signature}}, le {{date_signature}}.</p>
+  <div class="ofsign">
+    <div class="who">Pour l'Organisme de formation</div>
+    <div class="sub">Arudhan NATKUNASINGAM, Président</div>
+    {{#if of_signature_img}}<img class="sig-img" src="{{of_signature_img}}" alt="Signature du Président">{{/if}}
+    {{#if cachet_img}}<img class="cachet-img" src="{{cachet_img}}" alt="Cachet MYSTORY">{{/if}}
+    {{#if cachet_absent}}<div class="cachet">MYSTORY<br>Gagny<br>NDA 11756521775</div>{{/if}}
+  </div>
+  <p class="rgpd"><strong>Données personnelles (RGPD).</strong> Données traitées par MYSTORY (SASU) pour le suivi de la formation et les obligations liées au financement CPF. Conservation : 5 ans. Droits d'accès, rectification, effacement, opposition : contact@mystoryformation.fr — réclamation possible auprès de la CNIL (www.cnil.fr).</p>
+</body>
+</html>
