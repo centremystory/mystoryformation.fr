@@ -70,10 +70,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
     }
 
-    await journal("classement_cache", "examens", "classement_mis_a_jour", null, JSON.stringify({
+    await journal("classement_cache", "examens", "classement_mis_a_jour", {
       periode: `${corps.periode_debut} → ${corps.periode_fin}`,
       total_centre: corps.payload?.total_centre ?? null,
-    }), "n8n-classement");
+    }, "n8n-classement");
 
     return NextResponse.json({ ok: true });
   } catch (e) {
