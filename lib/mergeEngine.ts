@@ -40,6 +40,7 @@ export interface FicheStagiaire {
   formatrice?: string;
   niveauAtteint?: string;
   niveauVise?: string;
+  niveauInitial?: string;
   heuresPrevues?: number;
   heuresRealisees?: number;
   dateDebut?: string;
@@ -256,6 +257,7 @@ function resolveBalises(fiche: FicheStagiaire, cfg: TemplateConfig): Record<stri
     heures_prevues:   fiche.heuresPrevues !== undefined && fiche.heuresPrevues !== null ? String(fiche.heuresPrevues) : null,
     heures_realisees: fiche.heuresRealisees !== undefined && fiche.heuresRealisees !== null ? String(fiche.heuresRealisees) : null,
     niveau_vise:      fiche.niveauVise ?? null,
+    niveau_initial:   fiche.niveauInitial ?? null,
     est_tef:          fiche.certif === "TEF_IRN" ? "1" : null,
     est_leveltel:     fiche.certif === "LEVELTEL" ? "1" : null,
     execution_totale:    execTotale(fiche) === true  ? "1" : null,
@@ -276,8 +278,8 @@ function resolveBalises(fiche: FicheStagiaire, cfg: TemplateConfig): Record<stri
 // ---------------------------------------------------------------------------
 // 5. Moteur de rendu
 // ---------------------------------------------------------------------------
-export function merge(template: string, fiche: FicheStagiaire, cfg: TemplateConfig): MergeResult {
-  const values = resolveBalises(fiche, cfg);
+export function merge(template: string, fiche: FicheStagiaire, cfg: TemplateConfig, extras?: Record<string, string | null>): MergeResult {
+  const values = { ...resolveBalises(fiche, cfg), ...(extras ?? {}) };
   const neutralisees = new Set(NEUTRALISEES[fiche.certif]);
   for (const key of neutralisees) values[key] = "";
 
@@ -296,7 +298,7 @@ export function merge(template: string, fiche: FicheStagiaire, cfg: TemplateConf
   html = html.split("<!--EMARGEMENT_ROWS-->").join(buildEmargementRows(fiche.planning));
 
   // Sections conditionnelles {{#if balise}}...{{/if}}
-  html = html.replace(/\{\{#if\s+([a-z_]+)\s*\}\}([\s\S]*?)\{\{\/if\}\}/g, (_m, key, body) => {
+  html = html.replace(/\{\{#if\s+([a-z][a-z0-9_]*)\s*\}\}([\s\S]*?)\{\{\/if\}\}/g, (_m, key, body) => {
     const v = values[key];
     const keep = v !== null && v !== "" && !neutralisees.has(key);
     return keep ? body : "";
@@ -304,7 +306,7 @@ export function merge(template: string, fiche: FicheStagiaire, cfg: TemplateConf
 
   // Balises simples {{cle}} ([a-z_]+ uniquement → les tags DocuSeal restent intacts)
   const missing: string[] = [];
-  html = html.replace(/\{\{\s*([a-z_]+)\s*\}\}/g, (_m, key) => {
+  html = html.replace(/\{\{\s*([a-z][a-z0-9_]*)\s*\}\}/g, (_m, key) => {
     const v = values[key];
     if (v === undefined) return _m;
     if (v === null) {
@@ -366,16 +368,26 @@ export const TEMPLATES: Record<string, TemplateConfig> = {
     durationSource: "realisees",
     required: ["civilite", "nom", "prenom", "duree_heures", "heures_prevues", "date_debut", "date_fin"],
   },
+  fiche_analyse_besoin: {
+    id: "fiche_analyse_besoin",
+    durationSource: "prevues",
+    required: ["nom", "prenom", "email", "telephone"],
+  },
+  evaluation_finale: {
+    id: "evaluation_finale",
+    durationSource: "realisees",
+    required: ["nom", "prenom", "date_debut", "date_fin"],
+  },
 };
 
 // ---------------------------------------------------------------------------
 // 7. Raccourci : charge le gabarit HTML par id et fusionne
 // ---------------------------------------------------------------------------
-export function mergeTemplate(templateId: string, fiche: FicheStagiaire): MergeResult {
+export function mergeTemplate(templateId: string, fiche: FicheStagiaire, extras?: Record<string, string | null>): MergeResult {
   const cfg = TEMPLATES[templateId];
   if (!cfg) throw new Error(`Template inconnu : ${templateId}`);
   const file = path.join(process.cwd(), "templates", `${templateId}.html`);
   const tpl = readFileSync(file, "utf8");
-  return merge(tpl, fiche, cfg);
+  return merge(tpl, fiche, cfg, extras);
 }
 
