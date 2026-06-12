@@ -115,6 +115,7 @@ export async function POST(req: NextRequest) {
       vise_a2: box(fiche.niveauVise === "A2"),
       vise_b1: box(fiche.niveauVise === "B1"),
       vise_b2: box(fiche.niveauVise === "B2"),
+      vise_c1: box(fiche.niveauVise === "C1"),
     };
     champsValides = { objectif, projet, apport_francais: apport, compensation, compensation_detail: compDetail, coherence };
   }
