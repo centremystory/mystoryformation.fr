@@ -15,6 +15,11 @@ const CHEMINS_PUBLICS = [
   "/qcm",                   // test de positionnement public (stagiaires)
   "/positionnement",
   "/api/positionnement",
+  "/suivi",                 // pages stagiaires par jeton non devinable (capability)
+  "/evaluation",
+  "/fiche-besoin",
+  "/satisfaction",          // questionnaire de satisfaction en ligne (jeton)
+  "/api/satisfaction",      // dépôt de la réponse (jeton vérifié côté serveur)
 ];
 
 export async function middleware(req: NextRequest) {
