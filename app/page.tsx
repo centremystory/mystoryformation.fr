@@ -54,7 +54,14 @@ export default async function Accueil() {
         <Compteur libelle="Formatrices en règle" valeur={`${c.fleOk} / ${c.fleTotal}`} accent={c.fleOk === c.fleTotal ? "vert" : "ambre"} />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Link href="/dossiers"
+              className="group bg-white border border-gray-200 rounded-xl p-5 hover:border-mystory hover:shadow-sm transition-all">
+          <div className="w-10 h-10 rounded-lg bg-mystory-clair flex items-center justify-center text-mystory text-xl">📋</div>
+          <p className="font-semibold text-gray-900 mt-3 group-hover:text-mystory">Suivi des dossiers</p>
+          <p className="text-sm text-gray-500 mt-1">Complet / incomplet et pièces à traiter, dossier par dossier.</p>
+        </Link>
+
         <Link href="/inscriptions/nouvelle"
               className="group bg-white border border-gray-200 rounded-xl p-5 hover:border-mystory hover:shadow-sm transition-all">
           <div className="w-10 h-10 rounded-lg bg-mystory-clair flex items-center justify-center text-mystory text-xl">＋</div>
@@ -77,9 +84,6 @@ export default async function Accueil() {
         </a>
       </div>
 
-      <p className="text-xs text-gray-400 mt-8">
-        Bientôt ici : la liste de suivi des dossiers (complet / incomplet, pièces manquantes) — prochaine brique du chantier.
-      </p>
     </main>
   );
 }
