@@ -255,9 +255,113 @@ function FragmentLigne({
             >
               Ouvrir la page de suivi détaillée ↗
             </a>
+            <Remarques dossierId={d.id} />
           </td>
         </tr>
       )}
     </>
+  );
+}
+
+function dateHeureFr(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleString("fr-FR", {
+    timeZone: "Europe/Paris",
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+}
+
+type Remarque = { id: string; auteur: string | null; texte: string; horodatage: string };
+
+function Remarques({ dossierId }: { dossierId: string }) {
+  const [liste, setListe] = useState<Remarque[]>([]);
+  const [charge, setCharge] = useState(false);
+  const [texte, setTexte] = useState("");
+  const [auteur, setAuteur] = useState("");
+  const [envoi, setEnvoi] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    try { setAuteur(localStorage.getItem("mystory_auteur") ?? ""); } catch {}
+    fetch(`/api/dossiers/remarques?dossier=${dossierId}`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => { if (j.ok) setListe(j.remarques); })
+      .catch(() => {})
+      .finally(() => setCharge(true));
+  }, [dossierId]);
+
+  async function ajouter() {
+    if (!texte.trim() || envoi) return;
+    setEnvoi(true); setErr(null);
+    try {
+      const r = await fetch("/api/dossiers/remarques", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dossier_id: dossierId, texte: texte.trim(), auteur: auteur.trim() || null }),
+      });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.erreur || "Erreur lors de l'ajout.");
+      setListe((l) => [j.remarque, ...l]);
+      setTexte("");
+      try { if (auteur.trim()) localStorage.setItem("mystory_auteur", auteur.trim()); } catch {}
+    } catch (e: any) {
+      setErr(e?.message || "Erreur lors de l'ajout.");
+    } finally {
+      setEnvoi(false);
+    }
+  }
+
+  return (
+    <div className="mt-4 pt-4 border-t border-gray-200">
+      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+        Suivi du dossier ({liste.length})
+      </p>
+
+      <div className="flex flex-wrap items-start gap-2 mb-3">
+        <input
+          value={auteur}
+          onChange={(e) => setAuteur(e.target.value)}
+          placeholder="Ton prénom"
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-32 bg-white"
+        />
+        <textarea
+          value={texte}
+          onChange={(e) => setTexte(e.target.value)}
+          placeholder="Ajouter une remarque (appel, pièce reçue, report de séance…)"
+          rows={2}
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm flex-1 min-w-[220px] bg-white resize-y"
+        />
+        <button
+          onClick={ajouter}
+          disabled={envoi || !texte.trim()}
+          className="px-4 py-2 rounded-lg text-sm text-white bg-mystory disabled:opacity-50"
+        >
+          {envoi ? "Ajout…" : "Ajouter"}
+        </button>
+      </div>
+      {err && <p className="text-sm text-red-700 mb-2">{err}</p>}
+
+      {!charge ? (
+        <p className="text-sm text-gray-400">Chargement du suivi…</p>
+      ) : liste.length === 0 ? (
+        <p className="text-sm text-gray-400">Aucune remarque pour l'instant — la première marquera le début du journal.</p>
+      ) : (
+        <ul className="space-y-2">
+          {liste.map((r) => (
+            <li key={r.id} className="bg-white border border-gray-200 rounded-lg px-3 py-2">
+              <p className="text-xs text-gray-400">
+                {dateHeureFr(r.horodatage)}{r.auteur ? ` · ${r.auteur}` : ""}
+              </p>
+              <p className="text-sm text-gray-800 whitespace-pre-wrap">{r.texte}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="text-xs text-gray-400 mt-2">
+        Les remarques sont horodatées par le serveur et ne peuvent être ni modifiées ni supprimées (journal de suivi infalsifiable).
+      </p>
+    </div>
   );
 }
