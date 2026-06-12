@@ -47,7 +47,7 @@ export async function getFiche(dossierId: string): Promise<FicheStagiaire | null
     adresse: s.adresse, cp: s.cp, ville: s.ville, email: s.email, telephone: s.telephone,
     agence: s.agence, certif: d.certif,
     numeroDossier: d.numero_edof, sessionEdof: d.session_edof,
-    formatrice, niveauAtteint: d.niveau_atteint, niveauVise: d.niveau_vise,
+    formatrice, niveauAtteint: d.niveau_atteint, niveauVise: d.niveau_vise, niveauInitial: d.niveau_initial,
     heuresPrevues: d.heures_prevues, heuresRealisees: d.heures_realisees,
     dateDebut: d.date_debut, dateFin: d.date_fin,
     montant: d.montant,
