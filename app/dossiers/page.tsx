@@ -46,6 +46,9 @@ const GENERABLES: Record<string, string> = {
   certificat_realisation: "certificat_realisation",
 };
 
+// Pièces complétées via un petit formulaire CRM → PDF archivé (route /api/documents/completer).
+const COMPLETABLES = new Set(["fiche_analyse_besoin", "evaluation_finale"]);
+
 type Piece = { type: string; statut: string; optionnelle: boolean; exige_signature: boolean; ordre: number };
 type Dossier = {
   id: string;
@@ -261,6 +264,7 @@ function LigneDossier({
 function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<void> }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [erreurs, setErreurs] = useState<string[]>([]);
+  const [formOuvert, setFormOuvert] = useState<string | null>(null);
   const pieces = [...(d.pieces ?? [])].sort((a, b) => a.ordre - b.ordre);
 
   async function voir(piece: Piece) {
@@ -346,6 +350,23 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
       );
     }
 
+    if (COMPLETABLES.has(p.type)) {
+      return (
+        <>
+          <button onClick={() => setFormOuvert(formOuvert === p.type ? null : p.type)} disabled={occupé}
+                  className="px-3 py-1 rounded-lg text-xs text-white bg-mystory disabled:opacity-50">
+            {p.statut === "manquant" || p.statut === "erreur_envoi" ? "Compléter et générer" : "Recompléter"}
+          </button>
+          {consultable && (
+            <button onClick={() => voir(p)} disabled={occupé}
+                    className="px-3 py-1 rounded-lg text-xs border border-gray-300 text-gray-700 bg-white disabled:opacity-50">
+              {occupé ? "…" : "Voir le PDF"}
+            </button>
+          )}
+        </>
+      );
+    }
+
     if (GENERABLES[p.type]) {
       return (
         <>
@@ -408,6 +429,14 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
           );
         })}
       </ul>
+      {formOuvert && (
+        <FormulaireCompletion
+          dossierId={d.id}
+          type={formOuvert}
+          onFini={async () => { setFormOuvert(null); await recharger(); }}
+          onErreurs={setErreurs}
+        />
+      )}
     </div>
   );
 }
@@ -511,6 +540,140 @@ function Remarques({ dossierId }: { dossierId: string }) {
       <p className="text-xs text-gray-400 mt-2">
         Les remarques sont horodatées par le serveur et ne peuvent être ni modifiées ni supprimées (journal de suivi infalsifiable).
       </p>
+    </div>
+  );
+}
+
+const NIVEAUX_CECRL = ["A0", "A1", "A2", "B1", "B2", "C1", "C2"];
+
+function FormulaireCompletion({
+  dossierId, type, onFini, onErreurs,
+}: {
+  dossierId: string; type: string; onFini: () => Promise<void>; onErreurs: (e: string[]) => void;
+}) {
+  const [champs, setChamps] = useState<Record<string, any>>(
+    type === "fiche_analyse_besoin"
+      ? { objectif: "", projet: "", apport_francais: "", compensation: "non", compensation_detail: "", coherence: false }
+      : { niveau_co: "", niveau_ce: "", niveau_eo: "", niveau_ee: "", niveau_global: "", commentaires: "", axes: "" }
+  );
+  const [auteur, setAuteur] = useState("");
+  const [envoi, setEnvoi] = useState(false);
+
+  useEffect(() => {
+    try { setAuteur(localStorage.getItem("mystory_auteur") ?? ""); } catch {}
+    fetch(`/api/documents/completer?dossier=${dossierId}&type=${type}`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => { if (j.ok && j.completion?.champs) setChamps((c) => ({ ...c, ...j.completion.champs })); })
+      .catch(() => {});
+  }, [dossierId, type]);
+
+  const set = (k: string, v: any) => setChamps((c) => ({ ...c, [k]: v }));
+
+  async function envoyer() {
+    setEnvoi(true); onErreurs([]);
+    try {
+      const r = await fetch("/api/documents/completer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dossierId, type, champs, auteur: auteur.trim() || null }),
+      });
+      const j = await r.json();
+      if (!j.ok) { onErreurs(j.recap ?? [j.erreur || "Erreur lors de la génération."]); return; }
+      try { if (auteur.trim()) localStorage.setItem("mystory_auteur", auteur.trim()); } catch {}
+      await onFini();
+    } catch (e: any) {
+      onErreurs([e?.message || "Erreur lors de la génération."]);
+    } finally {
+      setEnvoi(false);
+    }
+  }
+
+  const champClasses = "border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white";
+
+  return (
+    <div className="mt-3 border border-mystory/30 bg-mystory-clair/40 rounded-lg p-4">
+      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
+        {type === "fiche_analyse_besoin" ? "Fiche d'analyse du besoin — à compléter" : "Évaluation finale — à compléter"}
+      </p>
+
+      {type === "fiche_analyse_besoin" ? (
+        <div className="space-y-3">
+          <label className="block text-sm">
+            <span className="font-medium">Objectif principal (nécessairement professionnel)</span>
+            <select value={champs.objectif} onChange={(e) => set("objectif", e.target.value)}
+                    className={`${champClasses} mt-1 block w-full max-w-md`}>
+              <option value="">— Choisir —</option>
+              <option value="emploi">Accès / retour à l'emploi</option>
+              <option value="maintien">Maintien dans l'emploi / adaptation au poste</option>
+              <option value="mobilite">Mobilité / évolution professionnelle</option>
+            </select>
+          </label>
+          <label className="block text-sm">
+            <span className="font-medium">Description du projet professionnel</span>
+            <textarea value={champs.projet} onChange={(e) => set("projet", e.target.value)} rows={2}
+                      className={`${champClasses} mt-1 block w-full resize-y`} />
+          </label>
+          <label className="block text-sm">
+            <span className="font-medium">En quoi la maîtrise du français sert ce projet</span>
+            <textarea value={champs.apport_francais} onChange={(e) => set("apport_francais", e.target.value)} rows={2}
+                      className={`${champClasses} mt-1 block w-full resize-y`} />
+          </label>
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            <span className="font-medium">Besoin de compensation (handicap) :</span>
+            <select value={champs.compensation} onChange={(e) => set("compensation", e.target.value)} className={champClasses}>
+              <option value="non">Non</option>
+              <option value="oui">Oui</option>
+            </select>
+            {champs.compensation === "oui" && (
+              <input value={champs.compensation_detail} onChange={(e) => set("compensation_detail", e.target.value)}
+                     placeholder="Préciser l'adaptation" className={`${champClasses} flex-1 min-w-[200px]`} />
+            )}
+          </div>
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" checked={!!champs.coherence} onChange={(e) => set("coherence", e.target.checked)}
+                   className="mt-0.5" />
+            <span><strong>J'ai vérifié la cohérence durée / écart de niveau</strong> (obligatoire pour générer la fiche). Les niveaux estimé et visé sont repris automatiquement du dossier.</span>
+          </label>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+            {([["niveau_co", "Compr. orale"], ["niveau_ce", "Compr. écrite"], ["niveau_eo", "Expr. orale"], ["niveau_ee", "Expr. écrite"], ["niveau_global", "Niveau global"]] as const).map(([k, l]) => (
+              <label key={k} className="block text-sm">
+                <span className="font-medium">{l}</span>
+                <select value={champs[k]} onChange={(e) => set(k, e.target.value)} className={`${champClasses} mt-1 block w-full`}>
+                  <option value="">—</option>
+                  {NIVEAUX_CECRL.map((n) => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </label>
+            ))}
+          </div>
+          <p className="text-xs text-gray-500">
+            Le niveau global devient le niveau du dossier : l'attestation de fin le reprendra tel quel
+            (cohérence CECRL garantie). « Objectifs atteints » se coche automatiquement par rapport au niveau visé.
+          </p>
+          <label className="block text-sm">
+            <span className="font-medium">Commentaires du formateur</span>
+            <textarea value={champs.commentaires} onChange={(e) => set("commentaires", e.target.value)} rows={2}
+                      className={`${champClasses} mt-1 block w-full resize-y`} />
+          </label>
+          <label className="block text-sm">
+            <span className="font-medium">Axes de progression</span>
+            <textarea value={champs.axes} onChange={(e) => set("axes", e.target.value)} rows={2}
+                      className={`${champClasses} mt-1 block w-full resize-y`} />
+          </label>
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2 mt-4">
+        <input value={auteur} onChange={(e) => setAuteur(e.target.value)} placeholder="Ton prénom"
+               className={`${champClasses} w-32`} />
+        <button onClick={envoyer} disabled={envoi}
+                className="px-4 py-2 rounded-lg text-sm text-white bg-mystory disabled:opacity-50">
+          {envoi ? "Génération…" : "Générer le PDF"}
+        </button>
+        <span className="text-xs text-gray-500">La saisie est tracée (horodatage serveur) et le PDF archivé au dossier.</span>
+      </div>
     </div>
   );
 }
