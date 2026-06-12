@@ -11,6 +11,7 @@ const LIENS = [
   { href: "/", label: "Accueil" },
   { href: "/dossiers", label: "Dossiers" },
   { href: "/examens", label: "Examens" },
+  { href: "/factures", label: "Factures" },
   { href: "/inscriptions/nouvelle", label: "Nouvelle inscription" },
   { href: "/equipe", label: "Équipe" },
 ];
