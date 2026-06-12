@@ -347,6 +347,11 @@ export const TEMPLATES: Record<string, TemplateConfig> = {
     durationSource: "prevues",
     required: ["duree_heures"],
   },
+  programme_leveltel: {
+    id: "programme_leveltel",
+    durationSource: "prevues",
+    required: ["duree_heures"],
+  },
   reglement_interieur: {
     id: "reglement_interieur",
     durationSource: "prevues",
