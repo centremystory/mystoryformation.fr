@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 16mm 16mm 22mm 16mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; color: #1c2433; font-size: 10pt; line-height: 1.45; margin: 0; }
+  .brandbar { height: 5px; background: #2F72DE; border-radius: 3px; }
+  header { display: flex; justify-content: space-between; align-items: flex-start; margin-top: 10px; }
+  .org h1 { color: #2F72DE; font-size: 16pt; margin: 0 0 2px; letter-spacing: .5px; }
+  .org .legal { font-size: 7.4pt; color: #5b6472; line-height: 1.35; }
+  .doctype { text-align: right; }
+  .doctype .tag { display: inline-block; background: #2F72DE; color: #fff; font-size: 7.4pt; padding: 3px 8px; border-radius: 3px; letter-spacing: .5px; }
+  .doctype .ref { font-size: 7.6pt; color: #5b6472; margin-top: 6px; }
+  h2.title { text-align: center; font-size: 14pt; margin: 18px 0 4px; }
+  .to { background: #f3f7fe; border: 1px solid #d8e4fb; border-radius: 6px; padding: 8px 12px; margin: 12px 0; font-size: 9.6pt; }
+  .to .who { font-weight: 700; }
+  p.intro { margin: 10px 0; text-align: justify; }
+  h3 { color: #2F72DE; font-size: 9.8pt; margin: 13px 0 4px; border-bottom: 1px solid #e3e8f0; padding-bottom: 2px; }
+  table.fields { width: 100%; border-collapse: collapse; font-size: 9.4pt; margin: 4px 0; }
+  table.fields td { padding: 3px 6px; vertical-align: top; border-bottom: 1px solid #eef1f6; }
+  table.fields td.k { color: #5b6472; width: 32%; }
+  table.fields td.v { font-weight: 600; }
+  table.plan { width: 100%; border-collapse: collapse; font-size: 8.8pt; margin: 6px 0; }
+  table.plan th { background: #2F72DE; color: #fff; font-size: 7.8pt; padding: 5px 6px; text-align: left; }
+  table.plan td { border: 1px solid #d8e4fb; padding: 4px 6px; }
+  table.plan tr:nth-child(even) td { background: #f7faff; }
+  ul { margin: 4px 0; padding-left: 18px; }
+  li { margin: 2px 0; }
+  .madeat { margin-top: 16px; font-size: 9.6pt; }
+  .ofsign { margin-top: 6px; min-height: 90px; position: relative; }
+  .ofsign .who { font-size: 8.6pt; font-weight: 700; color: #2F72DE; }
+  .ofsign .sub { font-size: 7.6pt; color: #5b6472; }
+  .ofsign .sig-img { max-height: 50px; margin-top: 6px; display: block; }
+  .cachet { position: absolute; right: 8px; top: 8px; width: 74px; height: 74px; border: 2px solid #2F72DE; border-radius: 50%; color: #2F72DE; font-size: 6pt; line-height: 1.25; text-align: center; display: flex; align-items: center; justify-content: center; transform: rotate(-9deg); opacity: .9; padding: 4px; }
+  .cachet-img { position: absolute; right: 6px; top: 6px; width: 80px; height: auto; opacity: .95; }
+  footer { position: fixed; bottom: 0; left: 0; right: 0; border-top: 1px solid #e3e8f0; padding-top: 4px; font-size: 6.6pt; color: #7a8290; text-align: center; line-height: 1.3; }
+
+  .rgpd { margin-top: 12px; font-size: 7.4pt; color: #5b6472; border-top: 1px solid #e3e8f0; padding-top: 6px; }
+  .check { font-size: 9.4pt; margin: 6px 0; }
+  .warn { background: #FCEBEB; border: 1px solid #e8b9b9; border-radius: 6px; padding: 7px 10px; font-size: 9pt; font-weight: 600; margin: 8px 0; }
+  .twocol { display: flex; gap: 24px; margin-top: 14px; }
+  .twocol > div { flex: 1; }
+  .sigline { margin-top: 28px; border-top: 1px dotted #9aa1ad; }
+  .sigwho { font-size: 8.6pt; font-weight: 700; color: #2F72DE; }
+</style>
+</head>
+<body>
+  <footer>
+    MYSTORY — SASU · RCS Paris 913 423 083 · SIRET 913 423 083 00017 · Déclaration d'activité n° 11756521775 (ne vaut pas agrément de l'État)<br>
+    Gagny : 3 bis av. de Gagny, 93220 · Sarcelles : 18 av. du 8 Mai 1945, 95200 · Rosny : 46 bis rue d'Estienne d'Orves, 93110 Rosny-sous-Bois · 06 81 43 16 54 · contact@mystoryformation.fr
+  </footer>
+
+  <div class="brandbar"></div>
+  <header>
+    <div class="org">
+      <h1>MYSTORY</h1>
+      <div class="legal">
+        SASU · RCS Paris 913 423 083 · SIRET 913 423 083 00017<br>
+        Déclaration d'activité n° 11756521775<br>
+        06 81 43 16 54 · contact@mystoryformation.fr
+      </div>
+    </div>
+    <div class="doctype">
+      <span class="tag">ATTESTATION D'INSCRIPTION ET DE PAIEMENT</span>
+      <div class="ref">N° {{numero_attestation}}</div>
+    </div>
+  </header>
+
+  <h2 class="title">Attestation d'inscription et de paiement</h2>
+  <p style="text-align:center; font-size:8.6pt; color:#5b6472; margin-top:-2px;"><em>Centre d'examen · TEF IRN / Examen civique</em></p>
+
+  <table class="fields">
+    <tr><td class="k">N° d'attestation</td><td class="v"><strong>{{numero_attestation}}</strong>{{#if mention_corrigee}} <strong>(corrigée)</strong>{{/if}}</td></tr>
+    <tr><td class="k">N° étranger</td><td class="v">{{num_etranger}}</td></tr>
+    <tr><td class="k">Nom et Prénom</td><td class="v">{{civilite}} {{nom}} {{prenom}}</td></tr>
+    <tr><td class="k">Date de naissance</td><td class="v">{{date_naissance}}</td></tr>
+    <tr><td class="k">Téléphone</td><td class="v">{{telephone}}</td></tr>
+    <tr><td class="k">Email</td><td class="v">{{email}}</td></tr>
+    <tr><td class="k">Adresse postale</td><td class="v">{{adresse_postale}}</td></tr>
+  </table>
+
+  <h3>Examen et niveau</h3>
+  <p class="check">{{coche_tef}} <strong>TEF IRN</strong>{{#if motivation_tef}} — motivation : {{motivation_tef}}{{/if}}</p>
+  <p class="check">{{coche_civique}} <strong>Examen civique :</strong> {{civ_pluriannuelle}} Carte pluriannuelle &nbsp; {{civ_resident}} Carte de résidence &nbsp; {{civ_naturalisation}} Naturalisation</p>
+  <p class="check">{{coche_plateforme}} <strong>Application :</strong> {{app_prepmyfuture}} PrepMyFuture &nbsp; {{app_prepcivique}} PrepCivique &nbsp; {{app_passetontef}} Passetontef</p>
+
+  <h3>Session d'examen</h3>
+  {{#if session_ligne}}<p class="check">☑ <strong>{{session_type}}</strong> — centre : Gagny (3 bis avenue de Gagny, 93220) · le <strong>{{date_examen}}</strong> à <strong>{{heure_debut}}</strong></p>{{/if}}
+  {{#if sans_session}}<p class="check">☐ Vente d'application d'entraînement — sans session d'examen associée.</p>{{/if}}
+
+  <h3>Règlement</h3>
+  <p class="check"><strong>{{montant}} €</strong> &nbsp; {{pay_cb}} Carte bancaire &nbsp; {{pay_especes}} Espèces &nbsp; {{pay_mixte}} Mixte{{#if dont_cb}} (dont {{dont_cb}} € par carte){{/if}}</p>
+  <p class="check"><strong>Reste à payer :</strong> {{reste_a_payer}} €</p>
+
+  <p>Nous attestons que le candidat mentionné ci-dessus est inscrit à la session indiquée et que le paiement correspondant a été validé par notre centre. La convocation officielle est transmise par courrier électronique dans un délai maximum de 24 heures après validation du règlement.</p>
+  <p style="font-size:8.8pt;">Réclamation : contact@mystoryformation.fr · Handicap : aménagement possible sur demande.</p>
+  <p class="warn">Le test se déroule sur ORDINATEUR et les frais d'inscription ne sont pas remboursables.</p>
+
+  <p>Fait à Gagny, le {{date_emission}} — Référent : {{referent}}</p>
+
+  <div class="twocol">
+    <div>
+  <div class="ofsign">
+    <div class="who">Signature et cachet du centre</div>
+    <div class="sub">Arudhan NATKUNASINGAM, Président</div>
+    {{#if of_signature_img}}<img class="sig-img" src="{{of_signature_img}}" alt="Signature du Président">{{/if}}
+    {{#if cachet_img}}<img class="cachet-img" src="{{cachet_img}}" alt="Cachet MYSTORY">{{/if}}
+    {{#if cachet_absent}}<div class="cachet">MYSTORY<br>Gagny<br>NDA 11756521775</div>{{/if}}
+  </div>
+    </div>
+    <div><div class="sigwho">Signature du candidat</div><div class="sigline">&nbsp;</div></div>
+  </div>
+  <p class="rgpd"><strong>Données personnelles (RGPD).</strong> Données traitées par MYSTORY (SASU) pour le suivi de la formation et les obligations liées au financement CPF. Conservation : 5 ans. Droits d'accès, rectification, effacement, opposition : contact@mystoryformation.fr — réclamation possible auprès de la CNIL (www.cnil.fr).</p>
+</body>
+</html>
