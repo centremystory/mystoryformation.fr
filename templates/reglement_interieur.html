@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 16mm 16mm 22mm 16mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; color: #1c2433; font-size: 10pt; line-height: 1.45; margin: 0; }
+  .brandbar { height: 5px; background: #2F72DE; border-radius: 3px; }
+  header { display: flex; justify-content: space-between; align-items: flex-start; margin-top: 10px; }
+  .org h1 { color: #2F72DE; font-size: 16pt; margin: 0 0 2px; letter-spacing: .5px; }
+  .org .legal { font-size: 7.4pt; color: #5b6472; line-height: 1.35; }
+  .doctype { text-align: right; }
+  .doctype .tag { display: inline-block; background: #2F72DE; color: #fff; font-size: 7.4pt; padding: 3px 8px; border-radius: 3px; letter-spacing: .5px; }
+  .doctype .ref { font-size: 7.6pt; color: #5b6472; margin-top: 6px; }
+  h2.title { text-align: center; font-size: 14pt; margin: 18px 0 4px; }
+  .to { background: #f3f7fe; border: 1px solid #d8e4fb; border-radius: 6px; padding: 8px 12px; margin: 12px 0; font-size: 9.6pt; }
+  .to .who { font-weight: 700; }
+  p.intro { margin: 10px 0; text-align: justify; }
+  h3 { color: #2F72DE; font-size: 9.8pt; margin: 13px 0 4px; border-bottom: 1px solid #e3e8f0; padding-bottom: 2px; }
+  table.fields { width: 100%; border-collapse: collapse; font-size: 9.4pt; margin: 4px 0; }
+  table.fields td { padding: 3px 6px; vertical-align: top; border-bottom: 1px solid #eef1f6; }
+  table.fields td.k { color: #5b6472; width: 32%; }
+  table.fields td.v { font-weight: 600; }
+  table.plan { width: 100%; border-collapse: collapse; font-size: 8.8pt; margin: 6px 0; }
+  table.plan th { background: #2F72DE; color: #fff; font-size: 7.8pt; padding: 5px 6px; text-align: left; }
+  table.plan td { border: 1px solid #d8e4fb; padding: 4px 6px; }
+  table.plan tr:nth-child(even) td { background: #f7faff; }
+  ul { margin: 4px 0; padding-left: 18px; }
+  li { margin: 2px 0; }
+  .madeat { margin-top: 16px; font-size: 9.6pt; }
+  .ofsign { margin-top: 6px; min-height: 90px; position: relative; }
+  .ofsign .who { font-size: 8.6pt; font-weight: 700; color: #2F72DE; }
+  .ofsign .sub { font-size: 7.6pt; color: #5b6472; }
+  .ofsign .sig-img { max-height: 50px; margin-top: 6px; display: block; }
+  .cachet { position: absolute; right: 8px; top: 8px; width: 74px; height: 74px; border: 2px solid #2F72DE; border-radius: 50%; color: #2F72DE; font-size: 6pt; line-height: 1.25; text-align: center; display: flex; align-items: center; justify-content: center; transform: rotate(-9deg); opacity: .9; padding: 4px; }
+  .cachet-img { position: absolute; right: 6px; top: 6px; width: 80px; height: auto; opacity: .95; }
+  footer { position: fixed; bottom: 0; left: 0; right: 0; border-top: 1px solid #e3e8f0; padding-top: 4px; font-size: 6.6pt; color: #7a8290; text-align: center; line-height: 1.3; }
+
+  .rgpd { margin-top: 14px; font-size: 7.4pt; color: #5b6472; border-top: 1px solid #e3e8f0; padding-top: 6px; }
+  .check { font-size: 10.5pt; }
+  .sigline { margin-top: 22px; border-top: 1px dotted #9aa1ad; width: 60%; }
+  .attbox { border: 1px solid #d8e4fb; background: #f3f7fe; border-radius: 6px; padding: 10px 12px; margin-top: 16px; font-size: 9.4pt; }
+  h4 { color: #2F72DE; font-size: 9.4pt; margin: 10px 0 3px; }
+  p.art, li.art { font-size: 8.9pt; text-align: justify; margin: 3px 0; }
+</style>
+</head>
+<body>
+  <footer>
+    MYSTORY — SASU · RCS Paris 913 423 083 · SIRET 913 423 083 00017 · Déclaration d'activité n° 11756521775 (ne vaut pas agrément de l'État)<br>
+    Gagny : 3 bis av. de Gagny, 93220 · Sarcelles : 18 av. du 8 Mai 1945, 95200 · Rosny : 46 bis rue d'Estienne d'Orves, 93110 Rosny-sous-Bois · 06 81 43 16 54 · contact@mystoryformation.fr
+  </footer>
+
+  <div class="brandbar"></div>
+  <header>
+    <div class="org">
+      <h1>MYSTORY</h1>
+      <div class="legal">
+        SASU · RCS Paris 913 423 083 · SIRET 913 423 083 00017<br>
+        Déclaration d'activité n° 11756521775<br>
+        06 81 43 16 54 · contact@mystoryformation.fr
+      </div>
+    </div>
+    <div class="doctype">
+      <span class="tag">ANNEXE 2 — RÈGLEMENT</span>
+      <div class="ref">{{certif_intitule}} ({{certif_code}})</div>
+    </div>
+  </header>
+
+  <h2 class="title">Règlement intérieur du stagiaire — Annexe 2</h2>
+  <p style="text-align:center; font-size:8.6pt; color:#5b6472; margin-top:-2px;"><em>Articles L.6352-3, L.6352-4 et R.6352-1 à R.6352-15 du Code du travail</em></p>
+
+  <h4>Article 1 — Objet et champ d'application</h4>
+  <p class="art">Conformément aux articles L.6352-3, L.6352-4 et R.6352-1 à R.6352-15 du Code du travail, le présent règlement détermine les principales mesures applicables en matière de santé, de sécurité et de discipline aux stagiaires de MYSTORY. Tout stagiaire en respecte les termes pendant toute la durée de l'action. Lorsque la formation se déroule dans une entreprise dotée de son propre règlement intérieur, les mesures de santé et de sécurité applicables sont celles de cette entreprise.</p>
+  <h4>Article 2 — Hygiène et sécurité</h4>
+  <p class="art">Chaque stagiaire veille au respect des consignes générales et particulières d'hygiène et de sécurité, sous peine de sanctions. Propreté des locaux : les stagiaires maintiennent les locaux en ordre et en état de propreté ; il est interdit d'y manger. Alcool et stupéfiants : l'introduction et la consommation de produits stupéfiants ou de boissons alcoolisées sont strictement interdites ; il est interdit de se présenter ou de demeurer dans l'établissement en état d'ivresse ou sous l'emprise de stupéfiants. Sécurité incendie : les consignes d'incendie ainsi que le plan de localisation des extincteurs et des issues de secours sont affichés ; les stagiaires exécutent sans délai tout ordre d'évacuation. Accident : tout accident est immédiatement déclaré à l'organisme ; conformément à l'article R.6342-3 du Code du travail, l'accident survenu pendant la formation ou sur le trajet fait l'objet d'une déclaration de l'organisme auprès de la caisse de sécurité sociale. Interdiction de fumer et de vapoter dans les locaux ; les pauses permettent de le faire à l'extérieur de l'établissement.</p>
+  <h4>Article 3 — Horaires, absences et retards</h4>
+  <p class="art">Les horaires sont communiqués au préalable et doivent être respectés. Sauf autorisation expresse, le stagiaire ne s'absente pas pendant les heures de formation et émarge par demi-journée. Toute absence ou tout retard est signalé et justifié dans les plus brefs délais (justificatif sous 48 h) ; l'employeur est informé le cas échéant. Pour les formations financées (OPCO, France Travail, Caisse des Dépôts), les absences non justifiées entraînent une retenue sur la prise en charge, proportionnelle à la durée de l'absence.</p>
+  <h4>Article 4 — Comportement</h4>
+  <p class="art">Le stagiaire adopte un comportement respectueux des règles de savoir-vivre et de la vie en collectivité, garantissant le bon déroulement de la formation. Il est notamment interdit de modifier, d'utiliser à d'autres fins ou de diffuser les supports de formation sans autorisation expresse, de modifier les réglages des ordinateurs, et d'utiliser son téléphone portable à des fins étrangères à la formation. Conformément aux articles L.1152-1 et L.1153-1 du Code du travail, aucun stagiaire ne doit subir d'agissement de harcèlement moral ou sexuel, ni d'agissement sexiste ; tout fait de cette nature est signalé au référent et peut entraîner une sanction.</p>
+  <h4>Article 5 — Accès aux locaux</h4>
+  <p class="art">Les stagiaires accèdent aux locaux exclusivement pour suivre la formation à laquelle ils sont inscrits ; ils ne peuvent y être accompagnés de personnes non inscrites, sauf autorisation.</p>
+  <h4>Article 6 — Utilisation du matériel</h4>
+  <p class="art">Le stagiaire conserve en bon état le matériel et la documentation mis à disposition, dont l'usage à des fins personnelles est interdit ; il ne diffuse pas ses codes d'accès à l'extranet. En fin de stage, il restitue tout matériel et document appartenant à l'organisme (hors supports pédagogiques distribués). La documentation pédagogique est protégée par le droit d'auteur et réservée à un usage strictement personnel. Sauf dérogation expresse, le stagiaire ne peut ni enregistrer ni filmer les sessions de formation.</p>
+  <h4>Article 7 — Vidéosurveillance et enregistrement des sessions</h4>
+  <p class="art">Pour des raisons de sécurité des personnes et des biens, les sessions de formation font l'objet d'un enregistrement vidéo. Conformément au RGPD, ce traitement a pour seule finalité la sécurité et repose sur l'intérêt légitime de l'organisme. Les images sont conservées un mois au maximum, puis supprimées, et ne sont accessibles qu'aux personnes habilitées. Le stagiaire dispose d'un droit d'accès, d'effacement et d'opposition auprès de contact@mystoryformation.fr et peut saisir la CNIL (www.cnil.fr). En signant le présent règlement, le stagiaire reconnaît être informé de ce dispositif.</p>
+  <h4>Article 8 — Vol ou dégradation des biens personnels</h4>
+  <p class="art">L'organisme de formation décline toute responsabilité en cas de perte, vol ou détérioration des objets personnels déposés par les stagiaires dans les locaux.</p>
+  <h4>Article 9 — Sanctions</h4>
+  <p class="art">Tout agissement fautif peut donner lieu, selon sa gravité et sans ordre nécessaire, à : rappel à l'ordre, avertissement écrit, blâme, exclusion temporaire ou exclusion définitive de la formation. Aucune sanction pécuniaire ne peut être appliquée. L'organisme informe, le cas échéant, l'employeur ou l'administration du stagiaire et/ou le financeur de la sanction prise.</p>
+  <h4>Article 10 — Procédure disciplinaire</h4>
+  <p class="art">En application de l'article R.6352-4 du Code du travail, aucune sanction ne peut être prononcée sans que le stagiaire ait été informé au préalable des griefs. L'organisme convoque le stagiaire par lettre recommandée avec accusé de réception ou remise contre décharge, en précisant l'objet, la date, l'heure et le lieu de l'entretien (sauf sanction sans incidence sur la suite de la formation). Lors de l'entretien, le stagiaire peut se faire assister par une personne de son choix et présente ses explications. La sanction, motivée, est notifiée par écrit entre un jour franc et quinze jours après l'entretien ; l'employeur et, le cas échéant, le financeur sont informés concomitamment. Une mesure conservatoire d'exclusion temporaire à effet immédiat peut être prise dans le respect des droits de la défense.</p>
+  <h4>Article 11 — Représentation des stagiaires</h4>
+  <p class="art">Dans les stages d'une durée supérieure à 500 heures, il est procédé à l'élection d'un délégué titulaire et d'un délégué suppléant (art. R.6352-9 et suivants) ; le scrutin a lieu pendant les heures de formation, entre la 20e et la 40e heure. En cas d'impossibilité, un procès-verbal de carence est dressé et transmis au préfet de région. Les délégués présentent les réclamations individuelles ou collectives relatives au déroulement de la formation, à l'hygiène, à la sécurité et à l'application du présent règlement. Les formations dispensées par MYSTORY étant d'une durée inférieure à 500 heures, l'élection de délégués n'est pas requise ; le stagiaire adresse directement ses réclamations au référent.</p>
+  <h4>Article 12 — Référent handicap et réclamations</h4>
+  <p class="art">Référent handicap : Arudhan NATKUNASINGAM — contact@mystoryformation.fr — 06 81 43 16 54. Toute adaptation est étudiée ; les locaux sont accessibles PMR. Toute réclamation est adressée par écrit à la même adresse (accusé sous 48 h, réponse sous 15 jours ouvrés).</p>
+  <h4>Article 13 — Publicité</h4>
+  <p class="art">Le présent règlement est affiché dans les locaux et sur le site internet de l'organisme ; un exemplaire est remis à chaque stagiaire.</p>
+
+  <p class="madeat">Pour l'organisme — Fait à {{lieu_signature}}, le {{date_signature}}.</p>
+  <div class="ofsign">
+    <div class="who">Pour l'Organisme de formation</div>
+    <div class="sub">Arudhan NATKUNASINGAM, Président</div>
+    {{#if of_signature_img}}<img class="sig-img" src="{{of_signature_img}}" alt="Signature du Président">{{/if}}
+    {{#if cachet_img}}<img class="cachet-img" src="{{cachet_img}}" alt="Cachet MYSTORY">{{/if}}
+    {{#if cachet_absent}}<div class="cachet">MYSTORY<br>Gagny<br>NDA 11756521775</div>{{/if}}
+  </div>
+  <div class="attbox">
+    <p style="margin:0 0 6px;"><strong>Attestation de prise de connaissance — à compléter par le stagiaire</strong></p>
+    <p class="check" style="margin:0 0 8px;">☐ J'atteste avoir reçu un exemplaire du présent règlement intérieur et en avoir pris connaissance.</p>
+    <p style="margin:0;">Nom et prénom : <strong>{{nom}} {{prenom}}</strong> &nbsp;&nbsp; Fait à ........................, le ....../....../.........</p>
+    <p style="margin:10px 0 0;">Signature du stagiaire :</p>
+    <div class="sigline">&nbsp;</div>
+  </div>
+
+</body>
+</html>
