@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 16mm 16mm 22mm 16mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; color: #1c2433; font-size: 10pt; line-height: 1.45; margin: 0; }
+  .brandbar { height: 5px; background: #2F72DE; border-radius: 3px; }
+  header { display: flex; justify-content: space-between; align-items: flex-start; margin-top: 10px; }
+  .org h1 { color: #2F72DE; font-size: 16pt; margin: 0 0 2px; letter-spacing: .5px; }
+  .org .legal { font-size: 7.4pt; color: #5b6472; line-height: 1.35; }
+  .doctype { text-align: right; }
+  .doctype .tag { display: inline-block; background: #2F72DE; color: #fff; font-size: 7.4pt; padding: 3px 8px; border-radius: 3px; letter-spacing: .5px; }
+  .doctype .ref { font-size: 7.6pt; color: #5b6472; margin-top: 6px; }
+  h2.title { text-align: center; font-size: 14pt; margin: 18px 0 4px; }
+  .to { background: #f3f7fe; border: 1px solid #d8e4fb; border-radius: 6px; padding: 8px 12px; margin: 12px 0; font-size: 9.6pt; }
+  .to .who { font-weight: 700; }
+  p.intro { margin: 10px 0; text-align: justify; }
+  h3 { color: #2F72DE; font-size: 9.8pt; margin: 13px 0 4px; border-bottom: 1px solid #e3e8f0; padding-bottom: 2px; }
+  table.fields { width: 100%; border-collapse: collapse; font-size: 9.4pt; margin: 4px 0; }
+  table.fields td { padding: 3px 6px; vertical-align: top; border-bottom: 1px solid #eef1f6; }
+  table.fields td.k { color: #5b6472; width: 32%; }
+  table.fields td.v { font-weight: 600; }
+  table.plan { width: 100%; border-collapse: collapse; font-size: 8.8pt; margin: 6px 0; }
+  table.plan th { background: #2F72DE; color: #fff; font-size: 7.8pt; padding: 5px 6px; text-align: left; }
+  table.plan td { border: 1px solid #d8e4fb; padding: 4px 6px; }
+  table.plan tr:nth-child(even) td { background: #f7faff; }
+  ul { margin: 4px 0; padding-left: 18px; }
+  li { margin: 2px 0; }
+  .madeat { margin-top: 16px; font-size: 9.6pt; }
+  .ofsign { margin-top: 6px; min-height: 90px; position: relative; }
+  .ofsign .who { font-size: 8.6pt; font-weight: 700; color: #2F72DE; }
+  .ofsign .sub { font-size: 7.6pt; color: #5b6472; }
+  .ofsign .sig-img { max-height: 50px; margin-top: 6px; display: block; }
+  .cachet { position: absolute; right: 8px; top: 8px; width: 74px; height: 74px; border: 2px solid #2F72DE; border-radius: 50%; color: #2F72DE; font-size: 6pt; line-height: 1.25; text-align: center; display: flex; align-items: center; justify-content: center; transform: rotate(-9deg); opacity: .9; padding: 4px; }
+  .cachet-img { position: absolute; right: 6px; top: 6px; width: 80px; height: auto; opacity: .95; }
+  footer { position: fixed; bottom: 0; left: 0; right: 0; border-top: 1px solid #e3e8f0; padding-top: 4px; font-size: 6.6pt; color: #7a8290; text-align: center; line-height: 1.3; }
+
+  .rgpd { margin-top: 14px; font-size: 7.4pt; color: #5b6472; border-top: 1px solid #e3e8f0; padding-top: 6px; }
+  .check { font-size: 10pt; margin: 6px 0; }
+  .manus { white-space: pre-wrap; border: 1px solid #e3e8f0; border-radius: 6px; background: #fbfcfe; padding: 8px 10px; font-size: 9.2pt; min-height: 34px; margin: 4px 0 10px; }
+  .twocol { display: flex; gap: 24px; margin-top: 18px; }
+  .twocol > div { flex: 1; }
+  .sigline { margin-top: 30px; border-top: 1px dotted #9aa1ad; }
+  .sigwho { font-size: 8.6pt; font-weight: 700; color: #2F72DE; }
+  table.grille { width: 100%; border-collapse: collapse; font-size: 9pt; margin: 6px 0; }
+  table.grille th { background: #2F72DE; color: #fff; font-size: 8pt; padding: 5px 6px; }
+  table.grille td { border: 1px solid #d8e4fb; padding: 5px 6px; text-align: center; }
+  table.grille td.comp { text-align: left; font-weight: 600; }
+</style>
+</head>
+<body>
+  <footer>
+    MYSTORY — SASU · RCS Paris 913 423 083 · SIRET 913 423 083 00017 · Déclaration d'activité n° 11756521775 (ne vaut pas agrément de l'État)<br>
+    Gagny : 3 bis av. de Gagny, 93220 · Sarcelles : 18 av. du 8 Mai 1945, 95200 · Rosny : 46 bis rue d'Estienne d'Orves, 93110 Rosny-sous-Bois · 06 81 43 16 54 · contact@mystoryformation.fr
+  </footer>
+
+  <div class="brandbar"></div>
+  <header>
+    <div class="org">
+      <h1>MYSTORY</h1>
+      <div class="legal">
+        SASU · RCS Paris 913 423 083 · SIRET 913 423 083 00017<br>
+        Déclaration d'activité n° 11756521775<br>
+        06 81 43 16 54 · contact@mystoryformation.fr
+      </div>
+    </div>
+    <div class="doctype">
+      <span class="tag">ÉVALUATION FINALE</span>
+      <div class="ref">{{certif_intitule}} ({{certif_code}})</div>
+    </div>
+  </header>
+
+  <h2 class="title">Évaluation finale — acquis de la formation</h2>
+  <p style="text-align:center; font-size:8.6pt; color:#5b6472; margin-top:-2px;"><em>Atteinte des objectifs de la formation</em></p>
+
+  <table class="fields">
+    <tr><td class="k">Stagiaire</td><td class="v">{{civilite}} {{nom}} {{prenom}}</td></tr>
+    <tr><td class="k">Formation</td><td class="v">{{certif_intitule}} — {{certif_code}}</td></tr>
+    <tr><td class="k">Période</td><td class="v">du {{date_debut}} au {{date_fin}}</td></tr>
+    <tr><td class="k">Date de l'évaluation</td><td class="v">{{date_signature}}</td></tr>
+    <tr><td class="k">Formateur / formatrice</td><td class="v">{{formateur}}</td></tr>
+  </table>
+
+  <h3>Niveau atteint par compétence (CECRL)</h3>
+  <table class="grille">
+    <tr><th style="text-align:left;">Compétence</th><th>A0</th><th>A1</th><th>A2</th><th>B1</th><th>B2</th><th>C1</th><th>C2</th></tr>
+    <tr><td class="comp">Compréhension orale</td><td>{{g_co_a0}}</td><td>{{g_co_a1}}</td><td>{{g_co_a2}}</td><td>{{g_co_b1}}</td><td>{{g_co_b2}}</td><td>{{g_co_c1}}</td><td>{{g_co_c2}}</td></tr>
+    <tr><td class="comp">Compréhension écrite</td><td>{{g_ce_a0}}</td><td>{{g_ce_a1}}</td><td>{{g_ce_a2}}</td><td>{{g_ce_b1}}</td><td>{{g_ce_b2}}</td><td>{{g_ce_c1}}</td><td>{{g_ce_c2}}</td></tr>
+    <tr><td class="comp">Expression orale</td><td>{{g_eo_a0}}</td><td>{{g_eo_a1}}</td><td>{{g_eo_a2}}</td><td>{{g_eo_b1}}</td><td>{{g_eo_b2}}</td><td>{{g_eo_c1}}</td><td>{{g_eo_c2}}</td></tr>
+    <tr><td class="comp">Expression écrite</td><td>{{g_ee_a0}}</td><td>{{g_ee_a1}}</td><td>{{g_ee_a2}}</td><td>{{g_ee_b1}}</td><td>{{g_ee_b2}}</td><td>{{g_ee_c1}}</td><td>{{g_ee_c2}}</td></tr>
+  </table>
+
+  <p class="check"><strong>Niveau global atteint (CECRL) : {{niveau_global}}</strong></p>
+
+  <p class="check"><strong>Atteinte des objectifs pédagogiques :</strong>
+    {{#if objectifs_atteints}}☑{{/if}}{{#if objectifs_partiels}}☐{{/if}} Atteints &nbsp;&nbsp;
+    {{#if objectifs_atteints}}☐{{/if}}{{#if objectifs_partiels}}☑{{/if}} Partiellement atteints &nbsp;&nbsp;
+    ☐ Non atteints
+  </p>
+
+  <p style="font-size:9.2pt; margin:6px 0 2px;"><strong>Commentaires du formateur :</strong></p>
+  <div class="manus">{{commentaires}}</div>
+  <p style="font-size:9.2pt; margin:6px 0 2px;"><strong>Axes de progression :</strong></p>
+  <div class="manus">{{axes}}</div>
+
+  <div class="twocol">
+    <div><div class="sigwho">Signature du formateur — {{formateur}}</div><div class="sigline">&nbsp;</div></div>
+    <div><div class="sigwho">Signature du stagiaire — {{prenom}} {{nom}}</div><div class="sigline">&nbsp;</div></div>
+  </div>
+  <p class="rgpd"><strong>Données personnelles (RGPD).</strong> Données traitées par MYSTORY (SASU) pour le suivi de la formation et les obligations liées au financement CPF. Conservation : 5 ans. Droits d'accès, rectification, effacement, opposition : contact@mystoryformation.fr — réclamation possible auprès de la CNIL (www.cnil.fr).</p>
+</body>
+</html>
