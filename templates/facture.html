@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 16mm 16mm 22mm 16mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; color: #1c2433; font-size: 10pt; line-height: 1.45; margin: 0; }
+  .brandbar { height: 5px; background: #2F72DE; border-radius: 3px; }
+  header { display: flex; justify-content: space-between; align-items: flex-start; margin-top: 10px; }
+  .org h1 { color: #2F72DE; font-size: 16pt; margin: 0 0 2px; letter-spacing: .5px; }
+  .org .legal { font-size: 7.4pt; color: #5b6472; line-height: 1.35; }
+  .doctype { text-align: right; }
+  .doctype .tag { display: inline-block; background: #2F72DE; color: #fff; font-size: 7.4pt; padding: 3px 8px; border-radius: 3px; letter-spacing: .5px; }
+  .doctype .ref { font-size: 7.6pt; color: #5b6472; margin-top: 6px; }
+  h2.title { text-align: center; font-size: 14pt; margin: 18px 0 10px; }
+  table.fields { width: 100%; border-collapse: collapse; font-size: 9.4pt; margin: 4px 0; }
+  table.fields td { padding: 3px 6px; vertical-align: top; border-bottom: 1px solid #eef1f6; }
+  table.fields td.k { color: #5b6472; width: 32%; }
+  table.fields td.v { font-weight: 600; }
+  table.fact { width: 100%; border-collapse: collapse; font-size: 9.4pt; margin: 14px 0 6px; }
+  table.fact th { background: #2F72DE; color: #fff; font-size: 8pt; padding: 6px 8px; text-align: left; }
+  table.fact td { border: 1px solid #d8e4fb; padding: 8px; }
+  table.fact td.num { text-align: right; font-weight: 700; white-space: nowrap; }
+  p.total { text-align: right; font-size: 11pt; font-weight: 700; margin: 8px 0 0; }
+  .statut-paye { display: inline-block; background: #e6f6ec; border: 1.5px solid #2f9e5f; color: #1f7a47; font-weight: 700; font-size: 8.4pt; padding: 2px 8px; border-radius: 4px; letter-spacing: .5px; }
+  .mentions { margin-top: 18px; font-size: 7.6pt; color: #5b6472; border-top: 1px solid #e3e8f0; padding-top: 8px; line-height: 1.5; text-align: justify; }
+  .madeat { margin-top: 16px; font-size: 9.6pt; }
+  .ofsign { margin-top: 6px; min-height: 90px; position: relative; width: 55%; }
+  .ofsign .who { font-size: 8.6pt; font-weight: 700; color: #2F72DE; }
+  .ofsign .sub { font-size: 7.6pt; color: #5b6472; }
+  .ofsign .sig-img { max-height: 50px; margin-top: 6px; display: block; }
+  .cachet { position: absolute; right: 8px; top: 8px; width: 74px; height: 74px; border: 2px solid #2F72DE; border-radius: 50%; color: #2F72DE; font-size: 6pt; line-height: 1.25; text-align: center; display: flex; align-items: center; justify-content: center; transform: rotate(-9deg); opacity: .9; padding: 4px; }
+  .cachet-img { position: absolute; right: 6px; top: 6px; width: 80px; height: auto; opacity: .95; }
+  footer { position: fixed; bottom: 0; left: 0; right: 0; border-top: 1px solid #e3e8f0; padding-top: 4px; font-size: 6.6pt; color: #7a8290; text-align: center; line-height: 1.3; }
+</style>
+</head>
+<body>
+  <footer>
+    MYSTORY — SASU · RCS Paris 913 423 083 · SIRET 913 423 083 00017 · Déclaration d'activité n° 11756521775 (ne vaut pas agrément de l'État)<br>
+    Gagny : 3 bis av. de Gagny, 93220 · Sarcelles : 18 av. du 8 Mai 1945, 95200 · Rosny : 46 bis rue d'Estienne d'Orves, 93110 Rosny-sous-Bois · 06 81 43 16 54 · contact@mystoryformation.fr
+  </footer>
+
+  <div class="brandbar"></div>
+  <header>
+    <div class="org">
+      <h1>MYSTORY</h1>
+      <div class="legal">
+        SASU · RCS Paris 913 423 083 · SIRET 913 423 083 00017<br>
+        Siège social : 14 rue Bichat, 75010 Paris<br>
+        Déclaration d'activité n° 11756521775<br>
+        06 81 43 16 54 · contact@mystoryformation.fr
+      </div>
+    </div>
+    <div class="doctype">
+      <span class="tag">FACTURE</span>
+      <div class="ref"><strong>{{numero}}</strong></div>
+    </div>
+  </header>
+
+  <h2 class="title">Facture {{numero}}</h2>
+
+  <table class="fields">
+    <tr><td class="k">Date d'émission</td><td class="v">{{date_emission}}</td></tr>
+    <tr><td class="k">Client</td><td class="v">{{client}}{{#if client_adresse}}<br><span style="font-weight:400;">{{client_adresse}}</span>{{/if}}</td></tr>
+    <tr><td class="k">Règlement</td><td class="v">{{reglement}} {{#if est_payee}}<span class="statut-paye">PAYÉE le {{date_paiement}}</span>{{/if}}</td></tr>
+  </table>
+
+  <table class="fact">
+    <tr><th>Désignation</th><th style="text-align:right;">Montant</th></tr>
+    <tr><td>{{designation}}</td><td class="num">{{montant}} €</td></tr>
+  </table>
+  <p class="total">Total net de taxes : {{montant}} €</p>
+
+  <div class="madeat">Fait à Gagny, le {{date_emission}}</div>
+  <div class="ofsign">
+    <div class="who">Pour MYSTORY</div>
+    <div class="sub">Arudhan NATKUNASINGAM · Président</div>
+    {{#if of_signature_img}}<img class="sig-img" src="{{of_signature_img}}" alt="">{{/if}}
+    {{#if cachet_img}}<img class="cachet-img" src="{{cachet_img}}" alt="">{{/if}}
+    {{#if cachet_absent}}<div class="cachet">MYSTORY<br>Gagny · Sarcelles · Rosny<br>NDA 11756521775</div>{{/if}}
+  </div>
+
+  <p class="mentions">
+    Prix net de taxes — TVA non applicable : exonération au titre de la formation professionnelle continue,
+    article 261-4-4° a du Code général des impôts.<br>
+    {{#if mention_cpf}}Action financée par le Compte personnel de formation : règlement par la Caisse des Dépôts et Consignations
+    après validation du service fait (art. L.6323-12 du Code du travail).<br>{{/if}}
+    En cas de retard de paiement : pénalités de retard au taux légal et indemnité forfaitaire pour frais de recouvrement
+    de 40 € (art. L.441-10 et D.441-5 du Code de commerce). Pas d'escompte pour paiement anticipé.<br>
+    Le NDA 11756521775 ne vaut pas agrément de l'État.
+  </p>
+</body>
+</html>
