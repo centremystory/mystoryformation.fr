@@ -1,7 +1,7 @@
 "use client";
 // app/examens/candidats/page.tsx — Candidats d'examen, groupés par session.
 // Lit la vue unifiée (historique import + ventes vivantes). Filtres : type, agence, recherche.
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const BLEU = "#2F72DE";
 
@@ -26,6 +26,8 @@ type Candidat = {
   montant: number | null;
   a_confirmer: boolean;
   date_inscription: string | null;
+  attestation_nom: string | null;
+  attestation_depose_le: string | null;
 };
 
 const TYPE_LABEL: Record<string, string> = {
@@ -53,6 +55,9 @@ export default function PageCandidatsExamen() {
   const [fType, setFType] = useState<string>("tous");
   const [fAgence, setFAgence] = useState<string>("toutes");
   const [ouverts, setOuverts] = useState<Set<string>>(new Set());
+  const [uploadRef, setUploadRef] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cibleRef = useRef<{ examen_ref: string; source: string } | null>(null);
 
   const charger = useCallback(async () => {
     setErreur(null);
@@ -107,6 +112,47 @@ export default function PageCandidatsExamen() {
       n.has(cle) ? n.delete(cle) : n.add(cle);
       return n;
     });
+  }
+
+  function ouvrirDepot(c: Candidat) {
+    cibleRef.current = { examen_ref: c.id, source: c.source };
+    fileInputRef.current?.click();
+  }
+
+  async function fichierChoisi(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    const cible = cibleRef.current;
+    e.target.value = "";
+    if (!file || !cible) return;
+    setUploadRef(cible.examen_ref);
+    setErreur(null);
+    try {
+      const fd = new FormData();
+      fd.append("examen_ref", cible.examen_ref);
+      fd.append("source", cible.source);
+      fd.append("fichier", file);
+      const r = await fetch("/api/examens/attestations", { method: "POST", body: fd });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.erreur || "Échec de l'envoi.");
+      await charger();
+    } catch (e: any) {
+      setErreur(e?.message || "Échec de l'envoi.");
+    } finally {
+      setUploadRef(null);
+      cibleRef.current = null;
+    }
+  }
+
+  async function voirAttestation(c: Candidat) {
+    setErreur(null);
+    try {
+      const r = await fetch(`/api/examens/attestations?examen_ref=${encodeURIComponent(c.id)}&source=${encodeURIComponent(c.source)}`);
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.erreur || "Lien indisponible.");
+      window.open(j.url, "_blank", "noreferrer");
+    } catch (e: any) {
+      setErreur(e?.message || "Lien indisponible.");
+    }
   }
 
   const compteType = (t: string) => candidats.filter((c) => c.type_norm === t).length;
@@ -181,6 +227,10 @@ export default function PageCandidatsExamen() {
         <div className="mb-4 px-4 py-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm">{erreur}</div>
       )}
 
+      {/* Input fichier caché, partagé par tous les boutons de dépôt d'attestation */}
+      <input ref={fileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+             className="hidden" onChange={fichierChoisi} />
+
       {chargement ? (
         <p className="text-gray-500">Chargement…</p>
       ) : groupes.length === 0 ? (
@@ -213,7 +263,8 @@ export default function PageCandidatsExamen() {
                           <th className="px-4 py-2 font-medium">Candidat</th>
                           <th className="px-4 py-2 font-medium">Agence</th>
                           <th className="px-4 py-2 font-medium">Paiement</th>
-                          <th className="px-4 py-2 font-medium">Attestation</th>
+                          <th className="px-4 py-2 font-medium">N° attest.</th>
+                          <th className="px-4 py-2 font-medium">Fichier attest.</th>
                           <th className="px-4 py-2 font-medium">Vendu par</th>
                         </tr>
                       </thead>
@@ -232,6 +283,25 @@ export default function PageCandidatsExamen() {
                               </span>
                             </td>
                             <td className="px-4 py-2 text-gray-600">{c.numero_attestation ?? "—"}</td>
+                            <td className="px-4 py-2 whitespace-nowrap">
+                              {c.attestation_depose_le ? (
+                                <span>
+                                  <button onClick={() => voirAttestation(c)} className="underline" style={{ color: BLEU }}>📄 Voir</button>
+                                  <button onClick={() => ouvrirDepot(c)} disabled={uploadRef === c.id}
+                                          className="ml-2 text-gray-500 hover:text-mystory disabled:opacity-50">
+                                    {uploadRef === c.id ? "Envoi…" : "Remplacer"}
+                                  </button>
+                                </span>
+                              ) : c.type_norm === "TEF_IRN" ? (
+                                <button onClick={() => ouvrirDepot(c)} disabled={uploadRef === c.id}
+                                        className="px-2.5 py-1 rounded border text-xs disabled:opacity-50"
+                                        style={{ color: BLEU, borderColor: BLEU }}>
+                                  {uploadRef === c.id ? "Envoi…" : "Déposer"}
+                                </button>
+                              ) : (
+                                <span className="text-gray-400">—</span>
+                              )}
+                            </td>
                             <td className="px-4 py-2 text-gray-600">{c.vendu_par ?? "—"}</td>
                           </tr>
                         ))}
