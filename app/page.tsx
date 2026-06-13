@@ -98,7 +98,7 @@ export default async function Accueil() {
 
       {/* Transverse */}
       <p className="text-xs uppercase tracking-wide text-gray-400 mt-8 mb-2">Transverse</p>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Link href="/equipe"
               className="group bg-white border border-gray-200 rounded-xl p-5 hover:border-mystory hover:shadow-sm transition-all">
           <div className="w-10 h-10 rounded-lg bg-mystory-clair flex items-center justify-center text-mystory text-xl">👥</div>
@@ -116,6 +116,12 @@ export default async function Accueil() {
           <div className="w-10 h-10 rounded-lg bg-mystory-clair flex items-center justify-center text-mystory text-xl">📊</div>
           <p className="font-semibold text-gray-900 mt-3 group-hover:text-mystory">BPF</p>
           <p className="text-sm text-gray-500 mt-1">Bilan pédagogique et financier.</p>
+        </Link>
+        <Link href="/taches"
+              className="group bg-white border border-gray-200 rounded-xl p-5 hover:border-mystory hover:shadow-sm transition-all">
+          <div className="w-10 h-10 rounded-lg bg-mystory-clair flex items-center justify-center text-mystory text-xl">✅</div>
+          <p className="font-semibold text-gray-900 mt-3 group-hover:text-mystory">Tâches par agence</p>
+          <p className="text-sm text-gray-500 mt-1">Le pense-bête opérationnel de chaque site.</p>
         </Link>
       </div>
     </main>
