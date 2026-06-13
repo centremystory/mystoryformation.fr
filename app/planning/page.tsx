@@ -13,6 +13,7 @@ type Seance = {
   demi_journee: string;
   heures: number;
   emarge_le: string | null;
+  formatrice_id: string | null;
   dossier_id: string | null;
   certif: string | null;
   statut_dossier: string | null;
@@ -30,21 +31,32 @@ function dateLongueFr(iso: string): string {
 }
 const aujourdHui = () => new Date().toISOString().slice(0, 10);
 
+type Formatrice = { id: string; nom: string; prenom: string | null };
+type Edition = { id: string; date: string; demi: string; formatriceId: string };
+
 export default function PagePlanning() {
   const [seances, setSeances] = useState<Seance[]>([]);
+  const [formatrices, setFormatrices] = useState<Formatrice[]>([]);
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState<string | null>(null);
   const [recherche, setRecherche] = useState("");
   const [fAgence, setFAgence] = useState<string>("toutes");
   const [periode, setPeriode] = useState<"avenir" | "tout">("avenir");
+  const [edition, setEdition] = useState<Edition | null>(null);
+  const [editErr, setEditErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const charger = useCallback(async () => {
     setErreur(null);
     try {
-      const r = await fetch("/api/planning", { cache: "no-store" });
-      const j = await r.json();
-      if (!j.ok) throw new Error(j.erreur || "Erreur de chargement.");
-      setSeances(j.seances);
+      const [rp, rf] = await Promise.all([
+        fetch("/api/planning", { cache: "no-store" }),
+        fetch("/api/inscriptions", { cache: "no-store" }),
+      ]);
+      const jp = await rp.json();
+      if (!jp.ok) throw new Error(jp.erreur || "Erreur de chargement.");
+      setSeances(jp.seances);
+      try { const jf = await rf.json(); setFormatrices(jf.formatrices ?? []); } catch { /* non bloquant */ }
     } catch (e: any) {
       setErreur(e?.message || "Erreur de chargement.");
     } finally {
@@ -52,6 +64,31 @@ export default function PagePlanning() {
     }
   }, []);
   useEffect(() => { charger(); }, [charger]);
+
+  const ouvrirEdition = (s: Seance) => {
+    setEditErr(null);
+    setEdition({ id: s.id, date: s.date_seance, demi: s.demi_journee, formatriceId: s.formatrice_id ?? "" });
+  };
+
+  const enregistrer = async () => {
+    if (!edition) return;
+    setBusy(true); setEditErr(null);
+    try {
+      const body: any = { id: edition.id, date_seance: edition.date, demi_journee: edition.demi };
+      if (edition.formatriceId) body.formatrice_id = edition.formatriceId;
+      const r = await fetch("/api/planning", {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.erreur || "Modification refusée.");
+      setEdition(null);
+      await charger();
+    } catch (e: any) {
+      setEditErr(e?.message || "Modification refusée.");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const q = recherche.trim().toLowerCase();
   const today = aujourdHui();
@@ -142,20 +179,72 @@ export default function PagePlanning() {
               </div>
               <div className="border border-gray-200 rounded-xl bg-white divide-y divide-gray-100">
                 {j.items.map((s) => (
-                  <div key={s.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
-                    <span className="w-24 shrink-0 text-gray-500">{CRENEAU[s.demi_journee] ?? s.demi_journee} · {s.heures} h</span>
-                    <span className="flex-1 min-w-0">
-                      <span className="font-medium text-gray-900">{s.stagiaire}</span>
-                      <span className="text-gray-400"> · {CERTIF[s.certif ?? ""] ?? s.certif}</span>
-                      {s.formatrice && <span className="text-gray-400"> · {s.formatrice}</span>}
-                    </span>
-                    {s.agence && (
-                      <span className="shrink-0 text-xs px-2 py-0.5 rounded-full bg-mystory-clair text-mystory">{s.agence}</span>
-                    )}
-                    {s.emarge_le ? (
-                      <span className="shrink-0 text-xs text-emerald-700" title="Émargé">✅</span>
-                    ) : (
-                      <span className="shrink-0 text-xs text-gray-300" title="À venir / non émargé">○</span>
+                  <div key={s.id}>
+                    <div className="flex items-center gap-3 px-4 py-2.5 text-sm">
+                      <span className="w-24 shrink-0 text-gray-500">{CRENEAU[s.demi_journee] ?? s.demi_journee} · {s.heures} h</span>
+                      <span className="flex-1 min-w-0">
+                        <span className="font-medium text-gray-900">{s.stagiaire}</span>
+                        <span className="text-gray-400"> · {CERTIF[s.certif ?? ""] ?? s.certif}</span>
+                        {s.formatrice && <span className="text-gray-400"> · {s.formatrice}</span>}
+                      </span>
+                      {s.agence && (
+                        <span className="shrink-0 text-xs px-2 py-0.5 rounded-full bg-mystory-clair text-mystory">{s.agence}</span>
+                      )}
+                      {s.emarge_le ? (
+                        <span className="shrink-0 text-xs text-emerald-700" title="Émargée — verrouillée">✅🔒</span>
+                      ) : (
+                        <>
+                          <span className="shrink-0 text-xs text-gray-300" title="À venir / non émargée">○</span>
+                          <button
+                            onClick={() => (edition?.id === s.id ? setEdition(null) : ouvrirEdition(s))}
+                            className="shrink-0 text-xs px-2 py-1 rounded-md border border-gray-200 text-gray-500 hover:border-mystory hover:text-mystory"
+                            title="Décaler / réassigner"
+                          >✏️</button>
+                        </>
+                      )}
+                    </div>
+
+                    {edition?.id === s.id && (
+                      <div className="px-4 pb-3 pt-1 bg-gray-50 border-t border-gray-100">
+                        <div className="flex flex-wrap items-end gap-3">
+                          <label className="text-xs text-gray-600">
+                            <span className="block mb-1">Date</span>
+                            <input type="date" min={today} value={edition.date}
+                              onChange={(e) => setEdition({ ...edition, date: e.target.value })}
+                              className="border border-gray-300 rounded-md px-2 py-1.5 text-sm bg-white" />
+                          </label>
+                          <label className="text-xs text-gray-600">
+                            <span className="block mb-1">Demi-journée</span>
+                            <select value={edition.demi}
+                              onChange={(e) => setEdition({ ...edition, demi: e.target.value })}
+                              className="border border-gray-300 rounded-md px-2 py-1.5 text-sm bg-white">
+                              <option value="matin">Matin</option>
+                              <option value="apres_midi">Après-midi</option>
+                            </select>
+                          </label>
+                          <label className="text-xs text-gray-600">
+                            <span className="block mb-1">Formatrice</span>
+                            <select value={edition.formatriceId}
+                              onChange={(e) => setEdition({ ...edition, formatriceId: e.target.value })}
+                              className="border border-gray-300 rounded-md px-2 py-1.5 text-sm bg-white min-w-[10rem]">
+                              <option value="">— inchangée —</option>
+                              {formatrices.map((f) => (
+                                <option key={f.id} value={f.id}>{f.prenom ? `${f.prenom} ` : ""}{f.nom}</option>
+                              ))}
+                            </select>
+                          </label>
+                          <button onClick={enregistrer} disabled={busy}
+                            className="px-3 py-1.5 rounded-md bg-mystory text-white text-sm disabled:opacity-50">
+                            {busy ? "…" : "Enregistrer"}
+                          </button>
+                          <button onClick={() => setEdition(null)} disabled={busy}
+                            className="px-3 py-1.5 rounded-md border border-gray-300 text-gray-600 text-sm">Annuler</button>
+                        </div>
+                        {editErr && <p className="text-xs text-red-700 mt-2">{editErr}</p>}
+                        <p className="text-[11px] text-gray-400 mt-2">
+                          Le total d'heures, le délai de 11 j ouvrés et la position de la séance finale sont revérifiés automatiquement.
+                        </p>
+                      </div>
                     )}
                   </div>
                 ))}
@@ -166,8 +255,8 @@ export default function PagePlanning() {
       )}
 
       <p className="text-xs text-gray-400 mt-6">
-        Vue lecture seule. L'ajout / modification de séances par la commerciale (avec contrôle du total d'heures et du
-        délai de 11 j ouvrés) arrivera dans une prochaine étape.
+        ✏️ permet de <strong>décaler</strong> une séance (date + demi-journée) et de <strong>réassigner la formatrice</strong>.
+        Les heures restent constantes ; une séance déjà émargée est verrouillée ; aucune date dans le passé n'est acceptée.
       </p>
     </main>
   );
