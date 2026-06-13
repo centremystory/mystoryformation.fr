@@ -16,6 +16,7 @@ const LIENS = [
   { href: "/factures", label: "Factures" },
   { href: "/classement", label: "Classement" },
   { href: "/edof", label: "EDOF" },
+  { href: "/bpf", label: "BPF" },
   { href: "/inscriptions/nouvelle", label: "Nouvelle inscription" },
   { href: "/equipe", label: "Équipe" },
 ];
