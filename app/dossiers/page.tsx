@@ -222,6 +222,100 @@ export default function PageDossiers() {
   );
 }
 
+function ClotureFormation({ dossierId, recharger }: { dossierId: string; recharger: () => Promise<void> }) {
+  const [apercu, setApercu] = useState<any | null>(null);
+  const [charge, setCharge] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [niveau, setNiveau] = useState<string>("");
+  const [ecartOk, setEcartOk] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const charger = useCallback(async () => {
+    setCharge(true); setErr(null);
+    try {
+      const r = await fetch(`/api/cloture?dossierId=${dossierId}`, { cache: "no-store" });
+      const j = await r.json();
+      if (!j.ok) { setErr(j.erreur || "Erreur de chargement."); return; }
+      setApercu(j.apercu);
+      setNiveau(j.apercu.niveauAtteint ?? "");
+    } catch (e: any) { setErr(e?.message || "Erreur de chargement."); }
+    finally { setCharge(false); }
+  }, [dossierId]);
+  useEffect(() => { charger(); }, [charger]);
+
+  async function cloturer() {
+    if (!apercu) return;
+    setBusy(true); setErr(null); setMsg(null);
+    try {
+      const r = await fetch("/api/cloture", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dossierId, niveauAtteint: niveau || undefined, ecartConfirme: ecartOk }),
+      });
+      const j = await r.json();
+      if (!j.ok) { setErr(j.erreur || "Clôture impossible."); await charger(); return; }
+      setMsg(`Formation clôturée : fin le ${dateFr(j.dateFinReelle)}, ${j.heuresRealisees} h réalisées, niveau atteint ${j.niveauAtteint}.`);
+      await charger(); await recharger();
+    } catch (e: any) { setErr(e?.message || "Clôture impossible."); }
+    finally { setBusy(false); }
+  }
+
+  if (charge) return <div className="mt-4 text-sm text-gray-400">Chargement de la clôture…</div>;
+  if (err && !apercu) return <div className="mt-4 text-sm text-red-700">{err}</div>;
+  if (!apercu) return null;
+  const a = apercu;
+
+  return (
+    <div className="mt-4 border border-gray-200 rounded-xl bg-white p-4">
+      <h4 className="text-sm font-semibold text-gray-800 mb-3">🏁 Clôture de formation</h4>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+        <div>
+          <div className="text-xs text-gray-400">Heures</div>
+          <div className="text-gray-900">{a.heuresRealisees} h réalisées <span className="text-gray-400">/ {a.heuresPrevues ?? "—"} prévues</span></div>
+          {a.ecart && <div className="text-amber-700 text-xs mt-0.5">Écart à confirmer</div>}
+        </div>
+        <div>
+          <div className="text-xs text-gray-400">Date de fin réelle</div>
+          <div className="text-gray-900">{a.dateFinReelle ? dateFr(a.dateFinReelle) : "— (aucune séance émargée)"}</div>
+          <div className="text-xs text-gray-400 mt-0.5">{a.nbSeancesEmargees} séance(s) émargée(s){a.nbAbsences ? ` · ${a.nbAbsences} absence(s)` : ""}</div>
+        </div>
+        <div>
+          <div className="text-xs text-gray-400">Niveau CECRL</div>
+          <div className="text-gray-900">visé {a.niveauVise ?? "—"} → atteint {a.niveauAtteint ?? "à définir"}</div>
+        </div>
+      </div>
+
+      {a.doitSaisirNiveau && (
+        <div className="mt-3">
+          <label className="block text-xs font-medium text-gray-600 mb-1">Niveau atteint (l'évaluation finale ne l'a pas encore fixé)</label>
+          <select value={niveau} onChange={(e) => setNiveau(e.target.value)} className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm bg-white">
+            <option value="">— choisir —</option>
+            {a.niveaux.map((n: string) => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </div>
+      )}
+
+      {a.ecart && (
+        <label className="mt-3 flex items-start gap-2 text-sm text-gray-700">
+          <input type="checkbox" checked={ecartOk} onChange={(e) => setEcartOk(e.target.checked)} className="mt-0.5" />
+          <span>J'atteste l'écart entre heures prévues ({a.heuresPrevues} h) et réalisées ({a.heuresRealisees} h).</span>
+        </label>
+      )}
+
+      {err && <div className="mt-3 text-sm text-red-700">{err}</div>}
+      {msg && <div className="mt-3 px-3 py-2 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800 text-sm">{msg}</div>}
+
+      <button onClick={cloturer} disabled={busy || a.nbSeancesEmargees === 0}
+        className="mt-3 px-4 py-2 rounded-lg bg-mystory text-white text-sm font-semibold disabled:opacity-50">
+        {busy ? "Clôture…" : "Clôturer la formation"}
+      </button>
+      {a.nbSeancesEmargees === 0 && (
+        <p className="mt-2 text-xs text-gray-400">Aucune séance émargée : la clôture sera possible une fois l'émargement réalisé.</p>
+      )}
+    </div>
+  );
+}
+
 function LigneDossier({
   d, estOuvert, onToggle, recharger,
 }: {
@@ -274,6 +368,7 @@ function LigneDossier({
         <tr className="border-t border-gray-100 bg-gray-50/60">
           <td colSpan={7} className="px-4 py-4">
             <PiecesActions d={d} recharger={recharger} />
+            <ClotureFormation dossierId={d.id} recharger={recharger} />
             <a
               href={`/suivi?token=${d.token}`}
               target="_blank"
@@ -883,4 +978,5 @@ function FormulaireCompletion({
     </div>
   );
 }
+
 
