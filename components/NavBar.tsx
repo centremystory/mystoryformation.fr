@@ -1,3 +1,4 @@
+// nav: + EDOF
 "use client";
 // components/NavBar.tsx — Barre de navigation du CRM MYSTORY
 // Visible sur toutes les pages internes de l'équipe ; masquée sur la connexion
