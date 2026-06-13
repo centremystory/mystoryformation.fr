@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     const synthese = await bpfSynthese(annee);
     if (format === "pdf") {
       const pdf = await renderPdf(bpfHtml(synthese));
-      return new NextResponse(pdf, {
+      return new NextResponse(new Uint8Array(pdf), {
         status: 200,
         headers: {
           "Content-Type": "application/pdf",
