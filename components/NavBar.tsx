@@ -18,6 +18,7 @@ const LIENS = [
   { href: "/veille", label: "Veille" },
   { href: "/faq", label: "FAQ" },
   { href: "/satisfaction-cours", label: "Satisfaction" },
+  { href: "/contenu-pedagogique", label: "Pédagogie" },
   { href: "/comptes", label: "Comptes" },
 ];
 
