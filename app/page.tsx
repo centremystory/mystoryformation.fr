@@ -1,5 +1,5 @@
-// app/page.tsx — Accueil du CRM : tableau de bord de l'équipe
-// Compteurs en temps réel (lecture seule, service_role côté serveur) + accès aux modules.
+// app/page.tsx — Accueil du CRM : tableau de bord à deux espaces (Formation / Examen)
+// Compteurs temps réel (lecture seule, service_role côté serveur) + deux grandes portes + transverse.
 import Link from "next/link";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
@@ -44,9 +44,16 @@ export default async function Accueil() {
 
   return (
     <main className="max-w-5xl mx-auto px-4 md:px-6 py-8">
-      <h1 className="text-2xl font-bold text-gray-900">{salut} 👋</h1>
-      <p className="text-sm text-gray-500 mt-1 mb-6">Voici où en sont les dossiers aujourd'hui.</p>
+      <header className="flex items-center gap-3 mb-6">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/embleme-bleu.png" alt="MYSTORY" className="h-11 w-auto" />
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">{salut} 👋</h1>
+          <p className="text-sm text-gray-500">Tableau de bord MYSTORY — Formation &amp; Examen.</p>
+        </div>
+      </header>
 
+      {/* Compteurs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
         <Compteur libelle="Dossiers en cours" valeur={String(c.enCours)} />
         <Compteur libelle="Dossiers complets" valeur={String(c.complets)} accent="vert" />
@@ -54,36 +61,63 @@ export default async function Accueil() {
         <Compteur libelle="Formatrices en règle" valeur={`${c.fleOk} / ${c.fleTotal}`} accent={c.fleOk === c.fleTotal ? "vert" : "ambre"} />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Link href="/dossiers"
-              className="group bg-white border border-gray-200 rounded-xl p-5 hover:border-mystory hover:shadow-sm transition-all">
-          <div className="w-10 h-10 rounded-lg bg-mystory-clair flex items-center justify-center text-mystory text-xl">📋</div>
-          <p className="font-semibold text-gray-900 mt-3 group-hover:text-mystory">Suivi des dossiers</p>
-          <p className="text-sm text-gray-500 mt-1">Complet / incomplet et pièces à traiter, dossier par dossier.</p>
-        </Link>
+      {/* Deux grandes portes */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="rounded-2xl p-6 bg-mystory-clair border border-transparent">
+          <div className="text-3xl">🎓</div>
+          <p className="text-xl font-bold text-gray-900 mt-2">Espace Formation</p>
+          <p className="text-sm text-gray-600 mt-1">
+            Inscriptions, suivi des dossiers, tests de positionnement, émargement, import EDOF.
+          </p>
+          <div className="flex flex-wrap gap-2 mt-4">
+            <Link href="/formation" className="px-4 py-2 rounded-lg bg-white text-mystory border border-mystory text-sm font-medium hover:bg-mystory hover:text-white transition-colors">
+              Ouvrir l'espace
+            </Link>
+            <Link href="/inscriptions/nouvelle" className="px-4 py-2 rounded-lg bg-mystory text-white text-sm font-medium hover:opacity-90 transition-opacity">
+              ＋ Inscription Formation
+            </Link>
+          </div>
+        </div>
 
-        <Link href="/inscriptions/nouvelle"
-              className="group bg-white border border-gray-200 rounded-xl p-5 hover:border-mystory hover:shadow-sm transition-all">
-          <div className="w-10 h-10 rounded-lg bg-mystory-clair flex items-center justify-center text-mystory text-xl">＋</div>
-          <p className="font-semibold text-gray-900 mt-3 group-hover:text-mystory">Nouvelle inscription</p>
-          <p className="text-sm text-gray-500 mt-1">Fiche stagiaire, planning et contractualisation en une saisie.</p>
-        </Link>
+        <div className="rounded-2xl p-6 bg-mystory-clair border border-transparent">
+          <div className="text-3xl">📝</div>
+          <p className="text-xl font-bold text-gray-900 mt-2">Espace Examen</p>
+          <p className="text-sm text-gray-600 mt-1">
+            Inscriptions, sessions, jour J, corrections, classement des vendeurs — centre d'examen : Gagny.
+          </p>
+          <div className="flex flex-wrap gap-2 mt-4">
+            <Link href="/examen" className="px-4 py-2 rounded-lg bg-white text-mystory border border-mystory text-sm font-medium hover:bg-mystory hover:text-white transition-colors">
+              Ouvrir l'espace
+            </Link>
+            <Link href="/examens/vente" className="px-4 py-2 rounded-lg bg-mystory text-white text-sm font-medium hover:opacity-90 transition-opacity">
+              ＋ Inscription Examen
+            </Link>
+          </div>
+        </div>
+      </div>
 
+      {/* Transverse */}
+      <p className="text-xs uppercase tracking-wide text-gray-400 mt-8 mb-2">Transverse</p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Link href="/equipe"
               className="group bg-white border border-gray-200 rounded-xl p-5 hover:border-mystory hover:shadow-sm transition-all">
           <div className="w-10 h-10 rounded-lg bg-mystory-clair flex items-center justify-center text-mystory text-xl">👥</div>
           <p className="font-semibold text-gray-900 mt-3 group-hover:text-mystory">Équipe</p>
-          <p className="text-sm text-gray-500 mt-1">Formateurs, justificatifs FLE et conformité en un coup d'œil.</p>
+          <p className="text-sm text-gray-500 mt-1">Formateurs (justificatifs FLE) et commerciaux.</p>
         </Link>
-
-        <a href="/qcm" target="_blank" rel="noreferrer"
-           className="group bg-white border border-gray-200 rounded-xl p-5 hover:border-mystory hover:shadow-sm transition-all">
-          <div className="w-10 h-10 rounded-lg bg-mystory-clair flex items-center justify-center text-mystory text-xl">📝</div>
-          <p className="font-semibold text-gray-900 mt-3 group-hover:text-mystory">Test de positionnement</p>
-          <p className="text-sm text-gray-500 mt-1">Le QCM candidat, à ouvrir ou partager pour un test initial.</p>
-        </a>
+        <Link href="/factures"
+              className="group bg-white border border-gray-200 rounded-xl p-5 hover:border-mystory hover:shadow-sm transition-all">
+          <div className="w-10 h-10 rounded-lg bg-mystory-clair flex items-center justify-center text-mystory text-xl">🧾</div>
+          <p className="font-semibold text-gray-900 mt-3 group-hover:text-mystory">Factures</p>
+          <p className="text-sm text-gray-500 mt-1">Facturation et relances.</p>
+        </Link>
+        <Link href="/bpf"
+              className="group bg-white border border-gray-200 rounded-xl p-5 hover:border-mystory hover:shadow-sm transition-all">
+          <div className="w-10 h-10 rounded-lg bg-mystory-clair flex items-center justify-center text-mystory text-xl">📊</div>
+          <p className="font-semibold text-gray-900 mt-3 group-hover:text-mystory">BPF</p>
+          <p className="text-sm text-gray-500 mt-1">Bilan pédagogique et financier.</p>
+        </Link>
       </div>
-
     </main>
   );
 }
