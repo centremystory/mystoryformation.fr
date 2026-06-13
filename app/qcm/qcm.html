@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MYSTORY — Test de positionnement (Français)</title>
+<style>
+:root{--blue:#2F72DE;--dark:#16213E;--navy:#1A4488;--grey:#5A6472;--lite:#EAF1FC;--bord:#C9D7EF;--ok:#1B9C5A;--ko:#D7392B;--bg:#F4F7FC;}
+*{box-sizing:border-box;}
+body{font-family:'Segoe UI',Calibri,Arial,sans-serif;color:#23303f;background:var(--bg);margin:0;line-height:1.55;}
+.wrap{max-width:860px;margin:0 auto;padding:0 18px 60px;}
+header{background:var(--dark);color:#fff;padding:20px 18px;}
+header .h{max-width:860px;margin:0 auto;display:flex;align-items:center;gap:14px;}
+header .logo{font-size:26px;font-weight:800;letter-spacing:1px;}
+header .sub{color:#aac4ef;font-size:13px;}
+h1{color:var(--blue);font-size:22px;margin:22px 0 4px;}
+.lead{color:var(--grey);margin:0 0 18px;}
+.card{background:#fff;border:1px solid var(--bord);border-radius:14px;padding:20px 22px;margin:16px 0;box-shadow:0 2px 10px rgba(20,40,80,.04);}
+.card h2{color:var(--navy);font-size:17px;margin:0 0 4px;}
+.card h3{color:var(--blue);font-size:15px;margin:18px 0 6px;}
+.note{background:var(--lite);border-left:4px solid var(--blue);padding:10px 14px;border-radius:8px;color:var(--navy);font-size:14px;margin:10px 0;}
+.text-extrait{background:#FBFCFE;border:1px dashed var(--bord);border-radius:10px;padding:12px 16px;margin:8px 0 14px;font-size:14.5px;color:#2b3a4d;}
+.text-extrait .sig{display:block;text-align:right;font-style:italic;color:var(--grey);margin-top:6px;}
+label.field{display:block;font-weight:600;color:var(--navy);margin:12px 0 4px;font-size:14px;}
+input[type=text],input[type=email],input[type=tel],input[type=number],textarea,select{
+  width:100%;padding:10px 12px;border:1px solid var(--bord);border-radius:9px;font-size:15px;font-family:inherit;background:#fff;}
+textarea{min-height:120px;resize:vertical;}
+.row{display:flex;gap:14px;flex-wrap:wrap;}
+.row>div{flex:1;min-width:180px;}
+.q{margin:16px 0;padding:14px 16px;border:1px solid #E6EDF8;border-radius:10px;background:#FCFDFF;}
+.q .ask{font-weight:600;color:#1f2c3c;margin-bottom:8px;}
+.q .pts{float:right;color:var(--grey);font-weight:500;font-size:13px;}
+.opt{display:block;padding:9px 12px;border:1px solid var(--bord);border-radius:8px;margin:6px 0;cursor:pointer;transition:.15s;background:#fff;}
+.opt:hover{border-color:var(--blue);background:var(--lite);}
+.opt input{margin-right:9px;}
+.opt.sel{border-color:var(--blue);background:var(--lite);}
+.levels{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;}
+.levels label{flex:1;min-width:60px;text-align:center;border:1px solid var(--bord);border-radius:8px;padding:8px;cursor:pointer;font-weight:600;color:var(--navy);}
+.levels input{display:none;}
+.levels label.sel{background:var(--blue);color:#fff;border-color:var(--blue);}
+.btn{display:inline-block;background:var(--blue);color:#fff;border:none;border-radius:10px;padding:14px 26px;font-size:16px;font-weight:700;cursor:pointer;margin-top:10px;}
+.btn:hover{background:var(--navy);}
+.btn.sec{background:#fff;color:var(--blue);border:2px solid var(--blue);}
+.hidden{display:none;}
+/* résultats */
+.score-big{font-size:40px;font-weight:800;color:var(--blue);}
+.lvl-badge{display:inline-block;background:var(--blue);color:#fff;font-weight:800;font-size:26px;padding:6px 22px;border-radius:12px;margin:6px 0;}
+.bar{height:14px;background:#E6EDF8;border-radius:8px;overflow:hidden;margin:8px 0;}
+.bar>i{display:block;height:100%;background:linear-gradient(90deg,#2F72DE,#1A4488);}
+table.recap{width:100%;border-collapse:collapse;margin:12px 0;}
+table.recap td{border:1px solid var(--bord);padding:8px 11px;font-size:14px;}
+table.recap td:first-child{background:var(--lite);color:var(--navy);font-weight:600;width:48%;}
+.corr-ok{color:var(--ok);font-weight:700;}
+.corr-ko{color:var(--ko);font-weight:700;}
+footer{color:var(--grey);font-size:11px;text-align:center;padding:24px 12px;}
+/* disponibilités */
+.dispo-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--bord);border-radius:9px;margin:6px 0;background:#fff;flex-wrap:wrap;}
+.dispo-row .day{font-weight:700;color:var(--navy);min-width:96px;}
+.chk{display:inline-flex;align-items:center;gap:7px;padding:8px 13px;border:1px solid var(--bord);border-radius:8px;cursor:pointer;font-size:14px;background:#fff;user-select:none;}
+.chk input{width:18px;height:18px;margin:0;}
+.chk.on{background:var(--lite);border-color:var(--blue);color:var(--navy);font-weight:600;}
+.dispo-grid{border-collapse:collapse;width:100%;margin:8px 0;table-layout:fixed;}
+.dispo-grid th,.dispo-grid td{border:1px solid var(--bord);text-align:center;padding:9px 2px;}
+.dispo-grid th{background:var(--lite);color:var(--navy);font-weight:700;font-size:13px;}
+.dispo-grid td.slot{background:var(--lite);color:var(--navy);font-weight:600;text-align:left;padding-left:10px;white-space:nowrap;font-size:12.5px;width:84px;}
+.dispo-grid input{width:19px;height:19px;cursor:pointer;margin:0;accent-color:var(--blue);}
+.hlogo{height:52px;width:auto;flex:0 0 auto;}
+.co4-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0;}
+.co4-card{border:1px solid var(--bord);border-radius:10px;padding:8px;background:#fff;}
+.co4-card img{width:100%;border-radius:6px;display:block;}
+.co4-card select{width:100%;margin-top:7px;padding:9px;font-size:14px;}
+#r-ecrit{white-space:pre-wrap;background:#FBFCFE;border:1px dashed var(--bord);border-radius:10px;padding:12px 14px;font-size:14px;min-height:24px;}
+/* responsive téléphone */
+@media(max-width:600px){
+  .wrap{padding:0 12px 48px;}
+  header{padding:16px 14px;}
+  header .h{gap:10px;}
+  header .logo{font-size:21px;}
+  header .sub{font-size:12px;}
+  h1{font-size:19px;}
+  .card{padding:15px 14px;border-radius:11px;}
+  .row{flex-direction:column;gap:0;}
+  .row>div{min-width:0;width:100%;}
+  .opt{padding:13px 12px;font-size:15px;}
+  .levels label{min-width:0;padding:11px 4px;}
+  .dispo-row .day{min-width:100%;margin-bottom:4px;}
+  .chk{flex:1;justify-content:center;padding:11px 8px;}
+  .dispo-grid td.slot{width:58px;font-size:11px;padding-left:5px;}
+  .dispo-grid th,.dispo-grid td{padding:10px 1px;font-size:12px;}
+  .dispo-grid input{width:18px;height:18px;}
+  .co4-grid{grid-template-columns:repeat(2,1fr);}
+  .hlogo{height:42px;}
+  .btn{width:100%;padding:16px;font-size:16px;}
+  .score-big{font-size:34px;}
+  table.recap td{font-size:13px;padding:7px 8px;}
+}
+@media print{.btn,.no-print,header{display:none!important;}body{background:#fff;}.card{box-shadow:none;}}
+</style>
+</head>
+<body>
+<header><div class="h"><img class="hlogo" src="https://svepgknbbonrtwyvzaar.supabase.co/storage/v1/object/public/qcm/logo_blanc.png" alt="MYSTORY"><div><div class="logo">MYSTORY</div><div class="sub">Centre de formation FLE · TEF IRN — RS6775<br>Test de positionnement en français</div></div></div></header>
+<div class="wrap">
+
+<!-- ============ FORMULAIRE ============ -->
+<div id="form">
+  <h1>Test de positionnement — Français</h1>
+  <p class="lead">Ce test évalue votre niveau de français pour vous orienter vers la bonne formation. La partie écrite ci-dessous est corrigée automatiquement.</p>
+
+  <div class="card">
+    <h2>Vos informations</h2>
+    <div class="row">
+      <div><label class="field">Nom</label><input type="text" id="nom"></div>
+      <div><label class="field">Prénom</label><input type="text" id="prenom"></div>
+    </div>
+    <div class="row">
+      <div><label class="field">Téléphone</label><input type="tel" id="tel"></div>
+      <div><label class="field">Email</label><input type="email" id="email"></div>
+    </div>
+    <label class="field">Civilité</label>
+    <div class="levels" id="civ-wrap">
+      <label><input type="radio" name="civilite" value="Madame">Madame</label>
+      <label><input type="radio" name="civilite" value="Monsieur">Monsieur</label>
+      <label><input type="radio" name="civilite" value="Autre">Autre</label>
+    </div>
+    <div class="row">
+      <div><label class="field">Adresse</label><input type="text" id="adresse"></div>
+      <div><label class="field">Code postal</label><input type="text" id="cp"></div>
+    </div>
+    <label class="field">Ville</label>
+    <input type="text" id="ville">
+    <label class="field">Diplôme / niveau visé</label>
+    <div class="levels" id="vise">
+      <label><input type="radio" name="vise" value="A1">A1</label>
+      <label><input type="radio" name="vise" value="A2">A2</label>
+      <label><input type="radio" name="vise" value="B1">B1</label>
+      <label><input type="radio" name="vise" value="B2">B2</label>
+    </div>
+    <label class="field">Référent / Formateur <span style="font-weight:400;color:var(--grey);">(réservé à l'administration)</span></label>
+    <input type="text" id="referent" list="referents" placeholder="Nom du référent">
+    <datalist id="referents">
+      <option>Neyutha PATHMANESAN</option><option>Sofinnisha BASHEER</option>
+      <option>Abira NATKUNASINGAM</option><option>Sudjitha NADARADJANE</option>
+      <option>Sathursana SIVASUTHAN</option>
+    </datalist>
+  </div>
+
+  <div class="card">
+    <h2>Vos disponibilités</h2>
+    <div class="note">Cochez les créneaux où vous pouvez venir en formation (entrée / sortie libre : Matin 9h30–12h30 · Après-midi 14h–17h).</div>
+    <div id="dispo"></div>
+  </div>
+
+  <div class="card">
+    <h2>Compréhension écrite <span style="float:right;color:var(--grey);font-size:14px;">… / 20</span></h2>
+    <div class="note">Pour chaque question, cochez la bonne réponse (une seule réponse possible). Les questions « à écrire » se corrigent sur les mots-clés attendus.</div>
+
+    <h3>Exercice 1</h3>
+    <div class="text-extrait">Bonjour, je m'appelle Emma. J'ai 26 ans. Je suis française. J'habite à Paris. J'aime lire et voyager. J'ai un chat qui s'appelle Luna.</div>
+    <div id="ex1"></div>
+
+    <h3>Exercice 2 — Petite annonce</h3>
+    <div class="text-extrait">Bonjour,<br>Je recherche une personne pour garder mes enfants de 1 et 7 ans. Il faut être disponible pour travailler les jeudis, vendredis et samedis soir après 17 heures. Vous devez habiter dans le centre de Limoges ou avoir une voiture.<br>Tarif : 45 € pour une soirée. Expérience avec les enfants souhaitée. Si vous êtes intéressé, appelez-moi au 06 45 08 52 49.<span class="sig">Anna Lemaitre</span></div>
+    <div id="ex2"></div>
+
+    <h3>Exercice 3</h3>
+    <div class="text-extrait"><b>Testament.</b> Il y a quelques années, j'ai légué par testament un appartement à mon frère. Depuis, des balcons ont été ajoutés à tous les appartements de l'immeuble. Dois-je modifier mon testament pour transmettre ce nouvel aménagement à mon frère ?<br>En vertu de l'article 1019 alinéa 2 du code civil, le légataire bénéficie de plein droit des agrandissements, des embellissements et des constructions nouvelles faites sur le bien transmis. Tout avenant à votre testament est donc inutile.</div>
+    <div id="ex3"></div>
+
+    <h3>Exercice 4</h3>
+    <div class="text-extrait"><b>C'est quoi pour vous, un travailleur senior ?</b> Dans un article d'Objectif emploi, la présentation d'un programme pour aider les plus de 50 ans à retrouver un emploi est illustrée par la photo d'un homme aux cheveux et barbe blancs, ridé… On dirait un grand-père de 75 ou 80 ans, totalement décalé par rapport à l'article, mais révélateur d'un imaginaire collectif inquiétant.<br>Lors d'un événement Job Rencontres, j'ai croisé plus d'une centaine de séniors actifs : tous étaient modernes, dynamiques, stylés.<br>Voilà le paradoxe : en emploi, les plus de 50 ans sont perçus comme intégrés et compétents ; au chômage, ils deviennent « vieux » dans l'inconscient collectif.</div>
+    <div id="ex4"></div>
+
+    <h3>Exercice 5 — Grammaire & vocabulaire (cochez le mot manquant)</h3>
+    <div id="ex5"></div>
+  </div>
+
+
+  <div class="card">
+    <h2>Compréhension orale <span style="float:right;color:var(--grey);font-size:14px;">… / 10</span></h2>
+    <div class="note">🎧 Écoutez chaque audio (une seule écoute conseillée), puis cochez la bonne réponse.</div>
+
+    <h3>Audio 1</h3>
+    <audio controls preload="none" style="width:100%;margin:6px 0;" src="https://svepgknbbonrtwyvzaar.supabase.co/storage/v1/object/public/qcm/Audio%201.mp3"></audio>
+    <div id="co1"></div>
+
+    <h3>Audio 2</h3>
+    <audio controls preload="none" style="width:100%;margin:6px 0;" src="https://svepgknbbonrtwyvzaar.supabase.co/storage/v1/object/public/qcm/Audio%202.mp3"></audio>
+    <div id="co2"></div>
+
+    <h3>Audio 3</h3>
+    <audio controls preload="none" style="width:100%;margin:6px 0;" src="https://svepgknbbonrtwyvzaar.supabase.co/storage/v1/object/public/qcm/Audio%203.mp3"></audio>
+    <div id="co3"></div>
+
+    <h3>Audio 4 — Associez chaque dialogue à une image</h3>
+    <audio controls preload="none" style="width:100%;margin:6px 0;" src="https://svepgknbbonrtwyvzaar.supabase.co/storage/v1/object/public/qcm/Audio%204.mp3"></audio>
+    <div class="note">Vous entendez <b>5 dialogues</b>. Sous chaque image, choisissez le numéro du dialogue correspondant. Attention : <b>6 images, 5 dialogues</b> — une image n'a aucun dialogue.</div>
+    <div id="co4" class="co4-grid"></div>
+  </div>
+
+
+  <button class="btn" onclick="corriger()">Voir mon résultat →</button>
+</div>
+
+<!-- ============ RÉSULTATS ============ -->
+<div id="result" class="hidden">
+  <div style="text-align:center;margin-top:18px;"><img src="https://svepgknbbonrtwyvzaar.supabase.co/storage/v1/object/public/qcm/logo_bleu.png" alt="MYSTORY" style="height:66px;"></div>
+  <h1 style="text-align:center;">Résultat du test de positionnement</h1>
+  <div class="card">
+    <h2 id="r-nom"></h2>
+    <p style="margin:2px 0 14px;color:var(--grey);">Compréhension écrite (corrigée automatiquement)</p>
+    <div class="score-big"><span id="r-ce"></span> <span style="font-size:20px;color:var(--grey);">/ 20</span></div>
+    <div class="bar"><i id="r-bar"></i></div>
+    <p>Niveau indicatif (écrit seul) : <b id="r-prov"></b></p>
+    <p style="margin-top:12px;">🎧 Compréhension orale (corrigée automatiquement) : <b><span id="r-co">—</span> / 10</b></p>
+    <p id="r-envoi" style="margin-top:10px;font-weight:600;color:var(--blue);">Enregistrement…</p>
+  </div>
+
+
+  <div class="card" id="global-card" style="text-align:center;">
+    <h2>Niveau global</h2>
+    <div class="lvl-badge" id="r-lvl">—</div>
+    <p style="font-size:18px;">Note totale : <b id="r-tot40">—</b> / 40&nbsp;&nbsp;=&nbsp;&nbsp;<b id="r-tot20">—</b> / 20</p>
+    <p id="r-conseil" style="color:#2b3a4d;text-align:left;background:var(--lite);padding:12px 16px;border-radius:10px;"></p>
+  </div>
+
+  <div class="card">
+    <h2>Récapitulatif (à joindre à l'Évaluation initiale)</h2>
+    <table class="recap" id="r-table"></table>
+    <h3 style="margin-top:16px;">Détail des réponses (test corrigé)</h3>
+    <div id="r-detail"></div>
+  </div>
+
+  <button class="btn no-print" onclick="window.print()">📄 Télécharger en PDF (test + résultat)</button>
+  <button class="btn sec no-print" onclick="location.reload()">Nouveau test</button>
+  <p class="no-print" style="color:var(--grey);font-size:13px;margin-top:8px;">💡 Dans la fenêtre qui s'ouvre, choisissez « <b>Enregistrer au format PDF</b> » comme destination pour télécharger le document.</p>
+</div>
+
+<footer>MYSTORY — SASU · RCS Paris 913 423 083 · SIRET 913 423 083 00017 · Déclaration d'activité n° 11756521775 (ne vaut pas agrément de l'État)<br>contact@mystoryformation.fr · 06 81 43 16 54 · Modèle v4 (candidat CE+CO)</footer>
+</div>
+
+<script>
+/* ===== Banque de questions (corrigé exact du test initial v3) ===== */
+const QCM = {
+ ex1:[
+  {q:"Comment s'appelle-t-elle ?",o:["Elle s'appelle Emma.","Elle s'appelle Luna.","Elle s'appelle Paris."],c:0,p:1},
+  {q:"Où habite-t-elle ?",o:["À Lyon.","À Marseille.","À Paris."],c:2,p:1},
+  {q:"Quel est son hobby ?",o:["Elle aime cuisiner.","Elle aime la lecture.","Elle aime jardiner."],c:1,p:1},
+  {q:"Quel animal a-t-elle ?",o:["Un chien","Un chat","Un oiseau"],c:1,p:1},
+ ],
+ ex3:[
+  {q:"Dans quelle rubrique pourrait-on lire ce document ?",o:["Immobilier","Société","Courrier du cœur","Questions juridiques"],c:3,p:1},
+  {q:"Que fait l'auteur de la première partie du document ?",o:["Il décrit un appartement.","Il écrit à son frère.","Il demande un conseil.","Il exprime son opinion."],c:2,p:1},
+  {q:"La réponse à la question posée dans le document est :",o:["Oui.","Non.","Peut-être.","On ne sait pas."],c:1,p:1},
+ ],
+ ex4:[
+  {q:"L'article met en évidence…",o:["le regard subjectif porté sur les séniors.","les qualités professionnelles des séniors.","la faiblesse des programmes d'aide aux séniors.","le rôle des séniors dans la transmission des savoirs."],c:0,p:1},
+  {q:"Les cinquantenaires d'aujourd'hui se distinguent par…",o:["un mode de vie particulièrement actif.","un attachement aux activités traditionnelles.","une facilité à se reconvertir professionnellement.","un équilibre entre vie personnelle et professionnelle."],c:0,p:1},
+ ],
+ ex5:[
+  {q:"Je vais __________ du lait au supermarché.",o:["Acheter","Vendre","Produire","Fabriquer"],c:0,p:1},
+  {q:"Il est important de __________ les consignes de sécurité.",o:["Ignorer","Respecter","Oublier","Changer"],c:1,p:1},
+  {q:"Au mois de juillet, nous serons absents ______ vendredi ______ lundi inclus.",o:["de … à","du … au","le … au","ni … ni"],c:1,p:1},
+  {q:"Si j'________ plus de temps, je me mettrais au sport.",o:["Ai","Aurais","Avais","Eu"],c:2,p:1},
+ ],
+ // Exercice 2 : 2 QCM + 3 réponses ouvertes (corrigées par mots-clés)
+ ex2_qcm:[
+  {q:"Quel jour devez-vous travailler ?",o:["Le lundi","Le mercredi","Le vendredi"],c:2,p:1},
+  {q:"Il faut être disponible :",o:["Le matin","Le midi","Le soir"],c:2,p:1},
+ ],
+ ex2_open:[
+  {q:"Cette annonce concerne quel travail ? (écrire)",p:1,keys:["garde","enfant","baby","nounou","gard"]},
+  {q:"Combien est-on payé pour une soirée ? (écrire)",p:2,keys:["45"]},
+  {q:"Si vous êtes intéressé par l'annonce, que devez-vous faire ? (écrire)",p:2,keys:["appel","téléphon","telephon","numéro","numero","06 45","064508"]},
+ ]
+};
+
+let nq=0;
+function radioBlock(key,arr,off){
+  return arr.map((item,i)=>{
+    const id=key+'_'+i; const opts=item.o.map((t,j)=>
+     `<label class="opt" onclick="sel(this)"><input type="radio" name="${id}" value="${j}">${t}</label>`).join('');
+    return `<div class="q" data-key="${key}" data-i="${i}"><span class="pts">… / ${item.p}</span><div class="ask">${off+i+1}. ${item.q}</div>${opts}</div>`;
+  }).join('');
+}
+function sel(el){el.parentNode.querySelectorAll('.opt').forEach(o=>o.classList.remove('sel'));el.classList.add('sel');el.querySelector('input').checked=true;}
+function esc(t){return String(t).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+
+document.getElementById('ex1').innerHTML=radioBlock('ex1',QCM.ex1,0);
+// ex2 : Q1 open, Q2-Q3 qcm, Q4-Q5 open  -> on affiche dans l'ordre du test
+let ex2html=`<div class="q" data-open="0"><span class="pts">… / 1</span><div class="ask">1. ${QCM.ex2_open[0].q}</div><input type="text" id="ex2o0"></div>`;
+ex2html+=QCM.ex2_qcm.map((item,i)=>{const id='ex2q_'+i;const opts=item.o.map((t,j)=>`<label class="opt" onclick="sel(this)"><input type="radio" name="${id}" value="${j}">${t}</label>`).join('');return `<div class="q" data-key="ex2_qcm" data-i="${i}"><span class="pts">… / 1</span><div class="ask">${i+2}. ${item.q}</div>${opts}</div>`;}).join('');
+ex2html+=`<div class="q" data-open="1"><span class="pts">… / 2</span><div class="ask">4. ${QCM.ex2_open[1].q}</div><input type="text" id="ex2o1"></div>`;
+ex2html+=`<div class="q" data-open="2"><span class="pts">… / 2</span><div class="ask">5. ${QCM.ex2_open[2].q}</div><input type="text" id="ex2o2"></div>`;
+document.getElementById('ex2').innerHTML=ex2html;
+document.getElementById('ex3').innerHTML=radioBlock('ex3',QCM.ex3,0);
+document.getElementById('ex4').innerHTML=radioBlock('ex4',QCM.ex4,0);
+document.getElementById('ex5').innerHTML=radioBlock('ex5',QCM.ex5,0);
+
+document.querySelectorAll('#vise label').forEach(l=>l.onclick=()=>{document.querySelectorAll('#vise label').forEach(x=>x.classList.remove('sel'));l.classList.add('sel');});
+document.querySelectorAll('#civ-wrap label').forEach(l=>l.onclick=()=>{document.querySelectorAll('#civ-wrap label').forEach(x=>x.classList.remove('sel'));l.classList.add('sel');});
+function envoyerCRM(){
+  const g=id=>(document.getElementById(id)||{}).value||'';
+  const civ=(document.querySelector('input[name=civilite]:checked')||{}).value||null;
+  const payload={certif:'TEF_IRN',civilite:civ,nom:g('nom'),prenom:g('prenom'),email:g('email'),telephone:g('tel'),
+    adresse:g('adresse'),cp:g('cp'),ville:g('ville'),
+    niveau_vise:(document.querySelector('input[name=vise]:checked')||{}).value||null,
+    referent:g('referent'),ce_sur20:CE,co_sur10:COscore,dispos:getDispo()};
+  const el=document.getElementById('r-envoi');
+  fetch('/api/positionnement',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)})
+    .then(r=>r.json()).then(j=>{el.textContent=j.ok?'✓ Test enregistré — en attente de la formatrice pour l\'expression écrite et orale.':'⚠️ Enregistrement non confirmé ('+(j.erreur||'réessayez')+').';})
+    .catch(()=>{el.textContent='⚠️ Enregistrement hors-ligne : prévenez l\'administration.';});
+}
+
+/* Disponibilités — grille compacte (jours en colonnes, Matin/Après-midi en lignes) */
+const JOURS=[['Lundi','L'],['Mardi','Ma'],['Mercredi','Me'],['Jeudi','J'],['Vendredi','V'],['Samedi','S'],['Dimanche','D']];
+(function(){let h='<table class="dispo-grid"><tr><th></th>'+JOURS.map(j=>`<th title="${j[0]}">${j[1]}</th>`).join('')+'</tr>';
+[['Matin'],['Après-midi']].forEach(([slot])=>{h+=`<tr><td class="slot">${slot}</td>`+JOURS.map(j=>`<td><input type="checkbox" data-day="${j[0]}" data-slot="${slot}"></td>`).join('')+'</tr>';});
+document.getElementById('dispo').innerHTML=h+'</table>';})();
+function getDispo(){const a=[...document.querySelectorAll('#dispo input:checked')].map(i=>i.dataset.day+' ('+(i.dataset.slot==='Matin'?'M':'AM')+')');return a.length?a.join(', '):'—';}
+
+/* ===== Compréhension orale (audio) ===== */
+const CO={
+ co1:[{q:"Combien de retard aura le train ?",o:["5 minutes.","17h36.","20 minutes.","3 heures."],c:2},
+      {q:"Quelle est la destination du train ?",o:["Paris Nord.","France.","Bordeaux.","Gare de Lyon."],c:0}],
+ co2:[{q:"Quand aura lieu la réunion ?",o:["Demain matin à 9h.","Demain après-midi à 15h.","Aujourd'hui à 15h.","Après-demain matin."],c:1},
+      {q:"Où aura lieu la réunion ?",o:["Dans un bureau individuel.","À la cafétéria.","Dans la salle de conférence du 2ᵉ étage.","À l'extérieur."],c:2}],
+ co3:[{q:"Qui parle ?",o:["Un médecin.","Une pharmacie.","Un patient.","Une infirmière."],c:1}]
+};
+const CO4_IMG={'1':'B','2':'F','3':'D','4':'C','5':'E'}; // n° dialogue -> image correcte (A = aucun)
+function coBlock(key,arr){return arr.map((item,i)=>{const id=key+'_'+i;const opts=item.o.map((t,j)=>`<label class="opt" onclick="sel(this)"><input type="radio" name="${id}" value="${j}">${t}</label>`).join('');return `<div class="q"><span class="pts">… / 1</span><div class="ask">${i+1}. ${item.q}</div>${opts}</div>`;}).join('');}
+document.getElementById('co1').innerHTML=coBlock('co1',CO.co1);
+document.getElementById('co2').innerHTML=coBlock('co2',CO.co2);
+document.getElementById('co3').innerHTML=coBlock('co3',CO.co3);
+document.getElementById('co4').innerHTML=['A','B','C','D','E','F'].map(L=>`<div class="co4-card"><img src="https://svepgknbbonrtwyvzaar.supabase.co/storage/v1/object/public/qcm/a4_${L}.png" alt="Image ${L}"><select id="co4_${L}"><option value="">— aucun dialogue</option>${[1,2,3,4,5].map(n=>`<option value="${n}">Dialogue ${n}</option>`).join('')}</select></div>`).join('');
+
+/* ===== Correction ===== */
+function getRadio(name){const el=document.querySelector(`input[name="${name}"]:checked`);return el?parseInt(el.value):-1;}
+function niveau(n20){if(n20<=4)return"A0";if(n20<=9)return"A1";if(n20<=14)return"A2";if(n20<=18)return"B1";return"B2";}
+const CONSEILS={
+ A0:"Niveau débutant complet. Un volume d'heures important est recommandé pour construire les bases (alphabet, vocabulaire essentiel, compréhension simple).",
+ A1:"Niveau découverte. Travail sur la communication du quotidien ; un volume d'heures conséquent est conseillé pour progresser sereinement.",
+ A2:"Niveau intermédiaire. Consolidation de la grammaire et enrichissement du vocabulaire pour gagner en autonomie.",
+ B1:"Niveau seuil. Perfectionnement de l'expression et de la compréhension de documents plus complexes.",
+ B2:"Niveau avancé. Préparation ciblée à l'examen et travail des nuances de la langue."
+};
+let CE=0, COscore=0, detail=[];
+function corriger(){
+  detail=[]; CE=0; COscore=0;
+  [['ex1',QCM.ex1,'Exercice 1'],['ex3',QCM.ex3,'Exercice 3'],['ex4',QCM.ex4,'Exercice 4'],['ex5',QCM.ex5,'Exercice 5']].forEach(([k,arr,lbl])=>{
+    arr.forEach((item,i)=>{const a=getRadio(k+'_'+i);const ok=a===item.c;if(ok)CE+=item.p;detail.push([lbl+' Q'+(i+1),ok,item.o[item.c],a>=0?item.o[a]:'(vide)']);});
+  });
+  let r0=document.getElementById('ex2o0').value||'';let v=r0.toLowerCase();
+  let ok=QCM.ex2_open[0].keys.some(x=>v.includes(x));if(ok)CE+=1;detail.push(['Exercice 2 Q1',ok,"garde d'enfants",r0||'(vide)']);
+  QCM.ex2_qcm.forEach((item,i)=>{const a=getRadio('ex2q_'+i);const o=a===item.c;if(o)CE+=item.p;detail.push(['Exercice 2 Q'+(i+2),o,item.o[item.c],a>=0?item.o[a]:'(vide)']);});
+  let r1=document.getElementById('ex2o1').value||'';v=r1.toLowerCase().replace(/\s/g,'');ok=QCM.ex2_open[1].keys.some(x=>v.includes(x));if(ok)CE+=2;detail.push(['Exercice 2 Q4',ok,'45 €',r1||'(vide)']);
+  let r2=document.getElementById('ex2o2').value||'';v=r2.toLowerCase();ok=QCM.ex2_open[2].keys.some(x=>v.includes(x));if(ok)CE+=2;detail.push(['Exercice 2 Q5',ok,'appeler au 06 45 08 52 49',r2||'(vide)']);
+
+  // ===== Compréhension orale (auto) =====
+  [['co1',CO.co1,'Audio 1'],['co2',CO.co2,'Audio 2'],['co3',CO.co3,'Audio 3']].forEach(([k,arr,lbl])=>{
+    arr.forEach((item,i)=>{const a=getRadio(k+'_'+i);const o=a===item.c;if(o)COscore++;detail.push([lbl+' Q'+(i+1),o,item.o[item.c],a>=0?item.o[a]:'(vide)']);});
+  });
+  const selA={};['A','B','C','D','E','F'].forEach(L=>selA[L]=document.getElementById('co4_'+L).value);
+  ['1','2','3','4','5'].forEach(n=>{const placed=['A','B','C','D','E','F'].find(L=>selA[L]===n);const o=placed===CO4_IMG[n];if(o)COscore++;detail.push(['Audio 4 — Dialogue '+n,o,'Image '+CO4_IMG[n],placed?('Image '+placed):'(aucune)']);});
+  document.getElementById('r-co').textContent=COscore;
+
+  // affichage
+  const nom=(document.getElementById('prenom').value+' '+document.getElementById('nom').value).trim()||'Candidat';
+  document.getElementById('r-nom').textContent=nom;
+  document.getElementById('r-ce').textContent=CE;
+  document.getElementById('r-bar').style.width=(CE/20*100)+'%';
+  document.getElementById('r-prov').textContent=niveau(CE)+" (sur la compréhension écrite seule)";
+  document.getElementById('r-detail').innerHTML='<table class="recap"><tr><td style="font-weight:700">Question</td><td style="font-weight:700">Votre réponse</td><td style="font-weight:700">Résultat</td></tr>'+detail.map(d=>`<tr><td>${d[0]}</td><td>${esc(d[3])}</td><td>${d[1]?'<span class="corr-ok">✔</span>':'<span class="corr-ko">✘ '+esc(d[2])+'</span>'}</td></tr>`).join('')+'</table>';
+  calcGlobal();
+  envoyerCRM();
+  document.getElementById('form').classList.add('hidden');
+  document.getElementById('result').classList.remove('hidden');
+  window.scrollTo(0,0);
+}
+function calcGlobal(){
+  const ee=NaN, eo=NaN; // EE/EO saisis par la formatrice en phase 2
+  const vise=(document.querySelector('input[name=vise]:checked')||{}).value||'—';
+  const ref=document.getElementById('referent').value||'—';
+  const recap=[['Candidat',document.getElementById('r-nom').textContent],['Niveau visé',vise],['Référent',ref],['Disponibilités',getDispo()],['Compréhension écrite',CE+' / 20  ('+ (CE/2) +' / 10)'],['Compréhension orale',COscore+' / 10']];
+  if(isNaN(ee)||isNaN(eo)){
+    document.getElementById('r-lvl').textContent='—';
+    document.getElementById('r-tot40').textContent='—';document.getElementById('r-tot20').textContent='—';
+    document.getElementById('r-conseil').textContent='⏳ En attente des 2 notes de la formatrice (expression écrite + expression orale) pour calculer le niveau global officiel.';
+  }else{
+    const tot40=(CE/2)+COscore+ee+eo; const tot20=tot40/2; const lvl=niveau(tot20);
+    document.getElementById('r-lvl').textContent=lvl;
+    document.getElementById('r-tot40').textContent=tot40.toFixed(1);
+    document.getElementById('r-tot20').textContent=tot20.toFixed(1);
+    let gap='';
+    const ord={A0:0,A1:1,A2:2,B1:3,B2:4};
+    if(vise!=='—'){ if(ord[lvl]<ord[vise]) gap=' Le niveau actuel est inférieur au niveau visé ('+vise+') : un volume d\'heures adapté est recommandé pour atteindre l\'objectif.'; else if(ord[lvl]>=ord[vise]) gap=' Le niveau actuel atteint ou dépasse le niveau visé ('+vise+') : la préparation peut être ciblée sur l\'examen.'; }
+    document.getElementById('r-conseil').textContent=CONSEILS[lvl]+gap;
+    recap.push(['Expression écrite',ee+' / 10'],['Expression orale',eo+' / 10'],['NOTE TOTALE',tot40.toFixed(1)+' / 40  =  '+tot20.toFixed(1)+' / 20'],['NIVEAU GLOBAL',lvl]);
+  }
+  document.getElementById('r-table').innerHTML=recap.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('');
+}
+</script>
+</body>
+</html>
