@@ -5,18 +5,20 @@
  *        Idempotent jour après jour : une facture relancée change de statut et
  *        ne redevient « due » qu'au palier suivant. Jamais de relance CPF
  *        (payeur = CDC) ni sur facture payée — filtré dans lib/factures.
- * Protégé par le middleware global (session équipe ou Bearer JWT n8n).
+ * Protégé par le middleware global (session équipe ou Bearer JWT n8n/cron).
+ * Restriction : exécuter les relances = action « facturation » (Direction + Secrétariat ; cron sans rôle passe).
  */
 import { NextRequest, NextResponse } from "next/server";
-import { requireUser, UnauthorizedError } from "@/lib/auth";
+import { requireUser, UnauthorizedError, type SessionUser } from "@/lib/auth";
+import { peut } from "@/lib/roles";
 import { relancesDues, envoyerFacture } from "@/lib/factures";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
-async function garde(req: NextRequest) {
-  try { await requireUser(req); return null; }
+async function garde(req: NextRequest): Promise<NextResponse | SessionUser> {
+  try { return await requireUser(req); }
   catch (e) {
     if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Non authentifié" }, { status: 401 });
     throw e;
@@ -24,13 +26,16 @@ async function garde(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  const refus = await garde(req); if (refus) return refus;
+  const g = await garde(req); if (g instanceof NextResponse) return g;
   const dues = await relancesDues();
   return NextResponse.json({ ok: true, dues });
 }
 
 export async function POST(req: NextRequest) {
-  const refus = await garde(req); if (refus) return refus;
+  const g = await garde(req); if (g instanceof NextResponse) return g;
+  if (g.role && !peut(g.role, "facturation")) {
+    return NextResponse.json({ ok: false, erreur: "Action réservée à la Direction et au Secrétariat (facturation)." }, { status: 403 });
+  }
   const auteur = "relances-auto";
   const dues = await relancesDues();
 

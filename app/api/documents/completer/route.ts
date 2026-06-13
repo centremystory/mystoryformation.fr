@@ -17,7 +17,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { mergeTemplate, FicheStagiaire } from "@/lib/mergeEngine";
 import { renderHtmlToPdf } from "@/lib/docuseal";
-import { requireUser, UnauthorizedError } from "@/lib/auth";
+import { requireUser, UnauthorizedError, type SessionUser } from "@/lib/auth";
+import { peut } from "@/lib/roles";
 import { getFiche, archiveDocument, setPieceStatus, getSignedUrl } from "@/lib/crm";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
@@ -55,7 +56,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  try { await requireUser(req); }
+  let u: SessionUser;
+  try { u = await requireUser(req); }
   catch (e) {
     if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Non authentifié" }, { status: 401 });
     throw e;
@@ -68,10 +70,15 @@ export async function POST(req: NextRequest) {
   const dossierId = String(body?.dossierId ?? "").trim();
   const type = String(body?.type ?? "").trim();
   const champs = body?.champs ?? {};
-  const auteur = String(body?.auteur ?? "").trim() || null;
+  const auteur = u.email ?? (String(body?.auteur ?? "").trim() || null);
 
   if (!dossierId || !COMPLETABLES.has(type)) {
     return NextResponse.json({ ok: false, erreur: "dossierId et type (fiche_analyse_besoin | evaluation_finale) requis." }, { status: 400 });
+  }
+
+  // Restriction : l'évaluation finale (niveau atteint) est réservée Pédagogie / Formatrice / Direction.
+  if (type === "evaluation_finale" && u.role && !peut(u.role, "evaluation_finale")) {
+    return NextResponse.json({ ok: false, erreur: "Évaluation finale réservée à la Pédagogie, aux Formatrices et à la Direction." }, { status: 403 });
   }
 
   let fiche = await getFiche(dossierId);
@@ -183,3 +190,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, status: "erreur", erreur: String(e) }, { status: 502 });
   }
 }
+

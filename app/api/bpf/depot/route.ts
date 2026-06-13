@@ -6,7 +6,8 @@
  *          autres_produits?, part_ca_pct?, charges_total?, salaires_formateurs?, achats_prestations? }
  */
 import { NextRequest, NextResponse } from "next/server";
-import { requireUser, UnauthorizedError } from "@/lib/auth";
+import { requireUser, UnauthorizedError, type SessionUser } from "@/lib/auth";
+import { peut } from "@/lib/roles";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { journal } from "@/lib/examens";
 
@@ -20,11 +21,13 @@ function num(v: any): number | null {
 }
 
 export async function POST(req: NextRequest) {
-  try { await requireUser(req); }
+  let u: SessionUser;
+  try { u = await requireUser(req); }
   catch (e) {
     if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
     throw e;
   }
+  if (u.role && !peut(u.role, "bpf_saisir")) return NextResponse.json({ ok: false, erreur: "Action réservée à la Direction." }, { status: 403 });
 
   let b: any;
   try { b = await req.json(); } catch { return NextResponse.json({ ok: false, erreur: "JSON invalide." }, { status: 400 }); }
@@ -58,6 +61,7 @@ export async function POST(req: NextRequest) {
   const { error } = await supabaseAdmin.from("bpf_depots").upsert(ligne, { onConflict: "annee" });
   if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
 
-  await journal("bpf_depot", String(annee), "saisie", { annee, total_produits: total, cerfa: ligne.cerfa });
+  await journal("bpf_depot", String(annee), "saisie", { annee, total_produits: total, cerfa: ligne.cerfa }, u.email ?? null);
   return NextResponse.json({ ok: true });
 }
+

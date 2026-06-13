@@ -5,9 +5,11 @@
  * PATCH — { id, action: "payee" } marque payée (tampon PAYÉE, PDF regénéré)
  *         { id, action: "renvoyer" } renvoie l'email avec le PDF.
  * Protégé par le middleware global (session équipe ou Bearer n8n).
+ * Restriction : émettre/marquer payée/renvoyer = action « facturation » (Direction + Secrétariat).
  */
 import { NextRequest, NextResponse } from "next/server";
-import { requireUser, UnauthorizedError } from "@/lib/auth";
+import { requireUser, UnauthorizedError, type SessionUser } from "@/lib/auth";
+import { peut } from "@/lib/roles";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { facturerDossier, facturerVente, envoyerFacture, marquerPayee } from "@/lib/factures";
 
@@ -15,16 +17,26 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
-async function garde(req: NextRequest) {
-  try { await requireUser(req); return null; }
+/** Authentifie et renvoie l'utilisateur, ou une réponse 401 à retourner tel quel. */
+async function garde(req: NextRequest): Promise<NextResponse | SessionUser> {
+  try { return await requireUser(req); }
   catch (e) {
     if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Non authentifié" }, { status: 401 });
     throw e;
   }
 }
 
+const refusFacturation = () => NextResponse.json(
+  { ok: false, erreur: "Action réservée à la Direction et au Secrétariat (facturation)." },
+  { status: 403 },
+);
+/** Les tokens de service (n8n/cron, sans rôle) et la session équipe passent ; un rôle individuel non autorisé est bloqué. */
+function peutFacturer(u: SessionUser): boolean {
+  return !u.role || peut(u.role, "facturation");
+}
+
 export async function GET(req: NextRequest) {
-  const refus = await garde(req); if (refus) return refus;
+  const g = await garde(req); if (g instanceof NextResponse) return g;
 
   const { data: factures, error } = await supabaseAdmin
     .from("factures")
@@ -77,14 +89,15 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const refus = await garde(req); if (refus) return refus;
+  const g = await garde(req); if (g instanceof NextResponse) return g;
+  if (!peutFacturer(g)) return refusFacturation();
   let body: any;
   try { body = await req.json(); }
   catch { return NextResponse.json({ ok: false, erreur: "JSON invalide." }, { status: 400 }); }
 
   const dossierId = String(body?.dossier_id ?? "").trim();
   const venteId = String(body?.vente_id ?? "").trim();
-  const auteur = String(body?.auteur ?? "").trim() || null;
+  const auteur = g.email ?? (String(body?.auteur ?? "").trim() || null);
   if (!dossierId && !venteId) return NextResponse.json({ ok: false, erreur: "dossier_id ou vente_id requis." }, { status: 400 });
   if (dossierId && venteId) return NextResponse.json({ ok: false, erreur: "Une facture porte sur UNE entité : dossier OU vente." }, { status: 400 });
 
@@ -107,14 +120,15 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const refus = await garde(req); if (refus) return refus;
+  const g = await garde(req); if (g instanceof NextResponse) return g;
+  if (!peutFacturer(g)) return refusFacturation();
   let body: any;
   try { body = await req.json(); }
   catch { return NextResponse.json({ ok: false, erreur: "JSON invalide." }, { status: 400 }); }
 
   const id = String(body?.id ?? "").trim();
   const action = String(body?.action ?? "").trim();
-  const auteur = String(body?.auteur ?? "").trim() || null;
+  const auteur = g.email ?? (String(body?.auteur ?? "").trim() || null);
   if (!id) return NextResponse.json({ ok: false, erreur: "id requis." }, { status: 400 });
 
   if (action === "payee") {

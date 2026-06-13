@@ -11,7 +11,8 @@ import {
   getSubmissionDocuments,
   downloadSignedDocument,
 } from "@/lib/docuseal";
-import { requireUser, UnauthorizedError } from "@/lib/auth";
+import { requireUser, UnauthorizedError, type SessionUser } from "@/lib/auth";
+import { peut } from "@/lib/roles";
 import { getFiche, archiveDocument, setPieceStatus, getConventionStatus } from "@/lib/crm";
 import { checkConformite } from "@/lib/gates";
 import { journal } from "@/lib/examens";
@@ -21,11 +22,16 @@ export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   // 🔒 Auth (session CRM ou JWT de service n8n signé avec AUTH_SECRET)
+  let u: SessionUser;
   try {
-    await requireUser(req);
+    u = await requireUser(req);
   } catch (e) {
     if (e instanceof UnauthorizedError) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
     throw e;
+  }
+  // Restriction : envoi en signature réservé Direction + Secrétariat (token de service sans rôle = n8n → passe).
+  if (u.role && !peut(u.role, "conventions_envoyer")) {
+    return NextResponse.json({ error: "Action réservée à la Direction et au Secrétariat." }, { status: 403 });
   }
 
   let dossierId: string;
@@ -79,7 +85,7 @@ export async function POST(req: NextRequest) {
     // Audit : trace l'envoi en signature dans le journal général.
     await journal("dossier", dossierId, "convention_envoyee_signature", {
       submission_id: submission.submissionId,
-    });
+    }, u.email ?? null);
 
     // Archivage « généré » (best-effort) : on récupère le PDF non signé rendu par DocuSeal.
     // Un échec ici NE doit PAS bloquer l'envoi en signature (déjà réussi). Le « signé » fera foi.
@@ -101,3 +107,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, dossierId, status: "erreur_envoi", error: String(e) }, { status: 502 });
   }
 }
+
