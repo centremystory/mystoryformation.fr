@@ -5,11 +5,12 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
-const PAGES_SANS_NAV = ["/connexion", "/qcm", "/positionnement", "/suivi", "/evaluation", "/fiche-besoin"];
+const PAGES_SANS_NAV = ["/connexion", "/qcm", "/positionnement", "/suivi", "/evaluation", "/fiche-besoin", "/emargement/signer", "/satisfaction"];
 
 const LIENS = [
   { href: "/", label: "Accueil" },
   { href: "/dossiers", label: "Dossiers" },
+  { href: "/emargement", label: "Émargement" },
   { href: "/examens", label: "Examens" },
   { href: "/factures", label: "Factures" },
   { href: "/classement", label: "Classement" },
