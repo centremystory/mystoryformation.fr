@@ -1,6 +1,7 @@
 // app/formation/page.tsx — Hub de l'espace FORMATION (parcours stagiaire CPF)
 // Page de navigation : les cartes mènent aux modules formation. URLs inchangées.
 import Link from "next/link";
+import AlertesFormation from "./AlertesFormation";
 
 const CARTES = [
   { href: "/inscriptions/nouvelle", icone: "＋", titre: "Inscription Formation",
@@ -31,6 +32,8 @@ export default function HubFormation() {
         </div>
       </header>
 
+      <AlertesFormation />
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {CARTES.map((c) => (
           <Link
@@ -51,3 +54,4 @@ export default function HubFormation() {
     </main>
   );
 }
+
