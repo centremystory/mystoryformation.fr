@@ -20,6 +20,7 @@ import { mergeTemplate, TEMPLATES, FicheStagiaire } from "@/lib/mergeEngine";
 import { renderHtmlToPdf } from "@/lib/docuseal";
 import { requireUser, UnauthorizedError } from "@/lib/auth";
 import { getFiche, archiveDocument, setPieceStatus, getSignedUrl } from "@/lib/crm";
+import { genererFeuilleEmargementHtml } from "@/lib/emargement";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -73,6 +74,34 @@ export async function POST(req: NextRequest) {
 
   const fiche = await getFiche(dossierId);
   if (!fiche) return NextResponse.json({ error: "Dossier introuvable" }, { status: 404 });
+
+  // Feuille d'émargement : produite À PARTIR DU RÉEL (signatures capturées), jamais pré-remplie.
+  // Si aucune demi-journée n'est émargée → 409 (interdiction de générer une feuille vide/anticipée).
+  if (type === "emargement") {
+    const feuille = await genererFeuilleEmargementHtml(dossierId);
+    if (!feuille) {
+      return NextResponse.json(
+        { ok: false, dossierId, type, status: "aucun_emargement",
+          recap: ["Aucune demi-journée émargée : la feuille d'émargement ne peut pas être générée (interdiction de pré-remplir). Faites d'abord émarger au moins une séance."] },
+        { status: 409 },
+      );
+    }
+    try {
+      const { pdf, submissionId } = await renderHtmlToPdf({ html: feuille.html, name: `emargement — ${fiche.prenom} ${fiche.nom}` });
+      await archiveDocument({ dossierId, piece: pieceType, variant: "genere", pdf, generatedAt: new Date().toISOString() });
+      await setPieceStatus({ dossierId, piece: pieceType, status: "genere", at: new Date().toISOString() });
+      const pdfUrl = await getSignedUrl(`${dossierId}/${pieceType}_genere.pdf`, 3600);
+      const f = fiche as unknown as { civilite?: string; nom: string; prenom: string; email: string };
+      return NextResponse.json({
+        ok: true, dossierId, type, submissionId, status: "genere", pdfUrl,
+        nbSeances: feuille.nbSeances, totalHeures: feuille.totalHeures,
+        stagiaire: { civilite: f.civilite ?? "", nom: f.nom, prenom: f.prenom, email: f.email },
+      });
+    } catch (e) {
+      await setPieceStatus({ dossierId, piece: pieceType, status: "erreur_envoi", at: new Date().toISOString() });
+      return NextResponse.json({ ok: false, dossierId, type, status: "erreur", error: String(e) }, { status: 502 });
+    }
+  }
 
   // Gabarit programme : contenu juridique propre à chaque certification.
   // TEF IRN → templates/programme.html · LEVELTEL FLE → templates/programme_leveltel.html (modèle v3 fourni).
