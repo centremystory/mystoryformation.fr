@@ -100,6 +100,10 @@ export async function envoyerEmail(e: EnvoiEmail): Promise<{ ok: boolean; erreur
 
     await journaliser("email_envoye", e, {
       message_id: info.messageId ?? null,
+      reponse_smtp: (info as any).response ?? null,
+      acceptes: (info as any).accepted ?? null,
+      rejetes: (info as any).rejected ?? null,
+      enveloppe: (info as any).envelope ?? null,
       pieces_jointes: (e.piecesJointes ?? []).map((p) => p.nom),
     });
     return { ok: true };
