@@ -10,7 +10,7 @@ const PAGES_SANS_NAV = ["/connexion", "/qcm", "/positionnement", "/suivi", "/eva
 
 const LIENS = [
   { href: "/", label: "Accueil" },
-  { href: "/dossiers", label: "Dossiers" },
+  { href: "/dossiers", label: "Suivi des dossiers" },
   { href: "/positionnements", label: "À noter" },
   { href: "/emargement", label: "Émargement" },
   { href: "/examens", label: "Examens" },
