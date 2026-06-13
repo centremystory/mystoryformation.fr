@@ -116,8 +116,13 @@ export function validerInscription(i: InscriptionInput): Verdict {
     erreurs.push("Téléphone invalide (format FR attendu, ex. 06 12 34 56 78).");
   if (!CATALOGUE[i.formule]) erreurs.push("Formule inconnue.");
   if (i.financement === "CPF") {
-    if (!i.numeroEdof?.trim()) erreurs.push("N° dossier EDOF obligatoire pour un financement CPF.");
-    if (!i.dateCommandeValidee) erreurs.push("Date de validation de la commande EDOF obligatoire (CPF) — elle déclenche le contrôle du délai d'accès.");
+    // EDOF facultatif À LA SAISIE (complété ensuite par Lana via l'import EDOF).
+    // Le gate de conformité (lib/gates.ts) ré-exige numero_edof ET date_validation_commande
+    // AVANT toute génération/envoi de document officiel : la saisie passe, le document non.
+    if (!i.numeroEdof?.trim())
+      avertissements.push("N° dossier EDOF non renseigné — à compléter par Lana (import EDOF) avant la génération des documents officiels.");
+    if (!i.dateCommandeValidee)
+      avertissements.push("Date de validation de la commande EDOF non renseignée — à compléter via l'import EDOF ; le délai de 11 j ouvrés sera vérifié avant les documents officiels.");
   }
   return { ok: erreurs.length === 0, erreurs, avertissements };
 }

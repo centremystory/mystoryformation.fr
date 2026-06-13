@@ -41,6 +41,10 @@ export default function NouvelleInscription() {
   const vPlan = useMemo(() => validerPlanning(form.formule, seances, cpf ? form.dateCommandeValidee || null : null), [form.formule, seances, form.dateCommandeValidee, cpf]);
   const totalH = seances.reduce((s, x) => s + CRENEAUX[x.creneau].heures, 0);
   const conforme = vIns.ok && vPlan.ok && !!form.formatriceId;
+  // EDOF facultatif à la saisie : on peut enregistrer sans, mais on ne peut pas envoyer
+  // la convention tant que le N° EDOF et la date de validation manquent (gate de conformité).
+  const edofIncomplet = cpf && (!form.numeroEdof.trim() || !form.dateCommandeValidee);
+  const avertissements = [...vIns.avertissements, ...vPlan.avertissements];
 
   const genererPlan = () => {
     if (!gen.premiere || gen.jours.length === 0) return;
@@ -56,7 +60,7 @@ export default function NouvelleInscription() {
       body: JSON.stringify({
         stagiaire: { civilite: form.civilite, adresse: form.adresse, cp: form.cp, ville: form.ville,
                      dateNaissance: form.dateNaissance, villeNaissance: form.villeNaissance },
-        inscription: form, seances,
+        inscription: { ...form, declencherContractualisation: form.declencherContractualisation && !edofIncomplet }, seances,
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -125,8 +129,8 @@ export default function NouvelleInscription() {
             <option value="CPF">CPF</option><option value="Perso">Fonds propres (Perso)</option>
             <option value="OPCO">OPCO</option><option value="PoleEmploi">France Travail (Pôle Emploi)</option></select></div>
         {cpf && <>
-          <div><label className={label}>N° dossier EDOF *</label><input className={champ} value={form.numeroEdof} onChange={e => set("numeroEdof", e.target.value)} /></div>
-          <div className="col-span-2"><label className={label}>Date validation commande EDOF * <span className="font-normal">(déclenche le délai de 11 j ouvrés)</span></label>
+          <div><label className={label}>N° dossier EDOF <span className="font-normal text-gray-500">(facultatif — complété ensuite via l'import EDOF)</span></label><input className={champ} value={form.numeroEdof} onChange={e => set("numeroEdof", e.target.value)} /></div>
+          <div className="col-span-2"><label className={label}>Date validation commande EDOF <span className="font-normal text-gray-500">(facultatif — complétée ensuite ; déclenche le délai de 11 j ouvrés)</span></label>
             <input type="date" className={champ} value={form.dateCommandeValidee} onChange={e => set("dateCommandeValidee", e.target.value)} /></div>
         </>}
         <div className="col-span-2 md:col-span-4 text-sm text-gray-600">
@@ -196,17 +200,27 @@ export default function NouvelleInscription() {
           </ul>
         </section>
       )}
+      {avertissements.length > 0 && (
+        <section className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+          <h3 className="font-semibold text-amber-800 mb-1">⏳ À compléter avant les documents officiels</h3>
+          <ul className="list-disc ml-5 text-sm text-amber-800">
+            {avertissements.map((a, i) => <li key={i}>{a}</li>)}
+          </ul>
+        </section>
+      )}
       {erreursApi.length > 0 && (
         <section className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
           {erreursApi.map((e, i) => <p key={i}>{e}</p>)}
         </section>
       )}
 
-      <label className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm cursor-pointer">
-        <input type="checkbox" checked={form.declencherContractualisation}
+      <label className={`flex items-center gap-2 rounded-lg p-3 text-sm ${edofIncomplet ? "bg-gray-100 border border-gray-200 text-gray-400 cursor-not-allowed" : "bg-blue-50 border border-blue-200 cursor-pointer"}`}>
+        <input type="checkbox" disabled={edofIncomplet}
+          checked={form.declencherContractualisation && !edofIncomplet}
           onChange={e => set("declencherContractualisation", e.target.checked)} />
-        <span>🚀 <b>Envoyer la convention en signature dès l'enregistrement</b> — la validation EDOF étant faite,
-        la convention + annexes partent automatiquement au stagiaire via DocuSeal. Décocher pour différer.</span>
+        <span>🚀 <b>Envoyer la convention en signature dès l'enregistrement</b> — {edofIncomplet
+          ? "disponible une fois le N° EDOF et la date de validation complétés (la convention officielle exige l'EDOF)."
+          : "la validation EDOF étant faite, la convention + annexes partent automatiquement au stagiaire via DocuSeal. Décocher pour différer."}</span>
       </label>
 
       <button disabled={!conforme || envoi === "loading"} onClick={enregistrer}

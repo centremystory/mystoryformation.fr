@@ -81,7 +81,7 @@ export async function checkConformite(dossierId: string): Promise<GateResult> {
   const { data: d, error } = await supabaseAdmin
     .from("dossiers")
     .select(`
-      certif, financement, montant, reste_a_charge_accepte,
+      certif, financement, montant, reste_a_charge_accepte, numero_edof,
       heures_prevues, heures_edof, date_validation_commande, formatrice_id,
       formatrice:formatrices!formatrice_id ( nom, justificatif_fle ),
       planning ( date_seance, heures )
@@ -140,6 +140,12 @@ export async function checkConformite(dossierId: string): Promise<GateResult> {
   } else if (premiere) {
     const jo = joursOuvres(new Date(d.date_validation_commande), new Date(premiere));
     if (jo < 11) recap.push(`Délai d'accès insuffisant : ${jo} j ouvrés (< 11) avant la 1re séance.`);
+  }
+
+  // N° dossier EDOF requis pour CPF avant tout document officiel.
+  // Facultatif à la saisie (commercial) → complété ensuite par Lana via l'import EDOF.
+  if (d.financement === "CPF" && !((d as any).numero_edof ?? "").toString().trim()) {
+    recap.push("N° dossier EDOF manquant — à compléter via l'import EDOF avant la génération des documents officiels.");
   }
 
   return { ok: recap.length === 0, recap };
