@@ -21,6 +21,7 @@ const LIENS = [
   { href: "/contenu-pedagogique", label: "Pédagogie" },
   { href: "/conges", label: "Congés" },
   { href: "/planning-employes", label: "Planning équipe" },
+  { href: "/pointage", label: "Pointage" },
   { href: "/comptes", label: "Comptes" },
 ];
 
