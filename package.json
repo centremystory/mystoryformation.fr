@@ -16,7 +16,8 @@
     "puppeteer-core": "^23.11.1",
     "@sparticuz/chromium-min": "131.0.0",
     "qrcode": "^1.5.4",
-    "nodemailer": "^6.9.15"
+    "nodemailer": "^6.9.15",
+    "bcryptjs": "^2.4.3"
   },
   "devDependencies": {
     "typescript": "^5.6.0",
@@ -27,7 +28,8 @@
     "tailwindcss": "^3.4.13",
     "postcss": "^8.4.47",
     "autoprefixer": "^10.4.20",
-    "@types/nodemailer": "^6.4.16"
+    "@types/nodemailer": "^6.4.16",
+    "@types/bcryptjs": "^2.4.6"
   },
   "engines": {
     "node": "20.x"

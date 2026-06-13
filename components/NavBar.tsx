@@ -15,6 +15,7 @@ const LIENS = [
   { href: "/factures", label: "Factures" },
   { href: "/bpf", label: "BPF" },
   { href: "/equipe", label: "Équipe" },
+  { href: "/comptes", label: "Comptes" },
 ];
 
 export default function NavBar() {
@@ -64,3 +65,4 @@ export default function NavBar() {
     </nav>
   );
 }
+
