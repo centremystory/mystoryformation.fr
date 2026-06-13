@@ -20,6 +20,8 @@ const CHEMINS_PUBLICS = [
   "/fiche-besoin",
   "/satisfaction",          // questionnaire de satisfaction en ligne (jeton)
   "/api/satisfaction",      // dépôt de la réponse (jeton vérifié côté serveur)
+  "/emargement/signer",     // signature d'émargement par le stagiaire (jeton/QR)
+  "/api/emargement/signer", // dépôt de signature (jeton stagiaire OU session formatrice)
 ];
 
 export async function middleware(req: NextRequest) {
