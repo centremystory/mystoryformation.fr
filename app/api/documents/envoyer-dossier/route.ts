@@ -1,27 +1,28 @@
 /**
  * MYSTORY — POST /api/documents/envoyer-dossier
- * Envoie TOUS les documents archivés d'un dossier au stagiaire, en une fois, via n8n.
- * Le CRM ne fait pas l'email lui-même : il rassemble les pièces, fabrique des URLs signées
- * (24 h) et transmet le tout au webhook n8n, qui compose un seul email avec les pièces jointes.
+ * Envoie TOUS les documents archivés d'un dossier au stagiaire, en un seul email,
+ * via le canal interne du CRM (Resend, lib/email.ts) : les PDF sont joints directement.
  *
- * Repli propre (drapeau) : si N8N_WEBHOOK_ENVOI_DOSSIER est absent, on ne casse rien —
- * on renvoie un statut « canal_inactif » et on trace au journal (même règle que l'email Resend).
+ * Pourquoi pas n8n : le CRM possède déjà un canal email avec pièces jointes et journal ;
+ * on évite une pièce mobile supplémentaire. Si RESEND_API_KEY est absente, l'envoi est
+ * désactivé proprement (message clair, jamais de crash) — drapeau géré dans lib/email.ts.
  *
  * Body : { dossierId: string }
- * Conformité : lieu de formation = Gagny ; on n'envoie que des pièces déjà archivées
- * (donc déjà passées par les portes de conformité) ; la version signée prime sur la générée.
+ * Conformité : on n'envoie que des pièces déjà archivées (donc déjà passées par les portes
+ * de conformité) ; la version signée prime sur la générée ; lieu de formation = Gagny.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireUser, UnauthorizedError } from "@/lib/auth";
-import { getFiche, getSignedUrl } from "@/lib/crm";
-import { journal } from "@/lib/examens";
+import { getFiche } from "@/lib/crm";
+import { envoyerEmail, gabaritEmail, type PieceJointe } from "@/lib/email";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-// Libellés lisibles pour l'email (n8n peut aussi les remapper côté workflow).
+const BUCKET = process.env.SUPABASE_STORAGE_BUCKET ?? "documents";
+
 const LIBELLE: Record<string, string> = {
   convention: "Convention de formation",
   convocation: "Convocation",
@@ -34,6 +35,15 @@ const LIBELLE: Record<string, string> = {
   certificat_realisation: "Certificat de réalisation",
   feuille_emargement: "Feuille d'émargement",
 };
+const CERTIF_LISIBLE: Record<string, string> = { TEF_IRN: "TEF IRN", LEVELTEL: "LEVELTEL" };
+
+/** Nom de fichier sûr : ASCII, underscores, .pdf. */
+function nomFichier(libelle: string, nom: string): string {
+  const base = `${libelle}_${nom}`
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  return `${base || "document"}.pdf`;
+}
 
 export async function POST(req: NextRequest) {
   try { await requireUser(req); }
@@ -54,67 +64,58 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, status: "email_manquant", erreur: "Email du stagiaire manquant : impossible d'envoyer." }, { status: 409 });
   }
 
-  // Pièces archivées : la version signée prime sur la générée (une pièce = une entrée).
+  // Pièces archivées : signé prioritaire sur généré (une pièce = une entrée).
   const { data: arch, error } = await supabaseAdmin
-    .from("archives")
-    .select("piece_type, variant, url")
-    .eq("dossier_id", dossierId);
+    .from("archives").select("piece_type, variant, url").eq("dossier_id", dossierId);
   if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
   if (!arch || arch.length === 0) {
     return NextResponse.json({ ok: false, status: "aucun_document", erreur: "Aucun document archivé : générez d'abord les documents du dossier." }, { status: 409 });
   }
-
   const meilleure = new Map<string, { piece_type: string; variant: string; url: string }>();
   for (const a of arch as any[]) {
     const prev = meilleure.get(a.piece_type);
     if (!prev || (a.variant === "signe" && prev.variant !== "signe")) meilleure.set(a.piece_type, a);
   }
 
-  // URLs signées 24 h (n8n a le temps de récupérer les PDF).
-  const documents: Array<{ piece: string; libelle: string; variant: string; url: string }> = [];
+  // Téléchargement des PDF depuis le Storage privé → pièces jointes.
+  const pieces: PieceJointe[] = [];
+  const noms: string[] = [];
   for (const a of meilleure.values()) {
     try {
-      const url = await getSignedUrl(a.url, 86400);
-      documents.push({ piece: a.piece_type, libelle: LIBELLE[a.piece_type] ?? a.piece_type, variant: a.variant, url });
+      const dl = await supabaseAdmin.storage.from(BUCKET).download(a.url);
+      if (dl.error || !dl.data) continue;
+      const buf = Buffer.from(await dl.data.arrayBuffer());
+      const libelle = LIBELLE[a.piece_type] ?? a.piece_type;
+      pieces.push({ nom: nomFichier(libelle, f.nom), contenu: buf });
+      noms.push(libelle);
     } catch {
       // une pièce illisible ne bloque pas l'envoi des autres
     }
   }
-  if (documents.length === 0) {
-    return NextResponse.json({ ok: false, status: "aucun_document", erreur: "Aucun PDF lisible à transmettre." }, { status: 409 });
+  if (pieces.length === 0) {
+    return NextResponse.json({ ok: false, status: "aucun_document", erreur: "Aucun PDF lisible à joindre." }, { status: 409 });
   }
 
-  const webhook = process.env.N8N_WEBHOOK_ENVOI_DOSSIER;
-  const payload = {
-    dossierId,
-    certif: f.certif ?? "",
-    lieu_formation: "Gagny",
-    stagiaire: { civilite: f.civilite ?? "", nom: f.nom, prenom: f.prenom, email: f.email },
-    documents,
-  };
+  const certif = CERTIF_LISIBLE[f.certif ?? ""] ?? f.certif ?? "";
+  const liste = noms.map((n) => `<li>${n}</li>`).join("");
+  const corps = `
+    Bonjour ${f.civilite ? f.civilite + " " : ""}${f.nom},<br><br>
+    Veuillez trouver ci-joint les documents de votre formation${certif ? ` ${certif}` : ""} :
+    <ul style="margin:8px 0 8px 0;padding-left:20px;">${liste}</ul>
+    Pour toute question, vous pouvez répondre directement à cet email.<br><br>
+    Bien cordialement,<br>L'équipe MYSTORY Formation`;
 
-  // Repli drapeau : pas de webhook configuré → on ne casse rien, on signale.
-  if (!webhook) {
-    await journal("dossier", dossierId, "envoi_dossier_canal_inactif", { nb: documents.length });
-    return NextResponse.json(
-      { ok: false, status: "canal_inactif", erreur: "Canal n8n non configuré (variable N8N_WEBHOOK_ENVOI_DOSSIER absente sur Vercel)." },
-      { status: 503 },
-    );
-  }
+  const res = await envoyerEmail({
+    a: f.email,
+    objet: "MYSTORY — vos documents de formation",
+    html: gabaritEmail("Vos documents de formation", corps),
+    piecesJointes: pieces,
+    entite: "dossiers",
+    entiteId: dossierId,
+  });
 
-  try {
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (process.env.N8N_WEBHOOK_SECRET) headers["X-MYSTORY-SECRET"] = process.env.N8N_WEBHOOK_SECRET;
-    const r = await fetch(webhook, { method: "POST", headers, body: JSON.stringify(payload) });
-    if (!r.ok) {
-      const txt = await r.text().catch(() => "");
-      await journal("dossier", dossierId, "envoi_dossier_echec", { statut_http: r.status, nb: documents.length });
-      return NextResponse.json({ ok: false, status: "echec_n8n", erreur: `n8n a répondu ${r.status}. ${txt.slice(0, 200)}` }, { status: 502 });
-    }
-    await journal("dossier", dossierId, "documents_envoyes_n8n", { nb: documents.length, pieces: documents.map((d) => d.piece), email: f.email });
-    return NextResponse.json({ ok: true, status: "transmis_n8n", nbDocuments: documents.length });
-  } catch (e) {
-    await journal("dossier", dossierId, "envoi_dossier_echec", { erreur: String(e), nb: documents.length });
-    return NextResponse.json({ ok: false, status: "echec_n8n", erreur: String(e) }, { status: 502 });
+  if (!res.ok) {
+    return NextResponse.json({ ok: false, status: "envoi_inactif", erreur: res.erreur ?? "Envoi impossible." }, { status: 503 });
   }
+  return NextResponse.json({ ok: true, status: "envoye", nbDocuments: pieces.length });
 }

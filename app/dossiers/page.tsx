@@ -412,7 +412,7 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
         body: JSON.stringify({ dossierId: d.id }),
       });
       const j = await r.json();
-      if (j.ok) setEnvoiMsg(`✉️ ${j.nbDocuments} document${j.nbDocuments > 1 ? "s" : ""} transmis à n8n pour envoi au stagiaire.`);
+      if (j.ok) setEnvoiMsg(`✉️ ${j.nbDocuments} document${j.nbDocuments > 1 ? "s" : ""} envoyé${j.nbDocuments > 1 ? "s" : ""} au stagiaire par email.`);
       else setErreurs([j.erreur || "Envoi impossible."]);
     } catch (e: any) {
       setErreurs([e?.message || "Envoi impossible."]);
@@ -588,7 +588,7 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
           </button>
           <button onClick={envoyerDossier} disabled={busy !== null}
             className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-mystory text-mystory bg-white disabled:opacity-50"
-            title="Envoie tous les documents archivés du dossier au stagiaire, en un seul email (via n8n)">
+            title="Envoie tous les documents archivés du dossier au stagiaire, en un seul email (pièces jointes PDF)">
             {busy === "__envoi__" ? "Envoi…" : "✉️ Envoyer au stagiaire"}
           </button>
         </div>
