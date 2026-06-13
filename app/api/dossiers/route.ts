@@ -14,7 +14,7 @@ export async function GET(_req: NextRequest) {
        heures_prevues, service_fait_valide,
        stagiaires ( nom, prenom ),
        formatrices ( nom, prenom ),
-       pieces ( type, statut, optionnelle, exige_signature, ordre )`
+       pieces ( type, statut, optionnelle, exige_signature, ordre, sign_url_integre )`
     )
     .order("created_at", { ascending: false });
 

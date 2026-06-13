@@ -53,7 +53,7 @@ const GENERABLES: Record<string, string> = {
 // Pièces complétées via un petit formulaire CRM → PDF archivé (route /api/documents/completer).
 const COMPLETABLES = new Set(["fiche_analyse_besoin", "evaluation_finale"]);
 
-type Piece = { type: string; statut: string; optionnelle: boolean; exige_signature: boolean; ordre: number };
+type Piece = { type: string; statut: string; optionnelle: boolean; exige_signature: boolean; ordre: number; sign_url_integre?: string | null };
 type Dossier = {
   id: string;
   certif: string;
@@ -378,7 +378,15 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
             </button>
           )}
           {(p.statut === "envoye_a_signer" || p.statut === "signature_en_cours") && (
-            <span className="text-xs text-gray-400">en attente du stagiaire</span>
+            <>
+              <span className="text-xs text-gray-400">en attente du stagiaire</span>
+              {p.sign_url_integre && (
+                <a href={p.sign_url_integre} target="_blank" rel="noopener noreferrer"
+                   className="px-3 py-1 rounded-lg text-xs text-white bg-mystory">
+                  Signer sur place ✍️
+                </a>
+              )}
+            </>
           )}
           {consultable && (
             <button onClick={() => voir(p)} disabled={occupé}
