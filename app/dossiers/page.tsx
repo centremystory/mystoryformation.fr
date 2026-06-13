@@ -64,7 +64,7 @@ type Dossier = {
   token: string;
   heures_prevues: number | null;
   service_fait_valide: boolean;
-  stagiaires: { nom: string; prenom: string | null } | null;
+  stagiaires: { nom: string; prenom: string | null; agence: string | null } | null;
   formatrices: { nom: string; prenom: string | null } | null;
   pieces: Piece[];
 };
@@ -86,6 +86,7 @@ export default function PageDossiers() {
   const [erreur, setErreur] = useState<string | null>(null);
   const [recherche, setRecherche] = useState("");
   const [filtre, setFiltre] = useState<"tous" | "incomplet" | "complet">("tous");
+  const [filtreAgence, setFiltreAgence] = useState<string>("toutes");
   const [ouvert, setOuvert] = useState<string | null>(null);
 
   const charger = useCallback(async () => {
@@ -108,11 +109,12 @@ export default function PageDossiers() {
     const q = recherche.trim().toLowerCase();
     return dossiers.filter((d) => {
       if (filtre !== "tous" && d.statut !== filtre) return false;
+      if (filtreAgence !== "toutes" && (d.stagiaires?.agence ?? "") !== filtreAgence) return false;
       if (!q) return true;
       const nom = `${d.stagiaires?.prenom ?? ""} ${d.stagiaires?.nom ?? ""}`.toLowerCase();
       return nom.includes(q);
     });
-  }, [dossiers, recherche, filtre]);
+  }, [dossiers, recherche, filtre, filtreAgence]);
 
   const nbIncomplets = dossiers.filter((d) => d.statut === "incomplet").length;
 
@@ -143,6 +145,25 @@ export default function PageDossiers() {
               onClick={() => setFiltre(v)}
               className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
                 filtre === v
+                  ? "bg-mystory text-white border-mystory"
+                  : "bg-white text-gray-600 border-gray-300 hover:border-mystory hover:text-mystory"
+              }`}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-1.5">
+          {([
+            ["toutes", "Toutes agences"],
+            ["Gagny", "Gagny"],
+            ["Sarcelles", "Sarcelles"],
+          ] as const).map(([v, l]) => (
+            <button
+              key={v}
+              onClick={() => setFiltreAgence(v)}
+              className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
+                filtreAgence === v
                   ? "bg-mystory text-white border-mystory"
                   : "bg-white text-gray-600 border-gray-300 hover:border-mystory hover:text-mystory"
               }`}
@@ -215,7 +236,12 @@ function LigneDossier({
   return (
     <>
       <tr onClick={onToggle} className="border-t border-gray-100 cursor-pointer hover:bg-gray-50">
-        <td className="px-4 py-3 font-medium text-gray-900">{nomStagiaire}</td>
+        <td className="px-4 py-3 font-medium text-gray-900">
+          {nomStagiaire}
+          {d.stagiaires?.agence && (
+            <span className="block text-xs font-normal text-gray-400">{d.stagiaires.agence}</span>
+          )}
+        </td>
         <td className="px-4 py-3 text-gray-600">
           {LIBELLE_CERTIF[d.certif] ?? d.certif}
           <span className="text-gray-400"> · {d.financement}</span>
