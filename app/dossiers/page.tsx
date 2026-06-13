@@ -295,6 +295,7 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
   const [busy, setBusy] = useState<string | null>(null);
   const [erreurs, setErreurs] = useState<string[]>([]);
   const [formOuvert, setFormOuvert] = useState<string | null>(null);
+  const [batch, setBatch] = useState<{ done: number; total: number; bloques: { piece: string; raison: string }[] } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cibleDepotRef = useRef<string | null>(null);
 
@@ -366,6 +367,40 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
     } finally {
       setBusy(null);
     }
+  }
+
+  async function genererTout() {
+    // Génère en une fois toutes les pièces auto-générables encore à faire.
+    // On exclut la feuille d'émargement (produite à partir des signatures réelles, jamais anticipée).
+    // Les portes de conformité du serveur s'appliquent pièce par pièce : les documents non
+    // générables (ex. documents de fin avant la fin) sont remontés avec leur motif, sans rien forcer.
+    const cibles = pieces.filter(
+      (p) => GENERABLES[p.type] && p.type !== "feuille_emargement" && (p.statut === "manquant" || p.statut === "erreur_envoi")
+    );
+    if (cibles.length === 0) {
+      setBatch(null);
+      setErreurs(["Tous les documents générables sont déjà générés (l'émargement et les pièces à compléter/signer restent manuels)."]);
+      return;
+    }
+    setBusy("__tout__"); setErreurs([]); setBatch(null);
+    const bloques: { piece: string; raison: string }[] = [];
+    let done = 0;
+    for (const p of cibles) {
+      try {
+        const r = await fetch("/api/documents/generate", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ dossierId: d.id, type: GENERABLES[p.type] }),
+        });
+        const j = await r.json();
+        if (j.ok) done++;
+        else bloques.push({ piece: p.type, raison: j.recap?.[0] ?? j.error ?? j.erreur ?? "non généré" });
+      } catch (e: any) {
+        bloques.push({ piece: p.type, raison: e?.message ?? "erreur réseau" });
+      }
+    }
+    setBatch({ done, total: cibles.length, bloques });
+    setBusy(null);
+    await recharger();
   }
 
   async function envoyerConvention(piece: Piece) {
@@ -525,13 +560,34 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
     <div>
       <input ref={fileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
              className="hidden" onChange={fichierChoisi} />
-      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Pièces du dossier</p>
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Pièces du dossier</p>
+        <button onClick={genererTout} disabled={busy !== null}
+          className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-mystory disabled:opacity-50"
+          title="Génère d'un coup tous les documents auto-générables encore à faire (émargement, pièces à compléter et signatures restent manuels)">
+          {busy === "__tout__" ? "Génération du dossier…" : "⚡ Générer tout le dossier"}
+        </button>
+      </div>
       {erreurs.length > 0 && (
         <div className="mb-3 px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm">
           <p className="font-medium mb-1">Le moteur de conformité a bloqué :</p>
           <ul className="list-disc pl-5 space-y-0.5">
             {erreurs.map((e, i) => <li key={i}>{e}</li>)}
           </ul>
+        </div>
+      )}
+      {batch && (
+        <div className={`mb-3 px-3 py-2 rounded-lg border text-sm ${batch.bloques.length === 0 ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
+          <p className="font-medium mb-1">
+            {batch.done}/{batch.total} document{batch.total > 1 ? "s" : ""} généré{batch.done > 1 ? "s" : ""} et archivé{batch.done > 1 ? "s" : ""}.
+          </p>
+          {batch.bloques.length > 0 && (
+            <ul className="list-disc pl-5 space-y-0.5">
+              {batch.bloques.map((b, i) => (
+                <li key={i}><strong>{LIBELLE_PIECE[b.piece] ?? b.piece}</strong> — {b.raison}</li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
       <ul className="divide-y divide-gray-100 bg-white border border-gray-200 rounded-lg">
@@ -797,3 +853,4 @@ function FormulaireCompletion({
     </div>
   );
 }
+
