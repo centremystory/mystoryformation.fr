@@ -61,37 +61,37 @@ function SaisieResultat({ c }: { c: Candidat }) {
     try {
       const r = await fetch("/api/examens/resultats", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ examenRef: c.id, source: c.source, statut: nextStatut, niveau_obtenu: nextStatut === "R\u00e9ussi" ? nextNiveau : "" }),
+        body: JSON.stringify({ examenRef: c.id, source: c.source, statut: nextStatut, niveau_obtenu: nextStatut === "Réussi" ? nextNiveau : "" }),
       });
       const j = await r.json();
-      if (!j.ok) { setErr(j.erreur || "\u00c9chec"); setOk(false); return; }
+      if (!j.ok) { setErr(j.erreur || "Échec"); setOk(false); return; }
       setOk(true);
-    } catch (e: any) { setErr(e?.message || "\u00c9chec"); setOk(false); }
+    } catch (e: any) { setErr(e?.message || "Échec"); setOk(false); }
     finally { setBusy(false); }
   }
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       <select value={statut} disabled={busy}
-        onChange={(e) => { const v = e.target.value; setStatut(v); setOk(null); if (v && !(estTef && v === "R\u00e9ussi")) enregistrer(v, ""); }}
+        onChange={(e) => { const v = e.target.value; setStatut(v); setOk(null); if (v && !(estTef && v === "Réussi")) enregistrer(v, ""); }}
         className="border border-gray-300 rounded px-1.5 py-1 text-xs bg-white">
-        <option value="">\u2014 r\u00e9sultat \u2014</option>
-        <option value="R\u00e9ussi">R\u00e9ussi</option>
-        {!estTef && <option value="\u00c9chou\u00e9">\u00c9chou\u00e9</option>}
+        <option value="">— résultat —</option>
+        <option value="Réussi">Réussi</option>
+        {!estTef && <option value="Échoué">Échoué</option>}
         <option value="Absent">Absent</option>
       </select>
-      {estTef && statut === "R\u00e9ussi" && (
+      {estTef && statut === "Réussi" && (
         <>
           <select value={niveau} disabled={busy} onChange={(e) => { setNiveau(e.target.value); setOk(null); }}
             className="border border-gray-300 rounded px-1.5 py-1 text-xs bg-white">
             <option value="">niveau</option>
             {["A1", "A2", "B1", "B2"].map((n) => <option key={n} value={n}>{n}</option>)}
           </select>
-          <button onClick={() => niveau && enregistrer("R\u00e9ussi", niveau)} disabled={busy || !niveau}
+          <button onClick={() => niveau && enregistrer("Réussi", niveau)} disabled={busy || !niveau}
             className="text-xs px-2 py-1 rounded bg-mystory text-white disabled:opacity-50">OK</button>
         </>
       )}
-      {ok === true && <span className="text-emerald-600 text-xs">\u2713</span>}
+      {ok === true && <span className="text-emerald-600 text-xs">✓</span>}
       {err && <span className="text-red-600 text-xs">{err}</span>}
     </div>
   );
