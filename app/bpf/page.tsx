@@ -25,6 +25,7 @@ export default function Bpf() {
   const annNcouranteMoins1 = new Date().getFullYear() - 1;
   const [annee, setAnnee] = useState(annNcouranteMoins1);
   const [s, setS] = useState<Synthese | null>(null);
+  const [rappel, setRappel] = useState<{ du: boolean; annee: number; message: string } | null>(null);
   const [chargement, setChargement] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
 
@@ -38,7 +39,7 @@ export default function Bpf() {
     try {
       const r = await fetch(`/api/bpf?annee=${annee}`);
       const j = await r.json();
-      if (j.ok) setS(j.synthese); else setErreur(j.erreur || "Erreur.");
+      if (j.ok) { setS(j.synthese); setRappel(j.rappel ?? null); } else setErreur(j.erreur || "Erreur.");
     } catch { setErreur("Erreur de chargement."); }
     finally { setChargement(false); }
   }, [annee]);
@@ -70,6 +71,12 @@ export default function Bpf() {
       <p className="mt-1 text-sm text-gray-500">
         Cerfa 10443*16 — dépôt avant le 30 avril. Réconcilie CRM ↔ EDOF ↔ compta. Les écarts sont affichés, jamais lissés.
       </p>
+
+      {rappel?.du && (
+        <div className="mt-4 rounded-xl bg-amber-50 border border-amber-300 p-3 text-sm text-amber-800">
+          ⏰ <span className="font-semibold">Rappel :</span> {rappel.message}
+        </div>
+      )}
 
       <div className="mt-4 flex items-center gap-3">
         <label className="text-sm text-gray-600">Année</label>
