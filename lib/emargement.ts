@@ -36,13 +36,17 @@ function esc(s: string): string {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-/** Télécharge un PNG du Storage et le renvoie en data URI base64 (intégrable dans le HTML). */
-async function pngDataUri(path: string | null): Promise<string | null> {
+/**
+ * URL signée temporaire d'une signature (image PNG du Storage privé).
+ * On privilégie l'URL à un data URI base64 : c'est le mécanisme déjà éprouvé par DocuSeal
+ * pour le cachet/la signature de la convention (images référencées par URL). 1 h = largement
+ * suffisant pour la durée du rendu PDF.
+ */
+async function signatureUrl(path: string | null): Promise<string | null> {
   if (!path) return null;
-  const { data, error } = await supabaseAdmin.storage.from(BUCKET).download(path);
+  const { data, error } = await supabaseAdmin.storage.from(BUCKET).createSignedUrl(path, 3600);
   if (error || !data) return null;
-  const buf = Buffer.from(await data.arrayBuffer());
-  return `data:image/png;base64,${buf.toString("base64")}`;
+  return data.signedUrl;
 }
 
 export interface FeuilleEmargement {
@@ -81,8 +85,8 @@ export async function genererFeuilleEmargementHtml(dossierId: string): Promise<F
   const lignes: string[] = [];
   for (const s of seances as any[]) {
     total += Number(s.heures_realisees || 0);
-    const sigS = await pngDataUri(s.signature_stagiaire_url);
-    const sigF = await pngDataUri(s.signature_formatrice_url);
+    const sigS = await signatureUrl(s.signature_stagiaire_url);
+    const sigF = await signatureUrl(s.signature_formatrice_url);
     const dm = DEMI[s.demi_journee] ?? { label: s.demi_journee, horaire: "" };
     lignes.push(`<tr>
       <td>${frDate(s.date_seance)}</td>
