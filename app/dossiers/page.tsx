@@ -296,6 +296,7 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
   const [erreurs, setErreurs] = useState<string[]>([]);
   const [formOuvert, setFormOuvert] = useState<string | null>(null);
   const [batch, setBatch] = useState<{ done: number; total: number; bloques: { piece: string; raison: string }[] } | null>(null);
+  const [envoiMsg, setEnvoiMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cibleDepotRef = useRef<string | null>(null);
 
@@ -401,6 +402,23 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
     setBatch({ done, total: cibles.length, bloques });
     setBusy(null);
     await recharger();
+  }
+
+  async function envoyerDossier() {
+    setBusy("__envoi__"); setErreurs([]); setEnvoiMsg(null); setBatch(null);
+    try {
+      const r = await fetch("/api/documents/envoyer-dossier", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dossierId: d.id }),
+      });
+      const j = await r.json();
+      if (j.ok) setEnvoiMsg(`✉️ ${j.nbDocuments} document${j.nbDocuments > 1 ? "s" : ""} transmis à n8n pour envoi au stagiaire.`);
+      else setErreurs([j.erreur || "Envoi impossible."]);
+    } catch (e: any) {
+      setErreurs([e?.message || "Envoi impossible."]);
+    } finally {
+      setBusy(null);
+    }
   }
 
   async function envoyerConvention(piece: Piece) {
@@ -562,11 +580,18 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
              className="hidden" onChange={fichierChoisi} />
       <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
         <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Pièces du dossier</p>
-        <button onClick={genererTout} disabled={busy !== null}
-          className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-mystory disabled:opacity-50"
-          title="Génère d'un coup tous les documents auto-générables encore à faire (émargement, pièces à compléter et signatures restent manuels)">
-          {busy === "__tout__" ? "Génération du dossier…" : "⚡ Générer tout le dossier"}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={genererTout} disabled={busy !== null}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-mystory disabled:opacity-50"
+            title="Génère d'un coup tous les documents auto-générables encore à faire (émargement, pièces à compléter et signatures restent manuels)">
+            {busy === "__tout__" ? "Génération du dossier…" : "⚡ Générer tout le dossier"}
+          </button>
+          <button onClick={envoyerDossier} disabled={busy !== null}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-mystory text-mystory bg-white disabled:opacity-50"
+            title="Envoie tous les documents archivés du dossier au stagiaire, en un seul email (via n8n)">
+            {busy === "__envoi__" ? "Envoi…" : "✉️ Envoyer au stagiaire"}
+          </button>
+        </div>
       </div>
       {erreurs.length > 0 && (
         <div className="mb-3 px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm">
@@ -588,6 +613,11 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
               ))}
             </ul>
           )}
+        </div>
+      )}
+      {envoiMsg && (
+        <div className="mb-3 px-3 py-2 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800 text-sm">
+          {envoiMsg}
         </div>
       )}
       <ul className="divide-y divide-gray-100 bg-white border border-gray-200 rounded-lg">
