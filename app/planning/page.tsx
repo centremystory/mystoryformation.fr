@@ -14,6 +14,9 @@ type Seance = {
   heures: number;
   emarge_le: string | null;
   formatrice_id: string | null;
+  absence: boolean;
+  absence_motif: string | null;
+  absence_le: string | null;
   dossier_id: string | null;
   certif: string | null;
   statut_dossier: string | null;
@@ -68,6 +71,26 @@ export default function PagePlanning() {
   const ouvrirEdition = (s: Seance) => {
     setEditErr(null);
     setEdition({ id: s.id, date: s.date_seance, demi: s.demi_journee, formatriceId: s.formatrice_id ?? "" });
+  };
+
+  const marquerAbsence = async (s: Seance, absent: boolean) => {
+    setErreur(null);
+    let motif: string | null = null;
+    if (absent) motif = (typeof window !== "undefined" ? window.prompt("Motif de l'absence (facultatif) :", "") : "") ?? null;
+    setBusy(true);
+    try {
+      const r = await fetch("/api/planning/absence", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: s.id, absent, motif }),
+      });
+      const j = await r.json();
+      if (!j.ok) setErreur(j.erreur || "Action refusée.");
+      await charger();
+    } catch (e: any) {
+      setErreur(e?.message || "Action refusée.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const enregistrer = async () => {
@@ -192,9 +215,22 @@ export default function PagePlanning() {
                       )}
                       {s.emarge_le ? (
                         <span className="shrink-0 text-xs text-emerald-700" title="Émargée — verrouillée">✅🔒</span>
+                      ) : s.absence ? (
+                        <>
+                          <span className="shrink-0 text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200"
+                            title={s.absence_motif || "Absent"}>Absent</span>
+                          <button onClick={() => marquerAbsence(s, false)} disabled={busy}
+                            className="shrink-0 text-xs px-2 py-1 rounded-md border border-gray-200 text-gray-500 hover:border-mystory hover:text-mystory"
+                            title="Annuler l'absence">↺</button>
+                        </>
                       ) : (
                         <>
                           <span className="shrink-0 text-xs text-gray-300" title="À venir / non émargée">○</span>
+                          {s.date_seance < today && (
+                            <button onClick={() => marquerAbsence(s, true)} disabled={busy}
+                              className="shrink-0 text-xs px-2 py-1 rounded-md border border-amber-200 text-amber-700 hover:bg-amber-50"
+                              title="Marquer l'élève absent à cette séance">Absent ?</button>
+                          )}
                           <button
                             onClick={() => (edition?.id === s.id ? setEdition(null) : ouvrirEdition(s))}
                             className="shrink-0 text-xs px-2 py-1 rounded-md border border-gray-200 text-gray-500 hover:border-mystory hover:text-mystory"

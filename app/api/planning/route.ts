@@ -25,6 +25,7 @@ export async function GET(req: NextRequest) {
     .from("planning")
     .select(`
       id, date_seance, demi_journee, heures, emarge_le, formatrice_id,
+      absence, absence_motif, absence_le,
       dossier:dossiers!dossier_id ( id, certif, statut, stagiaire:stagiaires!stagiaire_id ( prenom, nom, agence ) ),
       formatrice:formatrices!formatrice_id ( nom, prenom )
     `)
@@ -40,6 +41,9 @@ export async function GET(req: NextRequest) {
     heures: Number(r.heures),
     emarge_le: r.emarge_le,
     formatrice_id: r.formatrice_id ?? null,
+    absence: r.absence === true,
+    absence_motif: r.absence_motif ?? null,
+    absence_le: r.absence_le ?? null,
     dossier_id: r.dossier?.id ?? null,
     certif: r.dossier?.certif ?? null,
     statut_dossier: r.dossier?.statut ?? null,
