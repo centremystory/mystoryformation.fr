@@ -21,6 +21,7 @@ export default function PageComptes() {
   const [chargement, setChargement] = useState(true);
   const [interdit, setInterdit] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   // formulaire de création
@@ -43,7 +44,7 @@ export default function PageComptes() {
 
   async function creer() {
     if (!nom.trim() || !email.trim() || mdp.length < 8) { setErreur("Nom, email et mot de passe (8 car. min) requis."); return; }
-    setBusy("__create__"); setErreur(null);
+    setBusy("__create__"); setErreur(null); setInfo(null);
     try {
       const r = await fetch("/api/comptes", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -51,6 +52,7 @@ export default function PageComptes() {
       });
       const j = await r.json();
       if (!j.ok) { setErreur(j.erreur || "Création impossible."); return; }
+      setInfo(j.emailEnvoye ? "Compte créé — email d'accès envoyé à la personne." : "Compte créé — mais l'email d'accès n'a pas pu partir (vérifie le canal email).");
       setNom(""); setPrenom(""); setEmail(""); setRole("commercial"); setMdp("");
       await charger();
     } catch (e: any) { setErreur(e?.message || "Création impossible."); }
@@ -58,7 +60,7 @@ export default function PageComptes() {
   }
 
   async function patch(id: string, body: any, marqueur: string) {
-    setBusy(marqueur); setErreur(null);
+    setBusy(marqueur); setErreur(null); setInfo(null);
     try {
       const r = await fetch("/api/comptes", {
         method: "PATCH", headers: { "Content-Type": "application/json" },
@@ -66,6 +68,9 @@ export default function PageComptes() {
       });
       const j = await r.json();
       if (!j.ok) { setErreur(j.erreur || "Action impossible."); return; }
+      if (typeof j.emailEnvoye === "boolean") {
+        setInfo(j.emailEnvoye ? "Mot de passe réinitialisé — email envoyé à la personne." : "Mot de passe réinitialisé — mais l'email n'a pas pu partir.");
+      }
       await charger();
     } catch (e: any) { setErreur(e?.message || "Action impossible."); }
     finally { setBusy(null); }
@@ -101,6 +106,7 @@ export default function PageComptes() {
       </header>
 
       {erreur && <div className="mb-4 px-4 py-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm">{erreur}</div>}
+      {info && <div className="mb-4 px-4 py-3 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800 text-sm">{info}</div>}
 
       {/* Création */}
       <section className="border border-gray-200 rounded-xl bg-white p-4 mb-6">

@@ -8,14 +8,49 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, UnauthorizedError } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { ROLES, peut, type Role } from "@/lib/roles";
+import { ROLES, ROLE_LABEL, peut, type Role } from "@/lib/roles";
 import { journal } from "@/lib/examens";
+import { envoyerEmail, gabaritEmail, EMAIL_ACTIF } from "@/lib/email";
 import bcrypt from "bcryptjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const APP_URL = process.env.APP_URL ?? "https://mystoryformation.fr";
+
+/** Email d'accès envoyé à la personne (création) ou de réinitialisation. Non bloquant. */
+async function envoyerAcces(
+  email: string, prenom: string | null, role: Role, motDePasse: string,
+  type: "creation" | "reset", auteur?: string | null,
+): Promise<boolean> {
+  if (!EMAIL_ACTIF) return false;
+  const reset = type === "reset";
+  const corps = `
+    <p>Bonjour ${prenom ?? ""},</p>
+    <p>${reset ? "Le mot de passe de votre accès" : "Un accès"} à l'espace équipe <strong>MYSTORY</strong> a été ${reset ? "réinitialisé" : "créé pour vous"}.</p>
+    <p>
+      <strong>Connexion :</strong> <a href="${APP_URL}/connexion">${APP_URL}/connexion</a><br/>
+      <strong>Identifiant :</strong> ${email}<br/>
+      <strong>Mot de passe ${reset ? "" : "temporaire"} :</strong> ${motDePasse}<br/>
+      <strong>Rôle :</strong> ${ROLE_LABEL[role]}
+    </p>
+    <p>Pour votre sécurité, merci de modifier ce mot de passe après votre prochaine connexion.</p>
+  `;
+  try {
+    const r = await envoyerEmail({
+      a: email,
+      objet: reset ? "Votre mot de passe MYSTORY a été réinitialisé" : "Votre accès à l'espace MYSTORY",
+      html: gabaritEmail(reset ? "Réinitialisation de votre accès" : "Bienvenue dans l'espace MYSTORY", corps),
+      entite: "utilisateur",
+      entiteId: email,
+      auteur: auteur ?? null,
+    });
+    return !!r?.ok;
+  } catch {
+    return false;
+  }
+}
 
 async function gardeDirection(req: NextRequest) {
   const u = await requireUser(req); // lève UnauthorizedError si pas de session
@@ -68,7 +103,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
     }
     await journal("utilisateur", (data as any).id, "compte_cree", { email, role, par: g.u.email ?? g.u.id }, g.u.email ?? null);
-    return NextResponse.json({ ok: true, id: (data as any).id });
+    const emailEnvoye = await envoyerAcces(email, prenom, role, motDePasse, "creation", g.u.email ?? null);
+    return NextResponse.json({ ok: true, id: (data as any).id, emailEnvoye });
   } catch (e) {
     if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
     throw e;
@@ -106,10 +142,18 @@ export async function PATCH(req: NextRequest) {
       const motDePasse = String(b?.motDePasse ?? "");
       if (motDePasse.length < 8) return NextResponse.json({ ok: false, erreur: "Mot de passe : 8 caractères minimum." }, { status: 400 });
       const hash = bcrypt.hashSync(motDePasse, 10);
-      const { error } = await supabaseAdmin.from("utilisateurs").update({ mot_de_passe_hash: hash, doit_changer_mdp: true }).eq("id", id);
+      const { data: cible, error } = await supabaseAdmin
+        .from("utilisateurs")
+        .update({ mot_de_passe_hash: hash, doit_changer_mdp: true })
+        .eq("id", id)
+        .select("email, prenom, role")
+        .single();
       if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
       await journal("utilisateur", id, "mot_de_passe_reinitialise", { par: g.u.email ?? g.u.id }, g.u.email ?? null);
-      return NextResponse.json({ ok: true });
+      const emailEnvoye = cible
+        ? await envoyerAcces((cible as any).email, (cible as any).prenom, (cible as any).role, motDePasse, "reset", g.u.email ?? null)
+        : false;
+      return NextResponse.json({ ok: true, emailEnvoye });
     }
 
     return NextResponse.json({ ok: false, erreur: "Action inconnue." }, { status: 400 });
