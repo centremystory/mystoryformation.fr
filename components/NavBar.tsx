@@ -1,4 +1,4 @@
-// nav: + EDOF
+// nav: + À noter
 "use client";
 // components/NavBar.tsx — Barre de navigation du CRM MYSTORY
 // Visible sur toutes les pages internes de l'équipe ; masquée sur la connexion
@@ -11,6 +11,7 @@ const PAGES_SANS_NAV = ["/connexion", "/qcm", "/positionnement", "/suivi", "/eva
 const LIENS = [
   { href: "/", label: "Accueil" },
   { href: "/dossiers", label: "Dossiers" },
+  { href: "/positionnements", label: "À noter" },
   { href: "/emargement", label: "Émargement" },
   { href: "/examens", label: "Examens" },
   { href: "/factures", label: "Factures" },
