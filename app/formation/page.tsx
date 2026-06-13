@@ -7,6 +7,8 @@ const CARTES = [
     desc: "Fiche stagiaire, planning et contractualisation en une seule saisie.", primaire: true },
   { href: "/dossiers", icone: "📋", titre: "Suivi des dossiers",
     desc: "Complet / incomplet et pièces à traiter, dossier par dossier." },
+  { href: "/planning", icone: "📆", titre: "Planning des élèves",
+    desc: "Séances de formation par site (Gagny / Sarcelles), filtrables et à venir." },
   { href: "/positionnements", icone: "📝", titre: "Tests de positionnement",
     desc: "Résultats des QCM candidats à traiter et niveaux à noter." },
   { href: "/emargement", icone: "✍️", titre: "Émargement",
