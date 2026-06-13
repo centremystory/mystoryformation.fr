@@ -48,6 +48,7 @@ export default function PageFactures() {
   const [erreur, setErreur] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [vue, setVue] = useState<"tous" | "formation" | "examen">("tous");
 
   const recharger = useCallback(async () => {
     setErreur(null);
@@ -64,11 +65,19 @@ export default function PageFactures() {
   }, []);
   useEffect(() => { recharger(); }, [recharger]);
 
+  // Séparation Examen / Formation·CPF : une facture porte soit dossier_id (formation), soit vente_id (examen).
+  const facturesVue = useMemo(
+    () => factures.filter((f) => (vue === "tous" ? true : vue === "examen" ? !!f.vente_id : !!f.dossier_id)),
+    [factures, vue]
+  );
+  const montrerFormation = vue !== "examen";
+  const montrerExamen = vue !== "formation";
+
   const totaux = useMemo(() => {
-    const emis = factures.reduce((s, f) => s + Number(f.montant || 0), 0);
-    const encaisse = factures.filter((f) => f.statut === "payée").reduce((s, f) => s + Number(f.montant || 0), 0);
-    return { emis, encaisse, attente: emis - encaisse, enAttenteN: factures.filter((f) => f.statut !== "payée").length };
-  }, [factures]);
+    const emis = facturesVue.reduce((s, f) => s + Number(f.montant || 0), 0);
+    const encaisse = facturesVue.filter((f) => f.statut === "payée").reduce((s, f) => s + Number(f.montant || 0), 0);
+    return { emis, encaisse, attente: emis - encaisse, enAttenteN: facturesVue.filter((f) => f.statut !== "payée").length };
+  }, [facturesVue]);
 
   async function action(url: string, corps: Record<string, unknown>, cle: string, message: string) {
     setBusy(cle); setErreur(null); setInfo(null);
@@ -113,6 +122,20 @@ export default function PageFactures() {
         </button>
       </div>
 
+      {/* Onglets : Tous / Formation·CPF / Examen */}
+      <div className="flex gap-1.5 mt-4">
+        {([
+          ["tous", "Tous"],
+          ["formation", "🎓 Formation · CPF"],
+          ["examen", "📝 Examen"],
+        ] as const).map(([v, l]) => (
+          <button key={v} onClick={() => setVue(v)}
+            className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
+              vue === v ? "bg-mystory text-white border-mystory" : "bg-white text-gray-600 border-gray-300 hover:border-mystory hover:text-mystory"
+            }`}>{l}</button>
+        ))}
+      </div>
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
         <div className="rounded-lg border bg-white p-3"><div className="text-xs text-gray-500">Émis (50 dernières)</div><div className="text-lg font-semibold">{totaux.emis.toLocaleString("fr-FR")} €</div></div>
         <div className="rounded-lg border bg-white p-3"><div className="text-xs text-gray-500">Encaissé</div><div className="text-lg font-semibold text-green-700">{totaux.encaisse.toLocaleString("fr-FR")} €</div></div>
@@ -123,7 +146,7 @@ export default function PageFactures() {
       {erreur && <div className="mt-4 rounded-md border border-red-300 bg-red-50 text-red-800 px-3 py-2 text-sm">{erreur}</div>}
       {info && <div className="mt-4 rounded-md border border-green-300 bg-green-50 text-green-800 px-3 py-2 text-sm">{info}</div>}
 
-      {(aFacturer.length > 0 || ventes.length > 0) && (
+      {((montrerFormation && aFacturer.length > 0) || (montrerExamen && ventes.length > 0)) && (
         <section className="mt-6">
           <h2 className="text-lg font-semibold">À facturer</h2>
           <p className="text-xs text-gray-500 mt-0.5">
@@ -131,7 +154,7 @@ export default function PageFactures() {
             Les ventes d&apos;examen sont facturées automatiquement à la vente — cette liste sert de rattrapage.
           </p>
           <div className="mt-2 space-y-2">
-            {aFacturer.map((d) => (
+            {montrerFormation && aFacturer.map((d) => (
               <div key={d.dossierId} className="rounded-lg border bg-white p-3 flex items-center justify-between gap-3 flex-wrap">
                 <div>
                   <span className="font-medium">{d.client || "(sans nom)"}</span>
@@ -148,7 +171,7 @@ export default function PageFactures() {
                 </button>
               </div>
             ))}
-            {ventes.map((v) => (
+            {montrerExamen && ventes.map((v) => (
               <div key={v.venteId} className="rounded-lg border bg-white p-3 flex items-center justify-between gap-3 flex-wrap">
                 <div>
                   <span className="font-medium">{v.client || "(sans nom)"}</span>
@@ -171,7 +194,7 @@ export default function PageFactures() {
         <h2 className="text-lg font-semibold">Registre</h2>
         {chargement ? (
           <p className="text-sm text-gray-500 mt-2">Chargement…</p>
-        ) : factures.length === 0 ? (
+        ) : facturesVue.length === 0 ? (
           <p className="text-sm text-gray-500 mt-2">Aucune facture émise pour le moment.</p>
         ) : (
           <div className="mt-2 overflow-x-auto rounded-lg border bg-white">
@@ -188,7 +211,7 @@ export default function PageFactures() {
                 </tr>
               </thead>
               <tbody>
-                {factures.map((f) => (
+                {facturesVue.map((f) => (
                   <tr key={f.id} className="border-t align-top">
                     <td className="px-3 py-2 font-mono whitespace-nowrap">{f.numero}</td>
                     <td className="px-3 py-2">{f.client}</td>
