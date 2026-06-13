@@ -13,7 +13,7 @@ type Synthese = {
   nb_stagiaires: number; nb_dossiers: number;
   par_certif: Array<{ code: string; intitule: string; dossiers: number; produits: number; heures: number }>;
   charges: { sous_traitance_total: number; lignes: Array<{ prestataire: string; montant: number; facture_ref: string | null; contrat_ref: string | null; attestation: boolean }> };
-  depot: null | { total_produits: number; cpf: number; plan_autres: number; autres_of: number; autres_produits: number; part_ca_pct: number; charges_total: number; salaires_formateurs: number; achats_prestations: number; cerfa: string | null };
+  depot: null | { total_produits: number; cpf: number; entreprises: number; plan_autres: number; autres_of: number; autres_produits: number; part_ca_pct: number; charges_total: number; salaires_formateurs: number; achats_prestations: number; cerfa: string | null };
   ecarts: Array<{ poste: string; crm: number; depose: number; ecart: number }>;
   anomalies: Array<{ niveau: "bloquant" | "info"; message: string }>;
 };
@@ -33,6 +33,11 @@ export default function Bpf() {
   const [presta, setPresta] = useState(""); const [montant, setMontant] = useState("");
   const [factureRef, setFactureRef] = useState(""); const [contratRef, setContratRef] = useState("");
   const [attest, setAttest] = useState(false); const [ajout, setAjout] = useState(false);
+
+  // formulaire « BPF déposé » (référence officielle)
+  const [editDepot, setEditDepot] = useState(false);
+  const [dep, setDep] = useState<Record<string, string>>({});
+  const [saveDepot, setSaveDepot] = useState(false);
 
   const charger = useCallback(async () => {
     setChargement(true); setErreur(null);
@@ -64,6 +69,41 @@ export default function Bpf() {
 
   const bloquants = s?.anomalies.filter((a) => a.niveau === "bloquant") ?? [];
   const infos = s?.anomalies.filter((a) => a.niveau === "info") ?? [];
+
+  function ouvrirDepot() {
+    const d = s?.depot;
+    setDep({
+      cerfa: d?.cerfa ?? "",
+      total_produits: d ? String(d.total_produits) : "",
+      cpf: d ? String(d.cpf) : "",
+      entreprises: d ? String(d.entreprises) : "",
+      plan_autres: d ? String(d.plan_autres) : "",
+      autres_of: d ? String(d.autres_of) : "",
+      autres_produits: d ? String(d.autres_produits) : "",
+      charges_total: d ? String(d.charges_total) : "",
+      salaires_formateurs: d ? String(d.salaires_formateurs) : "",
+      achats_prestations: d ? String(d.achats_prestations) : "",
+      part_ca_pct: d ? String(d.part_ca_pct) : "",
+    });
+    setErreur(null);
+    setEditDepot(true);
+  }
+
+  async function enregistrerDepot() {
+    if (!(Number(dep.total_produits) >= 0)) { setErreur("Total des produits déposés requis."); return; }
+    setSaveDepot(true);
+    try {
+      const r = await fetch("/api/bpf/depot", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ annee, ...dep }),
+      });
+      const j = await r.json();
+      if (!j.ok) { setErreur(j.erreur || "Enregistrement impossible."); return; }
+      setEditDepot(false);
+      await charger();
+    } catch { setErreur("Enregistrement impossible."); }
+    finally { setSaveDepot(false); }
+  }
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
@@ -195,6 +235,63 @@ export default function Bpf() {
             </button>
           </div>
 
+          {/* Saisie du BPF déposé (référence officielle de réconciliation) */}
+          <div className="mt-3 rounded-2xl border border-gray-200 bg-white p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-800">BPF déposé {annee} — chiffres officiels</h3>
+                <p className="mt-0.5 text-xs text-gray-500">
+                  À saisir après la télédéclaration : sert de référence pour la réconciliation ci-dessous.
+                  {s.depot ? " Déjà renseigné — modifiable." : " Pas encore renseigné."}
+                </p>
+              </div>
+              {!editDepot && (
+                <button onClick={ouvrirDepot} className="shrink-0 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                  {s.depot ? "Corriger" : "Saisir"}
+                </button>
+              )}
+            </div>
+
+            {editDepot && (
+              <div className="mt-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {([
+                    ["total_produits", "Total produits €"],
+                    ["cpf", "dont CPF/CDC €"],
+                    ["entreprises", "dont Entreprises €"],
+                    ["plan_autres", "dont Plan/autres €"],
+                    ["autres_of", "dont Autres OF €"],
+                    ["autres_produits", "dont Autres produits €"],
+                    ["charges_total", "Charges totales €"],
+                    ["salaires_formateurs", "Salaires formateurs €"],
+                    ["achats_prestations", "Achats prestations €"],
+                    ["part_ca_pct", "Part CA formation %"],
+                  ] as const).map(([k, lab]) => (
+                    <label key={k} className="text-xs text-gray-600">
+                      <span className="block mb-1">{lab}</span>
+                      <input value={dep[k] ?? ""} onChange={(e) => setDep({ ...dep, [k]: e.target.value })}
+                        inputMode="decimal" placeholder="0"
+                        className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm" />
+                    </label>
+                  ))}
+                  <label className="text-xs text-gray-600">
+                    <span className="block mb-1">N° Cerfa / réf.</span>
+                    <input value={dep.cerfa ?? ""} onChange={(e) => setDep({ ...dep, cerfa: e.target.value })}
+                      placeholder="10443*16" className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm" />
+                  </label>
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <button onClick={enregistrerDepot} disabled={saveDepot}
+                    className="rounded-xl bg-mystory px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+                    {saveDepot ? "Enregistrement…" : "Enregistrer le déposé"}
+                  </button>
+                  <button onClick={() => setEditDepot(false)} disabled={saveDepot}
+                    className="rounded-xl border border-gray-300 px-4 py-2 text-sm text-gray-600">Annuler</button>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Comparatif CRM vs déposé */}
           {s.depot && (
             <>
@@ -235,3 +332,4 @@ export default function Bpf() {
     </main>
   );
 }
+

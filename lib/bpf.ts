@@ -26,7 +26,7 @@ export interface BpfSynthese {
   nb_dossiers: number;
   par_certif: Array<{ code: string; intitule: string; dossiers: number; produits: number; heures: number }>;
   charges: { sous_traitance_total: number; lignes: Array<{ prestataire: string; montant: number; facture_ref: string | null; contrat_ref: string | null; attestation: boolean }> };
-  depot: null | { total_produits: number; cpf: number; plan_autres: number; autres_of: number; autres_produits: number; part_ca_pct: number; charges_total: number; salaires_formateurs: number; achats_prestations: number; cerfa: string | null };
+  depot: null | { total_produits: number; cpf: number; entreprises: number; plan_autres: number; autres_of: number; autres_produits: number; part_ca_pct: number; charges_total: number; salaires_formateurs: number; achats_prestations: number; cerfa: string | null };
   ecarts: Array<{ poste: string; crm: number; depose: number; ecart: number }>;
   anomalies: Array<{ niveau: "bloquant" | "info"; message: string }>;
 }
@@ -89,10 +89,10 @@ export async function bpfSynthese(annee: number): Promise<BpfSynthese> {
   // --- Référence : BPF déposé (vérité officielle) pour réconciliation ---
   const { data: dep } = await supabaseAdmin
     .from("bpf_depots")
-    .select("total_produits, cpf, plan_autres, autres_of, autres_produits, part_ca_pct, charges_total, salaires_formateurs, achats_prestations, cerfa")
+    .select("total_produits, cpf, entreprises, plan_autres, autres_of, autres_produits, part_ca_pct, charges_total, salaires_formateurs, achats_prestations, cerfa")
     .eq("annee", annee).maybeSingle();
   const depot = dep ? {
-    total_produits: Number(dep.total_produits || 0), cpf: Number(dep.cpf || 0),
+    total_produits: Number(dep.total_produits || 0), cpf: Number(dep.cpf || 0), entreprises: Number(dep.entreprises || 0),
     plan_autres: Number(dep.plan_autres || 0), autres_of: Number(dep.autres_of || 0),
     autres_produits: Number(dep.autres_produits || 0), part_ca_pct: Number(dep.part_ca_pct || 0),
     charges_total: Number(dep.charges_total || 0), salaires_formateurs: Number(dep.salaires_formateurs || 0),
@@ -148,3 +148,4 @@ export async function bpfSynthese(annee: number): Promise<BpfSynthese> {
     anomalies,
   };
 }
+
