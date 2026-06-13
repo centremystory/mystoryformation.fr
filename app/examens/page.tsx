@@ -126,6 +126,9 @@ export default function PageExamens() {
           <Link href="/examens/corrections" className="px-4 py-2 rounded-lg text-sm border border-gray-300 bg-white text-gray-700">
             Corrections
           </Link>
+          <Link href="/examens/taux" className="px-4 py-2 rounded-lg text-sm border border-gray-300 bg-white text-gray-700">
+            📊 Taux de réussite
+          </Link>
           <button onClick={() => setGenOuvert(!genOuvert)}
                   className="px-4 py-2 rounded-lg text-sm border border-gray-300 bg-white text-gray-700">
             Générer les sessions
@@ -240,3 +243,4 @@ export default function PageExamens() {
     </main>
   );
 }
+

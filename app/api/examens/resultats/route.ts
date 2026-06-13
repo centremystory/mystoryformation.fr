@@ -24,36 +24,63 @@ async function garde(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const refus = await garde(req); if (refus) return refus;
+  let u;
+  try { u = await requireUser(req); }
+  catch (e) {
+    if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Non authentifié" }, { status: 401 });
+    throw e;
+  }
   let body: any;
   try { body = await req.json(); }
   catch { return NextResponse.json({ ok: false, erreur: "JSON invalide." }, { status: 400 }); }
 
-  const venteId = String(body?.venteId ?? "").trim();
   const statut = String(body?.statut ?? "");
-  const niveau = String(body?.niveau_obtenu ?? "").trim() || null;
-  const auteur = String(body?.auteur ?? "").trim() || null;
-  if (!venteId || !["Réussi", "Échoué", "Absent"].includes(statut)) {
-    return NextResponse.json({ ok: false, erreur: "venteId et statut (Réussi | Échoué | Absent) requis." }, { status: 400 });
+  if (!["Réussi", "Échoué", "Absent"].includes(statut)) {
+    return NextResponse.json({ ok: false, erreur: "statut (Réussi | Échoué | Absent) requis." }, { status: 400 });
+  }
+  // Niveau : seulement si Réussi, borné A1→B2 (échelle TEF IRN) ; sinon null.
+  const niveauBrut = String(body?.niveau_obtenu ?? "").trim();
+  const niveau = statut === "Réussi" && ["A1", "A2", "B1", "B2"].includes(niveauBrut) ? niveauBrut : null;
+  const auteur = u.email ?? (String(body?.auteur ?? "").trim() || null);
+  const present = statut !== "Absent";
+
+  // Cible : une vente (venteId ou source='vente') OU un candidat importé (examenRef + source='import').
+  let venteId = String(body?.venteId ?? "").trim();
+  const examenRef = String(body?.examenRef ?? "").trim();
+  const source = String(body?.source ?? "").trim();
+  if (!venteId && source === "vente" && examenRef) venteId = examenRef;
+
+  if (venteId) {
+    const { data: vente } = await supabaseAdmin
+      .from("ventes_examen").select("id, type_examen, numero_attestation").eq("id", venteId).maybeSingle();
+    if (!vente) return NextResponse.json({ ok: false, erreur: "Vente introuvable." }, { status: 404 });
+
+    const { error } = await supabaseAdmin.from("resultats_examen").upsert(
+      { vente_id: venteId, examen_ref: venteId, source: "vente", statut, niveau_obtenu: niveau, present, date_saisie: new Date().toISOString(), envoye_le: null, auteur },
+      { onConflict: "vente_id" },
+    );
+    if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
+
+    await journal("ventes_examen", venteId, "resultat_saisi",
+      { numero_attestation: (vente as any).numero_attestation, statut, niveau_obtenu: niveau }, auteur);
+    if (statut === "Échoué" || statut === "Absent") {
+      await journal("ventes_examen", venteId, "relance_commerciale",
+        { motif: statut === "Échoué" ? "Examen échoué" : "Absent à l'examen" }, auteur);
+    }
+    return NextResponse.json({ ok: true });
   }
 
-  const { data: vente } = await supabaseAdmin
-    .from("ventes_examen").select("id, type_examen, numero_attestation").eq("id", venteId).maybeSingle();
-  if (!vente) return NextResponse.json({ ok: false, erreur: "Vente introuvable." }, { status: 404 });
-
-  const { error } = await supabaseAdmin.from("resultats_examen").upsert(
-    { vente_id: venteId, statut, niveau_obtenu: niveau, date_saisie: new Date().toISOString(), envoye_le: null },
-    { onConflict: "vente_id" },
-  );
-  if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
-
-  await journal("ventes_examen", venteId, "resultat_saisi",
-    { numero_attestation: (vente as any).numero_attestation, statut, niveau_obtenu: niveau }, auteur);
-  if (statut === "Échoué" || statut === "Absent") {
-    await journal("ventes_examen", venteId, "relance_commerciale",
-      { motif: statut === "Échoué" ? "Examen échoué" : "Absent à l'examen" }, auteur);
+  if (examenRef && source === "import") {
+    const { error } = await supabaseAdmin.from("resultats_examen").upsert(
+      { examen_ref: examenRef, source: "import", vente_id: null, statut, niveau_obtenu: niveau, present, date_saisie: new Date().toISOString(), envoye_le: null, auteur },
+      { onConflict: "examen_ref,source" },
+    );
+    if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
+    await journal("examens", examenRef, "resultat_saisi", { statut, niveau_obtenu: niveau }, auteur);
+    return NextResponse.json({ ok: true });
   }
-  return NextResponse.json({ ok: true });
+
+  return NextResponse.json({ ok: false, erreur: "venteId ou (examenRef + source) requis." }, { status: 400 });
 }
 
 export async function PUT(req: NextRequest) {
@@ -125,3 +152,4 @@ export async function PUT(req: NextRequest) {
   await journal("sessions_examen", null, "resultats_envoyes", { date, envoyes, echecs, sans_saisie: sansSaisie }, auteur);
   return NextResponse.json({ ok: true, envoyes, echecs, sansSaisie });
 }
+

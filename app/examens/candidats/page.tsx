@@ -28,6 +28,7 @@ type Candidat = {
   date_inscription: string | null;
   attestation_nom: string | null;
   attestation_depose_le: string | null;
+  resultat?: { statut: string | null; niveau_obtenu: string | null } | null;
 };
 
 const TYPE_LABEL: Record<string, string> = {
@@ -45,6 +46,55 @@ function dateFr(iso: string | null): string {
 
 function paye(statut: string | null): boolean {
   return (statut ?? "").toLowerCase().includes("pay");
+}
+
+function SaisieResultat({ c }: { c: Candidat }) {
+  const estTef = c.type_norm === "TEF_IRN";
+  const [statut, setStatut] = useState<string>(c.resultat?.statut ?? "");
+  const [niveau, setNiveau] = useState<string>(c.resultat?.niveau_obtenu ?? "");
+  const [busy, setBusy] = useState(false);
+  const [ok, setOk] = useState<boolean | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function enregistrer(nextStatut: string, nextNiveau: string) {
+    setBusy(true); setErr(null); setOk(null);
+    try {
+      const r = await fetch("/api/examens/resultats", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ examenRef: c.id, source: c.source, statut: nextStatut, niveau_obtenu: nextStatut === "R\u00e9ussi" ? nextNiveau : "" }),
+      });
+      const j = await r.json();
+      if (!j.ok) { setErr(j.erreur || "\u00c9chec"); setOk(false); return; }
+      setOk(true);
+    } catch (e: any) { setErr(e?.message || "\u00c9chec"); setOk(false); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <select value={statut} disabled={busy}
+        onChange={(e) => { const v = e.target.value; setStatut(v); setOk(null); if (v && !(estTef && v === "R\u00e9ussi")) enregistrer(v, ""); }}
+        className="border border-gray-300 rounded px-1.5 py-1 text-xs bg-white">
+        <option value="">\u2014 r\u00e9sultat \u2014</option>
+        <option value="R\u00e9ussi">R\u00e9ussi</option>
+        {!estTef && <option value="\u00c9chou\u00e9">\u00c9chou\u00e9</option>}
+        <option value="Absent">Absent</option>
+      </select>
+      {estTef && statut === "R\u00e9ussi" && (
+        <>
+          <select value={niveau} disabled={busy} onChange={(e) => { setNiveau(e.target.value); setOk(null); }}
+            className="border border-gray-300 rounded px-1.5 py-1 text-xs bg-white">
+            <option value="">niveau</option>
+            {["A1", "A2", "B1", "B2"].map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+          <button onClick={() => niveau && enregistrer("R\u00e9ussi", niveau)} disabled={busy || !niveau}
+            className="text-xs px-2 py-1 rounded bg-mystory text-white disabled:opacity-50">OK</button>
+        </>
+      )}
+      {ok === true && <span className="text-emerald-600 text-xs">\u2713</span>}
+      {err && <span className="text-red-600 text-xs">{err}</span>}
+    </div>
+  );
 }
 
 export default function PageCandidatsExamen() {
@@ -266,6 +316,7 @@ export default function PageCandidatsExamen() {
                           <th className="px-4 py-2 font-medium">N° attest.</th>
                           <th className="px-4 py-2 font-medium">Fichier attest.</th>
                           <th className="px-4 py-2 font-medium">Vendu par</th>
+                          <th className="px-4 py-2 font-medium">Résultat</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -303,6 +354,7 @@ export default function PageCandidatsExamen() {
                               )}
                             </td>
                             <td className="px-4 py-2 text-gray-600">{c.vendu_par ?? "—"}</td>
+                            <td className="px-4 py-2"><SaisieResultat c={c} /></td>
                           </tr>
                         ))}
                       </tbody>
@@ -322,3 +374,4 @@ export default function PageCandidatsExamen() {
     </main>
   );
 }
+

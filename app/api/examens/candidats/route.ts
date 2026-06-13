@@ -1,5 +1,5 @@
 // app/api/examens/candidats/route.ts — Liste unifiée des candidats d'examen (lecture seule)
-// Source : vue public.v_candidats_examen (historique import + ventes vivantes).
+// Source : vue public.v_candidats_examen (historique import + ventes vivantes), enrichie du résultat saisi.
 // Protégé par le middleware global. Données personnelles → service_role uniquement.
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
@@ -18,5 +18,22 @@ export async function GET(_req: NextRequest) {
   if (error) {
     return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
   }
-  return NextResponse.json({ ok: true, candidats: data ?? [] });
+
+  // Résultats saisis : ventes mappées par vente_id, candidats importés par examen_ref+source.
+  const { data: resultats } = await supabaseAdmin
+    .from("resultats_examen")
+    .select("vente_id, examen_ref, source, statut, niveau_obtenu");
+  const parVente = new Map<string, any>();
+  const parImport = new Map<string, any>();
+  for (const r of (resultats ?? []) as any[]) {
+    if (r.vente_id) parVente.set(r.vente_id, r);
+    if (r.examen_ref && r.source === "import") parImport.set(r.examen_ref, r);
+  }
+
+  const candidats = (data ?? []).map((c: any) => {
+    const r = c.source === "vente" ? parVente.get(c.id) : parImport.get(c.id);
+    return { ...c, resultat: r ? { statut: r.statut, niveau_obtenu: r.niveau_obtenu } : null };
+  });
+
+  return NextResponse.json({ ok: true, candidats });
 }
