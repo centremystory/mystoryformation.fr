@@ -11,6 +11,7 @@ import {
   isEventProcessed, markEventProcessed, findDossierBySubmission,
   setPieceStatus, archiveDocument, recomputeDossierStatus,
 } from "@/lib/crm";
+import { journal } from "@/lib/examens";
 
 export const runtime = "nodejs";
 
@@ -110,5 +111,11 @@ async function finalizeSignature(dossierId: string, submissionId: number, event:
   await setPieceStatus({
     dossierId, piece: "convention", status: "signee",
     docusealSubmissionId: submissionId, at: new Date().toISOString(),
+  });
+
+  // Audit : trace la signature dans le journal général (en plus de webhook_events).
+  await journal("dossier", dossierId, "convention_signee", {
+    submission_id: submissionId,
+    event_type: event.event_type,
   });
  }
