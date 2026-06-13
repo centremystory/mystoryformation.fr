@@ -78,6 +78,12 @@ export default function Bpf() {
           {[0, 1, 2, 3].map((k) => { const y = annNcouranteMoins1 - k; return <option key={y} value={y}>{y}{k === 0 ? " (N-1)" : ""}</option>; })}
         </select>
         {chargement && <span className="text-sm text-gray-400">Calcul…</span>}
+        <div className="ml-auto flex gap-2">
+          <a href={`/api/bpf/export?annee=${annee}&format=csv`}
+             className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Export CSV</a>
+          <a href={`/api/bpf/export?annee=${annee}&format=pdf`}
+             className="rounded-lg bg-mystory px-3 py-2 text-sm font-semibold text-white">Export PDF (Cerfa)</a>
+        </div>
       </div>
 
       {erreur && <p className="mt-4 text-sm text-red-600">{erreur}</p>}
