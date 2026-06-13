@@ -112,10 +112,14 @@ export async function setPieceStatus(args: {
   piece: string;
   status: PieceStatut;
   docusealSubmissionId?: number;
+  signUrlIntegre?: string;
+  docusealSlug?: string;
   at?: string; // horodatage géré par le trigger pieces_before
 }): Promise<void> {
   const patch: Record<string, unknown> = { statut: args.status };
   if (args.docusealSubmissionId != null) patch.docuseal_submission_id = args.docusealSubmissionId;
+  if (args.signUrlIntegre != null) patch.sign_url_integre = args.signUrlIntegre;
+  if (args.docusealSlug != null) patch.docuseal_slug = args.docusealSlug;
 
   const { error } = await supabaseAdmin
     .from("pieces")

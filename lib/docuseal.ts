@@ -35,6 +35,9 @@ import crypto from "crypto";
 const BASE_URL = (process.env.DOCUSEAL_BASE_URL ?? "").replace(/\/+$/, "");
 const API_KEY = process.env.DOCUSEAL_API_KEY ?? "";
 
+/** Hôte public DocuSeal (sans /api) — pour construire le lien de signature intégré. */
+const APP_URL = BASE_URL.replace(/\/api\/?$/, "");
+
 /** Option A : seul le stagiaire signe dans DocuSeal (l'OF est pré-signé dans le HTML). */
 export const SIGNERS_COUNT = 1;
 
@@ -53,6 +56,8 @@ export interface ConventionSignataire {
 export interface CreateSubmissionResult {
   submissionId: number;
   submitterIds: number[];
+  slug?: string;    // slug du signataire (stagiaire) -> lien de signature intégré
+  signUrl?: string; // URL de signature sur place (.../s/<slug> ou embed_src)
   raw: unknown;
 }
 
@@ -129,36 +134,44 @@ export async function createConventionSubmissionFromHtml(params: {
   }
 
   const json = (await res.json()) as unknown;
-  const { submissionId, submitterIds } = extractSubmission(json);
+  const { submissionId, submitterIds, slug, embedSrc } = extractSubmission(json);
   if (!submissionId) {
     throw new Error("DocuSeal: submission_id absent de la réponse");
   }
 
-  return { submissionId, submitterIds, raw: json };
+  // Lien de signature « sur place » : embed_src si fourni, sinon construit depuis le slug.
+  const signUrl = embedSrc ?? (slug ? `${APP_URL}/s/${slug}` : undefined);
+
+  return { submissionId, submitterIds, slug, signUrl, raw: json };
 }
 
 /**
  * La réponse de création peut être un tableau de submitters (forme habituelle des
  * endpoints /submissions*) ou un objet submission. On gère les deux défensivement.
  */
-function extractSubmission(json: unknown): { submissionId?: number; submitterIds: number[] } {
+function extractSubmission(json: unknown): {
+  submissionId?: number; submitterIds: number[]; slug?: string; embedSrc?: string;
+} {
   if (Array.isArray(json)) {
-    const arr = json as Array<{ id?: number; submission_id?: number }>;
+    const arr = json as Array<{ id?: number; submission_id?: number; slug?: string; embed_src?: string }>;
     return {
       submissionId: arr[0]?.submission_id ?? undefined,
       submitterIds: arr.map((s) => s.id).filter((n): n is number => typeof n === "number"),
+      slug: arr[0]?.slug,
+      embedSrc: arr[0]?.embed_src,
     };
   }
   const obj = (json ?? {}) as {
     id?: number;
     submission_id?: number;
-    submitters?: Array<{ id?: number }>;
+    submitters?: Array<{ id?: number; slug?: string; embed_src?: string }>;
   };
   const submissionId = obj.submission_id ?? obj.id ?? undefined;
+  const first = obj.submitters?.[0];
   const submitterIds = (obj.submitters ?? [])
     .map((s) => s.id)
     .filter((n): n is number => typeof n === "number");
-  return { submissionId, submitterIds };
+  return { submissionId, submitterIds, slug: first?.slug, embedSrc: first?.embed_src };
 }
 
 // ---------------------------------------------------------------------------

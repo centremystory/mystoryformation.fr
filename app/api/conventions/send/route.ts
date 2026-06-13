@@ -70,7 +70,10 @@ export async function POST(req: NextRequest) {
 
     await setPieceStatus({
       dossierId, piece: "convention", status: "envoye_a_signer",
-      docusealSubmissionId: submission.submissionId, at: new Date().toISOString(),
+      docusealSubmissionId: submission.submissionId,
+      signUrlIntegre: submission.signUrl,
+      docusealSlug: submission.slug,
+      at: new Date().toISOString(),
     });
 
     // Audit : trace l'envoi en signature dans le journal général.
@@ -92,7 +95,7 @@ export async function POST(req: NextRequest) {
       console.warn(`[convention.send] archivage 'généré' ignoré pour ${dossierId}:`, String(archiveErr));
     }
 
-    return NextResponse.json({ ok: true, dossierId, submissionId: submission.submissionId, status: "envoye_a_signer" });
+    return NextResponse.json({ ok: true, dossierId, submissionId: submission.submissionId, signUrl: submission.signUrl ?? null, status: "envoye_a_signer" });
   } catch (e) {
     await setPieceStatus({ dossierId, piece: "convention", status: "erreur_envoi", at: new Date().toISOString() });
     return NextResponse.json({ ok: false, dossierId, status: "erreur_envoi", error: String(e) }, { status: 502 });
