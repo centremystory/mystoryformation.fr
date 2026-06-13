@@ -14,6 +14,7 @@ import {
 import { requireUser, UnauthorizedError } from "@/lib/auth";
 import { getFiche, archiveDocument, setPieceStatus, getConventionStatus } from "@/lib/crm";
 import { checkConformite } from "@/lib/gates";
+import { journal } from "@/lib/examens";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -70,6 +71,11 @@ export async function POST(req: NextRequest) {
     await setPieceStatus({
       dossierId, piece: "convention", status: "envoye_a_signer",
       docusealSubmissionId: submission.submissionId, at: new Date().toISOString(),
+    });
+
+    // Audit : trace l'envoi en signature dans le journal général.
+    await journal("dossier", dossierId, "convention_envoyee_signature", {
+      submission_id: submission.submissionId,
     });
 
     // Archivage « généré » (best-effort) : on récupère le PDF non signé rendu par DocuSeal.
