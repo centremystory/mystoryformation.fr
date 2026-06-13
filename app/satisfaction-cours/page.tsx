@@ -32,7 +32,7 @@ function LigneSeance({ s, onSaved }: { s: Seance; onSaved: () => void }) {
     if (!note) { setErr("Choisis une note."); return; }
     setBusy(true); setErr(null);
     try {
-      const r = await fetch("/api/satisfaction", {
+      const r = await fetch("/api/satisfaction-cours", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ seanceId: s.seance_id, note, commentaire }),
       });
@@ -84,7 +84,7 @@ export default function PageSatisfaction() {
     setCharge(true); setErr(null);
     try {
       const q = agence !== "toutes" ? `?agence=${encodeURIComponent(agence)}` : "";
-      const r = await fetch(`/api/satisfaction${q}`, { cache: "no-store" });
+      const r = await fetch(`/api/satisfaction-cours${q}`, { cache: "no-store" });
       const j = await r.json();
       if (!j.ok) { setErr(j.erreur || "Erreur de chargement."); return; }
       setSeances(j.seances); setResume(j.resume);
