@@ -13,6 +13,8 @@ type Synthese = {
   nb_stagiaires: number; nb_dossiers: number;
   par_certif: Array<{ code: string; intitule: string; dossiers: number; produits: number; heures: number }>;
   charges: { sous_traitance_total: number; lignes: Array<{ prestataire: string; montant: number; facture_ref: string | null; contrat_ref: string | null; attestation: boolean }> };
+  depot: null | { total_produits: number; cpf: number; plan_autres: number; autres_of: number; autres_produits: number; part_ca_pct: number; charges_total: number; salaires_formateurs: number; achats_prestations: number; cerfa: string | null };
+  ecarts: Array<{ poste: string; crm: number; depose: number; ecart: number }>;
   anomalies: Array<{ niveau: "bloquant" | "info"; message: string }>;
 };
 
@@ -66,7 +68,7 @@ export default function Bpf() {
     <main className="mx-auto max-w-3xl px-4 py-8">
       <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">📊 Bilan Pédagogique et Financier</h1>
       <p className="mt-1 text-sm text-gray-500">
-        Cerfa 10443*16 — dépôt avant le 31 mai. Réconcilie CRM ↔ EDOF ↔ compta. Les écarts sont affichés, jamais lissés.
+        Cerfa 10443*16 — dépôt avant le 30 avril. Réconcilie CRM ↔ EDOF ↔ compta. Les écarts sont affichés, jamais lissés.
       </p>
 
       <div className="mt-4 flex items-center gap-3">
@@ -179,6 +181,32 @@ export default function Bpf() {
               {ajout ? "Ajout…" : "Ajouter"}
             </button>
           </div>
+
+          {/* Comparatif CRM vs déposé */}
+          {s.depot && (
+            <>
+              <h2 className="mt-6 text-sm font-semibold text-gray-800">Réconciliation CRM ↔ BPF déposé{s.depot.cerfa ? ` (Cerfa ${s.depot.cerfa})` : ""}</h2>
+              <table className="mt-2 w-full text-sm">
+                <thead><tr className="text-left text-gray-500">
+                  <th className="border-b py-2">Poste</th><th className="border-b py-2 text-right">CRM</th>
+                  <th className="border-b py-2 text-right">Déposé</th><th className="border-b py-2 text-right">Écart</th>
+                </tr></thead>
+                <tbody>
+                  {s.ecarts.map((e) => (
+                    <tr key={e.poste} className="border-b">
+                      <td className="py-2">{e.poste}</td>
+                      <td className="py-2 text-right">{eur(e.crm)}</td>
+                      <td className="py-2 text-right">{eur(e.depose)}</td>
+                      <td className={`py-2 text-right font-medium ${Math.abs(e.ecart) < 1 ? "text-green-600" : "text-red-600"}`}>
+                        {Math.abs(e.ecart) < 1 ? "✓ 0" : (e.ecart > 0 ? "+" : "") + eur(e.ecart)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="mt-1 text-xs text-gray-500">Déposé = valeurs du BPF officiel télétransmis. Un écart n'est pas forcément une erreur, mais doit être expliqué avant dépôt.</p>
+            </>
+          )}
 
           {/* Anomalies info */}
           {infos.length > 0 && (
