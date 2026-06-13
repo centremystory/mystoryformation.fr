@@ -16,6 +16,7 @@ const LIENS = [
   { href: "/bpf", label: "BPF" },
   { href: "/equipe", label: "Équipe" },
   { href: "/veille", label: "Veille" },
+  { href: "/faq", label: "FAQ" },
   { href: "/comptes", label: "Comptes" },
 ];
 
