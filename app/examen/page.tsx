@@ -6,6 +6,8 @@ import Link from "next/link";
 const CARTES = [
   { href: "/examens/vente", icone: "＋", titre: "Inscription Examen",
     desc: "Inscrire un candidat (TEF IRN ou examen civique) en une seule action.", primaire: true },
+  { href: "/examens/candidats", icone: "👥", titre: "Candidats inscrits",
+    desc: "Liste des candidats par session (TEF & civique), filtrable par agence." },
   { href: "/examens", icone: "📅", titre: "Sessions d'examen",
     desc: "Planning des sessions — centre d'examen : Gagny." },
   { href: "/examens/jour", icone: "✅", titre: "Jour J",
