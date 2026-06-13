@@ -26,6 +26,8 @@ export interface BpfSynthese {
   nb_dossiers: number;
   par_certif: Array<{ code: string; intitule: string; dossiers: number; produits: number; heures: number }>;
   charges: { sous_traitance_total: number; lignes: Array<{ prestataire: string; montant: number; facture_ref: string | null; contrat_ref: string | null; attestation: boolean }> };
+  depot: null | { total_produits: number; cpf: number; plan_autres: number; autres_of: number; autres_produits: number; part_ca_pct: number; charges_total: number; salaires_formateurs: number; achats_prestations: number; cerfa: string | null };
+  ecarts: Array<{ poste: string; crm: number; depose: number; ecart: number }>;
   anomalies: Array<{ niveau: "bloquant" | "info"; message: string }>;
 }
 
@@ -84,10 +86,38 @@ export async function bpfSynthese(annee: number): Promise<BpfSynthese> {
   const totalProduits = [...produitsParOrigine.values()].reduce((a, b) => a + b, 0);
   const heuresTotal = heuresEstimees + heuresEmargees;
 
+  // --- Référence : BPF déposé (vérité officielle) pour réconciliation ---
+  const { data: dep } = await supabaseAdmin
+    .from("bpf_depots")
+    .select("total_produits, cpf, plan_autres, autres_of, autres_produits, part_ca_pct, charges_total, salaires_formateurs, achats_prestations, cerfa")
+    .eq("annee", annee).maybeSingle();
+  const depot = dep ? {
+    total_produits: Number(dep.total_produits || 0), cpf: Number(dep.cpf || 0),
+    plan_autres: Number(dep.plan_autres || 0), autres_of: Number(dep.autres_of || 0),
+    autres_produits: Number(dep.autres_produits || 0), part_ca_pct: Number(dep.part_ca_pct || 0),
+    charges_total: Number(dep.charges_total || 0), salaires_formateurs: Number(dep.salaires_formateurs || 0),
+    achats_prestations: Number(dep.achats_prestations || 0), cerfa: dep.cerfa ?? null,
+  } : null;
+
   // --- Contrôles & anomalies (visibles, jamais masqués) ---
   const anomalies: BpfSynthese["anomalies"] = [];
-  if (sousTraitanceTotal === 0) {
-    anomalies.push({ niveau: "bloquant", message: "Achats de prestations de formation = 0 € : aucune sous-traitance saisie. À renseigner avant dépôt (poste sous-déclaré en 2025)." });
+  const ecarts: BpfSynthese["ecarts"] = [];
+  if (depot) {
+    const cpfCrm = produitsParOrigine.get("CPF_CDC") ?? 0;
+    ecarts.push({ poste: "Produits CPF / CDC", crm: cpfCrm, depose: depot.cpf, ecart: cpfCrm - depot.cpf });
+    ecarts.push({ poste: "Total produits", crm: totalProduits, depose: depot.total_produits, ecart: totalProduits - depot.total_produits });
+    ecarts.push({ poste: "Achats de prestations (sous-traitance)", crm: sousTraitanceTotal, depose: depot.achats_prestations, ecart: sousTraitanceTotal - depot.achats_prestations });
+    for (const e of ecarts) {
+      if (Math.abs(e.ecart) >= 1) {
+        anomalies.push({ niveau: e.poste === "Achats de prestations (sous-traitance)" ? "info" : "bloquant",
+          message: `${e.poste} : CRM ${Math.round(e.crm).toLocaleString("fr-FR")} € vs déposé ${Math.round(e.depose).toLocaleString("fr-FR")} € (écart ${e.ecart > 0 ? "+" : ""}${Math.round(e.ecart).toLocaleString("fr-FR")} €).` });
+      }
+    }
+  } else {
+    anomalies.push({ niveau: "info", message: "Aucun BPF déposé enregistré pour cette année : pas de comparaison possible." });
+  }
+  if (sousTraitanceTotal === 0 && depot && depot.achats_prestations > 0) {
+    anomalies.push({ niveau: "bloquant", message: `Sous-traitance non saisie dans le CRM alors que ${Math.round(depot.achats_prestations).toLocaleString("fr-FR")} € d'achats de prestations ont été déposés. À ressaisir pour retrouver la traçabilité.` });
   }
   for (const l of lignesST) {
     if (!l.contrat_ref || !l.attestation) {
@@ -113,6 +143,8 @@ export async function bpfSynthese(annee: number): Promise<BpfSynthese> {
     nb_dossiers: realises.length,
     par_certif: [...parCertif.values()].sort((a, b) => b.produits - a.produits),
     charges: { sous_traitance_total: sousTraitanceTotal, lignes: lignesST },
+    depot,
+    ecarts,
     anomalies,
   };
 }
