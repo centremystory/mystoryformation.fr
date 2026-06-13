@@ -1,20 +1,33 @@
 /**
- * MYSTORY — lib/email.ts  (envoi d'emails sortants)
- * Fournisseur : Resend (https://resend.com) · Expéditeur : contact@mystoryformation.fr
- * (adresse unique de l'organisme — toute l'équipe voit les réponses sur IONOS).
+ * MYSTORY — lib/email.ts  (envoi d'emails sortants via SMTP IONOS)
+ * Expéditeur : contact@mystoryformation.fr (boîte IONOS de l'organisme — toute l'équipe
+ * voit les réponses). IONOS gère déjà SPF/DKIM du domaine → emails bien authentifiés.
  *
- * DRAPEAU : si RESEND_API_KEY est absente des variables d'environnement Vercel,
- * l'envoi est désactivé proprement (journalisé, jamais bloquant) — règle de la
- * mission : « si une clé manque, code derrière un flag et continue ».
+ * DRAPEAU : si les identifiants SMTP (SMTP_USER / SMTP_PASS) sont absents des variables
+ * d'environnement Vercel, l'envoi est désactivé proprement (journalisé, jamais bloquant).
+ *
+ * Variables Vercel attendues :
+ *   SMTP_USER  = contact@mystoryformation.fr   (obligatoire)
+ *   SMTP_PASS  = mot de passe de la boîte       (obligatoire)
+ *   SMTP_HOST  = smtp.ionos.fr                  (défaut : smtp.ionos.fr)
+ *   SMTP_PORT  = 465                            (défaut : 465)
+ *   SMTP_SECURE= true                           (défaut : true pour 465 ; false => STARTTLS 587)
+ *   SMTP_FROM  = "MYSTORY Formation <contact@mystoryformation.fr>" (défaut)
  *
  * Chaque tentative (envoyée, échouée ou désactivée) est tracée dans `journal`.
  */
+import nodemailer, { type Transporter } from "nodemailer";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-const EXPEDITEUR = "MYSTORY Formation <contact@mystoryformation.fr>";
-const REPONDRE_A = "contact@mystoryformation.fr";
+const SMTP_HOST = process.env.SMTP_HOST ?? "smtp.ionos.fr";
+const SMTP_PORT = Number(process.env.SMTP_PORT ?? "465");
+const SMTP_SECURE = (process.env.SMTP_SECURE ?? "true").toLowerCase() !== "false";
+const SMTP_USER = process.env.SMTP_USER;
+const SMTP_PASS = process.env.SMTP_PASS;
+const EXPEDITEUR = process.env.SMTP_FROM ?? "MYSTORY Formation <contact@mystoryformation.fr>";
+const REPONDRE_A = process.env.SMTP_REPLY_TO ?? "contact@mystoryformation.fr";
 
-export const EMAIL_ACTIF = !!process.env.RESEND_API_KEY;
+export const EMAIL_ACTIF = !!(SMTP_USER && SMTP_PASS);
 
 export interface PieceJointe {
   nom: string;      // ex. "Convocation_TEF_DUPONT.pdf"
@@ -46,55 +59,52 @@ async function journaliser(evenement: string, e: EnvoiEmail, detail: Record<stri
   }
 }
 
+// Transporteur réutilisé entre invocations chaudes de la même fonction.
+let _transport: Transporter | null = null;
+function transport(): Transporter {
+  if (!_transport) {
+    _transport = nodemailer.createTransport({
+      host: SMTP_HOST,
+      port: SMTP_PORT,
+      secure: SMTP_SECURE,
+      auth: { user: SMTP_USER, pass: SMTP_PASS },
+    });
+  }
+  return _transport;
+}
+
 /**
  * Envoie un email. Ne lève JAMAIS d'exception : renvoie { ok, erreur? } pour que
  * l'appelant décide (la vente/le document restent valides même si l'email échoue).
  */
 export async function envoyerEmail(e: EnvoiEmail): Promise<{ ok: boolean; erreur?: string }> {
   if (!EMAIL_ACTIF) {
-    const erreur = "Envoi désactivé : RESEND_API_KEY absente des variables d'environnement Vercel.";
+    const erreur = "Envoi désactivé : identifiants SMTP (SMTP_USER / SMTP_PASS) absents des variables d'environnement Vercel.";
     await journaliser("email_non_envoye_drapeau_inactif", e, { erreur });
     return { ok: false, erreur };
   }
 
   try {
-    const corps: Record<string, unknown> = {
+    const info = await transport().sendMail({
       from: EXPEDITEUR,
-      to: [e.a],
-      reply_to: REPONDRE_A,
+      to: e.a,
+      replyTo: REPONDRE_A,
       subject: e.objet,
       html: e.html,
-    };
-    if (e.piecesJointes?.length) {
-      corps.attachments = e.piecesJointes.map((p) => ({
+      attachments: (e.piecesJointes ?? []).map((p) => ({
         filename: p.nom,
-        content: p.contenu.toString("base64"),
-      }));
-    }
-
-    const r = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(corps),
+        content: p.contenu,
+        contentType: "application/pdf",
+      })),
     });
-    const j: any = await r.json().catch(() => ({}));
-
-    if (!r.ok) {
-      const erreur = j?.message || `Resend a répondu ${r.status}.`;
-      await journaliser("email_echec", e, { erreur });
-      return { ok: false, erreur };
-    }
 
     await journaliser("email_envoye", e, {
-      resend_id: j?.id ?? null,
+      message_id: info.messageId ?? null,
       pieces_jointes: (e.piecesJointes ?? []).map((p) => p.nom),
     });
     return { ok: true };
   } catch (err: any) {
-    const erreur = err?.message || "Erreur réseau lors de l'envoi.";
+    const erreur = err?.message || "Erreur SMTP lors de l'envoi.";
     await journaliser("email_echec", e, { erreur });
     return { ok: false, erreur };
   }

@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
   if (!EMAIL_ACTIF) {
     await journal("dossier", dossierId, "envoi_dossier_canal_inactif", { nb: piecesJointes.length });
     return NextResponse.json(
-      { ok: false, status: "canal_inactif", erreur: "Envoi email désactivé : RESEND_API_KEY absente des variables d'environnement Vercel." },
+      { ok: false, status: "canal_inactif", erreur: "Envoi email désactivé : identifiants SMTP (SMTP_USER / SMTP_PASS) absents des variables d'environnement Vercel." },
       { status: 503 },
     );
   }
