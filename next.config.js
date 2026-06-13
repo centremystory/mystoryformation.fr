@@ -6,6 +6,7 @@ const nextConfig = {
     // Inclure les templates dans la fonction de génération de la convention.
     outputFileTracingIncludes: {
       "/api/conventions/send": ["./templates/**"],
+      "/qcm": ["./app/qcm/qcm.html"],
     },
   },
 };
