@@ -19,6 +19,7 @@ const LIENS = [
   { href: "/faq", label: "FAQ" },
   { href: "/satisfaction-cours", label: "Satisfaction" },
   { href: "/contenu-pedagogique", label: "Pédagogie" },
+  { href: "/programmes", label: "Séquençage" },
   { href: "/conges", label: "Congés" },
   { href: "/planning-employes", label: "Planning équipe" },
   { href: "/pointage", label: "Pointage" },
