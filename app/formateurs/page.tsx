@@ -6,19 +6,28 @@ type Doc = { id: string; type: string; statut: string; sign_url: string | null; 
 type Formateur = {
   id: string; civilite: string | null; prenom: string | null; nom: string; email: string | null; telephone: string | null;
   type: string; raison_sociale: string | null; siret: string | null; adresse: string | null; token: string; cree_le: string;
-  formateur_documents: Doc[]; formateur_questionnaire: { id: string; horodatage: string }[];
+  formateur_documents: Doc[]; formateur_questionnaire: { id: string; horodatage: string; reponses?: Record<string, string> }[];
 };
 
 
 function nomComplet(f: Formateur): string {
   return [f.civilite, f.prenom, f.nom].filter(Boolean).join(" ");
 }
+const Q_LABELS: Record<string, string> = { qualification: "Qualification FLE", experience: "Exp\u00e9rience", niveaux: "Niveaux", public_cible: "Public", statut: "Statut", disponibilites: "Disponibilit\u00e9s", methodes: "M\u00e9thodes", certifs: "TEF / LEVELTEL", commentaire: "Commentaire" };
 
 export default function PageFormateurs() {
   const [formateurs, setFormateurs] = useState<Formateur[]>([]);
   const [charge, setCharge] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [copie, setCopie] = useState<string | null>(null);
+  const [vues, setVues] = useState<Record<string, boolean>>({});
+
+  function copierLien(token: string) {
+    const url = `${window.location.origin}/formateur-questionnaire?token=${token}`;
+    navigator.clipboard?.writeText(url);
+    setCopie(token); setTimeout(() => setCopie(null), 2000);
+  }
 
   // formulaire
   const [civilite, setCivilite] = useState("");
@@ -160,8 +169,20 @@ export default function PageFormateurs() {
               <div className="flex flex-wrap items-center gap-3 mt-3">
                 <LigneDoc f={f} type="charte" label="Charte" />
                 <LigneDoc f={f} type="contrat" label="Contrat" />
-                <span className="text-xs text-gray-500">Questionnaire : <span className="text-gray-700">{f.formateur_questionnaire?.length ? "répondu ✓" : "—"}</span></span>
+                <button onClick={() => copierLien(f.token)} className="text-xs px-2.5 py-1 rounded-lg border border-gray-300 text-gray-600 hover:border-mystory">
+                  {copie === f.token ? "Lien copié ✓" : "Lien questionnaire"}
+                </button>
+                {f.formateur_questionnaire?.length
+                  ? <button onClick={() => setVues((v) => ({ ...v, [f.id]: !v[f.id] }))} className="text-xs text-green-700 underline">Réponses ✓</button>
+                  : <span className="text-xs text-gray-400">Questionnaire : —</span>}
               </div>
+              {vues[f.id] && f.formateur_questionnaire?.[0]?.reponses && (
+                <div className="mt-2 border-t border-gray-100 pt-2 text-sm space-y-1">
+                  {Object.entries(f.formateur_questionnaire[0].reponses!).filter(([, v]) => String(v).trim()).map(([k, v]) => (
+                    <p key={k}><span className="text-gray-400">{Q_LABELS[k] ?? k} :</span> {String(v)}</p>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>

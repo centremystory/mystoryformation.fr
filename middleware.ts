@@ -22,6 +22,8 @@ const CHEMINS_PUBLICS = [
   "/api/satisfaction",      // dépôt de la réponse (jeton vérifié côté serveur)
   "/emargement/signer",     // signature d'émargement par le stagiaire (jeton/QR)
   "/api/emargement/signer", // dépôt de signature (jeton stagiaire OU session formatrice)
+  "/formateur-questionnaire",     // questionnaire formateur en ligne (jeton)
+  "/api/formateur-questionnaire", // dépôt des réponses (jeton vérifié côté serveur)
 ];
 
 export async function middleware(req: NextRequest) {
@@ -56,3 +58,4 @@ export const config = {
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|gif|webp|ico|css|js|woff2?)).*)",
   ],
 };
+

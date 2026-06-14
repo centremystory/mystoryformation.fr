@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
   }
   const { data, error } = await supabaseAdmin
     .from("formateurs")
-    .select("id, civilite, prenom, nom, email, telephone, type, raison_sociale, siret, adresse, token, cree_le, formateur_documents(id, type, statut, sign_url, signe_le, fichier_signe_path), formateur_questionnaire(id, horodatage)")
+    .select("id, civilite, prenom, nom, email, telephone, type, raison_sociale, siret, adresse, token, cree_le, formateur_documents(id, type, statut, sign_url, signe_le, fichier_signe_path), formateur_questionnaire(id, horodatage, reponses)")
     .eq("actif", true)
     .order("cree_le", { ascending: false });
   if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
