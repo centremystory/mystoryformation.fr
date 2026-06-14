@@ -13,6 +13,7 @@ type Entree = { type: "link"; href: string; label: string } | { type: "menu"; la
 
 const NAV: Entree[] = [
   { type: "link", href: "/", label: "Accueil" },
+  { type: "link", href: "/recherche", label: "🔎 Rechercher" },
   {
     type: "menu", label: "🎓 Formation", items: [
       { href: "/formation", label: "Espace Formation" },

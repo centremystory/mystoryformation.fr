@@ -85,6 +85,10 @@ export default function PageDossiers() {
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState<string | null>(null);
   const [recherche, setRecherche] = useState("");
+  useEffect(() => {
+    const v = new URLSearchParams(window.location.search).get("q");
+    if (v) setRecherche(v);
+  }, []);
   const [filtre, setFiltre] = useState<"tous" | "incomplet" | "complet">("tous");
   const [filtreAgence, setFiltreAgence] = useState<string>("toutes");
   const [ouvert, setOuvert] = useState<string | null>(null);
