@@ -27,6 +27,27 @@ async function compter() {
   }
 }
 
+async function aTraiter() {
+  const zero = { participation: 0, identite: 0, conges: 0, messages: 0, formateurDocs: 0 };
+  try {
+    const estCpf = (d: any) => d.financement === "CPF" || d.origine_fonds === "CPF_CDC";
+    const [dossiers, conges, messages, fdocs] = await Promise.all([
+      supabaseAdmin.from("dossiers").select("financement, origine_fonds, participation_forfaitaire_reglee, participation_forfaitaire_exemptee, cpf_identite_ok"),
+      supabaseAdmin.from("conges").select("id", { count: "exact", head: true }).eq("statut", "en_attente"),
+      supabaseAdmin.from("messages_prospects").select("id", { count: "exact", head: true }).eq("statut", "nouveau"),
+      supabaseAdmin.from("formateur_documents").select("id", { count: "exact", head: true }).eq("statut", "envoye_a_signer"),
+    ]);
+    const cpf = (dossiers.data ?? []).filter(estCpf);
+    return {
+      participation: cpf.filter((d: any) => !d.participation_forfaitaire_reglee && !d.participation_forfaitaire_exemptee).length,
+      identite: cpf.filter((d: any) => !d.cpf_identite_ok).length,
+      conges: conges.count ?? 0,
+      messages: messages.count ?? 0,
+      formateurDocs: fdocs.count ?? 0,
+    };
+  } catch { return zero; }
+}
+
 function Compteur({ libelle, valeur, accent }: { libelle: string; valeur: string; accent?: "ambre" | "vert" }) {
   const couleur = accent === "ambre" ? "text-amber-600" : accent === "vert" ? "text-emerald-700" : "text-gray-900";
   return (
@@ -39,6 +60,15 @@ function Compteur({ libelle, valeur, accent }: { libelle: string; valeur: string
 
 export default async function Accueil() {
   const c = await compter();
+  const t = await aTraiter();
+  const actions = [
+    { label: "Conventions à relancer", n: c.aRelancer, href: "/formation" },
+    { label: "Participations 150 € à régler", n: t.participation, href: "/formation" },
+    { label: "Identités CPF à confirmer", n: t.identite, href: "/formation" },
+    { label: "Congés en attente", n: t.conges, href: "/conges" },
+    { label: "Messages prospects", n: t.messages, href: "/messages" },
+    { label: "Documents formateur à signer", n: t.formateurDocs, href: "/formateurs" },
+  ].filter((a) => a.n > 0);
   const heure = new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit" });
   const salut = parseInt(heure) < 18 ? "Bonjour" : "Bonsoir";
 
@@ -60,6 +90,22 @@ export default async function Accueil() {
         <Compteur libelle="Conventions à relancer" valeur={String(c.aRelancer)} accent={c.aRelancer > 0 ? "ambre" : undefined} />
         <Compteur libelle="Formatrices en règle" valeur={`${c.fleOk} / ${c.fleTotal}`} accent={c.fleOk === c.fleTotal ? "vert" : "ambre"} />
       </div>
+
+      {/* À traiter */}
+      <p className="text-xs uppercase tracking-wide text-gray-400 mb-2">À traiter</p>
+      {actions.length === 0 ? (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 mb-8 text-sm text-emerald-800">Tout est à jour ✅</div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
+          {actions.map((a) => (
+            <Link key={a.label} href={a.href}
+              className="flex items-center justify-between bg-white border border-amber-200 rounded-xl px-4 py-3 hover:border-mystory transition-colors">
+              <span className="text-sm text-gray-700">{a.label}</span>
+              <span className="text-sm font-semibold text-amber-600 bg-amber-50 rounded-full px-2.5 py-0.5">{a.n}</span>
+            </Link>
+          ))}
+        </div>
+      )}
 
       {/* Deux grandes portes */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
