@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 
 type Doc = { id: string; type: string; statut: string; sign_url: string | null; signe_le: string | null; fichier_signe_path: string | null };
+type Formatrice = { id: string; nom: string; prenom: string | null; justificatif_fle: boolean };
 type Formateur = {
   id: string; civilite: string | null; prenom: string | null; nom: string; email: string | null; telephone: string | null;
   type: string; raison_sociale: string | null; siret: string | null; adresse: string | null; token: string; cree_le: string;
   formateur_documents: Doc[]; formateur_questionnaire: { id: string; horodatage: string; reponses?: Record<string, string> }[];
+  formatrice_id: string | null; formatrice: Formatrice | null;
 };
 
 
@@ -22,11 +24,21 @@ export default function PageFormateurs() {
   const [busy, setBusy] = useState<string | null>(null);
   const [copie, setCopie] = useState<string | null>(null);
   const [vues, setVues] = useState<Record<string, boolean>>({});
+  const [formatrices, setFormatrices] = useState<Formatrice[]>([]);
+  const [conformite, setConformite] = useState<{ fleManquant: any[]; docsManquant: any[] }>({ fleManquant: [], docsManquant: [] });
 
   function copierLien(token: string) {
     const url = `${window.location.origin}/formateur-questionnaire?token=${token}`;
     navigator.clipboard?.writeText(url);
     setCopie(token); setTimeout(() => setCopie(null), 2000);
+  }
+
+  async function lierFormatrice(id: string, formatriceId: string) {
+    setBusy(`lien-${id}`);
+    try {
+      await fetch("/api/formateurs", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, formatriceId: formatriceId || null }) });
+      await charger();
+    } finally { setBusy(null); }
   }
 
   // formulaire
@@ -47,6 +59,12 @@ export default function PageFormateurs() {
       const j = await r.json();
       if (!j.ok) { setErr(j.erreur || "Erreur de chargement."); return; }
       setFormateurs(j.formateurs);
+      setFormatrices(j.formatrices ?? []);
+      try {
+        const rc = await fetch("/api/formateurs/conformite", { cache: "no-store" });
+        const jc = await rc.json();
+        if (jc.ok) setConformite({ fleManquant: jc.fleManquant ?? [], docsManquant: jc.docsManquant ?? [] });
+      } catch {}
     } catch (e: any) { setErr(e?.message || "Erreur de chargement."); }
     finally { setCharge(false); }
   }, []);
@@ -125,6 +143,18 @@ export default function PageFormateurs() {
         </div>
       </header>
 
+      {(conformite.fleManquant.length > 0 || conformite.docsManquant.length > 0) && (
+        <div className="mb-5 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm">
+          <p className="font-semibold text-amber-900 mb-1">⚠️ Conformité avant séance</p>
+          {conformite.fleManquant.length > 0 && (
+            <p className="text-amber-800">Justificatif FLE manquant : {conformite.fleManquant.map((x: any) => `${x.prenom ?? ""} ${x.nom}`.trim()).join(", ")} — à régulariser dans <a href="/equipe" className="underline">Équipe</a>.</p>
+          )}
+          {conformite.docsManquant.length > 0 && (
+            <p className="text-amber-800 mt-1">Charte/contrat non signés : {conformite.docsManquant.map((x: any) => `${x.prenom ?? ""} ${x.nom}`.trim()).join(", ")}.</p>
+          )}
+        </div>
+      )}
+
       {/* Ajout */}
       <section className="border border-gray-200 rounded-xl bg-white p-4 mb-6">
         <h2 className="text-sm font-semibold text-gray-800 mb-3">Ajouter un formateur</h2>
@@ -166,6 +196,18 @@ export default function PageFormateurs() {
               <p className="text-sm text-gray-500 mt-1">
                 {f.email || "—"}{f.telephone ? ` · ${f.telephone}` : ""}{f.siret ? ` · SIRET ${f.siret}` : ""}
               </p>
+              <div className="flex flex-wrap items-center gap-2 mt-2 text-xs">
+                <span className="text-gray-500">Formatrice :</span>
+                <select value={f.formatrice_id ?? ""} disabled={busy === `lien-${f.id}`}
+                  onChange={(e) => lierFormatrice(f.id, e.target.value)}
+                  className="border border-gray-300 rounded-lg px-2 py-1 text-xs bg-white">
+                  <option value="">— non reliée —</option>
+                  {formatrices.map((fm) => <option key={fm.id} value={fm.id}>{[fm.prenom, fm.nom].filter(Boolean).join(" ")}</option>)}
+                </select>
+                {f.formatrice && (f.formatrice.justificatif_fle
+                  ? <span className="text-green-700">FLE ✓</span>
+                  : <span className="text-red-600">FLE manquant</span>)}
+              </div>
               <div className="flex flex-wrap items-center gap-3 mt-3">
                 <LigneDoc f={f} type="charte" label="Charte" />
                 <LigneDoc f={f} type="contrat" label="Contrat" />

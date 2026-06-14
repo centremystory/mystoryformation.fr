@@ -26,11 +26,13 @@ export async function GET(req: NextRequest) {
   }
   const { data, error } = await supabaseAdmin
     .from("formateurs")
-    .select("id, civilite, prenom, nom, email, telephone, type, raison_sociale, siret, adresse, token, cree_le, formateur_documents(id, type, statut, sign_url, signe_le, fichier_signe_path), formateur_questionnaire(id, horodatage, reponses)")
+    .select("id, civilite, prenom, nom, email, telephone, type, raison_sociale, siret, adresse, token, cree_le, formatrice_id, formatrice:formatrice_id (id, nom, prenom, justificatif_fle), formateur_documents(id, type, statut, sign_url, signe_le, fichier_signe_path), formateur_questionnaire(id, horodatage, reponses)")
     .eq("actif", true)
     .order("cree_le", { ascending: false });
   if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true, formateurs: data ?? [] });
+  const { data: formatrices } = await supabaseAdmin
+    .from("formatrices").select("id, nom, prenom, justificatif_fle").eq("actif", true).order("nom");
+  return NextResponse.json({ ok: true, formateurs: data ?? [], formatrices: formatrices ?? [] });
 }
 
 export async function POST(req: NextRequest) {
@@ -93,6 +95,7 @@ export async function PATCH(req: NextRequest) {
     if (typeof b?.[k] === "string") champs[col] = String(b[k]).trim() || null;
   }
   if (typeof b?.type === "string" && TYPES.includes(b.type)) champs.type = b.type;
+  if (b && Object.prototype.hasOwnProperty.call(b, "formatriceId")) champs.formatrice_id = b.formatriceId ? String(b.formatriceId) : null;
   if (Object.keys(champs).length === 0) return NextResponse.json({ ok: false, erreur: "Rien à mettre à jour." }, { status: 400 });
 
   const { error } = await supabaseAdmin.from("formateurs").update(champs).eq("id", id);

@@ -2,6 +2,7 @@
 // Compteurs temps réel (lecture seule, service_role côté serveur) + deux grandes portes + transverse.
 import Link from "next/link";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { conformiteFormateurs } from "@/lib/conformiteFormateurs";
 
 export const dynamic = "force-dynamic";
 
@@ -61,6 +62,7 @@ function Compteur({ libelle, valeur, accent }: { libelle: string; valeur: string
 export default async function Accueil() {
   const c = await compter();
   const t = await aTraiter();
+  const cf = await conformiteFormateurs();
   const actions = [
     { label: "Conventions à relancer", n: c.aRelancer, href: "/formation" },
     { label: "Participations 150 € à régler", n: t.participation, href: "/formation" },
@@ -68,6 +70,8 @@ export default async function Accueil() {
     { label: "Congés en attente", n: t.conges, href: "/conges" },
     { label: "Messages prospects", n: t.messages, href: "/messages" },
     { label: "Documents formateur à signer", n: t.formateurDocs, href: "/formateurs" },
+    { label: "Formatrices sans justificatif FLE (séance à venir)", n: cf.fleManquant.length, href: "/equipe" },
+    { label: "Charte/contrat formateur à signer (séance à venir)", n: cf.docsManquant.length, href: "/formateurs" },
   ].filter((a) => a.n > 0);
   const heure = new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit" });
   const salut = parseInt(heure) < 18 ? "Bonjour" : "Bonsoir";
