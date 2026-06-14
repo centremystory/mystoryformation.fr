@@ -9,7 +9,6 @@ type Formateur = {
   formateur_documents: Doc[]; formateur_questionnaire: { id: string; horodatage: string }[];
 };
 
-const STATUT_DOC: Record<string, string> = { envoye_a_signer: "envoyée à signer", signee: "signée", erreur: "erreur" };
 
 function nomComplet(f: Formateur): string {
   return [f.civilite, f.prenom, f.nom].filter(Boolean).join(" ");
@@ -68,10 +67,42 @@ export default function PageFormateurs() {
     } finally { setBusy(null); }
   }
 
-  function statutDoc(f: Formateur, t: "charte" | "contrat"): string {
-    const d = f.formateur_documents?.filter((x) => x.type === t).sort((a, b) => (b.signe_le ?? "").localeCompare(a.signe_le ?? ""))[0];
-    if (!d) return "—";
-    return STATUT_DOC[d.statut] ?? d.statut;
+  function docDe(f: Formateur, t: "charte" | "contrat"): Doc | undefined {
+    return f.formateur_documents?.filter((x) => x.type === t)
+      .sort((a, b) => (b.signe_le ?? "").localeCompare(a.signe_le ?? ""))[0];
+  }
+  async function envoyer(formateurId: string, type: "charte" | "contrat") {
+    setBusy(`env-${formateurId}-${type}`); setErr(null);
+    try {
+      const r = await fetch("/api/formateurs/envoyer", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ formateurId, type }),
+      });
+      const j = await r.json();
+      if (!j.ok) { setErr(j.erreur || "Envoi impossible."); return; }
+      await charger();
+    } catch (e: any) { setErr(e?.message || "Envoi impossible."); }
+    finally { setBusy(null); }
+  }
+
+  function LigneDoc({ f, type, label }: { f: Formateur; type: "charte" | "contrat"; label: string }) {
+    const d = docDe(f, type);
+    const enCours = busy === `env-${f.id}-${type}`;
+    if (!d || d.statut === "erreur") {
+      return (
+        <button onClick={() => envoyer(f.id, type)} disabled={enCours || !f.email}
+          title={!f.email ? "Ajoute un email d'abord" : ""}
+          className="text-xs px-2.5 py-1 rounded-lg bg-mystory text-white font-medium disabled:opacity-50">
+          {enCours ? "Envoi…" : `Envoyer ${label}`}{d?.statut === "erreur" ? " (réessayer)" : ""}
+        </button>
+      );
+    }
+    if (d.statut === "signee") return <span className="text-xs text-green-700">{label} : signée ✓</span>;
+    return (
+      <span className="text-xs text-amber-700">
+        {label} : envoyée à signer{d.sign_url ? <> · <a href={d.sign_url} target="_blank" rel="noreferrer" className="underline">lien</a></> : null}
+      </span>
+    );
   }
 
   return (
@@ -126,10 +157,10 @@ export default function PageFormateurs() {
               <p className="text-sm text-gray-500 mt-1">
                 {f.email || "—"}{f.telephone ? ` · ${f.telephone}` : ""}{f.siret ? ` · SIRET ${f.siret}` : ""}
               </p>
-              <div className="flex flex-wrap gap-3 mt-2 text-xs text-gray-500">
-                <span>Charte : <span className="text-gray-700">{statutDoc(f, "charte")}</span></span>
-                <span>Contrat : <span className="text-gray-700">{statutDoc(f, "contrat")}</span></span>
-                <span>Questionnaire : <span className="text-gray-700">{f.formateur_questionnaire?.length ? "répondu" : "—"}</span></span>
+              <div className="flex flex-wrap items-center gap-3 mt-3">
+                <LigneDoc f={f} type="charte" label="Charte" />
+                <LigneDoc f={f} type="contrat" label="Contrat" />
+                <span className="text-xs text-gray-500">Questionnaire : <span className="text-gray-700">{f.formateur_questionnaire?.length ? "répondu ✓" : "—"}</span></span>
               </div>
             </div>
           ))}

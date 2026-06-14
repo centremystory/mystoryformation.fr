@@ -12,6 +12,7 @@ import {
   setPieceStatus, archiveDocument, recomputeDossierStatus,
 } from "@/lib/crm";
 import { journal } from "@/lib/examens";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
 
@@ -57,6 +58,17 @@ export async function POST(req: NextRequest) {
   const eventKey = `${submissionId ?? dossierId}:${event.event_type}`;
   if (await isEventProcessed(eventKey)) {
     return NextResponse.json({ ok: true, idempotent: true });
+  }
+
+  // Branche onboarding formateur : external_id = "formateur:<id>:<type>" (charte | contrat).
+  if (typeof dossierId === "string" && dossierId.startsWith("formateur:")) {
+    if (submissionId && ["form.completed", "submission.completed"].includes(event.event_type)) {
+      await finalizeFormateurSignature(dossierId, submissionId, event);
+    }
+    await markEventProcessed(eventKey, {
+      submissionId: submissionId ?? undefined, eventType: event.event_type, dossierId: null, payload: event,
+    });
+    return NextResponse.json({ ok: true, scope: "formateur" });
   }
 
   const resolvedDossierId = dossierId ?? (await findDossierBySubmission(submissionId!));
@@ -119,3 +131,26 @@ async function finalizeSignature(dossierId: string, submissionId: number, event:
     event_type: event.event_type,
   });
  }
+
+/** Onboarding formateur : stocke le PDF signé dans le bucket et passe le document à « signée ». */
+async function finalizeFormateurSignature(externalId: string, submissionId: number, event: DocusealEvent): Promise<void> {
+  const [, formateurId, type] = externalId.split(":");
+  if (!formateurId || !type) return;
+
+  let docs = event.data?.documents ?? [];
+  if (docs.length === 0) docs = await getSubmissionDocuments(submissionId);
+
+  let chemin: string | null = null;
+  if (docs[0]?.url) {
+    const pdf = await downloadSignedDocument(docs[0].url);
+    chemin = `formateurs/${formateurId}/${type}_signe_${Date.now()}.pdf`;
+    await supabaseAdmin.storage.from("documents").upload(chemin, pdf, { contentType: "application/pdf", upsert: true });
+  }
+
+  await supabaseAdmin
+    .from("formateur_documents")
+    .update({ statut: "signee", signe_le: new Date().toISOString(), fichier_signe_path: chemin })
+    .eq("formateur_id", formateurId).eq("type", type).eq("docuseal_submission_id", submissionId);
+
+  await journal("formateur", formateurId, "formateur_doc_signe", { type, submission_id: submissionId });
+}

@@ -330,3 +330,51 @@ async function safeText(res: Response): Promise<string> {
     return "(corps illisible)";
   }
 }
+
+
+// ---------------------------------------------------------------------------
+// 4. Onboarding formateur : envoi d'un document signable (charte / contrat)
+// ---------------------------------------------------------------------------
+
+/**
+ * Crée une submission DocuSeal à partir du HTML d'un document formateur (charte ou contrat
+ * de sous-traitance). Un seul signataire : le FORMATEUR (rôle « Formateur »). L'organisme est
+ * pré-signé dans le HTML (mention/texte). external_id encode le rattachement : « formateur:<id>:<type> ».
+ */
+export async function createFormateurSubmissionFromHtml(params: {
+  html: string;
+  formateur: { email: string; nom: string; prenom?: string };
+  externalId: string; // ex. "formateur:<uuid>:charte"
+  documentName: string;
+  sendEmail?: boolean;
+}): Promise<CreateSubmissionResult> {
+  assertConfigured();
+  const { html, formateur, externalId, documentName, sendEmail = true } = params;
+
+  const body = {
+    name: documentName,
+    send_email: sendEmail,
+    documents: [{ name: documentName, html, size: "A4" }],
+    submitters: [
+      {
+        role: "Formateur",
+        email: formateur.email,
+        name: `${formateur.prenom ?? ""} ${formateur.nom}`.trim(),
+        external_id: externalId,
+      },
+    ],
+  };
+
+  const res = await fetch(`${BASE_URL}/submissions/html`, {
+    method: "POST",
+    headers: { "X-Auth-Token": API_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`DocuSeal createFormateurSubmissionFromHtml ${res.status}: ${await safeText(res)}`);
+
+  const json = (await res.json()) as unknown;
+  const { submissionId, submitterIds, slug, embedSrc } = extractSubmission(json);
+  if (!submissionId) throw new Error("DocuSeal: submission_id absent de la réponse");
+  const signUrl = embedSrc ?? (slug ? `${APP_URL}/s/${slug}` : undefined);
+  return { submissionId, submitterIds, slug, signUrl, raw: json };
+}
