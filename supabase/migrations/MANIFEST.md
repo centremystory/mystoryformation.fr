@@ -1,0 +1,67 @@
+# Manifeste des migrations — base MYSTORY (ordre chronologique)
+
+> Historique reflété depuis `supabase_migrations.schema_migrations`.
+> 60 migrations au 14/06/2026.
+
+| # | Version (timestamp) | Nom |
+|---|---------------------|-----|
+| 1 | 20260608180435 | mystory_phase1_schema |
+| 2 | 20260608181412 | harden_function_search_path |
+| 3 | 20260608181526 | create_documents_storage_bucket |
+| 4 | 20260608182419 | secure_rls_auto_enable_revoke_execute |
+| 5 | 20260608182435 | phase2_dossiers_formatrice_referent_et_declencheur |
+| 6 | 20260608185920 | view_conventions_a_relancer |
+| 7 | 20260609105545 | create_formules_reference |
+| 8 | 20260609125337 | create_positionnements |
+| 9 | 20260609130955 | positionnements_token_statut |
+| 10 | 20260609184319 | contractualisation_db_webhook |
+| 11 | 20260609190601 | pont_positionnement_to_dossier |
+| 12 | 20260609191045 | cloture_db_webhook |
+| 13 | 20260609191658 | gate_service_fait_heures |
+| 14 | 20260609191834 | relance_conventions_function |
+| 15 | 20260609191901 | schedule_relance_cron |
+| 16 | 20260609192140 | harden_function_execute_grants |
+| 17 | 20260609193703 | dossiers_add_token |
+| 18 | 20260609203021 | positionnement_identite_complete |
+| 19 | 20260609203702 | positionnement_identite_complete |
+| 20 | 20260612090838 | creation_table_remarques_suivi_dossier |
+| 21 | 20260612102522 | creation_table_completions_pieces |
+| 22 | 20260612103513 | creation_table_satisfactions |
+| 23 | 20260612111054 | fondations_examens_bpf_journal |
+| 24 | 20260612111125 | correction_ordre_trigger_ventes_examen |
+| 25 | 20260612113550 | ventes_examen_reste_a_payer |
+| 26 | 20260612120707 | creation_factures_sequence_inviolable |
+| 27 | 20260612141714 | classement_cache |
+| 28 | 20260613083926 | archives_generated_at_on_update |
+| 29 | 20260613085519 | emargement_digital_b1 |
+| 30 | 20260613104601 | edof_import_tables |
+| 31 | 20260613110520 | bpf_socle |
+| 32 | 20260613111652 | bpf_depots_reference |
+| 33 | 20260613131543 | elargir_mode_paiement_en_ligne |
+| 34 | 20260613132156 | brique0_schema_intake_examens |
+| 35 | 20260613132557 | brique0_seed_sessions_examen |
+| 36 | 20260613145141 | create_table_examens |
+| 37 | 20260613151207 | docuseal_2d0_signature_tracking |
+| 38 | 20260613153044 | docuseal_2d0_cleanup |
+| 39 | 20260613155647 | create_table_commerciaux |
+| 40 | 20260613164325 | create_view_candidats_examen |
+| 41 | 20260613164838 | attestations_tef_et_vue |
+| 42 | 20260613170322 | create_table_taches |
+| 43 | 20260613171927 | planning_absence_fields |
+| 44 | 20260613201316 | utilisateurs_comptes_individuels |
+| 45 | 20260613223630 | resultats_examen_cle_candidat_v2 |
+| 46 | 20260613223907 | resultats_examen_correctif |
+| 47 | 20260613225527 | alertes_participation_identite_cpf |
+| 48 | 20260613231919 | veille_registre |
+| 49 | 20260613232438 | faq_interne |
+| 50 | 20260613233034 | satisfaction_seance |
+| 51 | 20260613233938 | contenu_pedagogique |
+| 52 | 20260613234716 | conges_demandes |
+| 53 | 20260613235124 | planning_employes |
+| 54 | 20260613235415 | pointages |
+| 55 | 20260614000247 | programmes_sequencage |
+| 56 | 20260614001400 | dossiers_satisfaction_froid_envoyee |
+| 57 | 20260614002349 | dossiers_cpf_identite_rappel |
+| 58 | 20260614092924 | formateurs_fondation |
+| 59 | 20260614095702 | messages_prospects |
+| 60 | 20260614105621 | rate_limiting |
