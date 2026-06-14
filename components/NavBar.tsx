@@ -6,7 +6,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 
-const PAGES_SANS_NAV = ["/connexion", "/qcm", "/positionnement", "/suivi", "/evaluation", "/fiche-besoin", "/emargement/signer", "/satisfaction", "/formateur-questionnaire"];
+const PAGES_SANS_NAV = ["/connexion", "/qcm", "/positionnement", "/suivi", "/evaluation", "/fiche-besoin", "/emargement/signer", "/satisfaction", "/formateur-questionnaire", "/contact"];
 
 type Lien = { href: string; label: string };
 type Entree = { type: "link"; href: string; label: string } | { type: "menu"; label: string; items: Lien[] };
@@ -35,6 +35,7 @@ const NAV: Entree[] = [
       { href: "/bpf", label: "BPF" },
       { href: "/equipe", label: "Équipe" },
       { href: "/formateurs", label: "Formateurs" },
+      { href: "/messages", label: "Messages" },
       { href: "/veille", label: "Veille" },
       { href: "/faq", label: "FAQ" },
       { href: "/comptes", label: "Comptes" },

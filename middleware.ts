@@ -24,6 +24,8 @@ const CHEMINS_PUBLICS = [
   "/api/emargement/signer", // dépôt de signature (jeton stagiaire OU session formatrice)
   "/formateur-questionnaire",     // questionnaire formateur en ligne (jeton)
   "/api/formateur-questionnaire", // dépôt des réponses (jeton vérifié côté serveur)
+  "/contact",                     // formulaire public « Écrivez-nous » (prospects)
+  "/api/contact",                 // dépôt message prospect (GET/PATCH protégés dans la route)
 ];
 
 export async function middleware(req: NextRequest) {
