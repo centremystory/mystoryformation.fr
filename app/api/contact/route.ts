@@ -9,6 +9,7 @@ import { requireUser, UnauthorizedError } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { envoyerEmail, gabaritEmail } from "@/lib/email";
 import { journal } from "@/lib/examens";
+import { ipDe, limiteDepassee } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,6 +28,11 @@ async function notifierSlack(nom: string, email: string, message: string) {
 export async function POST(req: NextRequest) {
   let b: any;
   try { b = await req.json(); } catch { return NextResponse.json({ ok: false, erreur: "JSON invalide." }, { status: 400 }); }
+
+  // Anti-spam : 5 envois / 10 min par IP.
+  if (await limiteDepassee(`contact:${ipDe(req)}`, 5, 600)) {
+    return NextResponse.json({ ok: false, erreur: "Trop de messages envoyés. Réessayez plus tard." }, { status: 429 });
+  }
 
   // Honeypot anti-bot : si « website » est rempli, on fait comme si tout allait bien (sans rien stocker).
   if (String(b?.website ?? "").trim()) return NextResponse.json({ ok: true });

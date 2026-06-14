@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { SignJWT } from "jose";
 import bcrypt from "bcryptjs";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { ipDe, limiteDepassee } from "@/lib/rateLimit";
 
 /**
  * MYSTORY — Connexion (v3, comptes individuels + filet équipe).
@@ -28,6 +29,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ erreur: "Configuration serveur incomplète (AUTH_SECRET)." }, { status: 500 });
   }
   const secret = new TextEncoder().encode(process.env.AUTH_SECRET);
+
+  // Anti-bruteforce : 10 tentatives / 10 min par IP (couvre login individuel ET mot de passe d'équipe).
+  const ip = ipDe(req);
+  if (await limiteDepassee(`login:${ip}`, 10, 600)) {
+    return NextResponse.json({ erreur: "Trop de tentatives. Réessayez dans quelques minutes." }, { status: 429 });
+  }
 
   const corps = await req.json().catch(() => ({} as { email?: string; motDePasse?: string }));
   const email = typeof corps?.email === "string" ? corps.email.trim() : "";
