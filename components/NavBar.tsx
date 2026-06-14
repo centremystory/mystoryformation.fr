@@ -1,77 +1,114 @@
 "use client";
-// components/NavBar.tsx — Barre de navigation du CRM MYSTORY (architecture 2 espaces)
-// 6 entrées : Accueil · Formation · Examen · Factures · BPF · Équipe.
-// La navigation fine se fait dans les pages hub /formation et /examen (fini les boutons éparpillés).
+// components/NavBar.tsx — Navigation regroupée du CRM MYSTORY.
+// 5 entrées de haut niveau ; les groupes ouvrent une sous-barre (robuste mobile, pas de menu coupé).
 // Masquée sur la connexion et les pages publiques (QCM candidat, pages stagiaires par jeton).
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
 
 const PAGES_SANS_NAV = ["/connexion", "/qcm", "/positionnement", "/suivi", "/evaluation", "/fiche-besoin", "/emargement/signer", "/satisfaction"];
 
-const LIENS = [
-  { href: "/", label: "Accueil" },
-  { href: "/formation", label: "🎓 Formation" },
-  { href: "/examen", label: "📝 Examen" },
-  { href: "/factures", label: "Factures" },
-  { href: "/bpf", label: "BPF" },
-  { href: "/equipe", label: "Équipe" },
-  { href: "/veille", label: "Veille" },
-  { href: "/faq", label: "FAQ" },
-  { href: "/satisfaction-cours", label: "Satisfaction" },
-  { href: "/contenu-pedagogique", label: "Pédagogie" },
-  { href: "/programmes", label: "Séquençage" },
-  { href: "/conges", label: "Congés" },
-  { href: "/planning-employes", label: "Planning équipe" },
-  { href: "/pointage", label: "Pointage" },
-  { href: "/comptes", label: "Comptes" },
+type Lien = { href: string; label: string };
+type Entree = { type: "link"; href: string; label: string } | { type: "menu"; label: string; items: Lien[] };
+
+const NAV: Entree[] = [
+  { type: "link", href: "/", label: "Accueil" },
+  {
+    type: "menu", label: "🎓 Formation", items: [
+      { href: "/formation", label: "Espace Formation" },
+      { href: "/satisfaction-cours", label: "Satisfaction" },
+      { href: "/contenu-pedagogique", label: "Pédagogie" },
+      { href: "/programmes", label: "Séquençage" },
+    ],
+  },
+  { type: "link", href: "/examen", label: "📝 Examen" },
+  {
+    type: "menu", label: "RH", items: [
+      { href: "/conges", label: "Congés" },
+      { href: "/planning-employes", label: "Planning équipe" },
+      { href: "/pointage", label: "Pointage" },
+    ],
+  },
+  {
+    type: "menu", label: "Gestion", items: [
+      { href: "/factures", label: "Factures" },
+      { href: "/bpf", label: "BPF" },
+      { href: "/equipe", label: "Équipe" },
+      { href: "/veille", label: "Veille" },
+      { href: "/faq", label: "FAQ" },
+      { href: "/comptes", label: "Comptes" },
+    ],
+  },
 ];
 
 export default function NavBar() {
   const pathname = usePathname();
   const router = useRouter();
+  const [ouvert, setOuvert] = useState<string | null>(null);
 
-  if (PAGES_SANS_NAV.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
-    return null;
-  }
+  if (PAGES_SANS_NAV.some((p) => pathname === p || pathname.startsWith(p + "/"))) return null;
+
+  const estActif = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
+  const groupeActif = (items: Lien[]) => items.some((i) => estActif(i.href));
 
   async function quitter() {
     try { await fetch("/api/auth/logout", { method: "POST" }); } catch {}
     router.push("/connexion");
   }
 
+  const groupeOuvert = NAV.find((e) => e.type === "menu" && e.label === ouvert) as Extract<Entree, { type: "menu" }> | undefined;
+
   return (
     <nav className="bg-mystory text-white">
       <div className="max-w-5xl mx-auto px-4 md:px-6 h-14 flex items-center gap-1">
-        <Link href="/" className="flex items-center gap-2 mr-4 shrink-0">
+        <Link href="/" onClick={() => setOuvert(null)} className="flex items-center gap-2 mr-3 shrink-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/embleme-blanc.png" alt="MYSTORY" className="h-8 w-auto" />
           <span className="font-semibold tracking-wide whitespace-nowrap">MYSTORY</span>
         </Link>
+
         <div className="flex items-center gap-1 overflow-x-auto">
-          {LIENS.map((l) => {
-            const actif = l.href === "/" ? pathname === "/" : pathname.startsWith(l.href);
+          {NAV.map((e) => {
+            if (e.type === "link") {
+              const actif = estActif(e.href);
+              return (
+                <Link key={e.href} href={e.href} onClick={() => setOuvert(null)}
+                  className={`px-3 py-1.5 rounded-md text-sm whitespace-nowrap transition-colors ${actif ? "bg-white/20 text-white" : "text-blue-100 hover:bg-white/10 hover:text-white"}`}>
+                  {e.label}
+                </Link>
+              );
+            }
+            const actif = groupeActif(e.items) || ouvert === e.label;
             return (
-              <Link
-                key={l.href}
-                href={l.href}
-                className={`px-3 py-1.5 rounded-md text-sm whitespace-nowrap transition-colors ${
-                  actif ? "bg-white/20 text-white" : "text-blue-100 hover:bg-white/10 hover:text-white"
-                }`}
-              >
-                {l.label}
-              </Link>
+              <button key={e.label} onClick={() => setOuvert((o) => (o === e.label ? null : e.label))}
+                className={`px-3 py-1.5 rounded-md text-sm whitespace-nowrap transition-colors ${actif ? "bg-white/20 text-white" : "text-blue-100 hover:bg-white/10 hover:text-white"}`}>
+                {e.label} <span className="text-xs">{ouvert === e.label ? "▴" : "▾"}</span>
+              </button>
             );
           })}
         </div>
-        <button
-          onClick={quitter}
-          className="ml-auto px-3 py-1.5 rounded-md text-sm text-blue-100 hover:bg-white/10 hover:text-white whitespace-nowrap"
-        >
+
+        <button onClick={quitter} className="ml-auto px-3 py-1.5 rounded-md text-sm text-blue-100 hover:bg-white/10 hover:text-white whitespace-nowrap">
           Quitter
         </button>
       </div>
+
+      {/* Sous-barre du groupe ouvert */}
+      {groupeOuvert && (
+        <div className="bg-mystory border-t border-white/15">
+          <div className="max-w-5xl mx-auto px-4 md:px-6 py-2 flex items-center gap-1 overflow-x-auto">
+            {groupeOuvert.items.map((i) => {
+              const actif = estActif(i.href);
+              return (
+                <Link key={i.href} href={i.href} onClick={() => setOuvert(null)}
+                  className={`px-3 py-1.5 rounded-md text-sm whitespace-nowrap transition-colors ${actif ? "bg-white text-mystory font-medium" : "text-blue-100 hover:bg-white/10 hover:text-white"}`}>
+                  {i.label}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </nav>
   );
 }
-
-
