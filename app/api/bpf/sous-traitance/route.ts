@@ -11,7 +11,8 @@ import { journal } from "@/lib/examens";
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
-  try { await requireUser(req); }
+  let u;
+  try { u = await requireUser(req); }
   catch (e) {
     if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
     throw e;
@@ -35,6 +36,6 @@ export async function POST(req: NextRequest) {
   };
   const { data, error } = await supabaseAdmin.from("sous_traitance").insert(ligne).select("id").single();
   if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
-  await journal("sous_traitance", (data as any).id, "ajout", { prestataire, annee, montant, sens });
+  await journal("sous_traitance", (data as any).id, "ajout", { prestataire, annee, montant, sens }, u?.email ?? null);
   return NextResponse.json({ ok: true, id: (data as any).id });
 }

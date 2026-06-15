@@ -50,7 +50,8 @@ function nomFichier(piece: string, prenom?: string, nom?: string): string {
 }
 
 export async function POST(req: NextRequest) {
-  try { await requireUser(req); }
+  let u;
+  try { u = await requireUser(req); }
   catch (e) {
     if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
     throw e;
@@ -101,7 +102,7 @@ export async function POST(req: NextRequest) {
 
   // Repli drapeau : email désactivé → on ne casse rien, on signale.
   if (!EMAIL_ACTIF) {
-    await journal("dossier", dossierId, "envoi_dossier_canal_inactif", { nb: piecesJointes.length });
+    await journal("dossier", dossierId, "envoi_dossier_canal_inactif", { nb: piecesJointes.length }, u?.email ?? null);
     return NextResponse.json(
       { ok: false, status: "canal_inactif", erreur: "Envoi email désactivé : identifiants SMTP (SMTP_USER / SMTP_PASS) absents des variables d'environnement Vercel." },
       { status: 503 },
@@ -128,9 +129,9 @@ export async function POST(req: NextRequest) {
   });
 
   if (res.ok) {
-    await journal("dossier", dossierId, "documents_envoyes_stagiaire", { nb: piecesJointes.length, pieces: inclus, email: f.email });
+    await journal("dossier", dossierId, "documents_envoyes_stagiaire", { nb: piecesJointes.length, pieces: inclus, email: f.email }, u?.email ?? null);
     return NextResponse.json({ ok: true, status: "envoye", nbDocuments: piecesJointes.length });
   }
-  await journal("dossier", dossierId, "envoi_dossier_echec", { erreur: res.erreur, nb: piecesJointes.length });
+  await journal("dossier", dossierId, "envoi_dossier_echec", { erreur: res.erreur, nb: piecesJointes.length }, u?.email ?? null);
   return NextResponse.json({ ok: false, status: "echec_email", erreur: res.erreur ?? "Envoi impossible." }, { status: 502 });
 }
