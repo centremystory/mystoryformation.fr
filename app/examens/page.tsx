@@ -38,7 +38,7 @@ export default function PageExamens() {
   const [gen, setGen] = useState({ type: "TEF_IRN", du: "", au: "", capacite: 12 });
   const [genBusy, setGenBusy] = useState(false);
   const [edition, setEdition] = useState<string | null>(null);
-  const [alertes, setAlertes] = useState<{ cci: any[]; acomptes: any[]; convocations_manquantes: any[]; relances: any } | null>(null);
+  const [alertes, setAlertes] = useState<{ cci: any[]; acomptes: any[]; convocations_manquantes: any[]; completude_j3: any[]; relances: any } | null>(null);
   const [editVal, setEditVal] = useState({ capacite: 12, note: "" });
   const [rembMois, setRembMois] = useState(0);
 
@@ -139,6 +139,9 @@ export default function PageExamens() {
           <Link href="/examens/remboursements" className="px-4 py-2 rounded-lg text-sm border border-gray-300 bg-white text-gray-700">
             💶 Remboursements{rembMois > 0 ? ` (${rembMois})` : ""}
           </Link>
+          <Link href="/examens/liste-attente" className="px-4 py-2 rounded-lg text-sm border border-gray-300 bg-white text-gray-700">
+            ⏳ Liste d'attente
+          </Link>
           <button onClick={() => setGenOuvert(!genOuvert)}
                   className="px-4 py-2 rounded-lg text-sm border border-gray-300 bg-white text-gray-700">
             Générer les sessions
@@ -172,7 +175,7 @@ export default function PageExamens() {
         </div>
       )}
 
-      {alertes && (alertes.cci.length > 0 || alertes.acomptes.length > 0 || (alertes.convocations_manquantes?.length ?? 0) > 0 || (alertes.relances?.sans_resultat_saisi?.length ?? 0) > 0) && (
+      {alertes && (alertes.cci.length > 0 || alertes.acomptes.length > 0 || (alertes.convocations_manquantes?.length ?? 0) > 0 || (alertes.completude_j3?.length ?? 0) > 0 || (alertes.relances?.sans_resultat_saisi?.length ?? 0) > 0) && (
         <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-5 text-sm space-y-2">
           <p className="font-semibold text-orange-900">🔔 Alertes du jour</p>
           {alertes.cci.length > 0 && (
@@ -194,6 +197,16 @@ export default function PageExamens() {
               {alertes.convocations_manquantes.map((a: any) => (
                 <p key={a.id} className="text-orange-800">
                   · <strong>{a.stagiaires?.nom}</strong> {a.stagiaires?.prenom} — {a.sessions_examen?.date_examen} {a.sessions_examen?.horaire} · {a.numero_attestation}
+                </p>
+              ))}
+            </div>
+          )}
+          {(alertes.completude_j3?.length ?? 0) > 0 && (
+            <div>
+              <p className="font-medium text-orange-900">⏳ {alertes.completude_j3.length} examen(s) à J-3 avec solde non réglé :</p>
+              {alertes.completude_j3.map((a: any) => (
+                <p key={a.id} className="text-orange-800">
+                  · <strong>{a.stagiaires?.nom}</strong> {a.stagiaires?.prenom} — {a.sessions_examen?.date_examen} {a.sessions_examen?.horaire} · reste {a.reste_a_payer} €
                 </p>
               ))}
             </div>

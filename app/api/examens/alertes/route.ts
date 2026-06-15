@@ -78,11 +78,23 @@ export async function GET(req: NextRequest) {
     .filter((v: any) => v.sessions_examen?.date_examen && v.sessions_examen.date_examen >= aujourdHui)
     .sort((a: any, b: any) => String(a.sessions_examen.date_examen).localeCompare(String(b.sessions_examen.date_examen)));
 
+  // --- Complétude J-3 : examen dans ≤ 3 jours avec solde non réglé
+  const { data: bientot } = await supabaseAdmin
+    .from("ventes_examen")
+    .select("id, numero_attestation, reste_a_payer, statut_paiement, vendu_par, agence, stagiaires:candidat_id (nom, prenom, telephone), sessions_examen:session_id (date_examen, horaire)")
+    .not("statut_paiement", "in", "(\"Remboursé\",\"Annulé\")")
+    .gt("reste_a_payer", 0);
+  const joursCal = (dISO: string) => Math.floor((new Date(dISO + "T00:00:00Z").getTime() - new Date(aujourdHui + "T00:00:00Z").getTime()) / 86400000);
+  const completudeJ3 = (bientot ?? [])
+    .filter((v: any) => v.sessions_examen?.date_examen && joursCal(v.sessions_examen.date_examen) >= 0 && joursCal(v.sessions_examen.date_examen) <= 3)
+    .sort((a: any, b: any) => String(a.sessions_examen.date_examen).localeCompare(String(b.sessions_examen.date_examen)));
+
   return NextResponse.json({
     ok: true,
     cci,
     acomptes: acomptes ?? [],
     convocations_manquantes: convocationsManquantes,
+    completude_j3: completudeJ3,
     relances: {
       echoues_ou_absents: resultatsKo ?? [],
       sans_resultat_saisi: sansResultat,
