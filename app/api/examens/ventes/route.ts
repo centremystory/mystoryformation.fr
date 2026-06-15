@@ -156,7 +156,14 @@ export async function POST(req: NextRequest) {
       await journal("ventes_examen", venteId, "convocation_generee", { numero_attestation: numero }, venduPar);
     }
     envoi = await envoyerDocumentsVente(vc, docs);
-    if (envoi.ok) await journal("ventes_examen", venteId, "convocation_envoyee", { a: email }, venduPar);
+    if (envoi.ok) {
+      await journal("ventes_examen", venteId, "convocation_envoyee", { a: email }, venduPar);
+      const maintenant = new Date().toISOString();
+      const majDocs: Record<string, string> = {};
+      if (docs.some((d) => d.piece === "convocation")) majDocs.convocation_envoyee_le = maintenant;
+      if (docs.some((d) => d.piece === "attestation")) majDocs.attestation_envoyee_le = maintenant;
+      if (Object.keys(majDocs).length) await supabaseAdmin.from("ventes_examen").update(majDocs).eq("id", venteId);
+    }
   } catch (e: any) {
     erreurDocs = e?.message ?? String(e);
     await journal("ventes_examen", venteId, "documents_echec", { erreur: erreurDocs }, venduPar);

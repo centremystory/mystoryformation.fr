@@ -67,10 +67,22 @@ export async function GET(req: NextRequest) {
     (v: any) => v.sessions_examen?.date_examen && v.sessions_examen.date_examen < aujourdHui && !v.resultats_examen?.statut,
   );
 
+  // --- Convocations manquantes : payés, examen à venir, convocation jamais envoyée
+  const { data: payesAvenir } = await supabaseAdmin
+    .from("ventes_examen")
+    .select("id, numero_attestation, statut_paiement, convocation_envoyee_le, vendu_par, agence, stagiaires:candidat_id (nom, prenom, telephone, email), sessions_examen:session_id (date_examen, horaire)")
+    .in("statut_paiement", ["Payé", "Inclus CPF"])
+    .neq("type_examen", "Vente_plateforme")
+    .is("convocation_envoyee_le", null);
+  const convocationsManquantes = (payesAvenir ?? [])
+    .filter((v: any) => v.sessions_examen?.date_examen && v.sessions_examen.date_examen >= aujourdHui)
+    .sort((a: any, b: any) => String(a.sessions_examen.date_examen).localeCompare(String(b.sessions_examen.date_examen)));
+
   return NextResponse.json({
     ok: true,
     cci,
     acomptes: acomptes ?? [],
+    convocations_manquantes: convocationsManquantes,
     relances: {
       echoues_ou_absents: resultatsKo ?? [],
       sans_resultat_saisi: sansResultat,

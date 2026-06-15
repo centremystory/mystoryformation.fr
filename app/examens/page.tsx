@@ -38,7 +38,7 @@ export default function PageExamens() {
   const [gen, setGen] = useState({ type: "TEF_IRN", du: "", au: "", capacite: 12 });
   const [genBusy, setGenBusy] = useState(false);
   const [edition, setEdition] = useState<string | null>(null);
-  const [alertes, setAlertes] = useState<{ cci: any[]; acomptes: any[]; relances: any } | null>(null);
+  const [alertes, setAlertes] = useState<{ cci: any[]; acomptes: any[]; convocations_manquantes: any[]; relances: any } | null>(null);
   const [editVal, setEditVal] = useState({ capacite: 12, note: "" });
 
   const recharger = useCallback(async () => {
@@ -162,7 +162,7 @@ export default function PageExamens() {
         </div>
       )}
 
-      {alertes && (alertes.cci.length > 0 || alertes.acomptes.length > 0 || (alertes.relances?.sans_resultat_saisi?.length ?? 0) > 0) && (
+      {alertes && (alertes.cci.length > 0 || alertes.acomptes.length > 0 || (alertes.convocations_manquantes?.length ?? 0) > 0 || (alertes.relances?.sans_resultat_saisi?.length ?? 0) > 0) && (
         <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-5 text-sm space-y-2">
           <p className="font-semibold text-orange-900">🔔 Alertes du jour</p>
           {alertes.cci.length > 0 && (
@@ -177,6 +177,16 @@ export default function PageExamens() {
           )}
           {alertes.acomptes.length > 0 && (
             <p className="text-orange-800">💶 {alertes.acomptes.length} acompte(s) à solder — {alertes.acomptes.map((a: any) => `${a.stagiaires?.nom} (reste ${a.reste_a_payer} €)`).join(" · ")}</p>
+          )}
+          {(alertes.convocations_manquantes?.length ?? 0) > 0 && (
+            <div>
+              <p className="font-medium text-orange-900">✉️ {alertes.convocations_manquantes.length} convocation(s) manquante(s) (payé, examen à venir) :</p>
+              {alertes.convocations_manquantes.map((a: any) => (
+                <p key={a.id} className="text-orange-800">
+                  · <strong>{a.stagiaires?.nom}</strong> {a.stagiaires?.prenom} — {a.sessions_examen?.date_examen} {a.sessions_examen?.horaire} · {a.numero_attestation}
+                </p>
+              ))}
+            </div>
           )}
           {(alertes.relances?.sans_resultat_saisi?.length ?? 0) > 0 && (
             <p className="text-orange-800">📝 {alertes.relances.sans_resultat_saisi.length} examen(s) passé(s) sans résultat saisi → <Link className="underline" href="/examens/jour">saisir</Link></p>
