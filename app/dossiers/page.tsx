@@ -701,6 +701,11 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
             title="Toutes les valeurs à recopier dans EDOF (Mon Compte Formation), prêtes à copier-coller">
             🪪 Fiche EDOF
           </a>
+          <a href={`/api/dossiers/export-zip?dossier=${d.id}`}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-gray-300 text-gray-700 bg-white hover:border-mystory hover:text-mystory"
+            title="Télécharge le dossier conforme du stagiaire (toutes les pièces archivées, numérotées dans l'ordre) en un ZIP">
+            📦 Dossier conforme (ZIP)
+          </a>
         </div>
       </div>
       {erreurs.length > 0 && (
