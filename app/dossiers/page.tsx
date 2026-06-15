@@ -690,6 +690,11 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
             title="Envoie tous les documents archivés du dossier au stagiaire, en un seul email (pièces jointes PDF)">
             {busy === "__envoi__" ? "Envoi…" : "✉️ Envoyer au stagiaire"}
           </button>
+          <a href={`/dossiers/edof?dossier=${d.id}`}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-gray-300 text-gray-700 bg-white hover:border-mystory hover:text-mystory"
+            title="Toutes les valeurs à recopier dans EDOF (Mon Compte Formation), prêtes à copier-coller">
+            🪪 Fiche EDOF
+          </a>
         </div>
       </div>
       {erreurs.length > 0 && (
