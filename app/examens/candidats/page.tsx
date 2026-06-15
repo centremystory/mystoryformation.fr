@@ -1,4 +1,5 @@
 "use client";
+import { CLASSES_TON } from "@/lib/statutExamen";
 // app/examens/candidats/page.tsx — Candidats d'examen, groupés par session.
 // Lit la vue unifiée (historique import + ventes vivantes). Filtres : type, agence, recherche.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -29,6 +30,7 @@ type Candidat = {
   attestation_nom: string | null;
   attestation_depose_le: string | null;
   resultat?: { statut: string | null; niveau_obtenu: string | null } | null;
+  statut_examen?: { code: string; label: string; ton: string } | null;
 };
 
 const TYPE_LABEL: Record<string, string> = {
@@ -311,6 +313,7 @@ export default function PageCandidatsExamen() {
                       <thead>
                         <tr className="bg-gray-50 text-left text-gray-500 text-xs uppercase tracking-wide">
                           <th className="px-4 py-2 font-medium">Candidat</th>
+                          <th className="px-4 py-2 font-medium">État</th>
                           <th className="px-4 py-2 font-medium">Agence</th>
                           <th className="px-4 py-2 font-medium">Paiement</th>
                           <th className="px-4 py-2 font-medium">N° attest.</th>
@@ -326,6 +329,13 @@ export default function PageCandidatsExamen() {
                               {c.civilite ? `${c.civilite} ` : ""}{c.prenom ? `${c.prenom} ` : ""}{c.nom}
                               {c.a_confirmer && <span className="ml-2 text-xs text-amber-700">⏳ à confirmer</span>}
                               {c.source === "vente" && <span className="ml-2 text-xs text-emerald-700">• vente</span>}
+                            </td>
+                            <td className="px-4 py-2">
+                              {c.statut_examen && (
+                                <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${CLASSES_TON[c.statut_examen.ton as keyof typeof CLASSES_TON] ?? "bg-gray-100 text-gray-600"}`}>
+                                  {c.statut_examen.label}
+                                </span>
+                              )}
                             </td>
                             <td className="px-4 py-2 text-gray-600">{c.agence ?? "—"}</td>
                             <td className="px-4 py-2">
