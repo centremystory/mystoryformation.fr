@@ -266,6 +266,7 @@ export default function PageCandidatsExamen() {
             ["toutes", "Toutes agences"],
             ["Gagny", "Gagny"],
             ["Sarcelles", "Sarcelles"],
+            ["Rosny", "Rosny"],
           ] as const).map(([v, l]) => (
             <button key={v} onClick={() => setFAgence(v)}
               className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${

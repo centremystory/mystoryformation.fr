@@ -168,6 +168,7 @@ export default function PageDossiers() {
             ["toutes", "Toutes agences"],
             ["Gagny", "Gagny"],
             ["Sarcelles", "Sarcelles"],
+            ["Rosny", "Rosny"],
           ] as const).map(([v, l]) => (
             <button
               key={v}

@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
       nom: inscription.nom, prenom: inscription.prenom,
       email: inscription.email, telephone: inscription.telephone,
       adresse: stagiaire.adresse ?? null, cp: stagiaire.cp ?? null, ville: stagiaire.ville ?? null,
-      agence: inscription.agenceInscription === "SARCELLES" ? "Sarcelles" : "Gagny",
+      agence: inscription.agenceInscription === "SARCELLES" ? "Sarcelles" : inscription.agenceInscription === "ROSNY" ? "Rosny" : "Gagny",
       date_naissance: stagiaire.dateNaissance || null,
       ville_naissance: stagiaire.villeNaissance || null,
     },

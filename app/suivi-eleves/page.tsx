@@ -72,7 +72,7 @@ export default function PageSuiviEleves() {
         <input value={recherche} onChange={(e) => setRecherche(e.target.value)} placeholder="Rechercher un élève…"
           className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-56 bg-white" />
         <div className="flex gap-1.5">
-          {([["toutes", "Toutes agences"], ["Gagny", "Gagny"], ["Sarcelles", "Sarcelles"]] as const).map(([v, l]) => (
+          {([["toutes", "Toutes agences"], ["Gagny", "Gagny"], ["Sarcelles", "Sarcelles"], ["Rosny", "Rosny"]] as const).map(([v, l]) => (
             <button key={v} onClick={() => setFAgence(v)}
               className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
                 fAgence === v ? "bg-mystory text-white border-mystory" : "bg-white text-gray-600 border-gray-300 hover:border-mystory hover:text-mystory"

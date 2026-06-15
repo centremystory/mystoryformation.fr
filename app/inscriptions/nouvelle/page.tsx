@@ -116,7 +116,7 @@ export default function NouvelleInscription() {
             <option>A1</option><option>A2</option><option>B1</option><option>B2</option></select></div>
         <div><label className={label}>Agence d'inscription (interne)</label>
           <select className={champ} value={form.agenceInscription} onChange={e => set("agenceInscription", e.target.value)}>
-            <option value="GAGNY">Gagny</option><option value="SARCELLES">Sarcelles</option></select></div>
+            <option value="GAGNY">Gagny</option><option value="SARCELLES">Sarcelles</option><option value="ROSNY">Rosny</option></select></div>
         <div><label className={label}>Formatrice référente *</label>
           <select className={champ} value={form.formatriceId} onChange={e => set("formatriceId", e.target.value)}>
             <option value="">— choisir —</option>
