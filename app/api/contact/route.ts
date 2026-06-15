@@ -61,6 +61,21 @@ export async function POST(req: NextRequest) {
     });
   } catch (e) { console.warn("[contact] email ignoré:", String(e)); }
 
+  // Accusé de réception au prospect (best-effort, si email fourni).
+  if (email) {
+    try {
+      await envoyerEmail({
+        a: email,
+        objet: "Nous avons bien reçu votre message — MYSTORY",
+        html: gabaritEmail("Message bien reçu", `
+          <p>Bonjour${nom ? " " + nom.replace(/</g, "&lt;") : ""},</p>
+          <p>Merci de nous avoir contactés. Nous avons bien reçu votre message et notre équipe vous répondra dans les meilleurs délais.</p>
+          <p>À très bientôt,<br>L'équipe MYSTORY Formation</p>`),
+        entite: "message_prospect", entiteId: (data as any).id, auteur: "accuse-reception",
+      });
+    } catch (e) { console.warn("[contact] accusé ignoré:", String(e)); }
+  }
+
   return NextResponse.json({ ok: true });
 }
 
