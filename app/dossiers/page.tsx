@@ -125,7 +125,13 @@ export default function PageDossiers() {
   return (
     <main className="max-w-5xl mx-auto px-4 md:px-6 py-8">
       <header className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Suivi des dossiers</h1>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h1 className="text-2xl font-bold text-gray-900">Suivi des dossiers</h1>
+          <a href="/dossiers/conformite"
+             className="px-3 py-1.5 rounded-lg text-sm font-medium border border-mystory text-mystory bg-white hover:bg-mystory hover:text-white">
+            🛡️ Scanner de conformité
+          </a>
+        </div>
         <p className="text-sm text-gray-500 mt-1">
           L'état de conformité de chaque dossier — clique sur une ligne pour générer les documents et suivre les pièces.
         </p>
