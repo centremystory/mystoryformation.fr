@@ -40,6 +40,7 @@ export default function PageExamens() {
   const [edition, setEdition] = useState<string | null>(null);
   const [alertes, setAlertes] = useState<{ cci: any[]; acomptes: any[]; convocations_manquantes: any[]; relances: any } | null>(null);
   const [editVal, setEditVal] = useState({ capacite: 12, note: "" });
+  const [rembMois, setRembMois] = useState(0);
 
   const recharger = useCallback(async () => {
     setErreur(null);
@@ -58,6 +59,12 @@ export default function PageExamens() {
   useEffect(() => {
     fetch("/api/examens/alertes", { cache: "no-store" }).then((r) => r.json())
       .then((j) => { if (j.ok) setAlertes(j); }).catch(() => {});
+    fetch("/api/examens/remboursements", { cache: "no-store" }).then((r) => r.json())
+      .then((j) => {
+        if (!j.ok) return;
+        const m = new Date().toISOString().slice(0, 7);
+        setRembMois((j.remboursements ?? []).filter((x: any) => String(x.cree_le).slice(0, 7) === m).length);
+      }).catch(() => {});
   }, []);
 
   const visibles = useMemo(
@@ -128,6 +135,9 @@ export default function PageExamens() {
           </Link>
           <Link href="/examens/taux" className="px-4 py-2 rounded-lg text-sm border border-gray-300 bg-white text-gray-700">
             📊 Taux de réussite
+          </Link>
+          <Link href="/examens/remboursements" className="px-4 py-2 rounded-lg text-sm border border-gray-300 bg-white text-gray-700">
+            💶 Remboursements{rembMois > 0 ? ` (${rembMois})` : ""}
           </Link>
           <button onClick={() => setGenOuvert(!genOuvert)}
                   className="px-4 py-2 rounded-lg text-sm border border-gray-300 bg-white text-gray-700">
