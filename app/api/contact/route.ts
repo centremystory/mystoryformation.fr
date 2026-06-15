@@ -42,6 +42,9 @@ export async function POST(req: NextRequest) {
   const email = String(b?.email ?? "").trim();
   if (message.length < 2) return NextResponse.json({ ok: false, erreur: "Message vide." }, { status: 400 });
   if (message.length > 5000) return NextResponse.json({ ok: false, erreur: "Message trop long." }, { status: 400 });
+  if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    return NextResponse.json({ ok: false, erreur: "Adresse email invalide." }, { status: 400 });
+  }
 
   const { data, error } = await supabaseAdmin
     .from("messages_prospects").insert({ nom: nom || null, email: email || null, message, source: "site" }).select("id").single();

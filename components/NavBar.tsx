@@ -40,6 +40,7 @@ const NAV: Entree[] = [
       { href: "/veille", label: "Veille" },
       { href: "/faq", label: "FAQ" },
       { href: "/comptes", label: "Comptes" },
+      { href: "/incidents", label: "Incidents" },
     ],
   },
 ];

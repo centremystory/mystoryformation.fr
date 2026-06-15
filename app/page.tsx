@@ -29,7 +29,7 @@ async function compter() {
 }
 
 async function aTraiter() {
-  const zero = { participation: 0, identite: 0, conges: 0, messages: 0, formateurDocs: 0 };
+  const zero = { participation: 0, identite: 0, conges: 0, messages: 0, formateurDocs: 0, incidents: 0 };
   try {
     const estCpf = (d: any) => d.financement === "CPF" || d.origine_fonds === "CPF_CDC";
     const [dossiers, conges, messages, fdocs] = await Promise.all([
@@ -38,6 +38,7 @@ async function aTraiter() {
       supabaseAdmin.from("messages_prospects").select("id", { count: "exact", head: true }).eq("statut", "nouveau"),
       supabaseAdmin.from("formateur_documents").select("id", { count: "exact", head: true }).eq("statut", "envoye_a_signer"),
     ]);
+    const incidents = await supabaseAdmin.from("incidents_techniques").select("id", { count: "exact", head: true }).eq("resolu", false);
     const cpf = (dossiers.data ?? []).filter(estCpf);
     return {
       participation: cpf.filter((d: any) => !d.participation_forfaitaire_reglee && !d.participation_forfaitaire_exemptee).length,
@@ -45,6 +46,7 @@ async function aTraiter() {
       conges: conges.count ?? 0,
       messages: messages.count ?? 0,
       formateurDocs: fdocs.count ?? 0,
+      incidents: incidents.count ?? 0,
     };
   } catch { return zero; }
 }
@@ -72,6 +74,7 @@ export default async function Accueil() {
     { label: "Documents formateur à signer", n: t.formateurDocs, href: "/formateurs" },
     { label: "Formatrices sans justificatif FLE (séance à venir)", n: cf.fleManquant.length, href: "/equipe" },
     { label: "Charte/contrat formateur à signer (séance à venir)", n: cf.docsManquant.length, href: "/formateurs" },
+    { label: "Incidents techniques", n: t.incidents, href: "/incidents" },
   ].filter((a) => a.n > 0);
   const heure = new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit" });
   const salut = parseInt(heure) < 18 ? "Bonjour" : "Bonsoir";

@@ -18,6 +18,7 @@
  */
 import nodemailer, { type Transporter } from "nodemailer";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { consignerIncident } from "@/lib/incidents";
 
 const SMTP_HOST = process.env.SMTP_HOST ?? "smtp.ionos.fr";
 const SMTP_PORT = Number(process.env.SMTP_PORT ?? "465");
@@ -110,6 +111,7 @@ export async function envoyerEmail(e: EnvoiEmail): Promise<{ ok: boolean; erreur
   } catch (err: any) {
     const erreur = err?.message || "Erreur SMTP lors de l'envoi.";
     await journaliser("email_echec", e, { erreur });
+    await consignerIncident("email", `Échec d'envoi : ${e.objet}`, erreur, { a: e.a });
     return { ok: false, erreur };
   }
 }
