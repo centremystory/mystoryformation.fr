@@ -29,7 +29,7 @@ type Candidat = {
   date_inscription: string | null;
   attestation_nom: string | null;
   attestation_depose_le: string | null;
-  resultat?: { statut: string | null; niveau_obtenu: string | null } | null;
+  resultat?: { statut: string | null; niveau_obtenu: string | null; commentaire?: string | null } | null;
   statut_examen?: { code: string; label: string; ton: string } | null;
 };
 
@@ -365,7 +365,12 @@ export default function PageCandidatsExamen() {
                               )}
                             </td>
                             <td className="px-4 py-2 text-gray-600">{c.vendu_par ?? "—"}</td>
-                            <td className="px-4 py-2"><SaisieResultat c={c} /></td>
+                            <td className="px-4 py-2">
+                              <SaisieResultat c={c} />
+                              {c.resultat?.commentaire && (
+                                <p className="mt-1 text-xs text-gray-500 italic max-w-xs whitespace-pre-wrap" title="Commentaire / mention (saisi au Jour J)">💬 {c.resultat.commentaire}</p>
+                              )}
+                            </td>
                           </tr>
                         ))}
                       </tbody>

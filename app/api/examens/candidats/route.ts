@@ -23,7 +23,7 @@ export async function GET(_req: NextRequest) {
   // Résultats saisis : ventes mappées par vente_id, candidats importés par examen_ref+source.
   const { data: resultats } = await supabaseAdmin
     .from("resultats_examen")
-    .select("vente_id, examen_ref, source, statut, niveau_obtenu, envoye_le");
+    .select("vente_id, examen_ref, source, statut, niveau_obtenu, envoye_le, commentaire");
   const parVente = new Map<string, any>();
   const parImport = new Map<string, any>();
   for (const r of (resultats ?? []) as any[]) {
@@ -33,7 +33,7 @@ export async function GET(_req: NextRequest) {
 
   const candidats = (data ?? []).map((c: any) => {
     const r = c.source === "vente" ? parVente.get(c.id) : parImport.get(c.id);
-    const resultat = r ? { statut: r.statut, niveau_obtenu: r.niveau_obtenu, envoye_le: r.envoye_le } : null;
+    const resultat = r ? { statut: r.statut, niveau_obtenu: r.niveau_obtenu, envoye_le: r.envoye_le, commentaire: r.commentaire } : null;
     const statut = statutExamen({ statut_paiement: c.statut_paiement, date_examen: c.date_examen, resultat });
     return { ...c, resultat, statut_examen: statut };
   });
