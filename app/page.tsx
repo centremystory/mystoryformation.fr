@@ -62,9 +62,7 @@ function Compteur({ libelle, valeur, accent }: { libelle: string; valeur: string
 }
 
 export default async function Accueil() {
-  const c = await compter();
-  const t = await aTraiter();
-  const cf = await conformiteFormateurs();
+  const [c, t, cf] = await Promise.all([compter(), aTraiter(), conformiteFormateurs()]);
   const actions = [
     { label: "Conventions à relancer", n: c.aRelancer, href: "/formation" },
     { label: "Participations 150 € à régler", n: t.participation, href: "/formation" },
