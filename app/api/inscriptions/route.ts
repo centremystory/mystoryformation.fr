@@ -6,6 +6,8 @@ import {
   CATALOGUE, CRENEAUX, CodeFormule, Creneau,
   validerInscription, validerPlanning,
 } from "@/lib/inscriptions/regles";
+import { requireUser, UnauthorizedError } from "@/lib/auth";
+import { journal } from "@/lib/examens";
 
 // ⚠️ Même garde que le reste du CRM : à remplacer par la vraie vérification de session.
 const AUTH_BACKEND_WIRED = true;
@@ -40,7 +42,12 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  if (!authOk(req)) return NextResponse.json({ erreur: "Non autorisé" }, { status: 401 });
+  let u;
+  try { u = await requireUser(req); }
+  catch (e) {
+    if (e instanceof UnauthorizedError) return NextResponse.json({ erreur: "Non autorisé" }, { status: 401 });
+    throw e;
+  }
 
   let body: any;
   try { body = await req.json(); }
@@ -120,6 +127,11 @@ export async function POST(req: NextRequest) {
       : "Erreur lors de la création. Aucune donnée n'a été enregistrée (transaction annulée).";
     return NextResponse.json({ ok: false, erreurs: [msg] }, { status: 500 });
   }
+
+  await journal("dossier", (data as any)?.dossier_id ?? (data as any)?.id ?? null, "inscription_creee", {
+    certif: inscription.certification, financement: inscription.financement,
+    formule: inscription.formule, agence: inscription.agenceInscription,
+  }, u.email ?? null);
 
   return NextResponse.json({ ok: true, ...data }, { status: 201 });
 }
