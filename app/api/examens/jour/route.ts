@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
   if (ids.length > 0) {
     const { data, error: vErr } = await supabaseAdmin
       .from("ventes_examen")
-      .select("id, session_id, type_examen, sous_type, statut_paiement, reste_a_payer, inscrit_cci, numero_attestation, vendu_par, agence, stagiaires:candidat_id (civilite, nom, prenom, email, telephone), resultats_examen (statut, niveau_obtenu, envoye_le)")
+      .select("id, session_id, type_examen, sous_type, statut_paiement, reste_a_payer, inscrit_cci, numero_attestation, vendu_par, agence, stagiaires:candidat_id (civilite, nom, prenom, email, telephone), resultats_examen (statut, niveau_obtenu, envoye_le, commentaire)")
       .in("session_id", ids)
       .not("statut_paiement", "in", "(\"Remboursé\",\"Annulé\")")
       .order("created_at");
@@ -61,6 +61,7 @@ export async function GET(req: NextRequest) {
         resultat: v.resultats_examen?.statut ?? null,
         niveau_obtenu: v.resultats_examen?.niveau_obtenu ?? null,
         resultat_envoye: v.resultats_examen?.envoye_le ?? null,
+        commentaire: v.resultats_examen?.commentaire ?? null,
       })),
   }));
 

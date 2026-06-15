@@ -16,6 +16,7 @@ interface Candidat {
   email: string; telephone: string; sous_type: string | null; type_examen: string;
   inscrit_cci: boolean; statut_paiement: string; reste_a_payer: number;
   resultat: string | null; niveau_obtenu: string | null; resultat_envoye: string | null;
+  commentaire: string | null;
 }
 interface SessionJour {
   id: string; type: string; horaire: string; capacite: number; note: string | null; candidats: Candidat[];
@@ -75,6 +76,25 @@ export default function PageJourJ() {
       const j = await r.json();
       if (!j.ok) throw new Error(j.erreur);
       await recharger();
+    } catch (e: any) { setErreur(e?.message); } finally { setBusy(null); }
+  }
+
+  async function saisirCommentaire(c: Candidat, valeur: string) {
+    const v = valeur.trim();
+    if ((c.commentaire ?? "") === v) return; // pas de changement → pas d'appel
+    setBusy(c.venteId); setErreur(null);
+    try {
+      const r = await fetch("/api/examens/resultats", {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ venteId: c.venteId, commentaire: v, auteur }),
+      });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.erreur);
+      // MAJ locale (évite un recharger complet qui ferait perdre le focus)
+      setSessions((prev) => prev.map((s) => ({
+        ...s,
+        candidats: s.candidats.map((x) => x.venteId === c.venteId ? { ...x, commentaire: v || null } : x),
+      })));
     } catch (e: any) { setErreur(e?.message); } finally { setBusy(null); }
   }
 
@@ -181,6 +201,16 @@ export default function PageJourJ() {
                           )}
                           {c.resultat_envoye && <span className="text-xs text-green-700" title="Résultat envoyé">📧✓</span>}
                         </div>
+                        {c.resultat && (
+                          <input
+                            type="text"
+                            defaultValue={c.commentaire ?? ""}
+                            disabled={busy === c.venteId}
+                            onBlur={(e) => saisirCommentaire(c, e.target.value)}
+                            placeholder="Commentaire (mention, motif d'absence…)"
+                            className="mt-1 w-56 border border-gray-300 rounded px-2 py-1 text-xs bg-white"
+                          />
+                        )}
                       </td>
                       <td className="px-2 py-2 hidden print:table-cell"><div className="border-b border-dotted border-black h-6"></div></td>
                     </tr>

@@ -83,6 +83,42 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: false, erreur: "venteId ou (examenRef + source) requis." }, { status: 400 });
 }
 
+/**
+ * PATCH { venteId, commentaire } → met à jour UNIQUEMENT le commentaire d'un résultat déjà saisi.
+ * N'altère ni `statut` ni `envoye_le` (pas de ré-armement de l'envoi). Le commentaire s'attache
+ * à une ligne résultat existante (la contrainte CHECK impose un statut non-null sur la ligne).
+ */
+export async function PATCH(req: NextRequest) {
+  let u;
+  try { u = await requireUser(req); }
+  catch (e) {
+    if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Non authentifié" }, { status: 401 });
+    throw e;
+  }
+  let body: any;
+  try { body = await req.json(); }
+  catch { return NextResponse.json({ ok: false, erreur: "JSON invalide." }, { status: 400 }); }
+
+  const venteId = String(body?.venteId ?? "").trim();
+  if (!venteId) return NextResponse.json({ ok: false, erreur: "venteId requis." }, { status: 400 });
+  const brut = body?.commentaire == null ? "" : String(body.commentaire).trim();
+  const commentaire = brut.length ? brut.slice(0, 2000) : null;
+  const auteur = u.email ?? (String(body?.auteur ?? "").trim() || null);
+
+  const { data: existant } = await supabaseAdmin
+    .from("resultats_examen").select("id").eq("vente_id", venteId).maybeSingle();
+  if (!existant) {
+    return NextResponse.json({ ok: false, erreur: "Saisir d'abord un résultat avant d'ajouter un commentaire." }, { status: 409 });
+  }
+
+  const { error } = await supabaseAdmin
+    .from("resultats_examen").update({ commentaire }).eq("vente_id", venteId);
+  if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
+
+  await journal("ventes_examen", venteId, "resultat_commentaire", { commentaire }, auteur);
+  return NextResponse.json({ ok: true });
+}
+
 export async function PUT(req: NextRequest) {
   const refus = await garde(req); if (refus) return refus;
   let body: any;
