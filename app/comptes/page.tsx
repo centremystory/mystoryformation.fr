@@ -179,6 +179,39 @@ export default function PageComptes() {
           la connexion par <strong>mot de passe d'équipe</strong> garde un accès complet (filet de sécurité).
         </p>
       </section>
+
+      <SauvegardeSection />
     </main>
+  );
+}
+
+function SauvegardeSection() {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  async function envoyer() {
+    setBusy(true); setMsg(null);
+    try {
+      const r = await fetch("/api/admin/backup", { method: "POST" });
+      const j = await r.json();
+      setMsg(j.ok ? `Sauvegarde envoyée par email (${j.total} lignes, ${j.tables} tables).` : (j.erreur || "Erreur."));
+    } catch { setMsg("Erreur réseau."); } finally { setBusy(false); }
+  }
+  return (
+    <section className="mt-6 border border-gray-200 rounded-xl bg-white p-5">
+      <h2 className="text-lg font-semibold text-gray-900 mb-1">Sauvegarde de la base</h2>
+      <p className="text-sm text-gray-500 mb-3">
+        Export complet des données (un ZIP de fichiers JSON), à conserver hors de Supabase. Une sauvegarde automatique est aussi envoyée chaque semaine par email.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <a href="/api/admin/backup" className="px-4 py-2 rounded-lg bg-mystory text-white text-sm">⬇️ Télécharger une sauvegarde</a>
+        <button onClick={envoyer} disabled={busy} className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm bg-white disabled:opacity-50">
+          {busy ? "Envoi…" : "✉️ Envoyer par email maintenant"}
+        </button>
+      </div>
+      {msg && <p className="mt-2 text-sm text-gray-700">{msg}</p>}
+      <p className="text-xs text-gray-400 mt-3">
+        Les PDF du bucket et les mots de passe ne sont pas inclus. Pour une restauration à un instant T, le plan Supabase Pro (backups quotidiens + PITR) reste recommandé.
+      </p>
+    </section>
   );
 }
