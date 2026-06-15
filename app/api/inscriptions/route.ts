@@ -8,6 +8,7 @@ import {
 } from "@/lib/inscriptions/regles";
 import { requireUser, UnauthorizedError } from "@/lib/auth";
 import { journal } from "@/lib/examens";
+import { envoyerEmail, gabaritEmail } from "@/lib/email";
 
 // ⚠️ Même garde que le reste du CRM : à remplacer par la vraie vérification de session.
 const AUTH_BACKEND_WIRED = true;
@@ -132,6 +133,31 @@ export async function POST(req: NextRequest) {
     certif: inscription.certification, financement: inscription.financement,
     formule: inscription.formule, agence: inscription.agenceInscription,
   }, u.email ?? null);
+
+  // Onboarding stagiaire (best-effort : n'empêche jamais l'inscription).
+  if (inscription.email) {
+    const certifLabel = inscription.certification === "TEF_IRN" ? "TEF IRN" : "LEVELTEL";
+    const prenom = String(inscription.prenom ?? "").replace(/</g, "&lt;");
+    try {
+      await envoyerEmail({
+        a: inscription.email,
+        objet: "Bienvenue chez MYSTORY — votre formation",
+        html: gabaritEmail("Bienvenue !", `
+          <p>Bonjour ${prenom},</p>
+          <p>Votre inscription à la formation préparant la certification <strong>${certifLabel}</strong> est bien enregistrée. Bienvenue chez MYSTORY !</p>
+          <p><strong>Lieu de formation</strong><br>MYSTORY — 3 bis avenue de Gagny, 93220 Gagny</p>
+          <p><strong>Horaires (entrée et sortie libres)</strong><br>Matin : 9h30–12h30 · Après-midi : 14h–17h<br>Vous signez la feuille de présence à chaque venue.</p>
+          <p><strong>Les prochaines étapes</strong></p>
+          <ul>
+            <li>Vous allez recevoir votre <strong>convention</strong> à signer électroniquement (email séparé).</li>
+            <li>Puis votre <strong>convocation</strong> et votre <strong>évaluation initiale</strong> de niveau.</li>
+          </ul>
+          <p>Une question ? Écrivez-nous à contact@mystoryformation.fr ou au 06 81 43 16 54.</p>
+          <p>À très bientôt,<br>L'équipe MYSTORY Formation</p>`),
+        entite: "dossier", entiteId: (data as any)?.dossier_id ?? null, auteur: "onboarding-auto",
+      });
+    } catch (e) { console.warn("[inscriptions] onboarding ignoré:", String(e)); }
+  }
 
   return NextResponse.json({ ok: true, ...data }, { status: 201 });
 }
