@@ -29,6 +29,27 @@ type Commercial = {
   created_at: string;
 };
 
+type Membre = {
+  id: string;
+  prenom: string | null;
+  nom: string;
+  role: string | null;
+  actif: boolean;
+};
+
+// Libellés de fonction (rôles applicatifs -> intitulé lisible affiché sur la page Équipe).
+const FONCTION_LABEL: Record<string, string> = {
+  direction: "Directeur / Direction",
+  pedagogie: "Responsable pédagogique & qualité",
+  secretariat: "Assistante de direction / Secrétariat",
+  communication: "Communication & marketing",
+  formatrice: "Formatrice",
+  commercial: "Développement commercial",
+};
+function fonctionLabel(role: string | null): string {
+  return (role && FONCTION_LABEL[role]) || role || "—";
+}
+
 function dateFr(iso: string | null): string {
   if (!iso) return "";
   const [a, m, j] = iso.split("-");
@@ -38,6 +59,7 @@ function dateFr(iso: string | null): string {
 export default function PageEquipe() {
   const [formatrices, setFormatrices] = useState<Formatrice[]>([]);
   const [commerciaux, setCommerciaux] = useState<Commercial[]>([]);
+  const [membres, setMembres] = useState<Membre[]>([]);
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -62,9 +84,10 @@ export default function PageEquipe() {
   const charger = useCallback(async () => {
     setErreur(null);
     try {
-      const [rF, rC] = await Promise.all([
+      const [rF, rC, rR] = await Promise.all([
         fetch("/api/equipe", { cache: "no-store" }),
         fetch("/api/equipe/commerciaux", { cache: "no-store" }),
+        fetch("/api/equipe/roles", { cache: "no-store" }),
       ]);
       const jF = await rF.json();
       if (!jF.ok) throw new Error(jF.erreur || "Erreur de chargement (formateurs).");
@@ -72,6 +95,9 @@ export default function PageEquipe() {
       const jC = await rC.json();
       if (!jC.ok) throw new Error(jC.erreur || "Erreur de chargement (commerciaux).");
       setCommerciaux(jC.commerciaux);
+      const jR = await rR.json();
+      if (!jR.ok) throw new Error(jR.erreur || "Erreur de chargement (rôles).");
+      setMembres(jR.membres);
     } catch (e: any) {
       setErreur(e?.message || "Erreur de chargement.");
     } finally {
@@ -210,7 +236,7 @@ export default function PageEquipe() {
       <header className="mb-6">
         <h1 className="text-2xl font-bold" style={{ color: BLEU }}>Équipe</h1>
         <p className="text-sm text-gray-600 mt-1">
-          Formateurs et commerciaux de MYSTORY. Aucune suppression — on désactive (traçabilité 5 ans).
+          Rôles &amp; fonctions, formateurs et commerciaux de MYSTORY. Aucune suppression — on désactive (traçabilité 5 ans).
         </p>
       </header>
 
@@ -220,6 +246,42 @@ export default function PageEquipe() {
       {erreur && (
         <div className="mb-4 px-4 py-3 rounded border border-red-200 bg-red-50 text-red-800 text-sm">{erreur}</div>
       )}
+
+      {/* ===================== Section Rôles & responsabilités ===================== */}
+      <section className="mb-12">
+        <h2 className="text-lg font-semibold text-gray-900 mb-1">Rôles &amp; responsabilités</h2>
+        <p className="text-sm text-gray-600 mb-4">
+          Fonctions de l'équipe (Direction, pédagogie, secrétariat, communication…). Affichage en lecture seule —
+          la gestion des comptes et des accès se fait dans <span className="font-medium">Comptes &amp; accès</span> (réservé à la Direction).
+        </p>
+
+        {chargement ? (
+          <p className="text-gray-500">Chargement…</p>
+        ) : membres.length === 0 ? (
+          <p className="text-gray-500">Aucun compte enregistré pour l'instant.</p>
+        ) : (
+          <div className="overflow-x-auto border rounded">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 text-left text-gray-600">
+                  <th className="px-4 py-3 font-medium">Membre</th>
+                  <th className="px-4 py-3 font-medium">Fonction</th>
+                  <th className="px-4 py-3 font-medium">Statut</th>
+                </tr>
+              </thead>
+              <tbody>
+                {membres.map((m) => (
+                  <tr key={m.id} className={`border-t ${m.actif ? "" : "opacity-50 bg-gray-50"}`}>
+                    <td className="px-4 py-3 font-medium">{m.prenom ? `${m.prenom} ` : ""}{m.nom}</td>
+                    <td className="px-4 py-3">{fonctionLabel(m.role)}</td>
+                    <td className="px-4 py-3">{m.actif ? "Actif" : "Inactif"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
       {/* ===================== Section Formateurs ===================== */}
       <section className="mb-12">
