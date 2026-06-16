@@ -33,6 +33,7 @@ export default function NouvelleInscription() {
   const [gen, setGen] = useState({ premiere: "", creneau: "MATIN" as "MATIN" | "APRES_MIDI", jours: [2, 6] });
   const [envoi, setEnvoi] = useState<"idle" | "loading" | "ok" | "erreur">("idle");
   const [erreursApi, setErreursApi] = useState<string[]>([]);
+  const [doublon, setDoublon] = useState<{ message: string; existant?: { nom: string; certif: string | null; statut: string | null; cree_le: string | null } } | null>(null);
 
   const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
   const f = CATALOGUE[form.formule];
@@ -54,19 +55,20 @@ export default function NouvelleInscription() {
   const majSeance = (i: number, patch: Partial<SeanceInput>) =>
     setSeances(s => s.map((x, j) => (j === i ? { ...x, ...patch } : x)));
 
-  const enregistrer = async () => {
-    setEnvoi("loading"); setErreursApi([]);
+  const enregistrer = async (confirmerDoublon = false) => {
+    setEnvoi("loading"); setErreursApi([]); setDoublon(null);
     const res = await fetch("/api/inscriptions", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         stagiaire: { civilite: form.civilite, adresse: form.adresse, cp: form.cp, ville: form.ville,
                      dateNaissance: form.dateNaissance, villeNaissance: form.villeNaissance },
-        inscription: { ...form, declencherContractualisation: form.declencherContractualisation && !edofIncomplet }, seances,
+        inscription: { ...form, declencherContractualisation: form.declencherContractualisation && !edofIncomplet, confirmerDoublon }, seances,
       }),
     });
     const data = await res.json().catch(() => ({}));
-    if (res.ok && data.ok) setEnvoi("ok");
-    else { setEnvoi("erreur"); setErreursApi(data.erreurs ?? ["Erreur serveur."]); }
+    if (res.ok && data.ok) { setEnvoi("ok"); return; }
+    if (data.doublon) { setEnvoi("erreur"); setDoublon({ message: data.message, existant: data.existant }); return; }
+    setEnvoi("erreur"); setErreursApi(data.erreurs ?? ["Erreur serveur."]);
   };
 
   if (envoi === "ok") return (
@@ -222,6 +224,31 @@ export default function NouvelleInscription() {
         </section>
       )}
 
+      {doublon && (
+        <section className="bg-amber-50 border border-amber-300 rounded-lg p-4 text-sm text-amber-900">
+          <h3 className="font-semibold mb-1">⚠️ Doublon possible</h3>
+          <p>{doublon.message}</p>
+          {doublon.existant && (
+            <p className="mt-1 text-amber-800">
+              Dossier existant : <b>{doublon.existant.nom || "—"}</b>
+              {doublon.existant.certif ? ` · ${doublon.existant.certif}` : ""}
+              {doublon.existant.statut ? ` · ${doublon.existant.statut}` : ""}
+              {doublon.existant.cree_le ? ` · créé le ${new Date(doublon.existant.cree_le).toLocaleDateString("fr-FR")}` : ""}
+            </p>
+          )}
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button onClick={() => { setDoublon(null); setEnvoi("idle"); }}
+              className="px-3 py-1.5 rounded-lg border border-amber-300 bg-white text-amber-800 text-sm font-medium">
+              Annuler — c'est bien un doublon
+            </button>
+            <button onClick={() => enregistrer(true)} disabled={envoi === "loading"}
+              className="px-3 py-1.5 rounded-lg bg-amber-600 text-white text-sm font-semibold disabled:opacity-50">
+              {envoi === "loading" ? "Création…" : "J'ai vérifié — créer quand même"}
+            </button>
+          </div>
+        </section>
+      )}
+
       <label className={`flex items-center gap-2 rounded-lg p-3 text-sm ${edofIncomplet ? "bg-gray-100 border border-gray-200 text-gray-400 cursor-not-allowed" : "bg-blue-50 border border-blue-200 cursor-pointer"}`}>
         <input type="checkbox" disabled={edofIncomplet}
           checked={form.declencherContractualisation && !edofIncomplet}
@@ -231,7 +258,7 @@ export default function NouvelleInscription() {
           : "la validation EDOF étant faite, la convention + annexes partent automatiquement au stagiaire via DocuSeal. Décocher pour différer."}</span>
       </label>
 
-      <button disabled={!conforme || envoi === "loading"} onClick={enregistrer}
+      <button disabled={!conforme || envoi === "loading"} onClick={() => enregistrer()}
         className="w-full py-3 rounded-lg text-white font-bold disabled:opacity-40 disabled:cursor-not-allowed"
         style={{ background: conforme ? "#16a34a" : "#9ca3af" }}>
         {envoi === "loading" ? "Enregistrement…" : conforme ? "✅ Enregistrer l'inscription (dossier conforme)" : "Compléter le dossier pour enregistrer"}

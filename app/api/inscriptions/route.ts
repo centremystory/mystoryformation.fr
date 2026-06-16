@@ -82,19 +82,33 @@ export async function POST(req: NextRequest) {
   if (remise > f.prixEuros)
     return NextResponse.json({ ok: false, erreurs: ["La remise ne peut pas dépasser le montant de la formation."] }, { status: 422 });
 
-  // 2) Anti-doublon simple : même email + même certif avec dossier non annulé
+  // 2) Anti-doublon : même email + même certif avec dossier non annulé.
+  //    Au lieu de bloquer sèchement, on AVERTIT (détails du dossier existant) et on exige
+  //    une confirmation explicite (`confirmerDoublon`) pour créer le 2ᵉ en connaissance de cause.
+  const confirmerDoublon = inscription.confirmerDoublon === true;
   const { data: doublon } = await supabase
     .from("stagiaires")
-    .select("id, dossiers!inner(id, certif, statut)")
+    .select("prenom, nom, dossiers!inner(id, certif, statut, created_at)")
     .eq("email", String(inscription.email).toLowerCase().trim())
     .eq("dossiers.certif", inscription.certification === "TEF_IRN" ? "TEF_IRN" : "LEVELTEL")
     .neq("dossiers.statut", "annule")
     .limit(1);
-  if (doublon && doublon.length > 0)
+
+  if (doublon && doublon.length > 0 && !confirmerDoublon) {
+    const s0: any = doublon[0];
+    const d0: any = Array.isArray(s0.dossiers) ? s0.dossiers[0] : s0.dossiers;
     return NextResponse.json({
       ok: false,
-      erreurs: [`Un dossier ${inscription.certification} actif existe déjà pour ${inscription.email}. Vérifier avant de créer un doublon.`],
+      doublon: true,
+      message: `Un dossier ${inscription.certification} actif existe déjà pour ${inscription.email}. Vérifie qu'il ne s'agit pas d'un doublon avant de créer un second dossier.`,
+      existant: {
+        nom: `${s0.prenom ?? ""} ${s0.nom ?? ""}`.trim(),
+        certif: d0?.certif ?? null,
+        statut: d0?.statut ?? null,
+        cree_le: d0?.created_at ?? null,
+      },
     }, { status: 409 });
+  }
 
   // 3) Création atomique via RPC
   // Déclenchement auto de la contractualisation (webhook Supabase → n8n → DocuSeal).
@@ -151,6 +165,12 @@ export async function POST(req: NextRequest) {
     formule: inscription.formule, agence: inscription.agenceInscription,
     remise: remise > 0 ? remise : null, remise_motif: remise > 0 ? remiseMotif : null,
   }, u.email ?? null);
+
+  // Traçabilité : un 2ᵉ dossier a été créé sciemment malgré un dossier actif existant.
+  if (confirmerDoublon && doublon && doublon.length > 0) {
+    await journal("dossier", dossierId, "doublon_confirme",
+      { email: inscription.email, certif: inscription.certification }, u.email ?? null);
+  }
 
   // Onboarding stagiaire (best-effort : n'empêche jamais l'inscription).
   if (inscription.email) {
