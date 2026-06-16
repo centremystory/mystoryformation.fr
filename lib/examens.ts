@@ -173,7 +173,7 @@ export async function genererDocumentsVente(vc: VenteComplete, options?: { corri
 export async function envoyerDocumentsVente(
   vc: VenteComplete,
   docs: DocumentGenere[],
-  options?: { corrigee?: boolean },
+  options?: { corrigee?: boolean; messagePerso?: string | null },
 ): Promise<{ ok: boolean; erreur?: string }> {
   const { vente, candidat, session } = vc;
   if (!candidat.email) return { ok: false, erreur: "Candidat sans adresse email." };
@@ -191,9 +191,12 @@ export async function envoyerDocumentsVente(
        <p>Merci de vous présenter <strong>15 minutes avant</strong>, muni(e) d'une <strong>pièce d'identité en cours de validité</strong> et de votre convocation (imprimée ou sur téléphone).</p>`
     : `<p>Votre accès à l'application d'entraînement <strong>${vente.sous_type ?? ""}</strong> est confirmé.</p>`;
 
+  const introCorrigee = options?.messagePerso && options.messagePerso.trim()
+    ? escapeHtml(options.messagePerso.trim()).replace(/\n/g, "<br>")
+    : "Suite à une correction, veuillez trouver la <strong>nouvelle version</strong> de vos documents — elle remplace la précédente.";
   const corps = `
     <p>Bonjour ${candidat.prenom ?? ""},</p>
-    <p>${options?.corrigee ? "Suite à une correction, veuillez trouver la <strong>nouvelle version</strong> de vos documents — elle remplace la précédente." : "Nous vous confirmons votre inscription. Vos documents sont joints à cet email."}</p>
+    <p>${options?.corrigee ? introCorrigee : "Nous vous confirmons votre inscription. Vos documents sont joints à cet email."}</p>
     ${lignesSession}
     <p>N° d'attestation : <strong>${vente.numero_attestation}</strong> · Montant réglé : <strong>${vente.montant} €</strong>${Number(vente.reste_a_payer) > 0 ? ` · Reste à payer : <strong>${vente.reste_a_payer} €</strong>` : ""}</p>
     <p>Pour toute question : 06 81 43 16 54 · contact@mystoryformation.fr</p>

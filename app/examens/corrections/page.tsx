@@ -40,6 +40,9 @@ export default function PageCorrections() {
   const [valeur, setValeur] = useState("");
   const [sessions, setSessions] = useState<any[]>([]);
   const [renvoyer, setRenvoyer] = useState(true);
+  const [message, setMessage] = useState(
+    "Veuillez nous excuser pour cette erreur. Vous trouverez ci-joint la nouvelle version corrigée de vos documents, qui remplace la précédente."
+  );
   const [demandePar, setDemandePar] = useState("");
   const [busy, setBusy] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -72,6 +75,7 @@ export default function PageCorrections() {
         body: JSON.stringify({
           numero_attestation: vente.numero_attestation, champ, nouvelle_valeur: valeur,
           demande_par: demandePar.trim(), renvoyer_documents: renvoyer,
+          message_correction: renvoyer ? message.trim() : "",
         }),
       });
       const j = await r.json();
@@ -176,18 +180,29 @@ export default function PageCorrections() {
           </div>
 
           {champ && (
-            <div className="flex flex-wrap items-center gap-3">
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={renvoyer} onChange={(e) => setRenvoyer(e.target.checked)} />
-                Renvoyer les documents corrigés par email
-              </label>
-              <input value={demandePar} onChange={(e) => setDemandePar(e.target.value)} placeholder="Demandé par (prénom)"
-                     className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white w-44" />
-              <button onClick={corriger} disabled={busy || !valeur || !demandePar.trim()}
-                      className="px-4 py-2 rounded-lg text-sm text-white bg-mystory disabled:opacity-50">
-                {busy ? "Correction…" : "Appliquer la correction"}
-              </button>
-            </div>
+            <>
+              {renvoyer && (
+                <label className="block text-sm">
+                  Message au candidat <span className="text-gray-400">(joint à l'email de renvoi — « désolé pour l'erreur »)</span>
+                  <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={3}
+                            className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white"
+                            placeholder="Message personnalisé…" />
+                  <span className="text-xs text-gray-400">Laisse vide pour le texte de correction par défaut.</span>
+                </label>
+              )}
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={renvoyer} onChange={(e) => setRenvoyer(e.target.checked)} />
+                  Renvoyer les documents corrigés par email
+                </label>
+                <input value={demandePar} onChange={(e) => setDemandePar(e.target.value)} placeholder="Demandé par (prénom)"
+                       className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white w-44" />
+                <button onClick={corriger} disabled={busy || !valeur || !demandePar.trim()}
+                        className="px-4 py-2 rounded-lg text-sm text-white bg-mystory disabled:opacity-50">
+                  {busy ? "Correction…" : "Appliquer la correction"}
+                </button>
+              </div>
+            </>
           )}
 
           {historique.length > 0 && (

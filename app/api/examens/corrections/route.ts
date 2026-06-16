@@ -79,6 +79,7 @@ export async function POST(req: NextRequest) {
   const nouvelle = String(body?.nouvelle_valeur ?? "").trim();
   const demandePar = String(body?.demande_par ?? "").trim();
   const renvoyer = body?.renvoyer_documents !== false; // par défaut : on renvoie
+  const messagePerso = String(body?.message_correction ?? "").trim().slice(0, 2000) || null;
 
   const def = CHAMPS[champ];
   if (!numero || !def) return NextResponse.json({ ok: false, erreur: "numero_attestation et champ valides requis." }, { status: 400 });
@@ -164,7 +165,7 @@ export async function POST(req: NextRequest) {
     const docs = await genererDocumentsVente(vc, { corrigee: true });
     documents = docs.map((d) => d.piece);
     if (renvoyer) {
-      const res = await envoyerDocumentsVente(vc, docs, { corrigee: true });
+      const res = await envoyerDocumentsVente(vc, docs, { corrigee: true, messagePerso });
       emailStatut = res.ok ? { envoye: true } : { envoye: false, erreur: res.erreur };
     }
   } catch (e: any) {
