@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
   // CPF uniquement après service fait validé (verrou art. L.6323-12).
   const { data: dossiers } = await supabaseAdmin
     .from("dossiers")
-    .select("id, certif, montant, financement, origine_fonds, service_fait_valide, stagiaires:stagiaire_id (civilite, prenom, nom)");
+    .select("id, certif, montant, remise, financement, origine_fonds, service_fait_valide, stagiaires:stagiaire_id (civilite, prenom, nom)");
   const { data: deja } = await supabaseAdmin.from("factures").select("dossier_id, vente_id");
   const dossiersFactures = new Set((deja ?? []).map((f: any) => f.dossier_id).filter(Boolean));
   const ventesFacturees = new Set((deja ?? []).map((f: any) => f.vente_id).filter(Boolean));
@@ -58,10 +58,13 @@ export async function GET(req: NextRequest) {
     .filter((d: any) => !dossiersFactures.has(d.id) && d.montant)
     .map((d: any) => {
       const estCpf = d.origine_fonds === "CPF_CDC" || d.financement === "CPF";
+      const brut = Number(d.montant ?? 0);
+      const remise = estCpf ? 0 : Math.min(Math.max(0, Number(d.remise ?? 0)), brut);
       return {
         dossierId: d.id,
         certif: d.certif,
-        montant: d.montant,
+        montant: Math.max(0, brut - remise), // net après remise (hors CPF)
+        remise: remise || 0,
         client: `${d.stagiaires?.civilite ?? ""} ${d.stagiaires?.prenom ?? ""} ${d.stagiaires?.nom ?? ""}`.trim(),
         estCpf,
         facturable: !estCpf || !!d.service_fait_valide,

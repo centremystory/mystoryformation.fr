@@ -17,7 +17,7 @@ interface Facture {
   dossier_id: string | null; vente_id: string | null;
 }
 interface DossierAFacturer {
-  dossierId: string; certif: string; montant: number; client: string;
+  dossierId: string; certif: string; montant: number; remise?: number; client: string;
   estCpf: boolean; facturable: boolean; motifBlocage: string | null;
 }
 interface VenteAFacturer {
@@ -158,7 +158,8 @@ export default function PageFactures() {
               <div key={d.dossierId} className="rounded-lg border bg-white p-3 flex items-center justify-between gap-3 flex-wrap">
                 <div>
                   <span className="font-medium">{d.client || "(sans nom)"}</span>
-                  <span className="text-sm text-gray-500"> · {d.certif} · {Number(d.montant).toLocaleString("fr-FR")} €</span>
+                  <span className="text-sm text-gray-500"> · {d.certif} · {Number(d.montant).toLocaleString("fr-FR")} € {d.remise ? "net" : ""}</span>
+                  {!!d.remise && <span className="ml-2 text-xs px-2 py-0.5 rounded border bg-emerald-50 border-emerald-200 text-emerald-800">remise {Number(d.remise).toLocaleString("fr-FR")} €</span>}
                   {d.estCpf && <span className="ml-2 text-xs px-2 py-0.5 rounded border bg-blue-50 border-blue-200 text-blue-800">CPF</span>}
                   {d.motifBlocage && <div className="text-xs text-orange-700 mt-0.5">⏳ {d.motifBlocage}</div>}
                 </div>

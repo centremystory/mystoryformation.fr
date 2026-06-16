@@ -180,17 +180,25 @@ export async function facturerDossier(dossierId: string, auteur?: string | null)
 
   const intitule = LIBELLE_CERTIF[(d as any).certif] ?? `Formation ${(d as any).certif}`;
   const heures = (d as any).heures_realisees ?? (d as any).heures_prevues;
-  const designation = `${intitule} — ${heures} heures${(d as any).date_debut ? `, du ${dateFR((d as any).date_debut)} au ${dateFR((d as any).date_fin)}` : ""}${(d as any).numero_edof ? ` · dossier EDOF ${(d as any).numero_edof}` : ""}`;
+  // Remise hors CPF reportée : net = montant − remise (jamais de remise sur CPF).
+  const montantBrut = Number((d as any).montant ?? 0);
+  const remise = estCpf ? 0 : Math.min(Math.max(0, Number((d as any).remise ?? 0)), montantBrut);
+  const montantNet = Math.max(0, montantBrut - remise);
+  const motifRemise = String((d as any).remise_motif ?? "").trim();
+  const mentionRemise = remise > 0
+    ? ` · remise ${remise.toLocaleString("fr-FR")} €${motifRemise ? ` (${motifRemise})` : ""} sur ${montantBrut.toLocaleString("fr-FR")} €`
+    : "";
+  const designation = `${intitule} — ${heures} heures${(d as any).date_debut ? `, du ${dateFR((d as any).date_debut)} au ${dateFR((d as any).date_fin)}` : ""}${(d as any).numero_edof ? ` · dossier EDOF ${(d as any).numero_edof}` : ""}${mentionRemise}`;
   const client = `${s?.civilite ?? ""} ${s?.prenom ?? ""} ${s?.nom ?? ""}`.trim();
 
   const { data: facture, error } = await supabaseAdmin
     .from("factures")
-    .insert({ dossier_id: dossierId, montant: (d as any).montant, designation, client, numero: "ATTRIBUE_PAR_LE_SERVEUR" })
+    .insert({ dossier_id: dossierId, montant: montantNet, designation, client, numero: "ATTRIBUE_PAR_LE_SERVEUR" })
     .select("*").single();
   if (error) throw new Error(error.message);
 
   await journal("factures", (facture as any).id, "facture_emise",
-    { numero: (facture as any).numero, montant: (d as any).montant, dossier: dossierId }, auteur ?? null);
+    { numero: (facture as any).numero, montant: montantNet, montant_brut: montantBrut, remise: remise || null, dossier: dossierId }, auteur ?? null);
 
   const pdf = await rendreEtArchiver(facture, adresseClient(s), reglement, estCpf);
   return { id: (facture as any).id, numero: (facture as any).numero, montant: (facture as any).montant, client, dejaExistante: false, pdf };

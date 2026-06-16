@@ -22,6 +22,7 @@ export default function NouvelleInscription() {
     formule: "16H" as CodeFormule, niveauVise: "B1" as const,
     agenceInscription: "GAGNY" as const, resteAChargeAccepte: false,
     declencherContractualisation: true, formatriceId: "",
+    remise: 0, remiseMotif: "",
   });
   const [formatrices, setFormatrices] = useState<{ id: string; nom: string; prenom: string | null }[]>([]);
   useEffect(() => {
@@ -125,16 +126,23 @@ export default function NouvelleInscription() {
           {formatrices.length === 0 && <p className="text-xs text-red-600 mt-1">Aucune formatrice active avec justificatif FLE — à compléter dans la table formatrices.</p>}
         </div>
         <div><label className={label}>Financement *</label>
-          <select className={champ} value={form.financement} onChange={e => set("financement", e.target.value)}>
+          <select className={champ} value={form.financement} onChange={e => { const v = e.target.value; set("financement", v); if (v === "CPF") { set("remise", 0); set("remiseMotif", ""); } }}>
             <option value="CPF">CPF</option><option value="Perso">Fonds propres (Perso)</option>
             <option value="OPCO">OPCO</option><option value="PoleEmploi">France Travail (Pôle Emploi)</option></select></div>
+        {!cpf && <>
+          <div><label className={label}>Remise (€) <span className="font-normal text-gray-500">(hors CPF)</span></label>
+            <input type="number" min={0} step="1" className={champ} value={form.remise}
+                   onChange={e => set("remise", Math.max(0, Number(e.target.value) || 0))} /></div>
+          <div className="col-span-2"><label className={label}>Motif de la remise <span className="font-normal text-gray-500">(traçabilité)</span></label>
+            <input className={champ} value={form.remiseMotif} onChange={e => set("remiseMotif", e.target.value)} placeholder="ex. geste commercial, tarif partenaire…" /></div>
+        </>}
         {cpf && <>
           <div><label className={label}>N° dossier EDOF <span className="font-normal text-gray-500">(facultatif — complété ensuite via l'import EDOF)</span></label><input className={champ} value={form.numeroEdof} onChange={e => set("numeroEdof", e.target.value)} /></div>
           <div className="col-span-2"><label className={label}>Date validation commande EDOF <span className="font-normal text-gray-500">(facultatif — complétée ensuite ; déclenche le délai de 11 j ouvrés)</span></label>
             <input type="date" className={champ} value={form.dateCommandeValidee} onChange={e => set("dateCommandeValidee", e.target.value)} /></div>
         </>}
         <div className="col-span-2 md:col-span-4 text-sm text-gray-600">
-          💶 {f.prixEuros} € — {f.dureeHeures} h · {f.seances3h} × 3h{f.seanceFinaleHeures ? ` + finale ${f.seanceFinaleHeures}h` : ""} · {f.descriptionFinale}
+          💶 {f.prixEuros} €{(!cpf && form.remise > 0) ? ` − ${form.remise} € remise = ${Math.max(0, f.prixEuros - form.remise)} € net` : ""} — {f.dureeHeures} h · {f.seances3h} × 3h{f.seanceFinaleHeures ? ` + finale ${f.seanceFinaleHeures}h` : ""} · {f.descriptionFinale}
         </div>
       </section>
 

@@ -73,6 +73,15 @@ export async function POST(req: NextRequest) {
 
   const f = CATALOGUE[inscription.formule as CodeFormule];
 
+  // Remise hors CPF (montant en €). Bloquée sur CPF, plafonnée au montant de la formation.
+  const remiseBrute = Number(inscription.remise ?? 0);
+  const remise = Number.isFinite(remiseBrute) && remiseBrute > 0 ? Math.round(remiseBrute * 100) / 100 : 0;
+  const remiseMotif = String(inscription.remiseMotif ?? "").trim() || null;
+  if (remise > 0 && inscription.financement === "CPF")
+    return NextResponse.json({ ok: false, erreurs: ["Remise impossible sur un financement CPF."] }, { status: 422 });
+  if (remise > f.prixEuros)
+    return NextResponse.json({ ok: false, erreurs: ["La remise ne peut pas dépasser le montant de la formation."] }, { status: 422 });
+
   // 2) Anti-doublon simple : même email + même certif avec dossier non annulé
   const { data: doublon } = await supabase
     .from("stagiaires")
@@ -129,9 +138,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, erreurs: [msg] }, { status: 500 });
   }
 
-  await journal("dossier", (data as any)?.dossier_id ?? (data as any)?.id ?? null, "inscription_creee", {
+  const dossierId = (data as any)?.dossier_id ?? (data as any)?.id ?? null;
+
+  // Remise (hors CPF) reportée sur le dossier — base déjà posée (dossiers.remise / remise_motif).
+  if (dossierId && remise > 0) {
+    const { error: eRemise } = await supabase.from("dossiers").update({ remise, remise_motif: remiseMotif }).eq("id", dossierId);
+    if (eRemise) console.warn("[inscriptions] remise non enregistrée:", eRemise.message);
+  }
+
+  await journal("dossier", dossierId, "inscription_creee", {
     certif: inscription.certification, financement: inscription.financement,
     formule: inscription.formule, agence: inscription.agenceInscription,
+    remise: remise > 0 ? remise : null, remise_motif: remise > 0 ? remiseMotif : null,
   }, u.email ?? null);
 
   // Onboarding stagiaire (best-effort : n'empêche jamais l'inscription).
