@@ -25,12 +25,44 @@ function dateCourteFr(iso: string | null): string {
   catch { return iso; }
 }
 
+type Jour = {
+  date: string; demi: string; heures: number; heures_realisees: number | null;
+  statut: string; motif: string | null; walk_in: boolean; contenu: string | null;
+};
+const DEMI_LBL: Record<string, string> = { matin: "Matin", apres_midi: "Après-midi" };
+const STATUT_JOUR: Record<string, { t: string; c: string }> = {
+  present: { t: "✅ Présent", c: "bg-green-100 text-green-800" },
+  absent: { t: "❌ Absent", c: "bg-red-100 text-red-700" },
+  a_venir: { t: "À venir", c: "bg-gray-100 text-gray-500" },
+  non_emarge: { t: "⬜ Non émargé", c: "bg-amber-100 text-amber-800" },
+};
+
 export default function PageSuiviEleves() {
   const [eleves, setEleves] = useState<Eleve[]>([]);
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState<string | null>(null);
   const [recherche, setRecherche] = useState("");
   const [fAgence, setFAgence] = useState<string>("toutes");
+  const [detail, setDetail] = useState<Record<string, Jour[]>>({});
+  const [ouvert, setOuvert] = useState<Set<string>>(new Set());
+  const [chargeJours, setChargeJours] = useState<Set<string>>(new Set());
+
+  async function basculerJours(dossierId: string) {
+    setOuvert((prev) => {
+      const n = new Set(prev);
+      n.has(dossierId) ? n.delete(dossierId) : n.add(dossierId);
+      return n;
+    });
+    if (!detail[dossierId]) {
+      setChargeJours((p) => new Set(p).add(dossierId));
+      try {
+        const r = await fetch(`/api/suivi-eleves?dossier=${encodeURIComponent(dossierId)}`, { cache: "no-store" });
+        const j = await r.json();
+        if (j.ok) setDetail((d) => ({ ...d, [dossierId]: j.jours }));
+      } catch { /* silencieux : le bouton reste utilisable */ }
+      finally { setChargeJours((p) => { const n = new Set(p); n.delete(dossierId); return n; }); }
+    }
+  }
 
   const charger = useCallback(async () => {
     setErreur(null);
@@ -116,6 +148,43 @@ export default function PageSuiviEleves() {
                 <div className="mt-1.5 text-xs text-gray-400">
                   {e.heures_a_venir} h à venir · prochaine séance : <strong className="text-gray-600">{dateCourteFr(e.prochaine_date)}</strong>
                 </div>
+
+                <button onClick={() => basculerJours(e.dossier_id)} className="mt-2 text-xs text-mystory underline">
+                  {ouvert.has(e.dossier_id) ? "Masquer le détail jour par jour" : "Voir le détail jour par jour"}
+                </button>
+                {ouvert.has(e.dossier_id) && (
+                  <div className="mt-2 border-t border-gray-100 pt-2 overflow-x-auto">
+                    {chargeJours.has(e.dossier_id) && !detail[e.dossier_id] ? (
+                      <p className="text-xs text-gray-400">Chargement…</p>
+                    ) : (detail[e.dossier_id]?.length ?? 0) === 0 ? (
+                      <p className="text-xs text-gray-400">Aucune séance enregistrée.</p>
+                    ) : (
+                      <table className="w-full text-xs">
+                        <thead><tr className="text-left text-gray-400">
+                          <th className="py-1 pr-2 font-medium">Date</th>
+                          <th className="py-1 pr-2 font-medium">Demi-journée</th>
+                          <th className="py-1 pr-2 font-medium">Heures</th>
+                          <th className="py-1 pr-2 font-medium">Présence</th>
+                          <th className="py-1 font-medium">Contenu</th>
+                        </tr></thead>
+                        <tbody>
+                          {detail[e.dossier_id].map((j, i) => {
+                            const b = STATUT_JOUR[j.statut] ?? STATUT_JOUR.non_emarge;
+                            return (
+                              <tr key={i} className="border-t border-gray-50 align-top">
+                                <td className="py-1 pr-2 whitespace-nowrap text-gray-700">{dateCourteFr(j.date)}</td>
+                                <td className="py-1 pr-2 text-gray-600">{DEMI_LBL[j.demi] ?? j.demi}{j.walk_in && <span className="ml-1 text-[10px] px-1 rounded bg-amber-100 text-amber-800">walk-in</span>}</td>
+                                <td className="py-1 pr-2 text-gray-600 tabular-nums">{j.heures_realisees != null ? j.heures_realisees : j.heures} h</td>
+                                <td className="py-1 pr-2"><span className={`px-1.5 py-0.5 rounded ${b.c}`}>{b.t}</span>{j.statut === "absent" && j.motif ? <span className="text-gray-400"> · {j.motif}</span> : ""}</td>
+                                <td className="py-1 text-gray-500">{j.contenu || "—"}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}

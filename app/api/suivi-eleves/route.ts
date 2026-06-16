@@ -18,6 +18,31 @@ export async function GET(req: NextRequest) {
     throw e;
   }
 
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(new Date());
+
+  // Détail « jour par jour » d'un élève (utile en rétro pour un élève terminé).
+  const dossierParam = (req.nextUrl.searchParams.get("dossier") ?? "").trim();
+  if (dossierParam) {
+    const { data: seances, error: eS } = await supabaseAdmin
+      .from("planning")
+      .select("date_seance, demi_journee, heures, heures_realisees, emarge_le, absence, absence_motif, hors_planning, contenu")
+      .eq("dossier_id", dossierParam)
+      .order("date_seance");
+    if (eS) return NextResponse.json({ ok: false, erreur: eS.message }, { status: 500 });
+    const jours = (seances ?? []).map((s: any) => ({
+      date: s.date_seance,
+      demi: s.demi_journee,
+      heures: Number(s.heures ?? 0),
+      heures_realisees: s.heures_realisees != null ? Number(s.heures_realisees) : null,
+      statut: s.emarge_le ? "present" : s.absence ? "absent" : (s.date_seance >= today ? "a_venir" : "non_emarge"),
+      motif: s.absence_motif ?? null,
+      walk_in: !!s.hors_planning,
+      contenu: s.contenu ?? null,
+      emarge_le: s.emarge_le ?? null,
+    }));
+    return NextResponse.json({ ok: true, jours });
+  }
+
   const { data, error } = await supabaseAdmin
     .from("planning")
     .select(`
@@ -26,8 +51,6 @@ export async function GET(req: NextRequest) {
         stagiaire:stagiaires!stagiaire_id ( prenom, nom, agence ) )
     `);
   if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
-
-  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(new Date());
 
   const map = new Map<string, any>();
   for (const r of data ?? []) {
