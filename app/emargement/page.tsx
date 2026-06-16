@@ -12,6 +12,7 @@ import SignaturePad from "@/components/SignaturePad";
 type Seance = {
   id: string; dossier_id: string; certif: string | null; stagiaire: string;
   formatrice: string | null; demi_journee: string; heures: number; token: string;
+  hors_planning?: boolean;
   signe_stagiaire: boolean; signe_formatrice: boolean; emarge_le: string | null; statut: string;
 };
 
@@ -39,6 +40,7 @@ export default function EmargementDuJour() {
   const [chargement, setChargement] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [sel, setSel] = useState<Seance | null>(null);
+  const [walkinOuvert, setWalkinOuvert] = useState(false);
 
   const charger = useCallback(async () => {
     setChargement(true); setErreur(null);
@@ -90,6 +92,19 @@ export default function EmargementDuJour() {
       {erreur && <p className="mt-4 text-sm text-red-600">{erreur}</p>}
       {chargement && <p className="mt-4 text-sm text-gray-400">Chargement…</p>}
 
+      {date === parisToday() && (
+        <div className="mt-3">
+          <button onClick={() => setWalkinOuvert((v) => !v)}
+            className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            {walkinOuvert ? "Fermer" : "+ Élève walk-in (non planifié)"}
+          </button>
+          {walkinOuvert && (
+            <WalkIn date={date} demiDefaut={demi}
+              onCreated={(d) => { setWalkinOuvert(false); if (d === demi) charger(); else setDemi(d); }} />
+          )}
+        </div>
+      )}
+
       {!chargement && seances.length === 0 && (
         <p className="mt-8 text-center text-sm text-gray-400">Aucune séance sur ce créneau.</p>
       )}
@@ -100,7 +115,10 @@ export default function EmargementDuJour() {
           return (
             <li key={s.id} className="flex items-center gap-3 p-4">
               <div className="min-w-0 flex-1">
-                <div className="truncate font-medium text-gray-900">{s.stagiaire}</div>
+                <div className="truncate font-medium text-gray-900">
+                  {s.stagiaire}
+                  {s.hors_planning && <span className="ml-2 align-middle text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">walk-in</span>}
+                </div>
                 <div className="text-xs text-gray-500">
                   {DEMI_LABEL[s.demi_journee]} · {s.heures} h · {s.certif ?? ""} {s.formatrice ? `· ${s.formatrice}` : ""}
                 </div>
@@ -117,6 +135,65 @@ export default function EmargementDuJour() {
 
       {sel && <ModaleEmargement seance={sel} onClose={() => setSel(null)} onMaj={charger} />}
     </main>
+  );
+}
+
+function WalkIn({ date, demiDefaut, onCreated }: { date: string; demiDefaut: "matin" | "apres_midi"; onCreated: (demi: "matin" | "apres_midi") => void }) {
+  const [dossiers, setDossiers] = useState<{ id: string; nom: string; certif: string | null }[]>([]);
+  const [dossierId, setDossierId] = useState("");
+  const [demi, setDemi] = useState<"matin" | "apres_midi">(demiDefaut);
+  const [heures, setHeures] = useState(3);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/emargement/walk-in").then((r) => r.json())
+      .then((j) => { if (j.ok) setDossiers(j.dossiers); else setErr(j.erreur || "Liste indisponible."); })
+      .catch(() => setErr("Liste indisponible."));
+  }, []);
+
+  async function ajouter() {
+    if (!dossierId) { setErr("Choisis un élève."); return; }
+    setBusy(true); setErr(null);
+    try {
+      const r = await fetch("/api/emargement/walk-in", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dossierId, demi_journee: demi, heures }),
+      });
+      const j = await r.json();
+      if (!j.ok) { setErr(j.erreur || "Échec."); return; }
+      setDossierId("");
+      onCreated(demi);
+    } catch { setErr("Échec de l'ajout."); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
+      <p className="text-sm font-semibold text-gray-800">Ajouter un élève non planifié (walk-in)</p>
+      <p className="text-xs text-gray-500">Séance créée pour aujourd'hui ({date}) à Gagny, puis à émarger comme les autres.</p>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <select value={dossierId} onChange={(e) => setDossierId(e.target.value)}
+          className="rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white">
+          <option value="">— choisir l'élève —</option>
+          {dossiers.map((d) => <option key={d.id} value={d.id}>{d.nom}{d.certif ? ` · ${d.certif}` : ""}</option>)}
+        </select>
+        <div className="flex gap-2">
+          <select value={demi} onChange={(e) => setDemi(e.target.value as "matin" | "apres_midi")}
+            className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white">
+            <option value="matin">Matin</option><option value="apres_midi">Après-midi</option>
+          </select>
+          <input type="number" min={0.5} step={0.5} value={heures} title="Heures"
+            onChange={(e) => setHeures(Math.max(0, Number(e.target.value) || 0))}
+            className="w-20 rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white" />
+        </div>
+      </div>
+      {err && <p className="mt-2 text-sm text-red-600">{err}</p>}
+      <button onClick={ajouter} disabled={busy || !dossierId}
+        className="mt-3 rounded-lg bg-mystory px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+        {busy ? "Ajout…" : "Ajouter & émarger"}
+      </button>
+    </div>
   );
 }
 
