@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 type Demande = {
   id: string; utilisateur_id: string; type: string; date_debut: string; date_fin: string; motif: string | null;
-  statut: string; decide_par: string | null; decide_le: string | null; commentaire_decision: string | null; cree_le: string;
+  statut: string; decide_par: string | null; decide_le: string | null; commentaire_decision: string | null; remplace_par: string | null; cree_le: string;
   utilisateurs?: { nom: string | null; prenom: string | null; email: string | null } | null;
 };
 
@@ -31,8 +31,10 @@ function nomDemandeur(d: Demande): string {
   return [u.prenom, u.nom].filter(Boolean).join(" ") || u.email || "—";
 }
 
-function Carte({ d, peutValider, onAction }: { d: Demande; peutValider: boolean; onAction: (id: string, action: string) => void }) {
+function Carte({ d, peutValider, onAction }: { d: Demande; peutValider: boolean; onAction: (id: string, action: string, extra?: Record<string, unknown>) => void }) {
   const st = STATUT[d.statut] ?? { label: d.statut, cls: "bg-gray-100 text-gray-600" };
+  const [remplacant, setRemplacant] = useState(d.remplace_par ?? "");
+  const editable = peutValider && (d.statut === "en_attente" || d.statut === "approuve");
   return (
     <div className="border border-gray-200 rounded-xl bg-white p-4">
       <div className="flex flex-wrap items-center gap-2 mb-1">
@@ -43,11 +45,30 @@ function Carte({ d, peutValider, onAction }: { d: Demande; peutValider: boolean;
         <span className="text-xs text-gray-400">{dateFr(d.date_debut)} → {dateFr(d.date_fin)}</span>
       </div>
       {d.motif && <p className="text-sm text-gray-700 mt-1">{d.motif}</p>}
+      {d.remplace_par && <p className="text-xs text-gray-600 mt-1">🔁 Remplacé·e par : <span className="font-medium">{d.remplace_par}</span></p>}
       {d.decide_par && <p className="text-xs text-gray-400 mt-1">Décision : {d.decide_par}{d.decide_le ? ` · ${dateFr(d.decide_le)}` : ""}{d.commentaire_decision ? ` — ${d.commentaire_decision}` : ""}</p>}
+
+      {editable && (
+        <div className="flex items-center gap-2 mt-2">
+          <input
+            value={remplacant}
+            onChange={(e) => setRemplacant(e.target.value)}
+            placeholder="Remplacé·e par (nom)"
+            className="border border-gray-300 rounded-lg px-2 py-1 text-xs flex-1 bg-white"
+          />
+          {d.statut === "approuve" && (
+            <button onClick={() => onAction(d.id, "remplacant", { remplacePar: remplacant })}
+                    className="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 text-xs whitespace-nowrap">
+              Enregistrer le remplaçant
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="flex gap-2 mt-2">
         {peutValider && d.statut === "en_attente" && (
           <>
-            <button onClick={() => onAction(d.id, "approuver")} className="px-3 py-1.5 rounded-lg bg-green-600 text-white text-xs font-semibold">Approuver</button>
+            <button onClick={() => onAction(d.id, "approuver", { remplacePar: remplacant })} className="px-3 py-1.5 rounded-lg bg-green-600 text-white text-xs font-semibold">Approuver</button>
             <button onClick={() => onAction(d.id, "refuser")} className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold">Refuser</button>
           </>
         )}
@@ -100,9 +121,9 @@ export default function PageConges() {
     finally { setBusy(false); }
   }
 
-  async function action(id: string, act: string) {
+  async function action(id: string, act: string, extra?: Record<string, unknown>) {
     try {
-      const r = await fetch("/api/conges", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, action: act }) });
+      const r = await fetch("/api/conges", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, action: act, ...(extra ?? {}) }) });
       const j = await r.json();
       if (!j.ok) { setErr(j.erreur || "Action impossible."); return; }
       await charger();

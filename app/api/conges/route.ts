@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
   const statut = req.nextUrl.searchParams.get("statut");
   let q = supabaseAdmin
     .from("conges")
-    .select("id, utilisateur_id, type, date_debut, date_fin, motif, statut, decide_par, decide_le, commentaire_decision, cree_le, utilisateurs(nom, prenom, email)")
+    .select("id, utilisateur_id, type, date_debut, date_fin, motif, statut, decide_par, decide_le, commentaire_decision, remplace_par, cree_le, utilisateurs(nom, prenom, email)")
     .order("date_debut", { ascending: false });
   if (!valid) {
     if (!u.id) return NextResponse.json({ ok: true, peutValider: false, demandes: [] });
@@ -86,6 +86,7 @@ export async function PATCH(req: NextRequest) {
   const id = String(b?.id ?? "").trim();
   const action = String(b?.action ?? "").trim();
   const commentaire = String(b?.commentaire ?? "").trim() || null;
+  const remplacePar = String(b?.remplacePar ?? "").trim() || null;
   if (!id) return NextResponse.json({ ok: false, erreur: "id requis." }, { status: 400 });
 
   const { data: demande, error: eDem } = await supabaseAdmin
@@ -97,11 +98,13 @@ export async function PATCH(req: NextRequest) {
     if (!peutValider(u.role)) return NextResponse.json({ ok: false, erreur: "Réservé à la Direction." }, { status: 403 });
     if (d.statut !== "en_attente") return NextResponse.json({ ok: false, erreur: "Demande déjà traitée." }, { status: 409 });
     const statut = action === "approuver" ? "approuve" : "refuse";
-    const { error } = await supabaseAdmin.from("conges").update({
+    const maj: Record<string, unknown> = {
       statut, decide_par: u.email ?? null, decide_le: new Date().toISOString(), commentaire_decision: commentaire,
-    }).eq("id", id);
+    };
+    if (action === "approuver") maj.remplace_par = remplacePar; // remplaçant pendant l'absence
+    const { error } = await supabaseAdmin.from("conges").update(maj).eq("id", id);
     if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
-    await journal("conges", id, action === "approuver" ? "conges_approuve" : "conges_refuse", { commentaire }, u.email ?? null);
+    await journal("conges", id, action === "approuver" ? "conges_approuve" : "conges_refuse", { commentaire, remplace_par: action === "approuver" ? remplacePar : null }, u.email ?? null);
     return NextResponse.json({ ok: true });
   }
 
@@ -112,6 +115,15 @@ export async function PATCH(req: NextRequest) {
     const { error } = await supabaseAdmin.from("conges").update({ statut: "annule", decide_par: u.email ?? null, decide_le: new Date().toISOString() }).eq("id", id);
     if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
     await journal("conges", id, "conges_annule", {}, u.email ?? null);
+    return NextResponse.json({ ok: true });
+  }
+
+  if (action === "remplacant") {
+    if (!peutValider(u.role)) return NextResponse.json({ ok: false, erreur: "Réservé à la Direction." }, { status: 403 });
+    if (!["en_attente", "approuve"].includes(d.statut)) return NextResponse.json({ ok: false, erreur: "Demande non modifiable." }, { status: 409 });
+    const { error } = await supabaseAdmin.from("conges").update({ remplace_par: remplacePar }).eq("id", id);
+    if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
+    await journal("conges", id, "conges_remplacant", { remplace_par: remplacePar }, u.email ?? null);
     return NextResponse.json({ ok: true });
   }
 
