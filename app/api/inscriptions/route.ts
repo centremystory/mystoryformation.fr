@@ -197,5 +197,33 @@ export async function POST(req: NextRequest) {
     } catch (e) { console.warn("[inscriptions] onboarding ignoré:", String(e)); }
   }
 
+  // Notif interne « dossier inscrit mais incomplet » → à l'auteur de l'inscription (best-effort).
+  // Le dossier est créé en statut "incomplet" : on rappelle à l'auteur ce qui reste à compléter.
+  if (u.email) {
+    const certifLabel = inscription.certification === "TEF_IRN" ? "TEF IRN" : "LEVELTEL";
+    const esc = (s: any) => String(s ?? "").replace(/</g, "&lt;");
+    const cpf = inscription.financement === "CPF";
+    const edofManquant = cpf && (!String(inscription.numeroEdof ?? "").trim() || !inscription.dateCommandeValidee);
+    const restes: string[] = [];
+    if (edofManquant) restes.push("Compléter le <strong>N° dossier EDOF</strong> et la <strong>date de validation de commande</strong> (requis avant l'envoi de la convention CPF).");
+    restes.push(declencher
+      ? "Convention <strong>partie en signature</strong> (DocuSeal) — vérifier la signature du stagiaire."
+      : "Convention <strong>à envoyer</strong> : la contractualisation a été différée (à déclencher depuis la fiche dossier).");
+    restes.push("Réunir les <strong>pièces du dossier conforme</strong> au fil de la formation (évaluations, émargements, satisfaction…).");
+    try {
+      await envoyerEmail({
+        a: u.email,
+        objet: `Dossier inscrit (incomplet) — ${esc(inscription.prenom)} ${esc(inscription.nom)} · ${certifLabel}`,
+        html: gabaritEmail("Dossier à compléter", `
+          <p>Tu viens d'enregistrer le dossier de <strong>${esc(inscription.prenom)} ${esc(inscription.nom)}</strong> (${certifLabel}, ${esc(inscription.financement)}).</p>
+          <p>Le dossier est créé mais <strong>encore incomplet</strong>. Reste à faire :</p>
+          <ul>${restes.map((r) => `<li>${r}</li>`).join("")}</ul>
+          <p>Suivi du dossier : <a href="https://mystory-automatisation.vercel.app/dossiers">ouvrir les dossiers</a>.</p>
+          <p>— Notification automatique MYSTORY</p>`),
+        entite: "dossier", entiteId: dossierId, auteur: "notif-interne",
+      });
+    } catch (e) { console.warn("[inscriptions] notif auteur ignorée:", String(e)); }
+  }
+
   return NextResponse.json({ ok: true, ...data }, { status: 201 });
 }
