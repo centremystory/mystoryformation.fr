@@ -99,24 +99,43 @@ export async function PATCH(req: NextRequest) {
   try { body = await req.json(); }
   catch { return NextResponse.json({ ok: false, erreur: "JSON invalide." }, { status: 400 }); }
 
-  const venteId = String(body?.venteId ?? "").trim();
-  if (!venteId) return NextResponse.json({ ok: false, erreur: "venteId requis." }, { status: 400 });
   const brut = body?.commentaire == null ? "" : String(body.commentaire).trim();
   const commentaire = brut.length ? brut.slice(0, 2000) : null;
   const auteur = u.email ?? (String(body?.auteur ?? "").trim() || null);
 
-  const { data: existant } = await supabaseAdmin
-    .from("resultats_examen").select("id").eq("vente_id", venteId).maybeSingle();
-  if (!existant) {
-    return NextResponse.json({ ok: false, erreur: "Saisir d'abord un résultat avant d'ajouter un commentaire." }, { status: 409 });
+  // Ciblage identique au POST : vente (vente_id) OU candidat importé (examen_ref + source).
+  let venteId = String(body?.venteId ?? "").trim();
+  const examenRef = String(body?.examenRef ?? "").trim();
+  const source = String(body?.source ?? "").trim();
+  if (!venteId && source === "vente" && examenRef) venteId = examenRef;
+
+  if (venteId) {
+    const { data: existant } = await supabaseAdmin
+      .from("resultats_examen").select("id").eq("vente_id", venteId).maybeSingle();
+    if (!existant) {
+      return NextResponse.json({ ok: false, erreur: "Saisir d'abord un résultat avant d'ajouter un commentaire." }, { status: 409 });
+    }
+    const { error } = await supabaseAdmin
+      .from("resultats_examen").update({ commentaire }).eq("vente_id", venteId);
+    if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
+    await journal("ventes_examen", venteId, "resultat_commentaire", { commentaire }, auteur);
+    return NextResponse.json({ ok: true });
   }
 
-  const { error } = await supabaseAdmin
-    .from("resultats_examen").update({ commentaire }).eq("vente_id", venteId);
-  if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
+  if (examenRef && source === "import") {
+    const { data: existant } = await supabaseAdmin
+      .from("resultats_examen").select("id").eq("examen_ref", examenRef).eq("source", "import").maybeSingle();
+    if (!existant) {
+      return NextResponse.json({ ok: false, erreur: "Saisir d'abord un résultat avant d'ajouter un commentaire." }, { status: 409 });
+    }
+    const { error } = await supabaseAdmin
+      .from("resultats_examen").update({ commentaire }).eq("examen_ref", examenRef).eq("source", "import");
+    if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
+    await journal("examens", examenRef, "resultat_commentaire", { commentaire }, auteur);
+    return NextResponse.json({ ok: true });
+  }
 
-  await journal("ventes_examen", venteId, "resultat_commentaire", { commentaire }, auteur);
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: false, erreur: "venteId ou (examenRef + source) requis." }, { status: 400 });
 }
 
 export async function PUT(req: NextRequest) {

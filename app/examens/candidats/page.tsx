@@ -72,7 +72,25 @@ function SaisieResultat({ c }: { c: Candidat }) {
     finally { setBusy(false); }
   }
 
+  async function enregistrerCommentaire(val: string) {
+    setBusy(true); setErr(null); setOk(null);
+    try {
+      const r = await fetch("/api/examens/resultats", {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ examenRef: c.id, source: c.source, commentaire: val }),
+      });
+      const j = await r.json();
+      if (!j.ok) { setErr(j.erreur || "Échec"); setOk(false); return; }
+      setOk(true);
+    } catch (e: any) { setErr(e?.message || "Échec"); setOk(false); }
+    finally { setBusy(false); }
+  }
+
+  // Le commentaire/mention n'est saisissable qu'une fois un résultat enregistré (statut non-null requis en base).
+  const aResultat = Boolean(c.resultat?.statut) || (Boolean(statut) && ok === true);
+
   return (
+    <div>
     <div className="flex flex-wrap items-center gap-1.5">
       <select value={statut} disabled={busy}
         onChange={(e) => { const v = e.target.value; setStatut(v); setOk(null); if (v && !(estTef && v === "Réussi")) enregistrer(v, ""); }}
@@ -95,6 +113,17 @@ function SaisieResultat({ c }: { c: Candidat }) {
       )}
       {ok === true && <span className="text-emerald-600 text-xs">✓</span>}
       {err && <span className="text-red-600 text-xs">{err}</span>}
+    </div>
+    {aResultat && (
+      <input
+        defaultValue={c.resultat?.commentaire ?? ""}
+        disabled={busy}
+        onBlur={(e) => { const v = e.target.value.trim(); if ((c.resultat?.commentaire ?? "") !== v) enregistrerCommentaire(v); }}
+        placeholder="Commentaire / mention…"
+        className="mt-1 w-48 border border-gray-300 rounded px-1.5 py-1 text-xs bg-white"
+        title="Commentaire / mention — enregistré à la sortie du champ"
+      />
+    )}
     </div>
   );
 }
@@ -365,12 +394,7 @@ export default function PageCandidatsExamen() {
                               )}
                             </td>
                             <td className="px-4 py-2 text-gray-600">{c.vendu_par ?? "—"}</td>
-                            <td className="px-4 py-2">
-                              <SaisieResultat c={c} />
-                              {c.resultat?.commentaire && (
-                                <p className="mt-1 text-xs text-gray-500 italic max-w-xs whitespace-pre-wrap" title="Commentaire / mention (saisi au Jour J)">💬 {c.resultat.commentaire}</p>
-                              )}
-                            </td>
+                            <td className="px-4 py-2"><SaisieResultat c={c} /></td>
                           </tr>
                         ))}
                       </tbody>
