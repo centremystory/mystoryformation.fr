@@ -133,9 +133,10 @@ export async function GET(req: Request): Promise<Response> {
     .maybeSingle();
   if (error || !dossier) return notFound();
 
-  const [{ data: pieces }, { data: planning }] = await Promise.all([
+  const [{ data: pieces }, { data: planning }, { data: satisfFroid }] = await Promise.all([
     supabaseAdmin.from("pieces").select("type,statut,optionnelle,ordre").eq("dossier_id", dossier.id).order("ordre"),
-    supabaseAdmin.from("planning").select("date_seance,demi_journee,heures").eq("dossier_id", dossier.id).order("date_seance"),
+    supabaseAdmin.from("planning").select("date_seance,demi_journee,heures,contenu").eq("dossier_id", dossier.id).order("date_seance"),
+    supabaseAdmin.from("satisfactions").select("type,reponses,horodatage").eq("dossier_id", dossier.id).eq("type", "froid").maybeSingle(),
   ]);
 
   const s = (dossier as any).stagiaires || {};
@@ -189,11 +190,37 @@ export async function GET(req: Request): Promise<Response> {
   // Planning
   const HORAIRES: Record<string, string> = { matin: "9h30–12h30", apres_midi: "14h–17h" };
   const planningRows = (planning || []).map((pl: any) =>
-    `<tr><td>${dateFR(pl.date_seance)}</td><td>${pl.demi_journee === "matin" ? "Matin" : "Après-midi"} (${HORAIRES[pl.demi_journee] || ""})</td><td>${esc(pl.heures)} h</td></tr>`
+    `<tr><td>${dateFR(pl.date_seance)}</td><td>${pl.demi_journee === "matin" ? "Matin" : "Après-midi"} (${HORAIRES[pl.demi_journee] || ""})</td><td>${esc(pl.heures)} h</td><td>${esc(pl.contenu) || "<span style=\"color:#9aa1ad\">—</span>"}</td></tr>`
   ).join("");
   const planningBloc = planningRows
-    ? `<h2>Planning des séances</h2><table class="pl"><thead><tr><th>Date</th><th>Demi-journée</th><th>Heures</th></tr></thead><tbody>${planningRows}</tbody></table>`
+    ? `<h2>Planning des séances</h2><table class="pl"><thead><tr><th>Date</th><th>Demi-journée</th><th>Heures</th><th>Contenu de la séance</th></tr></thead><tbody>${planningRows}</tbody></table>`
     : "";
+
+  // Satisfaction à froid (lecture seule) — libellés alignés sur le questionnaire.
+  const EX: Record<string, string> = { oui: "Oui", prevu: "Non, prévu", pas_encore: "Pas encore" };
+  const NV: Record<string, string> = { A2: "A2", B1: "B1", B2: "B2", attente: "En attente / non passé" };
+  const DM: Record<string, string> = { oui: "Oui", en_cours: "En cours", non: "Non" };
+  let satisfBloc: string;
+  const rep = (satisfFroid as any)?.reponses as Record<string, unknown> | undefined;
+  if (rep) {
+    const lignes: Array<[string, string]> = [
+      ["Avez-vous passé l'examen ?", EX[String(rep.examen)] ?? "—"],
+      ["Niveau obtenu", NV[String(rep.niveau_obtenu)] ?? "—"],
+      ["Démarche aboutie (séjour / résident / naturalisation)", DM[String(rep.demarche)] ?? "—"],
+      ["La formation m'a aidé(e) à atteindre mon objectif", rep.q_objectif != null ? `${esc(rep.q_objectif)} / 5` : "—"],
+      ["J'utilise le français appris (pro &amp; quotidien)", rep.q_usage != null ? `${esc(rep.q_usage)} / 5` : "—"],
+      ["Avec le recul, correspondait à mes besoins", rep.q_besoins != null ? `${esc(rep.q_besoins)} / 5` : "—"],
+      ["Recommandation à un proche", rep.nps != null ? `${esc(rep.nps)} / 10` : "—"],
+    ];
+    const rows = lignes.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join("");
+    const comm = String(rep.commentaire ?? "").trim();
+    const commBloc = comm ? `<p style="margin:10px 0 0;font-size:14px"><span style="color:#6b7280">Commentaire :</span> ${esc(comm)}</p>` : "";
+    satisfBloc = `<h2>Satisfaction à froid (3 mois)</h2>
+      <div class="card"><div class="k" style="margin-bottom:8px">Répondu le ${dateFR((satisfFroid as any).horodatage)}</div>
+      <table class="pl"><tbody>${rows}</tbody></table>${commBloc}</div>`;
+  } else {
+    satisfBloc = `<h2>Satisfaction à froid (3 mois)</h2><div class="card"><div class="v" style="font-weight:400;color:#6b7280">Pas encore reçue (envoyée ~3 mois après la fin).</div></div>`;
+  }
 
   const body = `
     <div class="head">
@@ -205,6 +232,7 @@ export async function GET(req: Request): Promise<Response> {
     <h2>Pièces du dossier conforme</h2>
     <div class="steps">${steps}</div>
     ${planningBloc}
+    ${satisfBloc}
   `;
   return page(`Suivi — ${nomComplet}`, body);
 }
