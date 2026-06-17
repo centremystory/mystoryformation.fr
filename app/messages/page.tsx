@@ -2,7 +2,7 @@
 // app/messages/page.tsx — Messages prospects (équipe) : liste + traiter / archiver.
 import { useCallback, useEffect, useState } from "react";
 
-type Msg = { id: string; nom: string | null; email: string | null; message: string; statut: string; cree_le: string };
+type Msg = { id: string; nom: string | null; email: string | null; message: string; statut: string; source?: string | null; cree_le: string };
 
 const FILTRES = [
   { v: "nouveau", l: "Nouveaux" },
@@ -71,6 +71,7 @@ export default function PageMessages() {
             <div key={m.id} className="border border-gray-200 rounded-xl bg-white p-4">
               <div className="flex flex-wrap items-center gap-2">
                 <span className={`text-xs px-2 py-0.5 rounded-full ${BADGE[m.statut] ?? "bg-gray-100 text-gray-600"}`}>{m.statut}</span>
+                {m.source === "pre-inscription" && <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">Pré-inscription</span>}
                 <span className="font-medium text-gray-900">{m.nom || "—"}</span>
                 {m.email && <a href={`mailto:${m.email}`} className="text-sm text-mystory underline">{m.email}</a>}
                 <span className="flex-1" />
