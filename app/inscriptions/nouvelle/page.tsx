@@ -21,7 +21,7 @@ export default function NouvelleInscription() {
     numeroEdof: "", dateCommandeValidee: "",
     formule: "16H" as CodeFormule, niveauVise: "B1" as const,
     agenceInscription: "GAGNY" as const, resteAChargeAccepte: false,
-    declencherContractualisation: true, formatriceId: "",
+    declencherContractualisation: true, formatriceId: "", formatriceLibre: "",
     remise: 0, remiseMotif: "",
   });
   const [formatrices, setFormatrices] = useState<{ id: string; nom: string; prenom: string | null }[]>([]);
@@ -126,6 +126,14 @@ export default function NouvelleInscription() {
             {formatrices.map(fm => <option key={fm.id} value={fm.id}>{fm.prenom ? `${fm.prenom} ${fm.nom}` : fm.nom}</option>)}
           </select>
           {formatrices.length === 0 && <p className="text-xs text-red-600 mt-1">Aucune formatrice active avec justificatif FLE — à compléter dans la table formatrices.</p>}
+        </div>
+        <div className="col-span-2">
+          <label className={label}>Formatrice indépendante intervenante <span className="font-normal text-gray-500">(facultatif)</span></label>
+          <input className={champ} value={form.formatriceLibre} onChange={e => set("formatriceLibre", e.target.value)}
+                 placeholder="ex. Lavania (Queeness), IFIE Formation…" />
+          {form.formatriceLibre.trim() && (
+            <p className="text-xs text-amber-700 mt-1">⚠️ Conformité : le justificatif FLE et la charte/contrat de cette intervenante doivent être au dossier (suivi côté Formateurs). La formatrice référente FLE ci-dessus reste obligatoire.</p>
+          )}
         </div>
         <div><label className={label}>Financement *</label>
           <select className={champ} value={form.financement} onChange={e => { const v = e.target.value; set("financement", v); if (v === "CPF") { set("remise", 0); set("remiseMotif", ""); } }}>

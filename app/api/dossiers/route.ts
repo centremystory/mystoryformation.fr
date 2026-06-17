@@ -11,7 +11,7 @@ export async function GET(_req: NextRequest) {
     .from("dossiers")
     .select(
       `id, certif, financement, statut, statut_tunnel, date_debut, date_fin, token, created_at,
-       heures_prevues, service_fait_valide,
+       heures_prevues, service_fait_valide, formatrice_libre,
        stagiaires ( nom, prenom, agence ),
        formatrices ( nom, prenom ),
        pieces ( type, statut, optionnelle, exige_signature, ordre, sign_url_integre )`

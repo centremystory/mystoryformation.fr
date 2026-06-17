@@ -174,6 +174,7 @@ export async function GET(req: Request): Promise<Response> {
     ["Validation commande", dateFR(dossier.date_validation_commande)],
     ["1re séance", dateFR(dossier.date_debut)],
     ["Dernière séance", dateFR(dossier.date_fin)],
+    ...(dossier.formatrice_libre ? [["Formatrice intervenante", esc(dossier.formatrice_libre)]] : []),
   ].map(([k, v]) => `<div class="card"><div class="k">${esc(k)}</div><div class="v">${v}</div></div>`).join("");
 
   // Check-list des pièces

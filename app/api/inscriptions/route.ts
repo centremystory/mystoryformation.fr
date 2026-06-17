@@ -154,10 +154,16 @@ export async function POST(req: NextRequest) {
 
   const dossierId = (data as any)?.dossier_id ?? (data as any)?.id ?? null;
 
-  // Remise (hors CPF) reportée sur le dossier — base déjà posée (dossiers.remise / remise_motif).
-  if (dossierId && remise > 0) {
-    const { error: eRemise } = await supabase.from("dossiers").update({ remise, remise_motif: remiseMotif }).eq("id", dossierId);
-    if (eRemise) console.warn("[inscriptions] remise non enregistrée:", eRemise.message);
+  // Champs hors-RPC reportés sur le dossier (la RPC ne doit jamais être modifiée).
+  const formatriceLibre = String(inscription.formatriceLibre ?? "").trim().slice(0, 200) || null;
+  if (dossierId) {
+    const majDossier: Record<string, unknown> = {};
+    if (remise > 0) { majDossier.remise = remise; majDossier.remise_motif = remiseMotif; }
+    if (formatriceLibre) majDossier.formatrice_libre = formatriceLibre; // intervenante indépendante (référente FLE conservée)
+    if (Object.keys(majDossier).length > 0) {
+      const { error: eMaj } = await supabase.from("dossiers").update(majDossier).eq("id", dossierId);
+      if (eMaj) console.warn("[inscriptions] maj dossier (remise/formatrice_libre) ignorée:", eMaj.message);
+    }
   }
 
   await journal("dossier", dossierId, "inscription_creee", {

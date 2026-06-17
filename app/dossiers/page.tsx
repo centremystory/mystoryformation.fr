@@ -67,6 +67,7 @@ type Dossier = {
   service_fait_valide: boolean;
   stagiaires: { nom: string; prenom: string | null; agence: string | null } | null;
   formatrices: { nom: string; prenom: string | null } | null;
+  formatrice_libre?: string | null;
   pieces: Piece[];
 };
 
@@ -378,7 +379,7 @@ function LigneDossier({
           {LIBELLE_CERTIF[d.certif] ?? d.certif}
           <span className="text-gray-400"> · {d.financement}</span>
         </td>
-        <td className="px-4 py-3 text-gray-600">{nomFormatrice}</td>
+        <td className="px-4 py-3 text-gray-600">{nomFormatrice}{d.formatrice_libre && <span className="block text-xs text-gray-400">+ intervenante : {d.formatrice_libre}</span>}</td>
         <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
           {dateFr(d.date_debut)} → {dateFr(d.date_fin)}
         </td>
