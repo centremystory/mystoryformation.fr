@@ -140,6 +140,7 @@ export async function facturerVente(venteId: string, auteur?: string | null): Pr
       montant: (v as any).montant,
       designation,
       client,
+      serie: "TEF_PRODUIT", // numérotation MYS-2026 unifiée (séquence partagée avec l'attestation)
       numero: "ATTRIBUE_PAR_LE_SERVEUR", // remplacé par le trigger (séquence sans trou)
       ...(payee ? { statut: "payée", date_paiement: aujourdHuiParisISO() } : {}),
     })
