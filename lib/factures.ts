@@ -164,6 +164,11 @@ export async function facturerDossier(dossierId: string, auteur?: string | null)
   if (!d) throw new Error("Dossier introuvable.");
   const s = (d as any).stagiaires;
   const estCpf = (d as any).origine_fonds === "CPF_CDC" || (d as any).financement === "CPF";
+  // Série de numérotation FORMATION : CPF / OPCO / FT (France Travail) / FFP (Fonds propres).
+  const serie = estCpf ? "CPF"
+    : (d as any).financement === "OPCO" ? "OPCO"
+    : (d as any).financement === "PoleEmploi" ? "FT"
+    : "FFP";
   const reglement = estCpf
     ? "CPF — Caisse des Dépôts et Consignations (service fait validé EDOF)"
     : ((d as any).origine_fonds ?? (d as any).financement ?? "Paiement direct");
@@ -193,7 +198,7 @@ export async function facturerDossier(dossierId: string, auteur?: string | null)
 
   const { data: facture, error } = await supabaseAdmin
     .from("factures")
-    .insert({ dossier_id: dossierId, montant: montantNet, designation, client, numero: "ATTRIBUE_PAR_LE_SERVEUR" })
+    .insert({ dossier_id: dossierId, montant: montantNet, designation, client, serie, numero: "ATTRIBUE_PAR_LE_SERVEUR" })
     .select("*").single();
   if (error) throw new Error(error.message);
 
