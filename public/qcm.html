@@ -212,6 +212,14 @@ footer{color:var(--grey);font-size:11px;text-align:center;padding:24px 12px;}
     <p>Niveau indicatif (écrit seul) : <b id="r-prov"></b></p>
     <p style="margin-top:12px;">🎧 Compréhension orale (corrigée automatiquement) : <b><span id="r-co">—</span> / 10</b></p>
     <p id="r-envoi" style="margin-top:10px;font-weight:600;color:var(--blue);">Enregistrement…</p>
+  <div id="oral-zone" class="hidden" style="margin-top:18px;text-align:left;background:var(--lite);border:1px solid #d8e0ec;border-radius:12px;padding:16px;">
+    <h3 style="margin:0 0 4px;color:var(--blue);">🎙️ Expression orale (1 à 2 min)</h3>
+    <p style="font-size:14px;color:#2b3a4d;margin:0 0 10px;">Pour compléter votre positionnement, enregistrez-vous (60-90 s) sur chacune des 3 questions. Une formatrice écoutera et évaluera votre oral sous 24-48 h. Vous pouvez réécouter et recommencer avant d'envoyer.</p>
+    <div id="oral-questions"></div>
+    <button id="oral-send" class="btn" style="margin-top:10px;" disabled>Envoyer mes enregistrements</button>
+    <p id="oral-status" style="margin-top:8px;font-weight:600;color:var(--blue);"></p>
+    <p style="font-size:12px;color:var(--grey);margin-top:6px;">🔒 Vos enregistrements servent uniquement à votre positionnement (RGPD, conservation 5 ans, référent contact@mystoryformation.fr).</p>
+  </div>
   </div>
 
 
@@ -306,7 +314,7 @@ function envoyerCRM(){
     referent:g('referent'),ce_sur20:CE,co_sur10:COscore,dispos:getDispo()};
   const el=document.getElementById('r-envoi');
   fetch('/api/positionnement',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)})
-    .then(r=>r.json()).then(j=>{el.textContent=j.ok?'✓ Test enregistré — en attente de la formatrice pour l\'expression écrite et orale.':'⚠️ Enregistrement non confirmé ('+(j.erreur||'réessayez')+').';})
+    .then(r=>r.json()).then(j=>{el.textContent=j.ok?'✓ Test enregistré — passez maintenant l\'oral ci-dessous (1 à 2 min).':'⚠️ Enregistrement non confirmé ('+(j.erreur||'réessayez')+').'; if(j.ok&&j.token){window.POS_TOKEN=j.token; var oz=document.getElementById('oral-zone'); if(oz) oz.classList.remove('hidden');}})
     .catch(()=>{el.textContent='⚠️ Enregistrement hors-ligne : prévenez l\'administration.';});
 }
 
@@ -397,6 +405,67 @@ function calcGlobal(){
   }
   document.getElementById('r-table').innerHTML=recap.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('');
 }
+
+/* ----- Oral asynchrone : enregistrement audio enchaîné après le QCM ----- */
+const ORAL_QUESTIONS=[
+  "Présentez-vous : votre nom, d'où vous venez, et ce que vous faites aujourd'hui.",
+  "Décrivez votre journée d'hier, ou une journée habituelle pour vous.",
+  "Pourquoi souhaitez-vous passer cette certification de français ? Quel est votre objectif ?"
+];
+const oralBlobs=[null,null,null];
+(function buildOral(){
+  const c=document.getElementById('oral-questions'); if(!c) return;
+  c.innerHTML=ORAL_QUESTIONS.map((q,i)=>`
+    <div style="margin:10px 0;padding:10px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;">
+      <div style="font-weight:600;margin-bottom:6px;">${i+1}. ${q}</div>
+      <button type="button" class="oral-rec btn" data-i="${i}" style="padding:8px 14px;font-size:14px;">🎙️ Enregistrer</button>
+      <span class="oral-time" data-i="${i}" style="margin-left:8px;color:var(--grey);font-size:13px;"></span>
+      <div class="oral-review" data-i="${i}" style="margin-top:8px;"></div>
+    </div>`).join('');
+  c.querySelectorAll('.oral-rec').forEach(b=>b.addEventListener('click',()=>toggleRec(parseInt(b.dataset.i),b)));
+})();
+let activeRec=null,activeChunks=[],activeStream=null,activeTimer=null,activeStart=0,activeI=-1;
+async function toggleRec(i,btn){
+  if(activeRec&&activeRec.state==='recording'){ stopRec(); return; }
+  if(!navigator.mediaDevices||!window.MediaRecorder){ alert("Votre navigateur ne permet pas l'enregistrement audio. Essayez Chrome ou Safari à jour."); return; }
+  try{ activeStream=await navigator.mediaDevices.getUserMedia({audio:true}); }
+  catch(e){ alert("Micro non autorisé. Autorisez l'accès au micro puis réessayez."); return; }
+  activeI=i; activeChunks=[]; activeRec=new MediaRecorder(activeStream);
+  activeRec.ondataavailable=e=>{ if(e.data&&e.data.size>0) activeChunks.push(e.data); };
+  activeRec.onstop=()=>{
+    const blob=new Blob(activeChunks,{type:'audio/webm'}); oralBlobs[i]=blob;
+    const dur=Math.round((Date.now()-activeStart)/1000);
+    const rev=document.querySelector('.oral-review[data-i="'+i+'"]');
+    rev.innerHTML='<audio controls src="'+URL.createObjectURL(blob)+'" style="width:100%;max-width:320px;"></audio><div style="font-size:12px;color:var(--grey);">Durée : '+dur+' s — vous pouvez réenregistrer.</div>';
+    btn.textContent='↺ Recommencer';
+    document.querySelector('.oral-time[data-i="'+i+'"]').textContent='';
+    if(activeStream){activeStream.getTracks().forEach(t=>t.stop());activeStream=null;}
+    clearInterval(activeTimer); activeRec=null; activeI=-1; majSend();
+  };
+  activeStart=Date.now(); activeRec.start();
+  btn.textContent='⏹ Arrêter';
+  const tEl=document.querySelector('.oral-time[data-i="'+i+'"]');
+  activeTimer=setInterval(()=>{ const s=Math.round((Date.now()-activeStart)/1000); tEl.textContent='● '+s+' s'; if(s>=90){ stopRec(); } },500);
+}
+function stopRec(){ if(activeRec&&activeRec.state==='recording') activeRec.stop(); }
+function majSend(){ document.getElementById('oral-send').disabled=!oralBlobs.some(b=>b); }
+function blobToB64(blob){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(String(r.result).split(',')[1]); r.onerror=rej; r.readAsDataURL(blob); }); }
+(function(){
+  const sb=document.getElementById('oral-send'); if(!sb) return;
+  sb.addEventListener('click',async()=>{
+    if(!window.POS_TOKEN) return;
+    const st=document.getElementById('oral-status'); sb.disabled=true; st.textContent='Envoi en cours…';
+    try{
+      const audios=[];
+      for(let i=0;i<3;i++){ if(oralBlobs[i]) audios.push({q:i,question:ORAL_QUESTIONS[i],audioBase64:await blobToB64(oralBlobs[i])}); }
+      const r=await fetch('/api/positionnement/'+window.POS_TOKEN,{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({audios})});
+      const j=await r.json();
+      if(j.ok){ st.textContent='✓ Merci ! '+j.nombre+' enregistrement(s) envoyé(s). Une formatrice évaluera votre oral sous 24-48 h.'; sb.style.display='none'; }
+      else{ st.textContent='⚠️ '+(j.erreur||'Envoi non confirmé.'); sb.disabled=false; }
+    }catch(e){ st.textContent='⚠️ Connexion impossible. Réessayez.'; sb.disabled=false; }
+  });
+})();
+
 </script>
 </body>
 </html>

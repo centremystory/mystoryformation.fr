@@ -11,6 +11,8 @@ type Pos = {
   niveau_vise: string | null; ce_sur20: number | null; co_sur10: number | null;
   ee_sur10: number | null; eo_sur10: number | null; total_sur20: number | null;
   niveau_global: string | null; remarques: string | null; statut: string;
+  ecrit?: string | null;
+  oral?: { q: number; question: string; url: string | null; duree: number | null }[];
 };
 
 export default function NotationFormatrice({ params }: { params: { token: string } }) {
@@ -62,7 +64,28 @@ export default function NotationFormatrice({ params }: { params: { token: string
             </div>
           </div>
 
-          {p.statut === "complet" ? (
+          {p.oral && p.oral.length > 0 && (
+            <div className="mt-4 rounded-2xl border border-gray-200 bg-white p-4">
+              <div className="text-sm font-semibold text-gray-800">🎙️ Expression orale enregistrée</div>
+              <p className="text-xs text-gray-500 mt-0.5">Écoutez puis attribuez la note EO ci-dessous.</p>
+              <div className="mt-2 space-y-3">
+                {[...p.oral].sort((a, b) => a.q - b.q).map((a) => (
+                  <div key={a.q}>
+                    <div className="text-xs text-gray-600 mb-1">{a.q + 1}. {a.question}</div>
+                    {a.url
+                      ? <audio controls src={a.url} className="w-full" />
+                      : <span className="text-xs text-red-500">Enregistrement indisponible.</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {p.ecrit && (
+            <div className="mt-4 rounded-2xl border border-gray-200 bg-white p-4">
+              <div className="text-sm font-semibold text-gray-800">✍️ Expression écrite (échantillon)</div>
+              <p className="mt-1 whitespace-pre-wrap text-sm text-gray-700">{p.ecrit}</p>
+            </div>
+          )}
             <p className="mt-4 rounded-lg bg-amber-50 border border-amber-300 p-3 text-sm text-amber-800">
               Ce positionnement est déjà finalisé (niveau {p.niveau_global ?? "—"}). Vous pouvez renoter pour corriger.
             </p>
