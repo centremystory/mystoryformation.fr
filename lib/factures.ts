@@ -226,7 +226,102 @@ export async function facturerDossier(dossierId: string, auteur?: string | null)
   return { id: (facture as any).id, numero: (facture as any).numero, montant: (facture as any).montant, client, dejaExistante: false, pdf };
 }
 
-/** Marque une facture payée (date de paiement = aujourd'hui Europe/Paris) et regénère le PDF (tampon PAYÉE). */
+/**
+ * Facture GROUPÉE : plusieurs produits d'une MÊME personne sur UNE facture (multi-lignes).
+ * Règles : même stagiaire, même série (même payeur) ; CPF exclu (payeur CDC, facture séparée) ;
+ * aucun item déjà facturé. La facture groupée ne porte ni dossier_id ni vente_id — ses items
+ * sont tracés dans `facture_lignes` (ref_type/ref_id). Numéro selon la série (ex. MYS-2026 examen).
+ */
+const SERIE_REGLEMENT: Record<string, string> = {
+  TEF_PRODUIT: "Paiement direct (examen)", OPCO: "OPCO", FT: "France Travail", FFP: "Fonds propres",
+};
+export async function facturerGroupe(
+  items: Array<{ refType: "dossier" | "vente"; refId: string }>,
+  auteur?: string | null,
+): Promise<FactureCreee> {
+  // Dédoublonnage des items en entrée.
+  const uniq = new Map<string, { refType: "dossier" | "vente"; refId: string }>();
+  for (const it of items ?? []) {
+    if ((it?.refType === "dossier" || it?.refType === "vente") && it.refId) uniq.set(`${it.refType}:${it.refId}`, it);
+  }
+  const liste = [...uniq.values()];
+  if (liste.length < 2) throw new Error("Sélectionne au moins deux produits à regrouper.");
+
+  // Items déjà facturés (entité directe OU ligne d'une facture groupée).
+  const { data: dejaEnt } = await supabaseAdmin.from("factures").select("dossier_id, vente_id");
+  const { data: dejaLig } = await supabaseAdmin.from("facture_lignes").select("ref_type, ref_id");
+  const dejaDossiers = new Set<string>(); const dejaVentes = new Set<string>();
+  for (const f of dejaEnt ?? []) { if ((f as any).dossier_id) dejaDossiers.add((f as any).dossier_id); if ((f as any).vente_id) dejaVentes.add((f as any).vente_id); }
+  for (const l of dejaLig ?? []) { if ((l as any).ref_type === "dossier" && (l as any).ref_id) dejaDossiers.add((l as any).ref_id); if ((l as any).ref_type === "vente" && (l as any).ref_id) dejaVentes.add((l as any).ref_id); }
+
+  type Desc = { stagiaireId: string; serie: string; designation: string; montant: number; ref_type: string; ref_id: string; categorie: string; stagiaire: any; clientNom: string };
+  const descs: Desc[] = [];
+
+  for (const it of liste) {
+    if (it.refType === "vente") {
+      if (dejaVentes.has(it.refId)) throw new Error("Un examen sélectionné est déjà facturé.");
+      const { data: v } = await supabaseAdmin.from("ventes_examen").select("*, stagiaires:candidat_id (*)").eq("id", it.refId).maybeSingle();
+      if (!v) throw new Error("Vente d'examen introuvable.");
+      if (["Annulé", "Remboursé"].includes((v as any).statut_paiement)) throw new Error("Une vente annulée/remboursée ne peut pas être facturée.");
+      const s = (v as any).stagiaires;
+      const libelle = LIBELLE_EXAMEN[(v as any).type_examen] ?? "Prestation d'examen";
+      descs.push({
+        stagiaireId: (v as any).candidat_id, serie: "TEF_PRODUIT", categorie: "examen",
+        designation: `${libelle}${(v as any).sous_type ? ` — ${(v as any).sous_type}` : ""} · attestation ${(v as any).numero_attestation}`,
+        montant: Number((v as any).montant ?? 0), ref_type: "vente", ref_id: it.refId,
+        stagiaire: s, clientNom: `${s?.civilite ?? ""} ${s?.prenom ?? ""} ${s?.nom ?? ""}`.trim(),
+      });
+    } else {
+      if (dejaDossiers.has(it.refId)) throw new Error("Un dossier sélectionné est déjà facturé.");
+      const { data: d } = await supabaseAdmin.from("dossiers").select("*, stagiaires:stagiaire_id (*)").eq("id", it.refId).maybeSingle();
+      if (!d) throw new Error("Dossier introuvable.");
+      const estCpf = (d as any).origine_fonds === "CPF_CDC" || (d as any).financement === "CPF";
+      if (estCpf) throw new Error("Un dossier CPF se facture séparément (payeur Caisse des Dépôts) — il ne peut pas être regroupé.");
+      const serie = (d as any).financement === "OPCO" ? "OPCO" : (d as any).financement === "PoleEmploi" ? "FT" : "FFP";
+      const s = (d as any).stagiaires;
+      const intitule = LIBELLE_CERTIF[(d as any).certif] ?? `Formation ${(d as any).certif}`;
+      const heures = (d as any).heures_realisees ?? (d as any).heures_prevues;
+      const brut = Number((d as any).montant ?? 0);
+      const remise = Math.min(Math.max(0, Number((d as any).remise ?? 0)), brut);
+      descs.push({
+        stagiaireId: (d as any).stagiaire_id, serie, categorie: "formation",
+        designation: `${intitule} — ${heures} heures${(d as any).numero_edof ? ` · dossier EDOF ${(d as any).numero_edof}` : ""}`,
+        montant: Math.max(0, brut - remise), ref_type: "dossier", ref_id: it.refId,
+        stagiaire: s, clientNom: `${s?.civilite ?? ""} ${s?.prenom ?? ""} ${s?.nom ?? ""}`.trim(),
+      });
+    }
+  }
+
+  // Cohérence : même personne, même série.
+  const stagiaireId = descs[0].stagiaireId;
+  if (descs.some((x) => x.stagiaireId !== stagiaireId)) throw new Error("Tous les produits doivent concerner la même personne.");
+  const serie = descs[0].serie;
+  if (descs.some((x) => x.serie !== serie)) throw new Error("Produits de séries/payeurs différents : facturez-les séparément (ex. examen et formation ne se regroupent pas).");
+
+  const total = descs.reduce((sum, x) => sum + x.montant, 0);
+  const designation = descs.map((x) => `${x.designation} (${x.montant.toLocaleString("fr-FR")} €)`).join(" ; ");
+  const client = descs[0].clientNom;
+  const reglement = SERIE_REGLEMENT[serie] ?? "Paiement direct";
+
+  const { data: facture, error } = await supabaseAdmin
+    .from("factures")
+    .insert({ montant: total, designation, client, serie, numero: "ATTRIBUE_PAR_LE_SERVEUR" })
+    .select("*").single();
+  if (error) throw new Error(error.message);
+
+  const lignes = descs.map((x, i) => ({
+    facture_id: (facture as any).id, designation: x.designation, categorie: x.categorie,
+    quantite: 1, prix_unitaire: x.montant, montant: x.montant, ref_type: x.ref_type, ref_id: x.ref_id, ordre: i,
+  }));
+  const { error: eLignes } = await supabaseAdmin.from("facture_lignes").insert(lignes);
+  if (eLignes) console.warn("[factures] lignes groupées non écrites:", eLignes.message);
+
+  await journal("factures", (facture as any).id, "facture_groupee_emise",
+    { numero: (facture as any).numero, montant: total, serie, items: descs.map((x) => ({ t: x.ref_type, id: x.ref_id })) }, auteur ?? null);
+
+  const pdf = await rendreEtArchiver(facture, adresseClient(descs[0].stagiaire), reglement, false);
+  return { id: (facture as any).id, numero: (facture as any).numero, montant: total, client, dejaExistante: false, pdf };
+}
 export async function marquerPayee(factureId: string, auteur?: string | null): Promise<{ ok: boolean; erreur?: string }> {
   const ctx = await chargerFacture(factureId);
   if (!ctx) return { ok: false, erreur: "Facture introuvable." };

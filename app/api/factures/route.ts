@@ -11,7 +11,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser, UnauthorizedError, type SessionUser } from "@/lib/auth";
 import { peut } from "@/lib/roles";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { facturerDossier, facturerVente, envoyerFacture, marquerPayee } from "@/lib/factures";
+import { facturerDossier, facturerVente, facturerGroupe, envoyerFacture, marquerPayee } from "@/lib/factures";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -107,6 +107,22 @@ export async function POST(req: NextRequest) {
   const dossierId = String(body?.dossier_id ?? "").trim();
   const venteId = String(body?.vente_id ?? "").trim();
   const auteur = g.email ?? (String(body?.auteur ?? "").trim() || null);
+  const items = Array.isArray(body?.items) ? body.items : null;
+
+  // Émission GROUPÉE : { items: [{ refType: 'dossier'|'vente', refId }] } (même personne, même série).
+  if (items) {
+    try {
+      const f = await facturerGroupe(items, auteur);
+      const envoi = body?.envoyer === false ? { ok: false, erreur: "Envoi non demandé." } : await envoyerFacture(f.id, "emission", auteur);
+      return NextResponse.json({
+        ok: true, factureId: f.id, numero: f.numero, montant: f.montant, client: f.client, groupee: true,
+        email: envoi.ok ? { envoye: true } : { envoye: false, erreur: envoi.erreur },
+      });
+    } catch (e: any) {
+      return NextResponse.json({ ok: false, erreur: e?.message ?? String(e) }, { status: 409 });
+    }
+  }
+
   if (!dossierId && !venteId) return NextResponse.json({ ok: false, erreur: "dossier_id ou vente_id requis." }, { status: 400 });
   if (dossierId && venteId) return NextResponse.json({ ok: false, erreur: "Une facture porte sur UNE entité : dossier OU vente." }, { status: 400 });
 

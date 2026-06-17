@@ -49,6 +49,7 @@ export default function PageFactures() {
   const [erreur, setErreur] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [selection, setSelection] = useState<Set<string>>(new Set());
   const [vue, setVue] = useState<"tous" | "formation" | "examen">("tous");
 
   const recharger = useCallback(async () => {
@@ -110,6 +111,15 @@ export default function PageFactures() {
     }
   }
 
+  function toggleSel(key: string) {
+    setSelection((prev) => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
+  }
+  async function facturerEnsemble() {
+    const items = [...selection].map((k) => { const [refType, refId] = k.split(":"); return { refType, refId }; });
+    await action("/api/factures", { items }, "groupe", "Facture groupée émise et envoyée");
+    setSelection(new Set());
+  }
+
   return (
     <main className="max-w-5xl mx-auto px-4 md:px-6 py-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -153,16 +163,32 @@ export default function PageFactures() {
           <p className="text-xs text-gray-500 mt-0.5">
             Payeur direct : facture à l&apos;inscription · CPF : facture après service fait validé EDOF (verrou).
             Les ventes d&apos;examen sont facturées automatiquement à la vente — cette liste sert de rattrapage.
+            <br/>Coche plusieurs produits d&apos;une <strong>même personne</strong> (même payeur) pour les regrouper sur une seule facture.
           </p>
+          {selection.size >= 2 && (
+            <div className="mt-2 flex items-center gap-3 rounded-lg border border-mystory/40 bg-blue-50 px-3 py-2">
+              <span className="text-sm text-gray-700">{selection.size} produits sélectionnés</span>
+              <button onClick={facturerEnsemble} disabled={busy !== null}
+                className="px-3 py-1.5 rounded-md text-sm bg-mystory text-white hover:opacity-90 disabled:opacity-40">
+                {busy === "groupe" ? "Émission…" : "Facturer ensemble"}
+              </button>
+              <button onClick={() => setSelection(new Set())} className="text-sm text-gray-500 underline">Annuler la sélection</button>
+            </div>
+          )}
           <div className="mt-2 space-y-2">
             {montrerFormation && aFacturer.map((d) => (
               <div key={d.dossierId} className="rounded-lg border bg-white p-3 flex items-center justify-between gap-3 flex-wrap">
-                <div>
+                <div className="flex items-center gap-2">
+                  {!d.estCpf && d.facturable && (
+                    <input type="checkbox" checked={selection.has(`dossier:${d.dossierId}`)} onChange={() => toggleSel(`dossier:${d.dossierId}`)} title="Regrouper" />
+                  )}
+                  <div>
                   <span className="font-medium">{d.client || "(sans nom)"}</span>
                   <span className="text-sm text-gray-500"> · {d.certif} · {Number(d.montant).toLocaleString("fr-FR")} € {d.remise ? "net" : ""}</span>
                   {!!d.remise && <span className="ml-2 text-xs px-2 py-0.5 rounded border bg-emerald-50 border-emerald-200 text-emerald-800">remise {Number(d.remise).toLocaleString("fr-FR")} €</span>}
                   {d.estCpf && <span className="ml-2 text-xs px-2 py-0.5 rounded border bg-blue-50 border-blue-200 text-blue-800">CPF</span>}
                   {d.motifBlocage && <div className="text-xs text-orange-700 mt-0.5">⏳ {d.motifBlocage}</div>}
+                  </div>
                 </div>
                 <button
                   onClick={() => action("/api/factures", { dossier_id: d.dossierId }, d.dossierId, "Facture émise et envoyée")}
@@ -175,9 +201,12 @@ export default function PageFactures() {
             ))}
             {montrerExamen && ventes.map((v) => (
               <div key={v.venteId} className="rounded-lg border bg-white p-3 flex items-center justify-between gap-3 flex-wrap">
-                <div>
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" checked={selection.has(`vente:${v.venteId}`)} onChange={() => toggleSel(`vente:${v.venteId}`)} title="Regrouper" />
+                  <div>
                   <span className="font-medium">{v.client || "(sans nom)"}</span>
                   <span className="text-sm text-gray-500"> · Examen {v.type} · {v.numeroAttestation} · {Number(v.montant).toLocaleString("fr-FR")} €</span>
+                  </div>
                 </div>
                 <button
                   onClick={() => action("/api/factures", { vente_id: v.venteId }, v.venteId, "Facture émise et envoyée")}
