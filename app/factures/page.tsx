@@ -15,6 +15,7 @@ interface Facture {
   id: string; numero: string; montant: number; designation: string; client: string;
   statut: string; date_emission: string; date_paiement: string | null;
   dossier_id: string | null; vente_id: string | null;
+  facture_lignes?: { designation: string; montant: number; quantite: number; prix_unitaire: number; ordre: number }[];
 }
 interface DossierAFacturer {
   dossierId: string; certif: string; montant: number; remise?: number; client: string;
@@ -216,7 +217,18 @@ export default function PageFactures() {
                   <tr key={f.id} className="border-t align-top">
                     <td className="px-3 py-2 font-mono whitespace-nowrap">{f.numero}</td>
                     <td className="px-3 py-2">{f.client}</td>
-                    <td className="px-3 py-2 text-gray-600 max-w-[280px]">{f.designation}</td>
+                    <td className="px-3 py-2 text-gray-600 max-w-[280px]">
+                      {(f.facture_lignes && f.facture_lignes.length > 1) ? (
+                        <ul className="space-y-0.5">
+                          {[...f.facture_lignes].sort((a, b) => a.ordre - b.ordre).map((l, i) => (
+                            <li key={i} className="flex justify-between gap-2">
+                              <span className="truncate">{l.quantite > 1 ? `${l.quantite}× ` : ""}{l.designation}</span>
+                              <span className="whitespace-nowrap text-gray-500">{Number(l.montant).toLocaleString("fr-FR")} €</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : f.designation}
+                    </td>
                     <td className="px-3 py-2 whitespace-nowrap font-medium">{Number(f.montant).toLocaleString("fr-FR")} €</td>
                     <td className="px-3 py-2 whitespace-nowrap">{dateFR(f.date_emission)}</td>
                     <td className="px-3 py-2 whitespace-nowrap">

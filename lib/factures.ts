@@ -149,6 +149,14 @@ export async function facturerVente(venteId: string, auteur?: string | null): Pr
   await journal("factures", (facture as any).id, "facture_emise",
     { numero: (facture as any).numero, montant: (v as any).montant, vente: venteId, payee }, auteur ?? null);
 
+  // Ligne de facture structurée (1 ligne examen).
+  const { error: eLigne } = await supabaseAdmin.from("facture_lignes").insert({
+    facture_id: (facture as any).id, designation, categorie: "examen",
+    quantite: 1, prix_unitaire: (v as any).montant, montant: (v as any).montant,
+    ref_type: "vente", ref_id: venteId, ordre: 0,
+  });
+  if (eLigne) console.warn("[factures] ligne examen non écrite:", eLigne.message);
+
   const pdf = await rendreEtArchiver(facture, adresseClient(s), reglement, false);
   return { id: (facture as any).id, numero: (facture as any).numero, montant: (facture as any).montant, client, dejaExistante: false, pdf };
 }
@@ -204,6 +212,14 @@ export async function facturerDossier(dossierId: string, auteur?: string | null)
 
   await journal("factures", (facture as any).id, "facture_emise",
     { numero: (facture as any).numero, montant: montantNet, montant_brut: montantBrut, remise: remise || null, dossier: dossierId }, auteur ?? null);
+
+  // Ligne de facture structurée (multi-produits possible à terme ; ici 1 ligne formation).
+  const { error: eLigne } = await supabaseAdmin.from("facture_lignes").insert({
+    facture_id: (facture as any).id, designation, categorie: "formation",
+    quantite: 1, prix_unitaire: montantNet, montant: montantNet,
+    ref_type: "dossier", ref_id: dossierId, ordre: 0,
+  });
+  if (eLigne) console.warn("[factures] ligne formation non écrite:", eLigne.message);
 
   const pdf = await rendreEtArchiver(facture, adresseClient(s), reglement, estCpf);
   return { id: (facture as any).id, numero: (facture as any).numero, montant: (facture as any).montant, client, dejaExistante: false, pdf };

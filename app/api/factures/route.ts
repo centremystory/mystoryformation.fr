@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
 
   const { data: factures, error } = await supabaseAdmin
     .from("factures")
-    .select("id, numero, montant, designation, client, statut, date_emission, date_paiement, dossier_id, vente_id")
+    .select("id, numero, montant, designation, client, statut, date_emission, date_paiement, dossier_id, vente_id, type, serie, facture_lignes ( designation, montant, quantite, prix_unitaire, ordre )")
     .order("created_at", { ascending: false })
     .limit(50);
   if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
@@ -51,8 +51,14 @@ export async function GET(req: NextRequest) {
     .from("dossiers")
     .select("id, certif, montant, remise, financement, origine_fonds, service_fait_valide, stagiaires:stagiaire_id (civilite, prenom, nom)");
   const { data: deja } = await supabaseAdmin.from("factures").select("dossier_id, vente_id");
+  const { data: lignesRef } = await supabaseAdmin.from("facture_lignes").select("ref_type, ref_id");
   const dossiersFactures = new Set((deja ?? []).map((f: any) => f.dossier_id).filter(Boolean));
   const ventesFacturees = new Set((deja ?? []).map((f: any) => f.vente_id).filter(Boolean));
+  // Un dossier/vente déjà présent dans une ligne (facture groupée) est aussi considéré facturé.
+  for (const l of lignesRef ?? []) {
+    if ((l as any).ref_type === "dossier" && (l as any).ref_id) dossiersFactures.add((l as any).ref_id);
+    if ((l as any).ref_type === "vente" && (l as any).ref_id) ventesFacturees.add((l as any).ref_id);
+  }
 
   const aFacturer = (dossiers ?? [])
     .filter((d: any) => !dossiersFactures.has(d.id) && d.montant)
