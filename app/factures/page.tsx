@@ -15,6 +15,7 @@ interface Facture {
   id: string; numero: string; montant: number; designation: string; client: string;
   statut: string; date_emission: string; date_paiement: string | null;
   dossier_id: string | null; vente_id: string | null;
+  type?: string; serie?: string | null;
   facture_lignes?: { designation: string; montant: number; quantite: number; prix_unitaire: number; ordre: number }[];
 }
 interface DossierAFacturer {
@@ -244,7 +245,13 @@ export default function PageFactures() {
               <tbody>
                 {facturesVue.map((f) => (
                   <tr key={f.id} className="border-t align-top">
-                    <td className="px-3 py-2 font-mono whitespace-nowrap">{f.numero}</td>
+                    <td className="px-3 py-2 font-mono whitespace-nowrap">
+                      {f.numero}
+                      <div className="flex gap-1 mt-0.5">
+                        {f.serie && <span className="font-sans text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">{f.serie === "TEF_PRODUIT" ? "Examen" : f.serie}</span>}
+                        {f.type === "attestation_paiement" && <span className="font-sans text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">Attestation de paiement</span>}
+                      </div>
+                    </td>
                     <td className="px-3 py-2">{f.client}</td>
                     <td className="px-3 py-2 text-gray-600 max-w-[280px]">
                       {(f.facture_lignes && f.facture_lignes.length > 1) ? (

@@ -14,7 +14,7 @@ const NIVEAUX_TEF = ["A1", "A2", "B1", "B2"];
 interface Candidat {
   venteId: string; numero_attestation: string; civilite: string; nom: string; prenom: string;
   email: string; telephone: string; sous_type: string | null; type_examen: string;
-  inscrit_cci: boolean; statut_paiement: string; reste_a_payer: number;
+  inscrit_cci: boolean; statut_paiement: string; mode_paiement: string | null; reste_a_payer: number;
   resultat: string | null; niveau_obtenu: string | null; resultat_envoye: string | null;
   commentaire: string | null;
 }
@@ -34,6 +34,7 @@ export default function PageJourJ() {
   const [erreur, setErreur] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [auteur, setAuteur] = useState("");
+  const [refuseFacture, setRefuseFacture] = useState<Set<string>>(new Set());
 
   useEffect(() => { try { setAuteur(localStorage.getItem("mystory_auteur") ?? ""); } catch {} }, []);
 
@@ -67,14 +68,15 @@ export default function PageJourJ() {
 
   async function saisirResultat(c: Candidat, statut: string, niveau: string | null) {
     if (!statut) return;
-    setBusy(c.venteId); setErreur(null);
+    setBusy(c.venteId); setErreur(null); setMessage(null);
     try {
       const r = await fetch("/api/examens/resultats", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ venteId: c.venteId, statut, niveau_obtenu: niveau, auteur }),
+        body: JSON.stringify({ venteId: c.venteId, statut, niveau_obtenu: niveau, auteur, nePasFacturer: refuseFacture.has(c.venteId) }),
       });
       const j = await r.json();
       if (!j.ok) throw new Error(j.erreur);
+      if (j.facture?.numero) setMessage(`Résultat enregistré · facture espèces ${j.facture.numero} émise.`);
       await recharger();
     } catch (e: any) { setErreur(e?.message); } finally { setBusy(null); }
   }
@@ -186,6 +188,13 @@ export default function PageJourJ() {
                       </td>
                       <td className="px-2 py-2 print:hidden">
                         <div className="flex items-center gap-1 flex-wrap">
+                          {c.mode_paiement === "Espèces" && !c.resultat && (
+                            <label className="flex items-center gap-1 text-[11px] text-gray-500 mr-1" title="Par défaut, valider le résultat émet la facture espèces">
+                              <input type="checkbox" checked={refuseFacture.has(c.venteId)}
+                                onChange={() => setRefuseFacture((p) => { const n = new Set(p); n.has(c.venteId) ? n.delete(c.venteId) : n.add(c.venteId); return n; })} />
+                              ne pas facturer
+                            </label>
+                          )}
                           <select value={c.resultat ?? ""} disabled={busy === c.venteId}
                                   onChange={(e) => saisirResultat(c, e.target.value, c.niveau_obtenu)}
                                   className="border border-gray-300 rounded px-2 py-1 text-xs bg-white">

@@ -10,6 +10,7 @@ import { requireUser, UnauthorizedError } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { envoyerEmail, gabaritEmail } from "@/lib/email";
 import { dateFR, journal } from "@/lib/examens";
+import { facturerVente, envoyerFacture } from "@/lib/factures";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -67,7 +68,29 @@ export async function POST(req: NextRequest) {
       await journal("ventes_examen", venteId, "relance_commerciale",
         { motif: statut === "Échoué" ? "Examen échoué" : "Absent à l'examen" }, auteur);
     }
-    return NextResponse.json({ ok: true });
+
+    // Espèces : la facture a été DIFFÉRÉE à la vente (attestation seule). On l'émet À LA VALIDATION
+    // du résultat — sauf refus explicite (`nePasFacturer`). Autres modes : déjà facturés à la vente.
+    let facture: { numero: string } | null = null;
+    if (body?.nePasFacturer !== true) {
+      try {
+        const { data: v2 } = await supabaseAdmin
+          .from("ventes_examen").select("mode_paiement, statut_paiement").eq("id", venteId).maybeSingle();
+        const { data: dejaFact } = await supabaseAdmin
+          .from("factures").select("id").eq("vente_id", venteId).maybeSingle();
+        if (!dejaFact && (v2 as any)?.mode_paiement === "Espèces"
+            && !["Annulé", "Remboursé"].includes((v2 as any)?.statut_paiement)) {
+          const f = await facturerVente(venteId, auteur);
+          await envoyerFacture(f.id, "emission", auteur);
+          facture = { numero: f.numero };
+          await journal("ventes_examen", venteId, "facture_emise_validation", { numero: f.numero, statut }, auteur);
+        }
+      } catch (e: any) {
+        // La saisie du résultat reste valide même si la facture échoue (regénérable depuis /factures).
+        await journal("ventes_examen", venteId, "facture_validation_echec", { erreur: e?.message ?? String(e) }, auteur);
+      }
+    }
+    return NextResponse.json({ ok: true, facture });
   }
 
   if (examenRef && source === "import") {
