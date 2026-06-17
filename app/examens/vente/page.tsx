@@ -123,6 +123,14 @@ export default function PageVenteExamen() {
               ? <>📧 Attestation {estPlateforme ? "" : "+ convocation "}envoyées à <strong>{resultat.email.a}</strong></>
               : <>⚠️ Documents générés mais email non envoyé : {resultat.email?.erreur}</>}
           </p>
+          {resultat.factureDifferee && (
+            <p className="text-sm mt-3 text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              💶 Paiement espèces : <strong>attestation seule</strong>. La facture sera à émettre <strong>après validation</strong> depuis <Link href="/factures" className="underline">Factures › À facturer</Link>.
+            </p>
+          )}
+          {resultat.facture?.numero && (
+            <p className="text-xs mt-2 text-green-800">🧾 Facture {resultat.facture.numero}{resultat.facture.envoyee ? " envoyée" : " émise"}.</p>
+          )}
           <div className="flex justify-center gap-2 mt-5 flex-wrap">
             <button onClick={() => voirDoc("attestation")} className="px-4 py-2 rounded-lg text-sm border border-gray-300 bg-white text-gray-700">Voir l'attestation</button>
             {!estPlateforme && <button onClick={() => voirDoc("convocation")} className="px-4 py-2 rounded-lg text-sm border border-gray-300 bg-white text-gray-700">Voir la convocation</button>}

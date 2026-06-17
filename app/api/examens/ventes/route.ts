@@ -169,10 +169,19 @@ export async function POST(req: NextRequest) {
     await journal("ventes_examen", venteId, "documents_echec", { erreur: erreurDocs }, venduPar);
   }
 
-  // ----- Facturation AUTOMATIQUE à la vente (§6, règle du 05/06/2026) -----
-  // La vente reste valide même si la facture échoue (regénérable depuis /factures).
+  // ----- Facturation à la vente (§6) -----
+  // Espèces → ATTESTATION SEULE : pas de facture auto. La vente apparaît dans « À facturer »
+  // et sera facturée après validation (émission manuelle, série MYS-2026).
+  // Autres modes (CB, Mixte) → facture automatique. Jamais pour Annulé/Remboursé.
   let facture: { numero: string; envoyee: boolean; erreur?: string } | null = null;
-  if (!["Annulé", "Remboursé"].includes(statutPaiement)) {
+  let factureDifferee = false;
+  if (["Annulé", "Remboursé"].includes(statutPaiement)) {
+    // pas de document comptable
+  } else if (mode === "Espèces") {
+    factureDifferee = true;
+    await journal("ventes_examen", venteId, "facture_differee_especes",
+      { numero_attestation: numero, motif: "Espèces : attestation seule, à facturer après validation" }, venduPar);
+  } else {
     try {
       const f = await facturerVente(venteId, venduPar);
       const envoiFacture = await envoyerFacture(f.id, "emission", venduPar);
@@ -189,6 +198,7 @@ export async function POST(req: NextRequest) {
     numeroAttestation: numero,
     documents,
     facture,
+    factureDifferee,
     email: envoi.ok
       ? { envoye: true, a: email }
       : { envoye: false, erreur: envoi.erreur ?? erreurDocs ?? "Échec de l'envoi." },
