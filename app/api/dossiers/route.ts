@@ -10,7 +10,7 @@ export async function GET(_req: NextRequest) {
   const { data, error } = await supabaseAdmin
     .from("dossiers")
     .select(
-      `id, certif, financement, statut, date_debut, date_fin, token, created_at,
+      `id, certif, financement, statut, statut_tunnel, date_debut, date_fin, token, created_at,
        heures_prevues, service_fait_valide,
        stagiaires ( nom, prenom, agence ),
        formatrices ( nom, prenom ),

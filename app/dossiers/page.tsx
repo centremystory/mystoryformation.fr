@@ -59,6 +59,7 @@ type Dossier = {
   certif: string;
   financement: string;
   statut: string;
+  statut_tunnel: string | null;
   date_debut: string | null;
   date_fin: string | null;
   token: string;
@@ -73,6 +74,22 @@ function dateFr(iso: string | null): string {
   if (!iso) return "—";
   const [a, m, j] = iso.split("-");
   return `${j}/${m}/${a}`;
+}
+
+// Tunnel d'inscription prospect → validé (dossiers.statut_tunnel).
+const TUNNEL: Array<{ v: string; court: string; long: string }> = [
+  { v: "devis_demande", court: "Devis demandé", long: "1 · Devis demandé" },
+  { v: "devis_participation_payee", court: "Participation payée", long: "2 · Participation forfaitaire payée" },
+  { v: "courrier_identite_envoye", court: "Courrier identité", long: "3 · Courrier d'identité envoyé" },
+  { v: "validation_numerique_demandee", court: "Validation num.", long: "4 · Validation numérique demandée" },
+  { v: "compte_identite_a_creer", court: "Compte à créer", long: "5 · Compte identité à créer" },
+  { v: "valide", court: "Validé", long: "6 · Validé" },
+];
+const TUNNEL_LBL: Record<string, string> = Object.fromEntries(TUNNEL.map((t) => [t.v, t.court]));
+function tunnelClasses(v: string | null): string {
+  if (v === "valide") return "bg-green-100 text-green-800";
+  if (!v) return "bg-gray-100 text-gray-500";
+  return "bg-blue-50 text-blue-700 border border-blue-200";
 }
 
 /** Une pièce obligatoire compte « faite » : signée, ou générée si aucune signature n'est exigée. */
@@ -91,6 +108,7 @@ export default function PageDossiers() {
   }, []);
   const [filtre, setFiltre] = useState<"tous" | "incomplet" | "complet">("tous");
   const [filtreAgence, setFiltreAgence] = useState<string>("toutes");
+  const [filtreTunnel, setFiltreTunnel] = useState<string>("tous");
   const [ouvert, setOuvert] = useState<string | null>(null);
 
   const charger = useCallback(async () => {
@@ -114,11 +132,14 @@ export default function PageDossiers() {
     return dossiers.filter((d) => {
       if (filtre !== "tous" && d.statut !== filtre) return false;
       if (filtreAgence !== "toutes" && (d.stagiaires?.agence ?? "") !== filtreAgence) return false;
+      if (filtreTunnel !== "tous") {
+        if (filtreTunnel === "aucun" ? d.statut_tunnel != null : d.statut_tunnel !== filtreTunnel) return false;
+      }
       if (!q) return true;
       const nom = `${d.stagiaires?.prenom ?? ""} ${d.stagiaires?.nom ?? ""}`.toLowerCase();
       return nom.includes(q);
     });
-  }, [dossiers, recherche, filtre, filtreAgence]);
+  }, [dossiers, recherche, filtre, filtreAgence, filtreTunnel]);
 
   const nbIncomplets = dossiers.filter((d) => d.statut === "incomplet").length;
 
@@ -183,6 +204,12 @@ export default function PageDossiers() {
             </button>
           ))}
         </div>
+        <select value={filtreTunnel} onChange={(e) => setFiltreTunnel(e.target.value)}
+          className="px-3 py-1.5 rounded-full text-sm border border-gray-300 bg-white text-gray-600">
+          <option value="tous">Tunnel : tous</option>
+          <option value="aucun">Hors tunnel</option>
+          {TUNNEL.map((t) => <option key={t.v} value={t.v}>{t.long}</option>)}
+        </select>
       </div>
 
       {erreur && (
@@ -372,12 +399,18 @@ function LigneDossier({
           ) : (
             <span className="inline-block px-2.5 py-0.5 rounded-full text-xs bg-amber-50 text-amber-800">⏳ Incomplet</span>
           )}
+          {d.statut_tunnel && (
+            <span className={`block mt-1 w-fit px-2 py-0.5 rounded-full text-[11px] ${tunnelClasses(d.statut_tunnel)}`}>
+              {TUNNEL_LBL[d.statut_tunnel] ?? d.statut_tunnel}
+            </span>
+          )}
         </td>
         <td className="px-4 py-3 text-right text-gray-400">{estOuvert ? "▴" : "▾"}</td>
       </tr>
       {estOuvert && (
         <tr className="border-t border-gray-100 bg-gray-50/60">
           <td colSpan={7} className="px-4 py-4">
+            <TunnelControl d={d} recharger={recharger} />
             <PiecesActions d={d} recharger={recharger} />
             <ClotureFormation dossierId={d.id} recharger={recharger} />
             <a
@@ -394,6 +427,36 @@ function LigneDossier({
         </tr>
       )}
     </>
+  );
+}
+
+function TunnelControl({ d, recharger }: { d: Dossier; recharger: () => Promise<void> }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  async function maj(v: string) {
+    setBusy(true); setErr(null);
+    try {
+      const r = await fetch("/api/dossiers/tunnel", {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dossierId: d.id, statut_tunnel: v || null }),
+      });
+      const j = await r.json();
+      if (!j.ok) { setErr(j.erreur || "Échec"); return; }
+      await recharger();
+    } catch { setErr("Échec de la mise à jour."); }
+    finally { setBusy(false); }
+  }
+  return (
+    <div className="mb-3 flex items-center gap-2 flex-wrap">
+      <span className="text-sm font-medium text-gray-700">Tunnel d'inscription :</span>
+      <select disabled={busy} value={d.statut_tunnel ?? ""} onChange={(e) => maj(e.target.value)}
+        className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm bg-white">
+        <option value="">— hors tunnel —</option>
+        {TUNNEL.map((t) => <option key={t.v} value={t.v}>{t.long}</option>)}
+      </select>
+      {busy && <span className="text-xs text-gray-400">…</span>}
+      {err && <span className="text-xs text-red-600">{err}</span>}
+    </div>
   );
 }
 
