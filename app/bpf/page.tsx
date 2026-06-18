@@ -11,6 +11,9 @@ type Synthese = {
   produits: { par_origine: Array<{ origine: string; libelle: string; montant: number }>; total: number };
   heures_stagiaires: { total: number; estimees: number; emargees: number };
   nb_stagiaires: number; nb_dossiers: number;
+  ventilation_f1: Array<{ cle: string; libelle: string; stagiaires: number; heures: number }>;
+  dont_cpf: { stagiaires: number; heures: number };
+  specialite: { code: string; libelle: string };
   par_certif: Array<{ code: string; intitule: string; dossiers: number; produits: number; heures: number }>;
   charges: { sous_traitance_total: number; lignes: Array<{ prestataire: string; montant: number; facture_ref: string | null; contrat_ref: string | null; attestation: boolean }> };
   depot: null | { total_produits: number; cpf: number; entreprises: number; plan_autres: number; autres_of: number; autres_produits: number; part_ca_pct: number; charges_total: number; salaires_formateurs: number; achats_prestations: number; cerfa: string | null };
@@ -198,7 +201,39 @@ export default function Bpf() {
             </tbody>
           </table>
 
-          {/* Cadre CHARGES — Sous-traitance */}
+          {/* Cadre F-1/F-4 — Type de stagiaires & spécialité */}
+          <h2 className="mt-6 text-sm font-semibold text-gray-800">Cadre F — Répartition des stagiaires par type (F-1) · Spécialité (F-4)</h2>
+          <table className="mt-2 w-full text-sm">
+            <thead><tr className="text-left text-gray-500">
+              <th className="border-b py-2">Type de stagiaire (origine des fonds)</th>
+              <th className="border-b py-2 text-right">Stagiaires</th>
+              <th className="border-b py-2 text-right">Heures</th>
+            </tr></thead>
+            <tbody>
+              {s.ventilation_f1.map((v) => (
+                <tr key={v.cle} className="border-b">
+                  <td className="py-2">{v.libelle}</td>
+                  <td className="py-2 text-right">{v.stagiaires}</td>
+                  <td className="py-2 text-right">{h(v.heures)}</td>
+                </tr>
+              ))}
+              {s.dont_cpf.stagiaires > 0 && (
+                <tr className="border-b text-gray-500 italic">
+                  <td className="py-2 pl-4">dont mobilisation du CPF</td>
+                  <td className="py-2 text-right">{s.dont_cpf.stagiaires}</td>
+                  <td className="py-2 text-right">{h(s.dont_cpf.heures)}</td>
+                </tr>
+              )}
+              <tr className="font-semibold">
+                <td className="py-2">Total stagiaires (F-1)</td>
+                <td className="py-2 text-right">{s.nb_stagiaires}</td>
+                <td className="py-2 text-right">{h(s.heures_stagiaires.total)}</td>
+              </tr>
+            </tbody>
+          </table>
+          <p className="mt-1 text-xs text-gray-500">
+            F-4 — Spécialité de formation : <span className="font-medium text-gray-700">code NSF {s.specialite.code} — {s.specialite.libelle}</span>.
+          </p>
           <h2 className="mt-6 text-sm font-semibold text-gray-800">Cadre CHARGES — Achats de prestations (sous-traitance confiée)</h2>
           {s.charges.lignes.length === 0 ? (
             <p className="mt-1 text-sm text-gray-500">Aucune ligne saisie.</p>

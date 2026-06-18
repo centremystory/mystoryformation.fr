@@ -42,6 +42,9 @@ export function bpfCsv(s: BpfSynthese): string {
   row("E/F. Pédagogique", "dont émargées (vivant)", s.heures_stagiaires.emargees);
   row("E/F. Pédagogique", "dont estimées (historique)", s.heures_stagiaires.estimees);
   row("F-3b. Objectif", "Certification/habilitation RS — stagiaires", s.nb_stagiaires);
+  for (const v of s.ventilation_f1) row("F-1. Type de stagiaires", v.libelle, `${v.stagiaires} stag. / ${v.heures} h`);
+  if (s.dont_cpf.stagiaires > 0) row("F-1. Type de stagiaires", "dont mobilisation du CPF", `${s.dont_cpf.stagiaires} stag. / ${s.dont_cpf.heures} h`);
+  row("F-4. Spécialité", "Code NSF", `${s.specialite.code} — ${s.specialite.libelle}`);
   for (const c of s.par_certif) row("Par certification", `${c.code} ${c.intitule}`, `${c.dossiers} dossiers / ${c.produits} € / ${c.heures} h`);
   if (s.depot) for (const e of s.ecarts) row("Réconciliation (CRM vs déposé)", e.poste, `CRM ${e.crm} / déposé ${e.depose} / écart ${e.ecart}`);
   return "\uFEFF" + L.join("\r\n");
@@ -54,6 +57,11 @@ export function bpfHtml(s: BpfSynthese): string {
     .map((p) => `<tr><td>${LIGNE_C[p.origine] ?? p.libelle}</td><td class="r">${eur(p.montant)}</td></tr>`).join("");
   const certifs = s.par_certif
     .map((c) => `<tr><td>${c.code}${c.intitule ? " — " + c.intitule : ""}</td><td class="r">${c.dossiers}</td><td class="r">${hh(c.heures)}</td></tr>`).join("");
+  const ventF1 = s.ventilation_f1
+    .map((v) => `<tr><td>&nbsp;&nbsp;${v.libelle}</td><td class="r">${v.stagiaires} stag. / ${hh(v.heures)}</td></tr>`).join("")
+    + (s.dont_cpf.stagiaires > 0
+        ? `<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;<i>dont mobilisation du CPF</i></td><td class="r">${s.dont_cpf.stagiaires} stag. / ${hh(s.dont_cpf.heures)}</td></tr>`
+        : "");
   const recon = s.depot ? `
     <h2>Réconciliation CRM ↔ BPF déposé${s.depot.cerfa ? ` (Cerfa ${s.depot.cerfa})` : ""}</h2>
     <table><thead><tr><th>Poste</th><th class="r">CRM</th><th class="r">Déposé</th><th class="r">Écart</th></tr></thead><tbody>
@@ -106,7 +114,9 @@ export function bpfHtml(s: BpfSynthese): string {
     <tr><td>&nbsp;&nbsp;dont émargées (dossiers vivants)</td><td class="r">${hh(s.heures_stagiaires.emargees)}</td></tr>
     <tr><td>&nbsp;&nbsp;dont estimées (historique, tarif × taux)</td><td class="r">${hh(s.heures_stagiaires.estimees)}</td></tr>
     <tr><td>F-3b — Certification / habilitation RS (TEF IRN, LEVELTEL)</td><td class="r">${s.nb_stagiaires} stag. / ${hh(s.heures_stagiaires.total)}</td></tr>
-    <tr><td>F-1 ventilation par type de stagiaire · F-4 spécialité (FLE)</td><td class="r">${ac}</td></tr>
+    <tr><td colspan="2" style="padding-top:6px"><b>F-1 — Répartition des stagiaires par type</b></td></tr>
+    ${ventF1}
+    <tr><td>F-4 — Spécialité de formation (code NSF)</td><td class="r">${s.specialite.code} — ${s.specialite.libelle}</td></tr>
   </table>
   <table><thead><tr><th>Par certification</th><th class="r">Dossiers</th><th class="r">Heures</th></tr></thead><tbody>${certifs}</tbody></table>
 

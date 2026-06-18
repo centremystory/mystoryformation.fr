@@ -18,12 +18,34 @@ const LIB_ORIGINE: Record<string, string> = {
   Particulier: "Particuliers (reste à charge)", Autre_OF: "Autres OF (sous-traitance reçue)", Autre: "Autres produits",
 };
 
+// Cerfa F-1 — type de stagiaires (regroupement des origines de fonds CRM → lignes du cadre F-1).
+const F1_CAT: Record<string, string> = {
+  OPCO: "salaries", Entreprise: "salaries",
+  CPF_CDC: "particuliers", Particulier: "particuliers",
+  France_Travail: "demandeurs", Region_Etat: "region_etat",
+  Autre_OF: "autres_of", Autre: "autres",
+};
+const F1_LIB: Record<string, string> = {
+  salaries: "Salariés (financement employeur / OPCO)",
+  particuliers: "Particuliers à titre individuel et à leurs frais",
+  demandeurs: "Demandeurs d'emploi (Pôle emploi / France Travail)",
+  region_etat: "Pouvoirs publics — Région / État",
+  autres_of: "Contrats conclus avec d'autres organismes de formation",
+  autres: "Autres stagiaires",
+};
+const F1_ORDRE = ["salaries", "particuliers", "demandeurs", "region_etat", "autres_of", "autres"];
+// Cerfa F-4 — spécialité de formation (NSF). Activité FLE = 136.
+const SPECIALITE = { code: "136", libelle: "Langues vivantes, civilisations étrangères (FLE)" };
+
 export interface BpfSynthese {
   annee: number;
   produits: { par_origine: Array<{ origine: string; libelle: string; montant: number }>; total: number };
   heures_stagiaires: { total: number; estimees: number; emargees: number };
   nb_stagiaires: number;
   nb_dossiers: number;
+  ventilation_f1: Array<{ cle: string; libelle: string; stagiaires: number; heures: number }>;
+  dont_cpf: { stagiaires: number; heures: number };
+  specialite: { code: string; libelle: string };
   par_certif: Array<{ code: string; intitule: string; dossiers: number; produits: number; heures: number }>;
   charges: { sous_traitance_total: number; lignes: Array<{ prestataire: string; montant: number; facture_ref: string | null; contrat_ref: string | null; attestation: boolean }> };
   depot: null | { total_produits: number; cpf: number; entreprises: number; plan_autres: number; autres_of: number; autres_produits: number; part_ca_pct: number; charges_total: number; salaires_formateurs: number; achats_prestations: number; cerfa: string | null };
@@ -46,6 +68,14 @@ export async function bpfSynthese(annee: number): Promise<BpfSynthese> {
   let heuresEstimees = 0;
   let sansHeures = 0;
 
+  // Ventilation F-1 : stagiaires distincts + heures par type. dont CPF = sous-ensemble des « particuliers ».
+  const f1 = new Map<string, { stag: Set<string>; heures: number }>();
+  const dontCpf = { stag: new Set<string>(), heures: 0 };
+  const f1add = (cat: string, key: string, hrs: number) => {
+    const b = f1.get(cat) ?? { stag: new Set<string>(), heures: 0 };
+    b.stag.add(key); b.heures += hrs; f1.set(cat, b);
+  };
+
   for (const d of realises as any[]) {
     const orig = d.origine_fonds || "Autre";
     produitsParOrigine.set(orig, (produitsParOrigine.get(orig) ?? 0) + Number(d.montant_facturable || 0));
@@ -53,6 +83,9 @@ export async function bpfSynthese(annee: number): Promise<BpfSynthese> {
     if (h == null) sansHeures++; else heuresEstimees += h;
     const key = `${(d.nom ?? "").toLowerCase()}|${(d.prenom ?? "").toLowerCase()}|${d.date_naissance ?? ""}`;
     stagiaires.add(key);
+    const cat = F1_CAT[orig] ?? "autres";
+    f1add(cat, key, h ?? 0);
+    if (orig === "CPF_CDC") { dontCpf.stag.add(key); dontCpf.heures += h ?? 0; }
     const c = d.code_certif || "?";
     const cur = parCertif.get(c) ?? { code: c, intitule: d.intitule_certif || "", dossiers: 0, produits: 0, heures: 0 };
     cur.dossiers++; cur.produits += Number(d.montant_facturable || 0); cur.heures += h ?? 0;
@@ -62,7 +95,7 @@ export async function bpfSynthese(annee: number): Promise<BpfSynthese> {
   // --- Dossiers vivants de l'année (encaissé N-1 + heures réellement émargées) ---
   const { data: live } = await supabaseAdmin
     .from("dossiers")
-    .select("id, origine_fonds, montant_encaisse, date_encaissement, planning ( heures_realisees )")
+    .select("id, stagiaire_id, origine_fonds, montant_encaisse, date_encaissement, planning ( heures_realisees )")
     .not("date_encaissement", "is", null);
   let heuresEmargees = 0;
   for (const d of (live ?? []) as any[]) {
@@ -70,13 +103,20 @@ export async function bpfSynthese(annee: number): Promise<BpfSynthese> {
     if (an !== annee) continue;
     const orig = d.origine_fonds || "Autre";
     produitsParOrigine.set(orig, (produitsParOrigine.get(orig) ?? 0) + Number(d.montant_encaisse || 0));
-    for (const s of d.planning ?? []) heuresEmargees += Number(s.heures_realisees || 0);
+    let hd = 0;
+    for (const s of d.planning ?? []) hd += Number(s.heures_realisees || 0);
+    heuresEmargees += hd;
+    const key = `live:${d.stagiaire_id ?? d.id}`;
+    stagiaires.add(key);
+    const cat = F1_CAT[orig] ?? "autres";
+    f1add(cat, key, hd);
+    if (orig === "CPF_CDC") { dontCpf.stag.add(key); dontCpf.heures += hd; }
   }
 
   // --- Charges : sous-traitance confiée de l'année ---
   const { data: st } = await supabaseAdmin
     .from("sous_traitance").select("prestataire, montant, facture_ref, contrat_ref, attestation_anti_demarchage")
-    .eq("annee", annee).eq("sens", "confiee");
+    .eq("annee", annee).eq("sens", "confiee").eq("actif", true);
   const lignesST = (st ?? []).map((s: any) => ({
     prestataire: s.prestataire, montant: Number(s.montant || 0),
     facture_ref: s.facture_ref ?? null, contrat_ref: s.contrat_ref ?? null, attestation: !!s.attestation_anti_demarchage,
@@ -130,6 +170,13 @@ export async function bpfSynthese(annee: number): Promise<BpfSynthese> {
   anomalies.push({ niveau: "info", message: "Heures-stagiaires historiques ESTIMÉES (grille tarif × taux EDOF), l'export EDOF ne contenant pas les heures. À rapprocher des heures déclarées EDOF." });
   anomalies.push({ niveau: "info", message: "Produits à rapprocher du chiffre d'affaires comptable (réconciliation CRM ↔ compta non automatisée)." });
 
+  const ventilationF1 = F1_ORDRE
+    .map((cle) => {
+      const b = f1.get(cle);
+      return b ? { cle, libelle: F1_LIB[cle], stagiaires: b.stag.size, heures: b.heures } : null;
+    })
+    .filter((x): x is { cle: string; libelle: string; stagiaires: number; heures: number } => x !== null);
+
   return {
     annee,
     produits: {
@@ -141,6 +188,9 @@ export async function bpfSynthese(annee: number): Promise<BpfSynthese> {
     heures_stagiaires: { total: heuresTotal, estimees: heuresEstimees, emargees: heuresEmargees },
     nb_stagiaires: stagiaires.size,
     nb_dossiers: realises.length,
+    ventilation_f1: ventilationF1,
+    dont_cpf: { stagiaires: dontCpf.stag.size, heures: dontCpf.heures },
+    specialite: SPECIALITE,
     par_certif: [...parCertif.values()].sort((a, b) => b.produits - a.produits),
     charges: { sous_traitance_total: sousTraitanceTotal, lignes: lignesST },
     depot,
