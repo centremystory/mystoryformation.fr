@@ -90,7 +90,18 @@ export async function GET(req: NextRequest) {
   if (statut && STATUTS.includes(statut)) q = q.eq("statut", statut);
   const { data, error } = await q;
   if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true, messages: data ?? [] });
+  const rows = data ?? [];
+  const ids = [...new Set(rows.map((m: any) => m.assignee).filter(Boolean))];
+  let map = new Map<string, any>();
+  if (ids.length) {
+    const { data: us } = await supabaseAdmin.from("utilisateurs").select("id, nom, prenom, email").in("id", ids);
+    map = new Map((us ?? []).map((u: any) => [u.id, u]));
+  }
+  const messages = rows.map((m: any) => {
+    const u = m.assignee ? map.get(m.assignee) : null;
+    return { ...m, assignee_nom: u ? `${u.prenom ? u.prenom + " " : ""}${u.nom}` : null, assignee_email: u?.email ?? null };
+  });
+  return NextResponse.json({ ok: true, messages });
 }
 
 export async function PATCH(req: NextRequest) {
@@ -103,10 +114,19 @@ export async function PATCH(req: NextRequest) {
   let b: any;
   try { b = await req.json(); } catch { return NextResponse.json({ ok: false, erreur: "JSON invalide." }, { status: 400 }); }
   const id = String(b?.id ?? "").trim();
-  const statut = String(b?.statut ?? "").trim();
-  if (!id || !STATUTS.includes(statut)) return NextResponse.json({ ok: false, erreur: "id + statut requis." }, { status: 400 });
-  const { error } = await supabaseAdmin.from("messages_prospects").update({ statut }).eq("id", id);
+  if (!id) return NextResponse.json({ ok: false, erreur: "id requis." }, { status: 400 });
+  const patch: Record<string, any> = {};
+  if (b?.statut !== undefined) {
+    const statut = String(b.statut).trim();
+    if (!STATUTS.includes(statut)) return NextResponse.json({ ok: false, erreur: "statut invalide." }, { status: 400 });
+    patch.statut = statut;
+  }
+  if (b?.assignee !== undefined) {
+    patch.assignee = b.assignee ? String(b.assignee).trim() : null;
+  }
+  if (Object.keys(patch).length === 0) return NextResponse.json({ ok: false, erreur: "Rien à mettre à jour (statut ou assignee)." }, { status: 400 });
+  const { error } = await supabaseAdmin.from("messages_prospects").update(patch).eq("id", id);
   if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
-  await journal("message_prospect", id, "message_prospect_statut", { statut }, u.email ?? null);
+  await journal("message_prospect", id, "message_prospect_maj", patch, u.email ?? null);
   return NextResponse.json({ ok: true });
 }

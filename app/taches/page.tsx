@@ -14,7 +14,11 @@ type Tache = {
   fait: boolean;
   fait_le: string | null;
   cree_le: string;
+  assignee: string | null;
+  assignee_nom: string | null;
+  assignee_email: string | null;
 };
+type Personne = { id: string; nom: string; prenom: string | null; email: string | null };
 
 function dateFr(iso: string | null): string {
   if (!iso) return "";
@@ -33,6 +37,17 @@ export default function PageTaches() {
   const [agenceAjout, setAgenceAjout] = useState<string>("Gagny");
   const [titre, setTitre] = useState("");
   const [echeance, setEcheance] = useState("");
+  const [personnes, setPersonnes] = useState<Personne[]>([]);
+  const [assigneAjout, setAssigneAjout] = useState<string>("");
+  const [monEmail, setMonEmail] = useState<string | null>(null);
+  const [mesTaches, setMesTaches] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/utilisateurs").then((r) => r.json()).then((j) => { if (j.ok) setPersonnes(j.utilisateurs); }).catch(() => {});
+    fetch("/api/me").then((r) => r.json()).then((j) => { if (j.ok) setMonEmail(j.user?.email ?? null); }).catch(() => {});
+  }, []);
+
+  const nomPersonne = (p: Personne) => `${p.prenom ? p.prenom + " " : ""}${p.nom}`;
 
   const charger = useCallback(async () => {
     setErreur(null);
@@ -56,17 +71,31 @@ export default function PageTaches() {
       const r = await fetch("/api/taches", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ agence: agenceAjout, titre: titre.trim(), echeance: echeance || null }),
+        body: JSON.stringify({ agence: agenceAjout, titre: titre.trim(), echeance: echeance || null, assignee: assigneAjout || null }),
       });
       const j = await r.json();
       if (!j.ok) throw new Error(j.erreur || "Erreur lors de l'ajout.");
-      setTitre(""); setEcheance("");
+      setTitre(""); setEcheance(""); setAssigneAjout("");
       await charger();
     } catch (e: any) {
       setErreur(e?.message || "Erreur lors de l'ajout.");
     } finally {
       setBusy(null);
     }
+  }
+
+  async function assigner(id: string, assignee: string) {
+    setBusy(`as-${id}`); setErreur(null);
+    try {
+      const r = await fetch("/api/taches", {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, action: "assigner", assignee: assignee || null }),
+      });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.erreur || "Erreur.");
+      await charger();
+    } catch (e: any) { setErreur(e?.message || "Erreur."); }
+    finally { setBusy(null); }
   }
 
   async function patch(id: string, action: "fait" | "repris" | "archive", cle: string) {
@@ -88,8 +117,10 @@ export default function PageTaches() {
   }
 
   const visibles = useMemo(
-    () => taches.filter((t) => filtre === "toutes" || t.agence === filtre),
-    [taches, filtre]
+    () => taches.filter((t) =>
+      (filtre === "toutes" || t.agence === filtre) &&
+      (!mesTaches || (!!monEmail && t.assignee_email === monEmail))),
+    [taches, filtre, mesTaches, monEmail]
   );
 
   const groupes = useMemo(() => {
@@ -133,6 +164,14 @@ export default function PageTaches() {
           <input type="date" value={echeance} onChange={(e) => setEcheance(e.target.value)}
                  className="border rounded px-3 py-2 bg-white" />
         </label>
+        <label className="text-sm">
+          <span className="block mb-1 font-medium">Assigné·e (option.)</span>
+          <select value={assigneAjout} onChange={(e) => setAssigneAjout(e.target.value)}
+                  className="border rounded px-3 py-2 bg-white">
+            <option value="">— Personne —</option>
+            {personnes.map((p) => <option key={p.id} value={p.id}>{nomPersonne(p)}</option>)}
+          </select>
+        </label>
         <button onClick={ajouter} disabled={busy === "ajout"}
                 className="px-4 py-2 rounded text-white font-medium disabled:opacity-50"
                 style={{ background: BLEU }}>
@@ -148,6 +187,12 @@ export default function PageTaches() {
               filtre === v ? "bg-mystory text-white border-mystory" : "bg-white text-gray-600 border-gray-300 hover:border-mystory hover:text-mystory"
             }`}>{l}</button>
         ))}
+        {monEmail && (
+          <button onClick={() => setMesTaches((v) => !v)}
+            className={`ml-2 px-3 py-1.5 rounded-full text-sm border transition-colors ${
+              mesTaches ? "bg-mystory text-white border-mystory" : "bg-white text-gray-600 border-gray-300 hover:border-mystory hover:text-mystory"
+            }`}>👤 Mes tâches</button>
+        )}
       </div>
 
       {erreur && (
@@ -179,6 +224,11 @@ export default function PageTaches() {
                         </span>
                       )}
                     </span>
+                    <select value={t.assignee ?? ""} onChange={(e) => assigner(t.id, e.target.value)} disabled={busy === `as-${t.id}`}
+                            title="Assigner" className="text-xs border border-gray-200 rounded px-1.5 py-1 bg-white text-gray-600 max-w-[130px]">
+                      <option value="">Non assigné</option>
+                      {personnes.map((p) => <option key={p.id} value={p.id}>{nomPersonne(p)}</option>)}
+                    </select>
                     <button onClick={() => patch(t.id, "archive", `a-${t.id}`)} disabled={busy === `a-${t.id}`}
                             title="Archiver" className="text-gray-300 hover:text-red-500 disabled:opacity-50">✕</button>
                   </div>
