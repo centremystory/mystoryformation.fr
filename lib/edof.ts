@@ -7,6 +7,7 @@
  * • Mode "dry_run" : analyse + rapport, AUCUNE écriture. Mode "apply" : écrit + journalise.
  */
 import { supabaseAdmin } from "./supabaseAdmin";
+import { journal } from "./examens";
 
 // En-têtes exacts de l'export CDC (Export_<SIRET>_<date>.csv ; séparateur « ; »).
 const COL = {
@@ -123,6 +124,7 @@ export interface RapportImport {
   crees: number;
   mis_a_jour: number;
   rapproches_live: number;
+  services_fait_ouverts: number;
   conflits: Array<{ numero: string; champ: string; crm: string; edof: string }>;
   conflits_total: number;
   par_annee: Record<string, { dossiers: number; montant_facturable: number }>;
@@ -147,12 +149,12 @@ export async function importerEdof(
   const { data: dejaArchive } = await supabaseAdmin.from("dossiers_edof").select("numero_dossier");
   const setArchive = new Set((dejaArchive ?? []).map((d: any) => String(d.numero_dossier)));
   const { data: live } = await supabaseAdmin
-    .from("dossiers").select("id, numero_edof, session_edof, date_debut, date_fin, montant");
+    .from("dossiers").select("id, numero_edof, session_edof, date_debut, date_fin, montant, service_fait_valide, origine_fonds, financement");
   const liveParNum = new Map(
     (live ?? []).filter((d: any) => d.numero_edof).map((d: any) => [String(d.numero_edof), d]),
   );
 
-  let crees = 0, majs = 0, rapprochesLive = 0;
+  let crees = 0, majs = 0, rapprochesLive = 0, servicesFaitOuverts = 0;
   const conflits: RapportImport["conflits"] = [];
   const parAnnee: RapportImport["par_annee"] = {};
   const parStatut: RapportImport["par_statut"] = {};
@@ -201,6 +203,15 @@ export async function importerEdof(
       if (Object.keys(patch).length > 0) {
         await supabaseAdmin.from("dossiers").update(patch).eq("id", d.id);
       }
+      // Go-forward facturation CPF : EDOF « Service fait validé » sur un dossier vivant CPF
+      // → on ouvre le verrou (mirroir fidèle d'EDOF, jamais re-fermé). L'émission de la facture reste un clic humain.
+      const estCpf = d.origine_fonds === "CPF_CDC" || d.financement === "CPF";
+      if (estCpf && r.statut_dossier === "Service fait validé" && !d.service_fait_valide) {
+        await supabaseAdmin.from("dossiers").update({ service_fait_valide: true }).eq("id", d.id);
+        await journal("dossiers", String(d.id), "service_fait_valide_edof",
+          { source: "import_edof", statut_edof: r.statut_dossier, numero_edof: r.numero_dossier }, opts.auteur ?? null);
+        servicesFaitOuverts++;
+      }
     }
     await supabaseAdmin.from("imports_edof").insert({
       fichier, importe_par: opts.auteur ?? null, total_lignes: records.length,
@@ -211,7 +222,81 @@ export async function importerEdof(
 
   return {
     total: records.length, crees, mis_a_jour: majs, rapproches_live: rapprochesLive,
+    services_fait_ouverts: servicesFaitOuverts,
     conflits: conflits.slice(0, 200), conflits_total: conflits.length,
     par_annee: parAnnee, par_statut: parStatut, ignorees,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Contrôle de cohérence EDOF ↔ CRM (lecture seule). Aucune écriture.
+// ---------------------------------------------------------------------------
+export interface CoherenceEdof {
+  total: number;
+  par_statut: Record<string, number>;
+  en_controle: number;
+  montant_facturable: number;
+  montant_facture: number;
+  ecart_montant: number;
+  rapproches_live: number;
+  prets_a_facturer: number;
+  ecarts_facturation: Array<{ numero: string; facturable: number; facture: number; ecart: number }>;
+  en_controle_liste: Array<{ numero: string; statut: string; montant_facturable: number }>;
+  anomalies: Array<{ niveau: "bloquant" | "info"; message: string }>;
+}
+
+export async function coherenceEdof(): Promise<CoherenceEdof> {
+  const { data: edof } = await supabaseAdmin
+    .from("dossiers_edof")
+    .select("numero_dossier, statut_dossier, en_controle, montant_facturable, montant_facture");
+  const rows = (edof ?? []) as any[];
+
+  const parStatut: Record<string, number> = {};
+  let enControle = 0, mFacturable = 0, mFacture = 0;
+  const ecartsFact: CoherenceEdof["ecarts_facturation"] = [];
+  const enControleListe: CoherenceEdof["en_controle_liste"] = [];
+  for (const r of rows) {
+    const st = r.statut_dossier ?? "?";
+    parStatut[st] = (parStatut[st] ?? 0) + 1;
+    const fb = Number(r.montant_facturable || 0);
+    const fc = Number(r.montant_facture || 0);
+    mFacturable += fb; mFacture += fc;
+    if (r.en_controle) {
+      enControle++;
+      enControleListe.push({ numero: r.numero_dossier, statut: st, montant_facturable: fb });
+    }
+    if (r.montant_facturable != null && r.montant_facture != null && Math.abs(fb - fc) >= 1) {
+      ecartsFact.push({ numero: r.numero_dossier, facturable: fb, facture: fc, ecart: fb - fc });
+    }
+  }
+
+  // Rapprochement live + factures CPF prêtes à émettre (go-forward).
+  const { data: live } = await supabaseAdmin
+    .from("dossiers").select("id, numero_edof, origine_fonds, financement, service_fait_valide")
+    .not("numero_edof", "is", null);
+  const liveRows = (live ?? []) as any[];
+  const edofNums = new Set(rows.map((r) => String(r.numero_dossier)));
+  const rapprochesLive = liveRows.filter((d) => edofNums.has(String(d.numero_edof))).length;
+
+  const { data: fact } = await supabaseAdmin.from("factures").select("dossier_id").not("dossier_id", "is", null);
+  const dossiersFactures = new Set((fact ?? []).map((f: any) => String(f.dossier_id)));
+  const pretsAFacturer = liveRows.filter((d) => {
+    const estCpf = d.origine_fonds === "CPF_CDC" || d.financement === "CPF";
+    return estCpf && d.service_fait_valide && !dossiersFactures.has(String(d.id));
+  }).length;
+
+  const anomalies: CoherenceEdof["anomalies"] = [];
+  if (enControle > 0) anomalies.push({ niveau: "info", message: `${enControle} dossier(s) EDOF en contrôle CDC — paiement suspendu tant que le contrôle n'est pas levé.` });
+  if (ecartsFact.length > 0) anomalies.push({ niveau: "info", message: `${ecartsFact.length} dossier(s) avec un écart entre montant facturable et facturé EDOF — à vérifier.` });
+  if (pretsAFacturer > 0) anomalies.push({ niveau: "info", message: `${pretsAFacturer} dossier(s) CPF vivant(s) « service fait validé » sans facture — à émettre depuis Factures.` });
+  anomalies.push({ niveau: "info", message: "Les heures ne sont pas fournies par l'export EDOF : non contrôlables ici, elles se vérifient via l'émargement." });
+
+  return {
+    total: rows.length, par_statut: parStatut, en_controle: enControle,
+    montant_facturable: mFacturable, montant_facture: mFacture, ecart_montant: mFacturable - mFacture,
+    rapproches_live: rapprochesLive, prets_a_facturer: pretsAFacturer,
+    ecarts_facturation: ecartsFact.slice(0, 100),
+    en_controle_liste: enControleListe.slice(0, 100),
+    anomalies,
   };
 }

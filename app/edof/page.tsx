@@ -4,10 +4,11 @@
  * MYSTORY — Import EDOF (§7). Upload du CSV → analyse à blanc (dry-run) → application.
  * Sens unique EDOF→CRM. Aucune écriture tant que l'utilisateur n'a pas confirmé « Appliquer ».
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 type Rapport = {
   total: number; crees: number; mis_a_jour: number; rapproches_live: number;
+  services_fait_ouverts: number;
   conflits: Array<{ numero: string; champ: string; crm: string; edof: string }>;
   conflits_total: number;
   par_annee: Record<string, { dossiers: number; montant_facturable: number }>;
@@ -17,6 +18,15 @@ type Rapport = {
 
 function eur(n: number) { return n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €"; }
 
+type Coherence = {
+  total: number; par_statut: Record<string, number>; en_controle: number;
+  montant_facturable: number; montant_facture: number; ecart_montant: number;
+  rapproches_live: number; prets_a_facturer: number;
+  ecarts_facturation: Array<{ numero: string; facturable: number; facture: number; ecart: number }>;
+  en_controle_liste: Array<{ numero: string; statut: string; montant_facturable: number }>;
+  anomalies: Array<{ niveau: "bloquant" | "info"; message: string }>;
+};
+
 export default function ImportEdof() {
   const [fichier, setFichier] = useState<string | null>(null);
   const [csv, setCsv] = useState<string | null>(null);
@@ -24,6 +34,20 @@ export default function ImportEdof() {
   const [applique, setApplique] = useState(false);
   const [busy, setBusy] = useState<"" | "dry" | "apply">("");
   const [erreur, setErreur] = useState<string | null>(null);
+  const [coh, setCoh] = useState<Coherence | null>(null);
+  const [cohBusy, setCohBusy] = useState(false);
+
+  async function chargerCoherence() {
+    setCohBusy(true);
+    try {
+      const r = await fetch("/api/edof/coherence");
+      const j = await r.json();
+      if (j.ok) setCoh(j.rapport);
+    } catch { /* silencieux : section optionnelle */ }
+    finally { setCohBusy(false); }
+  }
+
+  useEffect(() => { chargerCoherence(); }, []);
 
   function choisir(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -47,7 +71,7 @@ export default function ImportEdof() {
       const j = await r.json();
       if (!j.ok) { setErreur(j.erreur || "Échec."); return; }
       setRapport(j.rapport);
-      if (mode === "apply") setApplique(true);
+      if (mode === "apply") { setApplique(true); chargerCoherence(); }
     } catch { setErreur("Échec de la requête."); }
     finally { setBusy(""); }
   }
@@ -88,6 +112,12 @@ export default function ImportEdof() {
           {applique && (
             <div className="mb-4 rounded-xl bg-green-50 border border-green-200 p-3 text-sm text-green-800">
               ✅ Import appliqué — {rapport.total} dossiers EDOF synchronisés dans le CRM.
+              {rapport.services_fait_ouverts > 0 && (
+                <span className="block mt-1">
+                  🔓 {rapport.services_fait_ouverts} dossier(s) CPF vivant(s) passé(s) « service fait validé » →
+                  {" "}prêts à facturer dans <a href="/factures" className="underline font-medium">Factures</a>.
+                </span>
+              )}
             </div>
           )}
           {!applique && (
@@ -150,6 +180,74 @@ export default function ImportEdof() {
           {rapport.ignorees > 0 && <p className="mt-3 text-xs text-gray-400">{rapport.ignorees} ligne(s) ignorée(s) (sans n° de dossier).</p>}
         </div>
       )}
+
+      {/* Contrôle de cohérence EDOF ↔ CRM (lecture seule) */}
+      <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-5">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900">🔎 Cohérence EDOF ↔ CRM</h2>
+          <button onClick={chargerCoherence} disabled={cohBusy}
+            className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+            {cohBusy ? "Analyse…" : "Rafraîchir"}
+          </button>
+        </div>
+        <p className="mt-1 text-xs text-gray-500">Lecture seule. Rapproche l'archive EDOF, la facturation CRM et signale les points d'attention.</p>
+
+        {!coh ? (
+          <p className="mt-4 text-sm text-gray-400">{cohBusy ? "Chargement…" : "Aucune donnée."}</p>
+        ) : (
+          <>
+            <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                ["Dossiers EDOF", coh.total, "text-gray-900"],
+                ["En contrôle CDC", coh.en_controle, coh.en_controle ? "text-amber-600" : "text-gray-900"],
+                ["Rapprochés vivants", coh.rapproches_live, "text-gray-900"],
+                ["Prêts à facturer", coh.prets_a_facturer, coh.prets_a_facturer ? "text-mystory" : "text-gray-900"],
+              ].map(([l, v, c]) => (
+                <div key={l as string} className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                  <div className="text-xs uppercase tracking-wide text-gray-500">{l}</div>
+                  <div className={`mt-1 text-2xl font-bold ${c}`}>{v as number}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+              <div className="rounded-xl border border-gray-200 p-3"><div className="text-xs text-gray-500">Montant facturable</div><div className="font-semibold">{eur(coh.montant_facturable)}</div></div>
+              <div className="rounded-xl border border-gray-200 p-3"><div className="text-xs text-gray-500">Montant facturé EDOF</div><div className="font-semibold">{eur(coh.montant_facture)}</div></div>
+              <div className="rounded-xl border border-gray-200 p-3"><div className="text-xs text-gray-500">Écart</div><div className={`font-semibold ${Math.abs(coh.ecart_montant) < 1 ? "text-green-700" : "text-amber-600"}`}>{eur(coh.ecart_montant)}</div></div>
+            </div>
+
+            {coh.anomalies.length > 0 && (
+              <ul className="mt-4 space-y-1 text-sm">
+                {coh.anomalies.map((a, i) => (
+                  <li key={i} className={a.niveau === "bloquant" ? "text-red-700" : "text-gray-600"}>• {a.message}</li>
+                ))}
+              </ul>
+            )}
+
+            {coh.en_controle_liste.length > 0 && (
+              <div className="mt-4">
+                <h3 className="text-sm font-semibold text-amber-700">Dossiers en contrôle CDC</h3>
+                <ul className="mt-1 text-xs text-gray-600">
+                  {coh.en_controle_liste.slice(0, 15).map((d, i) => (
+                    <li key={i}>n° {d.numero} · {d.statut} · {eur(d.montant_facturable)}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {coh.ecarts_facturation.length > 0 && (
+              <div className="mt-4">
+                <h3 className="text-sm font-semibold text-amber-700">Écarts facturable / facturé</h3>
+                <ul className="mt-1 text-xs text-gray-600">
+                  {coh.ecarts_facturation.slice(0, 15).map((d, i) => (
+                    <li key={i}>n° {d.numero} : facturable {eur(d.facturable)} ≠ facturé {eur(d.facture)} (écart {eur(d.ecart)})</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </main>
   );
 }
