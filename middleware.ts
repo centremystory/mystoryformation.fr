@@ -29,6 +29,8 @@ const CHEMINS_PUBLICS = [
   "/api/contact",                 // dépôt message prospect (GET/PATCH protégés dans la route)
   "/pre-inscription",             // formulaire public de pré-inscription (prospects)
   "/api/pre-inscription",         // dépôt de la demande de pré-inscription (public, honeypot + rate-limit)
+  "/partenaire",                  // portail partenaire par jeton (capability)
+  "/api/partenaire",              // données + dépôts partenaire (jeton vérifié côté serveur)
 ];
 
 export async function middleware(req: NextRequest) {
