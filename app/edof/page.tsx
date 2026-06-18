@@ -20,7 +20,7 @@ function eur(n: number) { return n.toLocaleString("fr-FR", { minimumFractionDigi
 
 type Coherence = {
   total: number; par_statut: Record<string, number>; en_controle: number;
-  montant_facturable: number; montant_facture: number; ecart_montant: number;
+  montant_facturable: number; montant_facture: number; facture_renseigne: boolean; ecart_montant: number;
   rapproches_live: number; prets_a_facturer: number;
   ecarts_facturation: Array<{ numero: string; facturable: number; facture: number; ecart: number }>;
   en_controle_liste: Array<{ numero: string; statut: string; montant_facturable: number }>;
@@ -212,8 +212,8 @@ export default function ImportEdof() {
 
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
               <div className="rounded-xl border border-gray-200 p-3"><div className="text-xs text-gray-500">Montant facturable</div><div className="font-semibold">{eur(coh.montant_facturable)}</div></div>
-              <div className="rounded-xl border border-gray-200 p-3"><div className="text-xs text-gray-500">Montant facturé EDOF</div><div className="font-semibold">{eur(coh.montant_facture)}</div></div>
-              <div className="rounded-xl border border-gray-200 p-3"><div className="text-xs text-gray-500">Écart</div><div className={`font-semibold ${Math.abs(coh.ecart_montant) < 1 ? "text-green-700" : "text-amber-600"}`}>{eur(coh.ecart_montant)}</div></div>
+              <div className="rounded-xl border border-gray-200 p-3"><div className="text-xs text-gray-500">Montant facturé EDOF</div><div className="font-semibold">{coh.facture_renseigne ? eur(coh.montant_facture) : <span className="text-gray-400">non fourni par l&apos;export</span>}</div></div>
+              <div className="rounded-xl border border-gray-200 p-3"><div className="text-xs text-gray-500">Écart</div><div className={`font-semibold ${!coh.facture_renseigne ? "text-gray-400" : Math.abs(coh.ecart_montant) < 1 ? "text-green-700" : "text-amber-600"}`}>{coh.facture_renseigne ? eur(coh.ecart_montant) : "—"}</div></div>
             </div>
 
             {coh.anomalies.length > 0 && (

@@ -237,6 +237,7 @@ export interface CoherenceEdof {
   en_controle: number;
   montant_facturable: number;
   montant_facture: number;
+  facture_renseigne: boolean;
   ecart_montant: number;
   rapproches_live: number;
   prets_a_facturer: number;
@@ -252,7 +253,7 @@ export async function coherenceEdof(): Promise<CoherenceEdof> {
   const rows = (edof ?? []) as any[];
 
   const parStatut: Record<string, number> = {};
-  let enControle = 0, mFacturable = 0, mFacture = 0;
+  let enControle = 0, mFacturable = 0, mFacture = 0, factureRenseigne = false;
   const ecartsFact: CoherenceEdof["ecarts_facturation"] = [];
   const enControleListe: CoherenceEdof["en_controle_liste"] = [];
   for (const r of rows) {
@@ -261,6 +262,7 @@ export async function coherenceEdof(): Promise<CoherenceEdof> {
     const fb = Number(r.montant_facturable || 0);
     const fc = Number(r.montant_facture || 0);
     mFacturable += fb; mFacture += fc;
+    if (r.montant_facture != null) factureRenseigne = true;
     if (r.en_controle) {
       enControle++;
       enControleListe.push({ numero: r.numero_dossier, statut: st, montant_facturable: fb });
@@ -287,13 +289,15 @@ export async function coherenceEdof(): Promise<CoherenceEdof> {
 
   const anomalies: CoherenceEdof["anomalies"] = [];
   if (enControle > 0) anomalies.push({ niveau: "info", message: `${enControle} dossier(s) EDOF en contrôle CDC — paiement suspendu tant que le contrôle n'est pas levé.` });
-  if (ecartsFact.length > 0) anomalies.push({ niveau: "info", message: `${ecartsFact.length} dossier(s) avec un écart entre montant facturable et facturé EDOF — à vérifier.` });
+  if (!factureRenseigne) anomalies.push({ niveau: "info", message: "Le montant facturé n'est pas fourni par cet export EDOF — l'écart facturable / facturé n'est pas calculable." });
+  else if (ecartsFact.length > 0) anomalies.push({ niveau: "info", message: `${ecartsFact.length} dossier(s) avec un écart entre montant facturable et facturé EDOF — à vérifier.` });
   if (pretsAFacturer > 0) anomalies.push({ niveau: "info", message: `${pretsAFacturer} dossier(s) CPF vivant(s) « service fait validé » sans facture — à émettre depuis Factures.` });
   anomalies.push({ niveau: "info", message: "Les heures ne sont pas fournies par l'export EDOF : non contrôlables ici, elles se vérifient via l'émargement." });
 
   return {
     total: rows.length, par_statut: parStatut, en_controle: enControle,
-    montant_facturable: mFacturable, montant_facture: mFacture, ecart_montant: mFacturable - mFacture,
+    montant_facturable: mFacturable, montant_facture: mFacture, facture_renseigne: factureRenseigne,
+    ecart_montant: factureRenseigne ? mFacturable - mFacture : 0,
     rapproches_live: rapprochesLive, prets_a_facturer: pretsAFacturer,
     ecarts_facturation: ecartsFact.slice(0, 100),
     en_controle_liste: enControleListe.slice(0, 100),
