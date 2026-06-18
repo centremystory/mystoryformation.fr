@@ -65,3 +65,6 @@
 | 58 | 20260614092924 | formateurs_fondation |
 | 59 | 20260614095702 | messages_prospects |
 | 60 | 20260614105621 | rate_limiting |
+| 61 | 20260618182455 | messages_prospects_assignee |
+| 62 | 20260618224517 | partenaire_depots |
+| 63 | 20260618230909 | trg_ventes_capacite_anti_surbooking |
