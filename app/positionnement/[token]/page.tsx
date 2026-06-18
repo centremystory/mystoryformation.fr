@@ -86,6 +86,7 @@ export default function NotationFormatrice({ params }: { params: { token: string
               <p className="mt-1 whitespace-pre-wrap text-sm text-gray-700">{p.ecrit}</p>
             </div>
           )}
+          {p.niveau_global ? (
             <p className="mt-4 rounded-lg bg-amber-50 border border-amber-300 p-3 text-sm text-amber-800">
               Ce positionnement est déjà finalisé (niveau {p.niveau_global ?? "—"}). Vous pouvez renoter pour corriger.
             </p>
