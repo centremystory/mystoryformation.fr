@@ -413,3 +413,58 @@ export async function relancesDues(): Promise<Array<{ factureId: string; numero:
   }
   return dues;
 }
+
+/**
+ * Dossiers FORMATION dus et NON encore facturés, éligibles à la facturation automatique (point 27).
+ * Règles (idempotent, sans effet de bord) :
+ *  · annulés et déjà facturés (facture directe OU ligne de facture groupée) → exclus ;
+ *  · CPF → éligible seulement si `service_fait_valide` (verrou L.6323-12, déjà appliqué par facturerDossier) ;
+ *  · non-CPF → exclu si une remise hors CPF est EN ATTENTE de validation Direction
+ *    (on ne facture jamais au prix plein avant l'accord — cohérent avec le point 26) ;
+ *  · montant nul → ignoré.
+ */
+export async function facturationAutoDue(): Promise<Array<{
+  dossierId: string; certif: string; estCpf: boolean; montantNet: number; client: string;
+}>> {
+  const [{ data: dossiers }, { data: deja }, { data: lignesRef }, { data: remisesEnAttente }] = await Promise.all([
+    supabaseAdmin.from("dossiers").select(
+      "id, certif, montant, remise, financement, origine_fonds, service_fait_valide, statut, stagiaires:stagiaire_id (civilite, prenom, nom)"
+    ),
+    supabaseAdmin.from("factures").select("dossier_id"),
+    supabaseAdmin.from("facture_lignes").select("ref_type, ref_id"),
+    supabaseAdmin.from("validations_direction").select("payload").eq("type", "remise_hors_cpf").eq("statut", "en_attente"),
+  ]);
+
+  const factures = new Set((deja ?? []).map((f: any) => f.dossier_id).filter(Boolean));
+  for (const l of lignesRef ?? []) {
+    if ((l as any).ref_type === "dossier" && (l as any).ref_id) factures.add((l as any).ref_id);
+  }
+  const remiseBloquee = new Set(
+    (remisesEnAttente ?? []).map((v: any) => v.payload?.dossierId).filter(Boolean)
+  );
+
+  const out: Array<{ dossierId: string; certif: string; estCpf: boolean; montantNet: number; client: string }> = [];
+  for (const d of dossiers ?? []) {
+    const dd: any = d;
+    if (dd.statut === "annule") continue;
+    if (factures.has(dd.id)) continue;
+    const montant = Number(dd.montant ?? 0);
+    if (!(montant > 0)) continue;
+    const estCpf = dd.origine_fonds === "CPF_CDC" || dd.financement === "CPF";
+    if (estCpf) {
+      if (!dd.service_fait_valide) continue;       // CPF : pas avant le service fait validé
+    } else {
+      if (remiseBloquee.has(dd.id)) continue;       // non-CPF : remise en attente → on saute
+    }
+    const remise = estCpf ? 0 : Math.min(Math.max(0, Number(dd.remise ?? 0)), montant);
+    const s = dd.stagiaires;
+    out.push({
+      dossierId: dd.id,
+      certif: dd.certif,
+      estCpf,
+      montantNet: Math.max(0, montant - remise),
+      client: `${s?.civilite ?? ""} ${s?.prenom ?? ""} ${s?.nom ?? ""}`.trim(),
+    });
+  }
+  return out;
+}
