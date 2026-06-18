@@ -93,6 +93,15 @@ export async function POST(req: NextRequest) {
 
   if (recap.length > 0) return NextResponse.json({ ok: false, status: "gate_ko", recap }, { status: 409 });
 
+  // ----- Garde-fou places EN TEMPS RÉEL (anti-surbooking) — session obligatoire hors plateforme -----
+  if (sessionId && type !== "Vente_plateforme") {
+    const { data: sess } = await supabaseAdmin
+      .from("v_sessions_examen").select("restantes, capacite").eq("id", sessionId).maybeSingle();
+    if (sess && (sess as any).restantes <= 0) {
+      return NextResponse.json({ ok: false, status: "gate_ko", recap: [`Session pleine : capacité (${(sess as any).capacite}) atteinte. Choisis une autre session.`] }, { status: 409 });
+    }
+  }
+
   // ----- Candidat : retrouvé par email, sinon créé (une seule fiche par personne) -----
   const identite: Record<string, unknown> = {
     civilite: String(c.civilite ?? "").trim() || null,
