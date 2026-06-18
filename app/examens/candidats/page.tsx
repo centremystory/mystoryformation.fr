@@ -136,6 +136,7 @@ export default function PageCandidatsExamen() {
   const [fType, setFType] = useState<string>("tous");
   const [fAgence, setFAgence] = useState<string>("toutes");
   const [ouverts, setOuverts] = useState<Set<string>>(new Set());
+  const [vue, setVue] = useState<"session" | "candidat">("session");
   const [uploadRef, setUploadRef] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cibleRef = useRef<{ examen_ref: string; source: string } | null>(null);
@@ -183,6 +184,24 @@ export default function PageCandidatsExamen() {
       if (b.date) return 1;
       return 0;
     });
+  }, [filtres]);
+
+  // Regroupement par candidat (multi-examens) : clé = email normalisé, sinon nom|prénom.
+  const groupesCandidat = useMemo(() => {
+    const cleDe = (c: Candidat) => {
+      const e = (c.email ?? "").trim().toLowerCase();
+      return e || `${(c.nom ?? "").trim().toLowerCase()}|${(c.prenom ?? "").trim().toLowerCase()}`;
+    };
+    const m = new Map<string, { cle: string; nom: string; prenom: string; email: string | null; items: Candidat[] }>();
+    for (const c of filtres) {
+      const k = cleDe(c);
+      if (!m.has(k)) m.set(k, { cle: `cand:${k}`, nom: c.nom, prenom: c.prenom ?? "", email: c.email ?? null, items: [] });
+      m.get(k)!.items.push(c);
+    }
+    for (const g of m.values()) {
+      g.items.sort((a, b) => ((a.date_examen ?? "") < (b.date_examen ?? "") ? 1 : (a.date_examen ?? "") > (b.date_examen ?? "") ? -1 : 0));
+    }
+    return Array.from(m.values()).sort((a, b) => `${a.nom} ${a.prenom}`.localeCompare(`${b.nom} ${b.prenom}`, "fr"));
   }, [filtres]);
 
   const nbAConfirmer = candidats.filter((c) => c.a_confirmer).length;
@@ -305,6 +324,16 @@ export default function PageCandidatsExamen() {
         </div>
       </div>
 
+      {/* Basculeur de vue */}
+      <div className="flex gap-1.5 mb-5">
+        {([["session", "📅 Par session"], ["candidat", "👤 Par candidat"]] as const).map(([v, l]) => (
+          <button key={v} onClick={() => setVue(v)}
+            className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
+              vue === v ? "bg-mystory text-white border-mystory" : "bg-white text-gray-600 border-gray-300 hover:border-mystory hover:text-mystory"
+            }`}>{l}</button>
+        ))}
+      </div>
+
       {erreur && (
         <div className="mb-4 px-4 py-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm">{erreur}</div>
       )}
@@ -315,8 +344,76 @@ export default function PageCandidatsExamen() {
 
       {chargement ? (
         <p className="text-gray-500">Chargement…</p>
-      ) : groupes.length === 0 ? (
+      ) : (vue === "session" ? groupes.length : groupesCandidat.length) === 0 ? (
         <p className="text-gray-500">Aucun candidat ne correspond à ces filtres.</p>
+      ) : vue === "candidat" ? (
+        <div className="space-y-3">
+          {groupesCandidat.map((g) => {
+            const ouvert = q.length > 0 || ouverts.has(g.cle);
+            const aConf = g.items.filter((c) => c.a_confirmer).length;
+            const reussites = g.items.filter((c) => c.resultat?.statut === "Réussi").length;
+            return (
+              <div key={g.cle} className="border border-gray-200 rounded-xl bg-white overflow-hidden">
+                <button onClick={() => basculer(g.cle)}
+                  className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50">
+                  <span className="font-medium text-gray-900">
+                    👤 {g.prenom ? `${g.prenom} ` : ""}{g.nom}
+                    {g.email && <span className="ml-2 text-xs text-gray-400">{g.email}</span>}
+                  </span>
+                  <span className="flex items-center gap-2 text-sm">
+                    {aConf > 0 && <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">⏳ {aConf}</span>}
+                    {reussites > 0 && <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">✓ {reussites}</span>}
+                    <span className="px-2 py-0.5 rounded-full bg-mystory-clair text-mystory">{g.items.length} examen{g.items.length > 1 ? "s" : ""}</span>
+                    <span className="text-gray-400">{ouvert ? "▴" : "▾"}</span>
+                  </span>
+                </button>
+                {ouvert && (
+                  <div className="overflow-x-auto border-t border-gray-100">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-gray-50 text-left text-gray-500 text-xs uppercase tracking-wide">
+                          <th className="px-4 py-2 font-medium">Date</th>
+                          <th className="px-4 py-2 font-medium">Type</th>
+                          <th className="px-4 py-2 font-medium">État</th>
+                          <th className="px-4 py-2 font-medium">Paiement</th>
+                          <th className="px-4 py-2 font-medium">N° attest.</th>
+                          <th className="px-4 py-2 font-medium">Fichier attest.</th>
+                          <th className="px-4 py-2 font-medium">Résultat</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {g.items.map((c) => (
+                          <tr key={c.id} className="border-t border-gray-100">
+                            <td className="px-4 py-2 whitespace-nowrap text-gray-700">{dateFr(c.date_examen)}{c.a_confirmer && <span className="ml-2 text-xs text-amber-700">⏳</span>}</td>
+                            <td className="px-4 py-2 text-gray-600">{TYPE_LABEL[c.type_norm] ?? c.type_norm}{c.source === "vente" && <span className="ml-1 text-xs text-emerald-700">•</span>}</td>
+                            <td className="px-4 py-2">
+                              {c.statut_examen && (
+                                <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${CLASSES_TON[c.statut_examen.ton as keyof typeof CLASSES_TON] ?? "bg-gray-100 text-gray-600"}`}>{c.statut_examen.label}</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-2"><span className={paye(c.statut_paiement) ? "text-emerald-700" : "text-gray-600"}>{c.statut_paiement ?? "—"}</span></td>
+                            <td className="px-4 py-2 text-gray-600">{c.numero_attestation ?? "—"}</td>
+                            <td className="px-4 py-2 whitespace-nowrap">
+                              {c.attestation_depose_le ? (
+                                <span>
+                                  <button onClick={() => voirAttestation(c)} className="underline" style={{ color: BLEU }}>📄 Voir</button>
+                                  <button onClick={() => ouvrirDepot(c)} disabled={uploadRef === c.id} className="ml-2 text-gray-500 hover:text-mystory disabled:opacity-50">{uploadRef === c.id ? "Envoi…" : "Remplacer"}</button>
+                                </span>
+                              ) : c.type_norm === "TEF_IRN" ? (
+                                <button onClick={() => ouvrirDepot(c)} disabled={uploadRef === c.id} className="px-2.5 py-1 rounded border text-xs disabled:opacity-50" style={{ color: BLEU, borderColor: BLEU }}>{uploadRef === c.id ? "Envoi…" : "Déposer"}</button>
+                              ) : (<span className="text-gray-400">—</span>)}
+                            </td>
+                            <td className="px-4 py-2"><SaisieResultat c={c} /></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       ) : (
         <div className="space-y-3">
           {groupes.map((g) => {
