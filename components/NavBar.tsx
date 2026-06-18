@@ -4,7 +4,8 @@
 // Masquée sur la connexion et les pages publiques (QCM candidat, pages stagiaires par jeton).
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { peutVoirPage } from "@/lib/roles";
 
 const PAGES_SANS_NAV = ["/connexion", "/qcm", "/positionnement", "/suivi", "/evaluation", "/fiche-besoin", "/emargement/signer", "/satisfaction", "/formateur-questionnaire", "/contact"];
 
@@ -51,6 +52,18 @@ export default function NavBar() {
   const pathname = usePathname();
   const router = useRouter();
   const [ouvert, setOuvert] = useState<string | null>(null);
+  const [role, setRole] = useState<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    let vivant = true;
+    fetch("/api/me").then((r) => r.json()).then((j) => { if (vivant) setRole(j?.ok ? (j.user?.role ?? null) : null); }).catch(() => {});
+    return () => { vivant = false; };
+  }, []);
+
+  // NAV filtrée selon le rôle (rôle inconnu/"staff" = tout visible, filet de transition).
+  const navVisible = NAV
+    .map((e) => (e.type === "menu" ? { ...e, items: e.items.filter((i) => peutVoirPage(role, i.href)) } : e))
+    .filter((e) => (e.type === "link" ? peutVoirPage(role, e.href) : e.items.length > 0));
 
   if (PAGES_SANS_NAV.some((p) => pathname === p || pathname.startsWith(p + "/"))) return null;
 
@@ -62,7 +75,7 @@ export default function NavBar() {
     router.push("/connexion");
   }
 
-  const groupeOuvert = NAV.find((e) => e.type === "menu" && e.label === ouvert) as Extract<Entree, { type: "menu" }> | undefined;
+  const groupeOuvert = navVisible.find((e) => e.type === "menu" && e.label === ouvert) as Extract<Entree, { type: "menu" }> | undefined;
 
   return (
     <nav className="bg-mystory text-white">
@@ -74,7 +87,7 @@ export default function NavBar() {
         </Link>
 
         <div className="flex items-center gap-1 overflow-x-auto">
-          {NAV.map((e) => {
+          {navVisible.map((e) => {
             if (e.type === "link") {
               const actif = estActif(e.href);
               return (
