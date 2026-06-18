@@ -7,6 +7,8 @@ import {
   validerInscription, validerPlanning,
 } from "@/lib/inscriptions/regles";
 import { requireUser, UnauthorizedError } from "@/lib/auth";
+import { estDirection } from "@/lib/roles";
+import { demanderValidation } from "@/lib/validations";
 import { journal } from "@/lib/examens";
 import { envoyerEmail, gabaritEmail } from "@/lib/email";
 
@@ -155,10 +157,13 @@ export async function POST(req: NextRequest) {
   const dossierId = (data as any)?.dossier_id ?? (data as any)?.id ?? null;
 
   // Champs hors-RPC reportés sur le dossier (la RPC ne doit jamais être modifiée).
+  // Remise hors CPF : appliquée directement par la Direction ; sinon → file « Validation Direction » (point 26).
+  const estDir = estDirection(u.role);
+  const remiseAValider = remise > 0 && !estDir;
   const formatriceLibre = String(inscription.formatriceLibre ?? "").trim().slice(0, 200) || null;
   if (dossierId) {
     const majDossier: Record<string, unknown> = {};
-    if (remise > 0) { majDossier.remise = remise; majDossier.remise_motif = remiseMotif; }
+    if (remise > 0 && estDir) { majDossier.remise = remise; majDossier.remise_motif = remiseMotif; }
     if (formatriceLibre) majDossier.formatrice_libre = formatriceLibre; // intervenante indépendante (référente FLE conservée)
     if (Object.keys(majDossier).length > 0) {
       const { error: eMaj } = await supabase.from("dossiers").update(majDossier).eq("id", dossierId);
@@ -166,10 +171,27 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Remise demandée par un non-Direction → créée en attente (le dossier reste sans remise jusqu'à approbation).
+  let remiseEnAttente = false;
+  if (remiseAValider && dossierId) {
+    const certifLbl = inscription.certification === "TEF_IRN" ? "TEF IRN" : "LEVELTEL";
+    try {
+      await demanderValidation({
+        type: "remise_hors_cpf",
+        libelle: `Remise ${remise.toLocaleString("fr-FR")} € — ${inscription.prenom} ${inscription.nom} (${certifLbl})${remiseMotif ? ` · ${remiseMotif}` : ""}`,
+        payload: { dossierId, remise, remiseMotif },
+        demandeur: u.email ?? null,
+      });
+      remiseEnAttente = true;
+    } catch (e) { console.warn("[inscriptions] demande de validation remise ignorée:", String(e)); }
+  }
+
   await journal("dossier", dossierId, "inscription_creee", {
     certif: inscription.certification, financement: inscription.financement,
     formule: inscription.formule, agence: inscription.agenceInscription,
-    remise: remise > 0 ? remise : null, remise_motif: remise > 0 ? remiseMotif : null,
+    remise: remise > 0 && estDir ? remise : null,
+    remise_motif: remise > 0 && estDir ? remiseMotif : null,
+    remise_en_attente: remiseEnAttente ? remise : null,
   }, u.email ?? null);
 
   // Traçabilité : un 2ᵉ dossier a été créé sciemment malgré un dossier actif existant.
@@ -231,5 +253,5 @@ export async function POST(req: NextRequest) {
     } catch (e) { console.warn("[inscriptions] notif auteur ignorée:", String(e)); }
   }
 
-  return NextResponse.json({ ok: true, ...data }, { status: 201 });
+  return NextResponse.json({ ok: true, ...data, remiseEnAttente }, { status: 201 });
 }

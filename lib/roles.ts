@@ -31,6 +31,16 @@ export const PERMISSIONS: Record<ActionSensible, { label: string; roles: Role[] 
   evaluation_finale: { label: "Évaluation finale (niveau atteint)", roles: ["pedagogie", "formatrice", "direction"] },
 };
 
+/**
+ * Agit-il avec l'autorité de la Direction ? Direction + le filet de transition
+ * (session équipe "staff", ou token de service sans rôle = n8n/cron) passent.
+ * Sert à la « Validation Direction » (point 26) : un rôle individuel non-Direction
+ * voit ses actions sensibles passer en file d'attente au lieu d'être exécutées.
+ */
+export function estDirection(role: string | undefined | null): boolean {
+  return !role || role === "staff" || role === "direction";
+}
+
 /** Le rôle peut-il réaliser l'action sensible ? La session équipe ("staff") garde l'accès complet. */
 export function peut(role: string | undefined | null, action: ActionSensible): boolean {
   if (role === "staff") return true; // session équipe historique (transition)

@@ -9,9 +9,10 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, UnauthorizedError, type SessionUser } from "@/lib/auth";
-import { peut } from "@/lib/roles";
+import { peut, estDirection } from "@/lib/roles";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { facturerDossier, facturerVente, facturerGroupe, envoyerFacture, marquerPayee } from "@/lib/factures";
+import { demanderValidation } from "@/lib/validations";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -108,6 +109,54 @@ export async function POST(req: NextRequest) {
   const venteId = String(body?.vente_id ?? "").trim();
   const auteur = g.email ?? (String(body?.auteur ?? "").trim() || null);
   const items = Array.isArray(body?.items) ? body.items : null;
+
+  // Validation Direction (point 26) : un rôle individuel NON-Direction n'émet pas directement
+  // une facture HORS CPF — la demande passe en file (/validations) et n'est émise qu'à l'approbation.
+  // Le CPF reste hors périmètre (facturation CDC séparée, déjà encadrée par la permission « facturation »).
+  if (!estDirection(g.role)) {
+    const envoyer = body?.envoyer !== false;
+    if (items) {
+      const { id } = await demanderValidation({
+        type: "facture_hors_cpf",
+        libelle: `Facture groupée — ${items.length} élément(s)`,
+        payload: { kind: "groupe", items, envoyer },
+        demandeur: g.email ?? null,
+      });
+      return NextResponse.json({ ok: true, enAttenteValidation: true, validationId: id });
+    }
+    if (venteId) {
+      const { data: v } = await supabaseAdmin
+        .from("ventes_examen")
+        .select("montant, stagiaires:candidat_id (prenom, nom)")
+        .eq("id", venteId).maybeSingle();
+      const client = v ? `${(v as any).stagiaires?.prenom ?? ""} ${(v as any).stagiaires?.nom ?? ""}`.trim() : "";
+      const { id } = await demanderValidation({
+        type: "facture_hors_cpf",
+        libelle: `Facture examen — ${client || venteId}${v ? ` · ${Number((v as any).montant ?? 0).toLocaleString("fr-FR")} €` : ""}`,
+        payload: { kind: "vente", venteId, envoyer },
+        demandeur: g.email ?? null,
+      });
+      return NextResponse.json({ ok: true, enAttenteValidation: true, validationId: id });
+    }
+    if (dossierId) {
+      const { data: d } = await supabaseAdmin
+        .from("dossiers")
+        .select("certif, financement, origine_fonds, stagiaires:stagiaire_id (prenom, nom)")
+        .eq("id", dossierId).maybeSingle();
+      const estCpf = !!d && ((d as any).origine_fonds === "CPF_CDC" || (d as any).financement === "CPF");
+      if (!estCpf) {
+        const client = d ? `${(d as any).stagiaires?.prenom ?? ""} ${(d as any).stagiaires?.nom ?? ""}`.trim() : "";
+        const { id } = await demanderValidation({
+          type: "facture_hors_cpf",
+          libelle: `Facture formation hors CPF — ${client || dossierId}${d ? ` (${(d as any).certif})` : ""}`,
+          payload: { kind: "dossier", dossierId, envoyer },
+          demandeur: g.email ?? null,
+        });
+        return NextResponse.json({ ok: true, enAttenteValidation: true, validationId: id });
+      }
+      // dossier CPF → hors périmètre : émission directe ci-dessous (permission « facturation »).
+    }
+  }
 
   // Émission GROUPÉE : { items: [{ refType: 'dossier'|'vente', refId }] } (même personne, même série).
   if (items) {

@@ -1,0 +1,11 @@
+# dépendances
+/node_modules
+# build Next.js
+/.next
+/out
+# logs & divers
+*.log
+.DS_Store
+# variables d'environnement
+.env*.local
+/tsconfig.tsbuildinfo

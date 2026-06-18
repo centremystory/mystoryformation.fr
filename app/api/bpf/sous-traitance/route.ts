@@ -5,6 +5,8 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, UnauthorizedError } from "@/lib/auth";
+import { estDirection } from "@/lib/roles";
+import { demanderValidation } from "@/lib/validations";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { journal } from "@/lib/examens";
 
@@ -34,6 +36,18 @@ export async function POST(req: NextRequest) {
     attestation_anti_demarchage: !!b?.attestation,
     note: b?.note ? String(b.note) : null,
   };
+
+  // Saisie par un non-Direction → file « Validation Direction » (point 26) ; rien n'est inséré avant approbation.
+  if (!estDirection(u?.role)) {
+    const { id } = await demanderValidation({
+      type: "sous_traitance",
+      libelle: `Sous-traitance ${sens === "recue" ? "reçue" : "confiée"} — ${prestataire}, ${montant.toLocaleString("fr-FR")} € (${annee})`,
+      payload: ligne,
+      demandeur: u?.email ?? null,
+    });
+    return NextResponse.json({ ok: true, enAttenteValidation: true, validationId: id });
+  }
+
   const { data, error } = await supabaseAdmin.from("sous_traitance").insert(ligne).select("id").single();
   if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
   await journal("sous_traitance", (data as any).id, "ajout", { prestataire, annee, montant, sens }, u?.email ?? null);

@@ -29,14 +29,15 @@ async function compter() {
 }
 
 async function aTraiter() {
-  const zero = { participation: 0, identite: 0, conges: 0, messages: 0, formateurDocs: 0, incidents: 0 };
+  const zero = { participation: 0, identite: 0, conges: 0, messages: 0, formateurDocs: 0, incidents: 0, validations: 0 };
   try {
     const estCpf = (d: any) => d.financement === "CPF" || d.origine_fonds === "CPF_CDC";
-    const [dossiers, conges, messages, fdocs] = await Promise.all([
+    const [dossiers, conges, messages, fdocs, validations] = await Promise.all([
       supabaseAdmin.from("dossiers").select("financement, origine_fonds, participation_forfaitaire_reglee, participation_forfaitaire_exemptee, cpf_identite_ok"),
       supabaseAdmin.from("conges").select("id", { count: "exact", head: true }).eq("statut", "en_attente"),
       supabaseAdmin.from("messages_prospects").select("id", { count: "exact", head: true }).eq("statut", "nouveau"),
       supabaseAdmin.from("formateur_documents").select("id", { count: "exact", head: true }).eq("statut", "envoye_a_signer"),
+      supabaseAdmin.from("validations_direction").select("id", { count: "exact", head: true }).eq("statut", "en_attente"),
     ]);
     const incidents = await supabaseAdmin.from("incidents_techniques").select("id", { count: "exact", head: true }).eq("resolu", false);
     const cpf = (dossiers.data ?? []).filter(estCpf);
@@ -47,6 +48,7 @@ async function aTraiter() {
       messages: messages.count ?? 0,
       formateurDocs: fdocs.count ?? 0,
       incidents: incidents.count ?? 0,
+      validations: validations.count ?? 0,
     };
   } catch { return zero; }
 }
@@ -68,6 +70,7 @@ export default async function Accueil() {
     { label: "Participations 150 € à régler", n: t.participation, href: "/formation" },
     { label: "Identités CPF à confirmer", n: t.identite, href: "/formation" },
     { label: "Congés en attente", n: t.conges, href: "/conges" },
+    { label: "Validations Direction en attente", n: t.validations, href: "/validations" },
     { label: "Messages prospects", n: t.messages, href: "/messages" },
     { label: "Documents formateur à signer", n: t.formateurDocs, href: "/formateurs" },
     { label: "Formatrices sans justificatif FLE (séance à venir)", n: cf.fleManquant.length, href: "/equipe" },
