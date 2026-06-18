@@ -5,7 +5,7 @@
  * Pour chaque demi-journée : signature du stagiaire (sur tablette OU via QR sur son téléphone)
  * + signature de la formatrice. La demi-journée est validée quand les DEUX ont signé.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import QRCode from "qrcode";
 import SignaturePad from "@/components/SignaturePad";
 
@@ -41,6 +41,36 @@ export default function EmargementDuJour() {
   const [erreur, setErreur] = useState<string | null>(null);
   const [sel, setSel] = useState<Seance | null>(null);
   const [walkinOuvert, setWalkinOuvert] = useState(false);
+  const [scan, setScan] = useState<{ url: string | null; nom: string | null; depose_le: string | null } | null>(null);
+  const [scanBusy, setScanBusy] = useState(false);
+  const scanInputRef = useRef<HTMLInputElement>(null);
+
+  const chargerScan = useCallback(async () => {
+    try {
+      const r = await fetch(`/api/emargement/jour/scan?date=${date}`);
+      const j = await r.json();
+      setScan(j.ok ? j.scan : null);
+    } catch { setScan(null); }
+  }, [date]);
+
+  useEffect(() => { chargerScan(); }, [chargerScan]);
+
+  async function deposerScan(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setScanBusy(true); setErreur(null);
+    try {
+      const fd = new FormData();
+      fd.append("date", date);
+      fd.append("fichier", file);
+      const r = await fetch("/api/emargement/jour/scan", { method: "POST", body: fd });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.erreur || "Échec du dépôt.");
+      await chargerScan();
+    } catch (e: any) { setErreur(e?.message || "Échec du dépôt."); }
+    finally { setScanBusy(false); }
+  }
 
   const charger = useCallback(async () => {
     setChargement(true); setErreur(null);
@@ -87,6 +117,26 @@ export default function EmargementDuJour() {
           ))}
         </div>
         <span className="ml-auto text-sm text-gray-500">{totaux.faits}/{totaux.total} émargés</span>
+      </div>
+
+      {/* Feuille d'émargement papier (fallback présentiel) */}
+      <div className="mt-4 rounded-2xl border border-gray-200 bg-white p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-sm font-semibold text-gray-800">📄 Feuille papier</span>
+          <a href={`/api/emargement/jour/pdf?date=${date}`} target="_blank" rel="noreferrer"
+             className="rounded-lg bg-mystory px-3 py-1.5 text-sm font-semibold text-white">🖨️ Imprimer la feuille du jour</a>
+          <button onClick={() => scanInputRef.current?.click()} disabled={scanBusy}
+             className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+            {scanBusy ? "Dépôt…" : scan ? "Remplacer le scan signé" : "Déposer le scan signé"}
+          </button>
+          <input ref={scanInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" className="hidden" onChange={deposerScan} />
+          {scan?.url && (
+            <a href={scan.url} target="_blank" rel="noreferrer" className="text-sm underline text-mystory">📎 Voir le scan déposé</a>
+          )}
+        </div>
+        <p className="mt-2 text-xs text-gray-500">
+          Vierge de signatures (à signer en présentiel). {scan?.depose_le ? `Dernier scan déposé le ${new Date(scan.depose_le).toLocaleString("fr-FR")}.` : "Aucun scan déposé pour ce jour."}
+        </p>
       </div>
 
       {erreur && <p className="mt-4 text-sm text-red-600">{erreur}</p>}
