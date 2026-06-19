@@ -1,19 +1,84 @@
 "use client";
-// app/faq/page.tsx — FAQ interne équipe (réponses homogènes aux prospects).
+// app/faq/page.tsx — FAQ interne équipe (réponses homogènes aux prospects + modèles de mails).
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Copy, Check, Pencil, Archive, Mail } from "lucide-react";
 
 type Entree = { id: string; categorie: string; question: string; reponse: string; auteur: string | null; cree_le: string; maj_le: string };
 
 const CATS: { v: string; label: string }[] = [
-  { v: "financement_cpf", label: "Financement & CPF" },
+  { v: "general", label: "Général" },
   { v: "tef_irn", label: "TEF IRN" },
-  { v: "leveltel", label: "LEVELTEL" },
-  { v: "inscription", label: "Inscription & dossier" },
   { v: "examen", label: "Examen" },
   { v: "tarifs", label: "Tarifs" },
+  { v: "financement_cpf", label: "Financement & CPF" },
+  { v: "formation", label: "Formation" },
+  { v: "inscription", label: "Inscription & dossier" },
+  { v: "leveltel", label: "LEVELTEL" },
+  { v: "modeles_mails", label: "Modèles de mails" },
   { v: "autre", label: "Autre" },
 ];
 const LABEL: Record<string, string> = Object.fromEntries(CATS.map((c) => [c.v, c.label]));
+
+// --- Rendu inline : **gras** ---
+function renderInline(text: string, keyBase: string) {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g).filter(Boolean);
+  return parts.map((p, i) =>
+    p.startsWith("**") && p.endsWith("**")
+      ? <strong key={`${keyBase}-${i}`} className="font-semibold text-gray-900">{p.slice(2, -2)}</strong>
+      : <span key={`${keyBase}-${i}`}>{p}</span>,
+  );
+}
+
+// --- Rendu markdown léger : titres (## ), listes (- / •), paragraphes ---
+function RenderMarkdown({ texte }: { texte: string }) {
+  const lignes = texte.replace(/\r/g, "").split("\n");
+  const blocs: React.ReactNode[] = [];
+  let liste: string[] = [];
+  const flush = () => {
+    if (liste.length) {
+      blocs.push(
+        <ul key={`ul-${blocs.length}`} className="my-1 ml-1 space-y-1">
+          {liste.map((it, i) => (
+            <li key={i} className="flex gap-2 text-sm text-gray-700">
+              <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-mystory" />
+              <span>{renderInline(it, `li-${blocs.length}-${i}`)}</span>
+            </li>
+          ))}
+        </ul>,
+      );
+      liste = [];
+    }
+  };
+  lignes.forEach((ln, idx) => {
+    const t = ln.trim();
+    if (/^[-•]\s+/.test(t)) { liste.push(t.replace(/^[-•]\s+/, "")); return; }
+    flush();
+    if (!t) return;
+    if (t.startsWith("## ")) {
+      blocs.push(<p key={idx} className="mt-2 font-semibold text-gray-900">{t.slice(3)}</p>);
+    } else {
+      blocs.push(<p key={idx} className="text-sm text-gray-700">{renderInline(t, `p-${idx}`)}</p>);
+    }
+  });
+  flush();
+  return <div className="space-y-1">{blocs}</div>;
+}
+
+function BoutonCopier({ texte }: { texte: string }) {
+  const [copie, setCopie] = useState(false);
+  async function copier() {
+    try {
+      await navigator.clipboard.writeText(texte);
+      setCopie(true);
+      setTimeout(() => setCopie(false), 1800);
+    } catch {}
+  }
+  return (
+    <button onClick={copier} className={`btn-ghost !py-1.5 ${copie ? "!text-success-600" : ""}`}>
+      {copie ? <><Check size={15} /> Copié</> : <><Copy size={15} /> Copier le mail</>}
+    </button>
+  );
+}
 
 export default function PageFaq() {
   const [entrees, setEntrees] = useState<Entree[]>([]);
@@ -24,9 +89,10 @@ export default function PageFaq() {
   const [busy, setBusy] = useState<string | null>(null);
 
   // ajout
-  const [categorie, setCategorie] = useState("financement_cpf");
+  const [categorie, setCategorie] = useState("general");
   const [question, setQuestion] = useState("");
   const [reponse, setReponse] = useState("");
+  const [ouvertAjout, setOuvertAjout] = useState(false);
 
   // édition inline
   const [editId, setEditId] = useState<string | null>(null);
@@ -54,6 +120,12 @@ export default function PageFaq() {
     );
   }, [entrees, filtre, recherche]);
 
+  // catégories réellement présentes (pour n'afficher que les filtres utiles)
+  const catsPresentes = useMemo(() => {
+    const set = new Set(entrees.map((e) => e.categorie));
+    return CATS.filter((c) => set.has(c.v));
+  }, [entrees]);
+
   async function ajouter() {
     if (!question.trim() || !reponse.trim()) { setErr("Question et réponse requises."); return; }
     setBusy("__add__"); setErr(null);
@@ -64,7 +136,7 @@ export default function PageFaq() {
       });
       const j = await r.json();
       if (!j.ok) { setErr(j.erreur || "Ajout impossible."); return; }
-      setQuestion(""); setReponse("");
+      setQuestion(""); setReponse(""); setOuvertAjout(false);
       await charger();
     } catch (e: any) { setErr(e?.message || "Ajout impossible."); }
     finally { setBusy(null); }
@@ -97,36 +169,38 @@ export default function PageFaq() {
   }
 
   return (
-    <main className="max-w-4xl mx-auto px-4 md:px-6 py-8">
+    <main className="mx-auto max-w-4xl px-4 py-8 md:px-6">
       <header className="page-header">
         <div>
           <h1 className="page-title">FAQ interne</h1>
-          <p className="page-subtitle">Les bonnes réponses aux questions des prospects — pour que toute l'équipe dise la même chose.</p>
+          <p className="page-subtitle">Les bonnes réponses aux questions des prospects — pour que toute l'équipe dise la même chose. Les <strong>modèles de mails</strong> se copient en un clic.</p>
         </div>
+        <button onClick={() => setOuvertAjout((o) => !o)} className="btn-ghost">{ouvertAjout ? "Fermer" : "+ Ajouter"}</button>
       </header>
 
-      {/* Ajout */}
-      <section className="card mb-6">
-        <h2 className="text-sm font-semibold text-gray-800 mb-3">Ajouter une question / réponse</h2>
-        <div className="grid grid-cols-1 gap-2">
-          <select value={categorie} onChange={(e) => setCategorie(e.target.value)} className="input sm:w-64">
-            {CATS.map((c) => <option key={c.v} value={c.v}>{c.label}</option>)}
-          </select>
-          <input value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Question (ex. « Le CPF couvre-t-il tout ? »)" className="input" />
-          <textarea value={reponse} onChange={(e) => setReponse(e.target.value)} placeholder="Réponse validée à donner au prospect" rows={3} className="input" />
-        </div>
-        <button onClick={ajouter} disabled={busy === "__add__"} className="btn-primary mt-3">
-          {busy === "__add__" ? "Ajout…" : "Ajouter"}
-        </button>
-      </section>
+      {/* Ajout (repliable) */}
+      {ouvertAjout && (
+        <section className="card mb-6">
+          <h2 className="mb-3 text-sm font-semibold text-gray-800">Ajouter une entrée</h2>
+          <div className="grid grid-cols-1 gap-2">
+            <select value={categorie} onChange={(e) => setCategorie(e.target.value)} className="input sm:w-64">
+              {CATS.map((c) => <option key={c.v} value={c.v}>{c.label}</option>)}
+            </select>
+            <input value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Question / titre du modèle" className="input" />
+            <textarea value={reponse} onChange={(e) => setReponse(e.target.value)} placeholder={"Réponse. Mise en forme : **gras**, et « - » en début de ligne pour une puce."} rows={4} className="input" />
+          </div>
+          <button onClick={ajouter} disabled={busy === "__add__"} className="btn-primary mt-3">
+            {busy === "__add__" ? "Ajout…" : "Ajouter"}
+          </button>
+        </section>
+      )}
 
       {/* Recherche + filtre */}
-      <input value={recherche} onChange={(e) => setRecherche(e.target.value)} placeholder="Rechercher une question…"
-        className="w-full input mb-3" />
-      <div className="flex flex-wrap gap-2 mb-4">
-        {[{ v: "toutes", label: "Toutes" }, ...CATS].map((c) => (
+      <input value={recherche} onChange={(e) => setRecherche(e.target.value)} placeholder="Rechercher une question, un mot-clé…" className="input mb-3 w-full" />
+      <div className="mb-4 flex flex-wrap gap-2">
+        {[{ v: "toutes", label: "Toutes" }, ...catsPresentes].map((c) => (
           <button key={c.v} onClick={() => setFiltre(c.v)}
-            className={`px-3 py-1.5 rounded-lg text-sm border ${filtre === c.v ? "bg-mystory text-white border-mystory" : "bg-white text-gray-700 border-gray-300 hover:border-mystory"}`}>
+            className={`rounded-lg border px-3 py-1.5 text-sm ${filtre === c.v ? "border-mystory bg-mystory text-white" : "border-gray-300 bg-white text-gray-700 hover:border-mystory"}`}>
             {c.label}
           </button>
         ))}
@@ -134,38 +208,50 @@ export default function PageFaq() {
 
       {err && <div className="mb-4 rounded-xl border border-danger-200 bg-danger-50 p-3 text-sm text-danger-700">{err}</div>}
 
-      {charge ? <p className="text-gray-500 text-sm">Chargement…</p> : visibles.length === 0 ? (
-        <p className="text-gray-500 text-sm">Aucune question pour ce filtre. Ajoute la première ci-dessus.</p>
+      {charge ? (
+        <p className="text-sm text-gray-500">Chargement…</p>
+      ) : visibles.length === 0 ? (
+        <div className="empty-state">Aucune entrée pour ce filtre.</div>
       ) : (
         <div className="space-y-2">
-          {visibles.map((e) => (
-            <div key={e.id} className="card">
-              {editId === e.id ? (
-                <div className="space-y-2">
-                  <select value={editC} onChange={(ev) => setEditC(ev.target.value)} className="input sm:w-64">
-                    {CATS.map((c) => <option key={c.v} value={c.v}>{c.label}</option>)}
-                  </select>
-                  <input value={editQ} onChange={(ev) => setEditQ(ev.target.value)} className="w-full input" />
-                  <textarea value={editR} onChange={(ev) => setEditR(ev.target.value)} rows={3} className="w-full input" />
-                  <div className="flex gap-2">
-                    <button onClick={enregistrerEdition} disabled={busy === `edit-${e.id}`} className="px-3 py-1.5 rounded-lg bg-mystory text-white text-sm font-semibold disabled:opacity-50">Enregistrer</button>
-                    <button onClick={() => setEditId(null)} className="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 text-sm">Annuler</button>
+          {visibles.map((e) => {
+            const estModele = e.categorie === "modeles_mails";
+            return (
+              <div key={e.id} className="card">
+                {editId === e.id ? (
+                  <div className="space-y-2">
+                    <select value={editC} onChange={(ev) => setEditC(ev.target.value)} className="input sm:w-64">
+                      {CATS.map((c) => <option key={c.v} value={c.v}>{c.label}</option>)}
+                    </select>
+                    <input value={editQ} onChange={(ev) => setEditQ(ev.target.value)} className="input w-full" />
+                    <textarea value={editR} onChange={(ev) => setEditR(ev.target.value)} rows={estModele ? 14 : 4} className="input w-full font-mono text-xs" />
+                    <div className="flex gap-2">
+                      <button onClick={enregistrerEdition} disabled={busy === `edit-${e.id}`} className="btn-primary !py-1.5">Enregistrer</button>
+                      <button onClick={() => setEditId(null)} className="btn-ghost !py-1.5">Annuler</button>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <>
-                  <div className="flex flex-wrap items-center gap-2 mb-1">
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-mystory-clair text-mystory">{LABEL[e.categorie] ?? e.categorie}</span>
-                    <span className="flex-1" />
-                    <button onClick={() => ouvrirEdition(e)} className="text-xs text-gray-400 hover:text-mystory">Éditer</button>
-                    <button onClick={() => archiver(e.id)} disabled={busy === `arch-${e.id}`} className="text-xs text-gray-400 hover:text-red-600 disabled:opacity-50">Archiver</button>
-                  </div>
-                  <p className="font-medium text-gray-900">{e.question}</p>
-                  <p className="text-sm text-gray-700 mt-1 whitespace-pre-wrap">{e.reponse}</p>
-                </>
-              )}
-            </div>
-          ))}
+                ) : (
+                  <>
+                    <div className="mb-1 flex flex-wrap items-center gap-2">
+                      <span className={`badge ${estModele ? "badge-info" : "badge-neutral"}`}>
+                        {estModele && <Mail size={12} className="mr-1" />}{LABEL[e.categorie] ?? e.categorie}
+                      </span>
+                      <span className="flex-1" />
+                      {estModele && <BoutonCopier texte={e.reponse} />}
+                      <button onClick={() => ouvrirEdition(e)} className="text-xs text-gray-400 hover:text-mystory inline-flex items-center gap-1"><Pencil size={12} /> Éditer</button>
+                      <button onClick={() => archiver(e.id)} disabled={busy === `arch-${e.id}`} className="text-xs text-gray-400 hover:text-danger-600 disabled:opacity-50 inline-flex items-center gap-1"><Archive size={12} /> Archiver</button>
+                    </div>
+                    <p className="font-medium text-gray-900">{e.question}</p>
+                    {estModele ? (
+                      <pre className="mt-2 max-h-72 overflow-y-auto whitespace-pre-wrap rounded-xl border border-gray-200 bg-gray-50 p-3 font-sans text-[13px] leading-relaxed text-gray-700">{e.reponse}</pre>
+                    ) : (
+                      <div className="mt-1"><RenderMarkdown texte={e.reponse} /></div>
+                    )}
+                  </>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </main>

@@ -13,7 +13,7 @@ import { journal } from "@/lib/examens";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const CATEGORIES = ["financement_cpf", "tef_irn", "leveltel", "inscription", "examen", "tarifs", "autre"];
+const CATEGORIES = ["general", "tef_irn", "examen", "tarifs", "financement_cpf", "formation", "inscription", "leveltel", "modeles_mails", "autre"];
 
 export async function GET(req: NextRequest) {
   try { await requireUser(req); }
