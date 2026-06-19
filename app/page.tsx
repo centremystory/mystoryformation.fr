@@ -1,7 +1,14 @@
-// app/page.tsx — Accueil du CRM : tableau de bord à deux espaces (Formation / Examen)
-// Compteurs temps réel (lecture seule, service_role côté serveur) + deux grandes portes + transverse.
+// app/page.tsx — Accueil du CRM (Design 1C, page de référence SaaS épuré).
+// Tableau de bord à deux espaces (Formation / Examen) : compteurs temps réel,
+// file « À traiter », deux grandes portes, tuiles transverses.
+// Logique de comptage / rôle / filtrage INCHANGÉE — seul le rendu a été refondu.
 import Link from "next/link";
 import { cookies, headers } from "next/headers";
+import {
+  GraduationCap, ClipboardList, Users, Receipt, FileSpreadsheet, ListChecks,
+  Plus, ArrowRight, CheckCircle2,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { conformiteFormateurs } from "@/lib/conformiteFormateurs";
 import { verifySession } from "@/lib/auth";
@@ -71,12 +78,27 @@ async function aTraiter(site: SiteFiltre) {
   } catch { return zero; }
 }
 
-function Compteur({ libelle, valeur, accent }: { libelle: string; valeur: string; accent?: "ambre" | "vert" }) {
-  const couleur = accent === "ambre" ? "text-amber-600" : accent === "vert" ? "text-emerald-700" : "text-gray-900";
+/** Carte chiffre (KPI) du design system, avec accent sémantique optionnel. */
+function Kpi({ libelle, valeur, accent }: { libelle: string; valeur: string; accent?: "ambre" | "vert" }) {
+  const couleur = accent === "ambre" ? "text-warning-600" : accent === "vert" ? "text-success-700" : "text-gray-900";
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4">
-      <p className="text-xs text-gray-500 mb-1">{libelle}</p>
-      <p className={`text-2xl font-semibold ${couleur}`}>{valeur}</p>
+    <div className="kpi">
+      <p className="kpi-label">{libelle}</p>
+      <p className={`kpi-value mt-1 ${couleur}`}>{valeur}</p>
+    </div>
+  );
+}
+
+/** Grande porte d'un espace (Formation / Examen). */
+function Porte({ icone: Icone, titre, desc, children }: { icone: LucideIcon; titre: string; desc: string; children: React.ReactNode }) {
+  return (
+    <div className="card card-hover">
+      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-mystory-clair text-mystory-fonce">
+        <Icone size={22} strokeWidth={1.75} />
+      </div>
+      <p className="mt-3 text-lg font-semibold tracking-tight text-gray-900">{titre}</p>
+      <p className="mt-1 text-sm text-gray-500">{desc}</p>
+      <div className="mt-4 flex flex-wrap gap-2">{children}</div>
     </div>
   );
 }
@@ -108,107 +130,99 @@ export default async function Accueil() {
   ].filter((a) => a.n > 0 && voir(a.href));
 
   // Tuiles transverses, filtrées selon le rôle.
-  const tuiles = [
-    { href: "/equipe", emoji: "👥", titre: "Équipe", desc: "Formateurs (justificatifs FLE) et commerciaux." },
-    { href: "/factures", emoji: "🧾", titre: "Factures", desc: "Facturation et relances." },
-    { href: "/bpf", emoji: "📊", titre: "BPF", desc: "Bilan pédagogique et financier." },
-    { href: "/taches", emoji: "✅", titre: "Tâches par agence", desc: "Le pense-bête opérationnel de chaque site." },
+  const tuiles: { href: string; icone: LucideIcon; titre: string; desc: string }[] = [
+    { href: "/equipe", icone: Users, titre: "Équipe", desc: "Formateurs (justificatifs FLE) et commerciaux." },
+    { href: "/factures", icone: Receipt, titre: "Factures", desc: "Facturation et relances." },
+    { href: "/bpf", icone: FileSpreadsheet, titre: "BPF", desc: "Bilan pédagogique et financier." },
+    { href: "/taches", icone: ListChecks, titre: "Tâches par agence", desc: "Le pense-bête opérationnel de chaque site." },
   ].filter((tu) => voir(tu.href));
+
   const heure = new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit" });
   const salut = parseInt(heure) < 18 ? "Bonjour" : "Bonsoir";
 
   return (
-    <main className="max-w-5xl mx-auto px-4 md:px-6 py-8">
-      <header className="flex items-center gap-3 mb-6">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/embleme-bleu.png" alt="MYSTORY" className="h-11 w-auto" />
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{salut} 👋</h1>
-          <p className="text-sm text-gray-500">
-            Tableau de bord MYSTORY — Formation &amp; Examen.
-            <span className="ml-2 inline-block text-xs font-medium text-mystory bg-mystory-clair rounded-full px-2 py-0.5">
-              {site ? `Site : ${site}` : "Tous les sites"}
-            </span>
-          </p>
+    <main className="mx-auto max-w-6xl px-4 py-8 md:px-6">
+      {/* En-tête */}
+      <header className="page-header">
+        <div className="flex items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/embleme-bleu.png" alt="MYSTORY" className="h-11 w-auto" />
+          <div>
+            <h1 className="page-title text-2xl">{salut}</h1>
+            <p className="page-subtitle">
+              Tableau de bord MYSTORY — Formation &amp; Examen.
+              <span className="badge badge-info ml-2 align-middle">{site ? `Site : ${site}` : "Tous les sites"}</span>
+            </p>
+          </div>
         </div>
       </header>
 
       {/* Compteurs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-        <Compteur libelle="Dossiers en cours" valeur={String(c.enCours)} />
-        <Compteur libelle="Dossiers complets" valeur={String(c.complets)} accent="vert" />
-        <Compteur libelle="Conventions à relancer" valeur={String(c.aRelancer)} accent={c.aRelancer > 0 ? "ambre" : undefined} />
-        <Compteur libelle="Formatrices en règle" valeur={`${c.fleOk} / ${c.fleTotal}`} accent={c.fleOk === c.fleTotal ? "vert" : "ambre"} />
+      <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Kpi libelle="Dossiers en cours" valeur={String(c.enCours)} />
+        <Kpi libelle="Dossiers complets" valeur={String(c.complets)} accent="vert" />
+        <Kpi libelle="Conventions à relancer" valeur={String(c.aRelancer)} accent={c.aRelancer > 0 ? "ambre" : undefined} />
+        <Kpi libelle="Formatrices en règle" valeur={`${c.fleOk} / ${c.fleTotal}`} accent={c.fleOk === c.fleTotal ? "vert" : "ambre"} />
       </div>
 
       {/* À traiter */}
-      <p className="text-xs uppercase tracking-wide text-gray-400 mb-2">À traiter</p>
+      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">À traiter</p>
       {actions.length === 0 ? (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 mb-8 text-sm text-emerald-800">Tout est à jour ✅</div>
+        <div className="card mb-8">
+          <div className="empty-state">
+            <CheckCircle2 size={28} strokeWidth={1.75} className="text-success-600" />
+            <p className="text-sm font-medium text-gray-700">Tout est à jour</p>
+            <p className="text-xs text-gray-400">Aucune action en attente sur votre périmètre.</p>
+          </div>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
+        <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {actions.map((a) => (
             <Link key={a.label} href={a.href}
-              className="flex items-center justify-between bg-white border border-amber-200 rounded-xl px-4 py-3 hover:border-mystory transition-colors">
+              className="card card-hover flex items-center justify-between gap-3 !p-4">
               <span className="text-sm text-gray-700">{a.label}</span>
-              <span className="text-sm font-semibold text-amber-600 bg-amber-50 rounded-full px-2.5 py-0.5">{a.n}</span>
+              <span className="badge badge-warning shrink-0">{a.n}</span>
             </Link>
           ))}
         </div>
       )}
 
       {/* Deux grandes portes */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="rounded-2xl p-6 bg-mystory-clair border border-transparent">
-          <div className="text-3xl">🎓</div>
-          <p className="text-xl font-bold text-gray-900 mt-2">Espace Formation</p>
-          <p className="text-sm text-gray-600 mt-1">
-            Inscriptions, suivi des dossiers, tests de positionnement, émargement, import EDOF.
-          </p>
-          <div className="flex flex-wrap gap-2 mt-4">
-            {voir("/formation") && (
-              <Link href="/formation" className="px-4 py-2 rounded-lg bg-white text-mystory border border-mystory text-sm font-medium hover:bg-mystory hover:text-white transition-colors">
-                Ouvrir l'espace
-              </Link>
-            )}
-            {voir("/inscriptions/nouvelle") && (
-              <Link href="/inscriptions/nouvelle" className="px-4 py-2 rounded-lg bg-mystory text-white text-sm font-medium hover:opacity-90 transition-opacity">
-                ＋ Inscription Formation
-              </Link>
-            )}
-          </div>
-        </div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <Porte icone={GraduationCap} titre="Espace Formation"
+          desc="Inscriptions, suivi des dossiers, tests de positionnement, émargement, import EDOF.">
+          {voir("/formation") && (
+            <Link href="/formation" className="btn-ghost">Ouvrir l'espace <ArrowRight size={16} /></Link>
+          )}
+          {voir("/inscriptions/nouvelle") && (
+            <Link href="/inscriptions/nouvelle" className="btn-primary"><Plus size={16} /> Inscription Formation</Link>
+          )}
+        </Porte>
 
-        <div className="rounded-2xl p-6 bg-mystory-clair border border-transparent">
-          <div className="text-3xl">📝</div>
-          <p className="text-xl font-bold text-gray-900 mt-2">Espace Examen</p>
-          <p className="text-sm text-gray-600 mt-1">
-            Inscriptions, sessions, jour J, corrections, classement des vendeurs — centre d'examen : Gagny.
-          </p>
-          <div className="flex flex-wrap gap-2 mt-4">
-            <Link href="/examen" className="px-4 py-2 rounded-lg bg-white text-mystory border border-mystory text-sm font-medium hover:bg-mystory hover:text-white transition-colors">
-              Ouvrir l'espace
-            </Link>
-            <Link href="/examens/vente" className="px-4 py-2 rounded-lg bg-mystory text-white text-sm font-medium hover:opacity-90 transition-opacity">
-              ＋ Inscription Examen
-            </Link>
-          </div>
-        </div>
+        <Porte icone={ClipboardList} titre="Espace Examen"
+          desc="Inscriptions, sessions, jour J, corrections, classement des vendeurs — centre d'examen : Gagny.">
+          <Link href="/examen" className="btn-ghost">Ouvrir l'espace <ArrowRight size={16} /></Link>
+          <Link href="/examens/vente" className="btn-primary"><Plus size={16} /> Inscription Examen</Link>
+        </Porte>
       </div>
 
       {/* Transverse */}
       {tuiles.length > 0 && (
         <>
-          <p className="text-xs uppercase tracking-wide text-gray-400 mt-8 mb-2">Transverse</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {tuiles.map((tu) => (
-              <Link key={tu.href} href={tu.href}
-                    className="group bg-white border border-gray-200 rounded-xl p-5 hover:border-mystory hover:shadow-sm transition-all">
-                <div className="w-10 h-10 rounded-lg bg-mystory-clair flex items-center justify-center text-mystory text-xl">{tu.emoji}</div>
-                <p className="font-semibold text-gray-900 mt-3 group-hover:text-mystory">{tu.titre}</p>
-                <p className="text-sm text-gray-500 mt-1">{tu.desc}</p>
-              </Link>
-            ))}
+          <p className="mb-2 mt-8 text-xs font-medium uppercase tracking-wide text-gray-400">Transverse</p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {tuiles.map((tu) => {
+              const Icone = tu.icone;
+              return (
+                <Link key={tu.href} href={tu.href} className="card card-hover group">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-mystory-clair text-mystory-fonce">
+                    <Icone size={20} strokeWidth={1.75} />
+                  </div>
+                  <p className="mt-3 font-semibold text-gray-900 group-hover:text-mystory">{tu.titre}</p>
+                  <p className="mt-1 text-sm text-gray-500">{tu.desc}</p>
+                </Link>
+              );
+            })}
           </div>
         </>
       )}
