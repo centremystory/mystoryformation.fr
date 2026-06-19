@@ -11,7 +11,7 @@ import {
   ClipboardList, Users, Plane, CalendarRange, Clock, Settings, Receipt, CheckCircle2,
   FileSpreadsheet, UserCog, MessageSquare, Eye, HelpCircle, KeyRound, AlertTriangle,
   Workflow, ScrollText, LogOut, Menu, X, ChevronDown,
-  Plus, FileCheck, Hourglass, RotateCcw, Percent, Trophy,
+  Plus, FileCheck, Hourglass, RotateCcw, Percent, Trophy, Table2,
 } from "lucide-react";
 import { peutVoirPage, ROLE_LABEL } from "@/lib/roles";
 import { SITES, COOKIE_SITE, siteValide } from "@/lib/sites";
@@ -45,6 +45,7 @@ const NAV: Entree[] = [
       { href: "/examens/remboursements", label: "Remboursements", icon: RotateCcw },
       { href: "/examens/taux", label: "Taux de réussite", icon: Percent },
       { href: "/classement", label: "Classement", icon: Trophy },
+      { href: "/examens/croise", label: "Vue croisée", icon: Table2 },
     ],
   },
   {

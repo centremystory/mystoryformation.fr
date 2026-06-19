@@ -91,6 +91,7 @@ export const PAGE_PERMISSIONS: Record<string, Role[]> = {
   // — Finance unitaire / contractualisation —
   "/factures": ["direction", "manager", "back_office"],
   "/examens/remboursements": ["direction", "manager", "back_office"],
+  "/examens/croise": ["direction", "manager"],
   // — Commercial / prospects —
   "/inscriptions": ["direction", "manager", "commercial", "back_office"],
   "/messages": ["direction", "manager", "commercial"],
