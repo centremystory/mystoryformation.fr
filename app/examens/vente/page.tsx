@@ -36,6 +36,10 @@ export default function PageVenteExamen() {
   const [paiement, setPaiement] = useState({ montant: "", mode_paiement: "CB", dont_cb: "", statut_paiement: "Payé", reste_a_payer: "" });
   const [vendeur, setVendeur] = useState({ vendu_par: "", agence: "Gagny", commentaire: "" });
   const [erreurs, setErreurs] = useState<string[]>([]);
+  const [tefExterne, setTefExterne] = useState(false);
+  const [tefExterneDate, setTefExterneDate] = useState("");
+  const [forcer, setForcer] = useState(false);
+  const [motifForcage, setMotifForcage] = useState("");
   const [envoi, setEnvoi] = useState(false);
   const [resultat, setResultat] = useState<any>(null);
 
@@ -91,6 +95,10 @@ export default function PageVenteExamen() {
             vendu_par: vendeur.vendu_par.trim(),
             agence: vendeur.agence,
             commentaire: vendeur.commentaire,
+            tef_passage_externe: type === "TEF_IRN" ? tefExterne : false,
+            tef_passage_externe_date: type === "TEF_IRN" && tefExterne ? tefExterneDate : null,
+            carence_forcer: forcer,
+            carence_motif: forcer ? motifForcage.trim() : "",
           },
         }),
       });
@@ -150,6 +158,25 @@ export default function PageVenteExamen() {
       {erreurs.length > 0 && (
         <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg px-4 py-3 text-sm mb-4">
           {erreurs.map((e, i) => <p key={i}>• {e}</p>)}
+        </div>
+      )}
+
+      {erreurs.some((e) => /carence|mention civique par jour/i.test(e)) && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm mb-4 space-y-2">
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input type="checkbox" checked={forcer} onChange={(e) => setForcer(e.target.checked)} className="mt-0.5" />
+            <span><strong>Forcer l'inscription malgré la carence</strong> — réservé à la Direction. L'action est journalisée.</span>
+          </label>
+          {forcer && (
+            <label className="text-sm block">Motif (obligatoire)
+              <input value={motifForcage} onChange={(e) => setMotifForcage(e.target.value)} placeholder="Ex. dérogation, cas particulier…" className={`${champ} mt-1`} />
+            </label>
+          )}
+          {forcer && (
+            <button onClick={valider} disabled={envoi || !motifForcage.trim()} className="px-4 py-2 rounded-lg text-sm text-white bg-amber-600 font-medium disabled:opacity-50">
+              {envoi ? "Envoi…" : "Forcer et valider la vente"}
+            </button>
+          )}
         </div>
       )}
 
@@ -247,6 +274,20 @@ export default function PageVenteExamen() {
               ))}
             </select>
           </label>
+
+          {type === "TEF_IRN" && (
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm space-y-2">
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input type="checkbox" checked={tefExterne} onChange={(e) => setTefExterne(e.target.checked)} className="mt-0.5" />
+                <span>Le candidat a déjà passé un <strong>TEF IRN dans un autre centre</strong> récemment (carence de 20 jours entre deux TEF).</span>
+              </label>
+              {tefExterne && (
+                <label className="text-sm block">Date de ce dernier passage *
+                  <input type="date" value={tefExterneDate} onChange={(e) => setTefExterneDate(e.target.value)} className={`${champ} mt-1`} />
+                </label>
+              )}
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <label className="text-sm">Montant (€) * <span className="text-gray-400">(modifiable)</span>
               <input type="number" min={0} step="0.01" value={paiement.montant}
