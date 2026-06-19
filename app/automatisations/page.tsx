@@ -29,6 +29,7 @@ export default function AutomatisationsPage() {
   const [erreurs, setErreurs] = useState<any[]>([]);
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [filtre, setFiltre] = useState<"actifs" | "inactifs" | "tous">("actifs");
 
   async function charger() {
     setChargement(true); setErreur(null);
@@ -42,6 +43,10 @@ export default function AutomatisationsPage() {
   }
   useEffect(() => { charger(); }, []);
 
+  const nbActifs = wf.filter((w) => w.active).length;
+  const nbInactifs = wf.length - nbActifs;
+  const visibles = wf.filter((w) => (filtre === "tous" ? true : filtre === "actifs" ? w.active : !w.active));
+
   return (
     <main className="max-w-4xl mx-auto px-4 md:px-6 py-6">
       <div className="flex items-center justify-between">
@@ -50,14 +55,23 @@ export default function AutomatisationsPage() {
       </div>
       <p className="text-sm text-gray-500 mt-1">Workflows, dernier passage et erreurs récentes — en lecture.</p>
 
+      <div className="flex flex-wrap gap-2 mt-4">
+        {([["actifs", `Actifs (${nbActifs})`], ["inactifs", `Inactifs (${nbInactifs})`], ["tous", `Tous (${wf.length})`]] as const).map(([v, l]) => (
+          <button key={v} onClick={() => setFiltre(v)}
+            className={`px-3 py-1.5 rounded-lg text-sm border ${filtre === v ? "bg-mystory text-white border-mystory" : "border-gray-300 text-gray-700 hover:bg-gray-50"}`}>
+            {l}
+          </button>
+        ))}
+      </div>
+
       {erreur && <p className="mt-4 text-sm text-red-600">{erreur}</p>}
       {chargement ? (
         <p className="mt-6 text-sm text-gray-400">Chargement…</p>
       ) : (
         <>
           <div className="mt-5 space-y-2">
-            {wf.length === 0 && <p className="text-sm text-gray-400">Aucun workflow.</p>}
-            {wf.map((w) => (
+            {visibles.length === 0 && <p className="text-sm text-gray-400">Aucun workflow dans ce filtre.</p>}
+            {visibles.map((w) => (
               <div key={w.id} className="border border-gray-200 rounded-xl bg-white p-4">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className={`text-xs px-2 py-0.5 rounded-full ${w.active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-500"}`}>{w.active ? "Actif" : "Inactif"}</span>
