@@ -51,6 +51,28 @@ export function peut(role: string | undefined | null, action: ActionSensible): b
 }
 
 /**
+ * Automate de confiance (n8n / cron) : JWT valide signé par AUTH_SECRET dont le rôle
+ * n'appartient PAS à la matrice staff (5 rôles + "staff"). Sûr par construction —
+ * un compte humain porte TOUJOURS un rôle de la matrice, donc on ne peut pas usurper
+ * l'exemption en rejouant un cookie de session humain en en-tête Bearer.
+ */
+const ROLES_MATRICE = new Set<string>([...ROLES, "staff"]);
+export function estAutomate(role: string | undefined | null): boolean {
+  return !!role && !ROLES_MATRICE.has(role);
+}
+
+/**
+ * Garde d'action « tolérante aux automates », pour les routes appelées par n8n/cron.
+ * Passe si : sans rôle (filet équipe partagée) · "staff" · automate de confiance · rôle autorisé.
+ * Ne bloque qu'un humain identifié dont le rôle n'a pas l'action.
+ */
+export function peutAgir(role: string | undefined | null, action: ActionSensible): boolean {
+  if (!role || role === "staff") return true;
+  if (estAutomate(role)) return true;
+  return peut(role, action);
+}
+
+/**
  * Permissions PAR PAGE. Préfixe de chemin → rôles autorisés.
  * Tout chemin NON listé est ouvert à tous les rôles staff. Le filet de transition
  * (rôle "staff" / session sans rôle) garde l'accès complet tant que les comptes

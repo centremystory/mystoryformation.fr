@@ -12,7 +12,7 @@ import {
   downloadSignedDocument,
 } from "@/lib/docuseal";
 import { requireUser, UnauthorizedError, type SessionUser } from "@/lib/auth";
-import { peut } from "@/lib/roles";
+import { peutAgir } from "@/lib/roles";
 import { getFiche, archiveDocument, setPieceStatus, getConventionStatus } from "@/lib/crm";
 import { checkConformite } from "@/lib/gates";
 import { journal } from "@/lib/examens";
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     throw e;
   }
   // Restriction : envoi en signature réservé Direction + Secrétariat (token de service sans rôle = n8n → passe).
-  if (u.role && !peut(u.role, "conventions_envoyer")) {
+  if (!peutAgir(u.role, "conventions_envoyer")) {
     return NextResponse.json({ error: "Action réservée à la Direction et au Secrétariat." }, { status: 403 });
   }
 
