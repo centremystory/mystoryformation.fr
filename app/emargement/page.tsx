@@ -296,6 +296,10 @@ function ModaleEmargement({ seance, onClose, onMaj }: { seance: Seance; onClose:
         {seance.emarge_le && (
           <div className="mt-4 rounded-xl bg-green-50 border border-green-200 p-3 text-sm text-green-800">
             ✅ Demi-journée émargée — présence enregistrée.
+            <a href={`/api/emargement/feuille/pdf?dossier=${seance.dossier_id}`} target="_blank" rel="noreferrer"
+               className="mt-2 inline-flex items-center gap-1 rounded-lg bg-mystory px-3 py-1.5 text-xs font-semibold text-white hover:bg-mystory-fonce">
+              📄 Télécharger la feuille d'émargement (PDF)
+            </a>
           </div>
         )}
 
