@@ -37,7 +37,7 @@ const NAV: Entree[] = [
     type: "menu", label: "Examen", icon: ClipboardList, items: [
       { href: "/examen", label: "Espace Examen", icon: LayoutGrid },
       { href: "/examens/vente", label: "Inscription", icon: Plus },
-      { href: "/examens/vente-groupe", label: "Inscription croisée", icon: Layers },
+      { href: "/examens/vente-groupe", label: "Inscription multiple", icon: Layers },
       { href: "/examens/preinscriptions", label: "Pré-inscriptions", icon: Phone },
       { href: "/examens/candidats", label: "Candidats", icon: Users },
       { href: "/examens", label: "Sessions", icon: CalendarDays },

@@ -155,6 +155,10 @@ export default function PageVenteExamen() {
       <h1 className="page-title">Vendre un examen</h1>
       <p className="text-sm text-gray-500 mb-6">Étape {etape} / 5 — attestation + convocation envoyées automatiquement à la validation.</p>
 
+      <div className="mb-6 rounded-xl border border-mystory/20 bg-mystory-clair/50 px-4 py-2.5 text-sm text-mystory-fonce">
+        Besoin d'inscrire à <strong>plusieurs examens</strong> (TEF + civique + plateforme) en une fois ? Utilise l'<a href="/examens/vente-groupe" className="font-semibold underline">inscription multiple</a>.
+      </div>
+
       {erreurs.length > 0 && (
         <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg px-4 py-3 text-sm mb-4">
           {erreurs.map((e, i) => <p key={i}>• {e}</p>)}

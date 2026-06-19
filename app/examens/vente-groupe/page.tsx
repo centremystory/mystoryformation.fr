@@ -175,7 +175,7 @@ export default function PageVenteGroupe() {
     <main className="mx-auto max-w-3xl px-4 py-8 md:px-6">
       <header className="page-header">
         <div>
-          <h1 className="page-title">Inscription croisée</h1>
+          <h1 className="page-title">Inscription multiple</h1>
           <p className="page-subtitle">Un candidat, plusieurs examens en une seule fois (TEF, civique, plateforme). Documents et emails générés à la validation. <Link href="/examens/vente" className="text-mystory hover:underline">Inscription simple</Link></p>
         </div>
       </header>
