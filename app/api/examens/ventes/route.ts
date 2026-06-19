@@ -258,7 +258,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const refus = await garde(req); if (refus) return refus;
+  const g = await garde(req); if (g instanceof NextResponse) return g;
   let body: any;
   try { body = await req.json(); }
   catch { return NextResponse.json({ ok: false, erreur: "JSON invalide." }, { status: 400 }); }
