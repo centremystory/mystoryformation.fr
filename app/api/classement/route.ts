@@ -5,14 +5,14 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { requireUser, UnauthorizedError } from "@/lib/auth";
+import { requireRole, UnauthorizedError, ForbiddenError } from "@/lib/auth";
 import { journal } from "@/lib/examens";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
-    await requireUser(req);
+    await requireRole(req, ["direction"]);
 
     const { data, error } = await supabaseAdmin
       .from("classement_cache")
@@ -36,6 +36,9 @@ export async function GET(req: NextRequest) {
     if (e instanceof UnauthorizedError) {
       return NextResponse.json({ ok: false, erreur: "Non autorisé" }, { status: 401 });
     }
+    if (e instanceof ForbiddenError) {
+      return NextResponse.json({ ok: false, erreur: "Réservé à la Direction." }, { status: 403 });
+    }
     return NextResponse.json(
       { ok: false, erreur: e instanceof Error ? e.message : "Erreur inconnue" },
       { status: 500 }
@@ -45,7 +48,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    await requireUser(req);
+    await requireRole(req, ["direction"]);
 
     const corps = await req.json().catch(() => null);
     if (!corps || corps.cle !== "examens" || !corps.payload || !corps.periode_debut || !corps.periode_fin) {
@@ -79,6 +82,9 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     if (e instanceof UnauthorizedError) {
       return NextResponse.json({ ok: false, erreur: "Non autorisé" }, { status: 401 });
+    }
+    if (e instanceof ForbiddenError) {
+      return NextResponse.json({ ok: false, erreur: "Réservé à la Direction." }, { status: 403 });
     }
     return NextResponse.json(
       { ok: false, erreur: e instanceof Error ? e.message : "Erreur inconnue" },

@@ -50,8 +50,8 @@ export async function middleware(req: NextRequest) {
     // contrôles peut(). Filet de transition : rôle "staff"/absent = accès complet.
     if (!pathname.startsWith("/api/") && !peutVoirPage(utilisateur.role, pathname)) {
       const url = req.nextUrl.clone();
-      url.pathname = "/";
-      url.search = "non_autorise=1";
+      url.pathname = "/acces-refuse";
+      url.search = "";
       return NextResponse.redirect(url);
     }
     return NextResponse.next();

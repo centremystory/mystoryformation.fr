@@ -5,7 +5,7 @@
  * POST  (équipe / token n8n) { source?, titre, detail?, contexte? } → consigne un incident (ex. échec workflow n8n).
  */
 import { NextRequest, NextResponse } from "next/server";
-import { requireUser, UnauthorizedError } from "@/lib/auth";
+import { requireRole, UnauthorizedError, ForbiddenError } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { consignerIncident } from "@/lib/incidents";
 
@@ -13,9 +13,12 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 async function garde(req: NextRequest) {
-  try { return await requireUser(req); }
+  // Direction seule (consultation/résolution). Le token de service n8n (sans rôle) passe
+  // pour POSTer un incident — filet de transition assuré par requireRole.
+  try { return await requireRole(req, ["direction"]); }
   catch (e) {
     if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
+    if (e instanceof ForbiddenError) return NextResponse.json({ ok: false, erreur: "Réservé à la Direction." }, { status: 403 });
     throw e;
   }
 }

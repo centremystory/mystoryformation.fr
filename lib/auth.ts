@@ -66,3 +66,23 @@ export async function requireUser(req: Request): Promise<SessionUser> {
   if (!user) throw new UnauthorizedError();
   return user;
 }
+
+export class ForbiddenError extends Error {
+  constructor(message = "Accès refusé") {
+    super(message);
+    this.name = "ForbiddenError";
+  }
+}
+
+/**
+ * Garde par rôle, à appeler en tête d'une route sensible (défense en profondeur, en plus
+ * du middleware de page). Lève UnauthorizedError (→401) si non connecté, ForbiddenError (→403)
+ * si le rôle individuel n'est pas autorisé. Filet de transition : la session équipe ("staff")
+ * et les tokens de service sans rôle (n8n/cron) passent toujours.
+ */
+export async function requireRole(req: Request, roles: readonly string[]): Promise<SessionUser> {
+  const user = await requireUser(req);
+  if (!user.role || user.role === "staff") return user; // filet de transition
+  if (!roles.includes(user.role)) throw new ForbiddenError();
+  return user;
+}

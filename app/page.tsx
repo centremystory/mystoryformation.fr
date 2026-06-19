@@ -1,8 +1,11 @@
 // app/page.tsx — Accueil du CRM : tableau de bord à deux espaces (Formation / Examen)
 // Compteurs temps réel (lecture seule, service_role côté serveur) + deux grandes portes + transverse.
 import Link from "next/link";
+import { headers } from "next/headers";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { conformiteFormateurs } from "@/lib/conformiteFormateurs";
+import { verifySession } from "@/lib/auth";
+import { peutVoirPage } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
 
@@ -65,6 +68,16 @@ function Compteur({ libelle, valeur, accent }: { libelle: string; valeur: string
 
 export default async function Accueil() {
   const [c, t, cf] = await Promise.all([compter(), aTraiter(), conformiteFormateurs()]);
+
+  // Rôle de la session (filtrage du périmètre — défense en profondeur, en plus du middleware).
+  const h = headers();
+  const sessionReq = new Request("http://internal/", {
+    headers: { cookie: h.get("cookie") ?? "", authorization: h.get("authorization") ?? "" },
+  });
+  const user = await verifySession(sessionReq);
+  const role = user?.role ?? null;
+  const voir = (href: string) => peutVoirPage(role, href);
+
   const actions = [
     { label: "Conventions à relancer", n: c.aRelancer, href: "/formation" },
     { label: "Participations 150 € à régler", n: t.participation, href: "/formation" },
@@ -76,7 +89,15 @@ export default async function Accueil() {
     { label: "Formatrices sans justificatif FLE (séance à venir)", n: cf.fleManquant.length, href: "/equipe" },
     { label: "Charte/contrat formateur à signer (séance à venir)", n: cf.docsManquant.length, href: "/formateurs" },
     { label: "Incidents techniques", n: t.incidents, href: "/incidents" },
-  ].filter((a) => a.n > 0);
+  ].filter((a) => a.n > 0 && voir(a.href));
+
+  // Tuiles transverses, filtrées selon le rôle.
+  const tuiles = [
+    { href: "/equipe", emoji: "👥", titre: "Équipe", desc: "Formateurs (justificatifs FLE) et commerciaux." },
+    { href: "/factures", emoji: "🧾", titre: "Factures", desc: "Facturation et relances." },
+    { href: "/bpf", emoji: "📊", titre: "BPF", desc: "Bilan pédagogique et financier." },
+    { href: "/taches", emoji: "✅", titre: "Tâches par agence", desc: "Le pense-bête opérationnel de chaque site." },
+  ].filter((tu) => voir(tu.href));
   const heure = new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit" });
   const salut = parseInt(heure) < 18 ? "Bonjour" : "Bonsoir";
 
@@ -124,12 +145,16 @@ export default async function Accueil() {
             Inscriptions, suivi des dossiers, tests de positionnement, émargement, import EDOF.
           </p>
           <div className="flex flex-wrap gap-2 mt-4">
-            <Link href="/formation" className="px-4 py-2 rounded-lg bg-white text-mystory border border-mystory text-sm font-medium hover:bg-mystory hover:text-white transition-colors">
-              Ouvrir l'espace
-            </Link>
-            <Link href="/inscriptions/nouvelle" className="px-4 py-2 rounded-lg bg-mystory text-white text-sm font-medium hover:opacity-90 transition-opacity">
-              ＋ Inscription Formation
-            </Link>
+            {voir("/formation") && (
+              <Link href="/formation" className="px-4 py-2 rounded-lg bg-white text-mystory border border-mystory text-sm font-medium hover:bg-mystory hover:text-white transition-colors">
+                Ouvrir l'espace
+              </Link>
+            )}
+            {voir("/inscriptions/nouvelle") && (
+              <Link href="/inscriptions/nouvelle" className="px-4 py-2 rounded-lg bg-mystory text-white text-sm font-medium hover:opacity-90 transition-opacity">
+                ＋ Inscription Formation
+              </Link>
+            )}
           </div>
         </div>
 
@@ -151,33 +176,21 @@ export default async function Accueil() {
       </div>
 
       {/* Transverse */}
-      <p className="text-xs uppercase tracking-wide text-gray-400 mt-8 mb-2">Transverse</p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Link href="/equipe"
-              className="group bg-white border border-gray-200 rounded-xl p-5 hover:border-mystory hover:shadow-sm transition-all">
-          <div className="w-10 h-10 rounded-lg bg-mystory-clair flex items-center justify-center text-mystory text-xl">👥</div>
-          <p className="font-semibold text-gray-900 mt-3 group-hover:text-mystory">Équipe</p>
-          <p className="text-sm text-gray-500 mt-1">Formateurs (justificatifs FLE) et commerciaux.</p>
-        </Link>
-        <Link href="/factures"
-              className="group bg-white border border-gray-200 rounded-xl p-5 hover:border-mystory hover:shadow-sm transition-all">
-          <div className="w-10 h-10 rounded-lg bg-mystory-clair flex items-center justify-center text-mystory text-xl">🧾</div>
-          <p className="font-semibold text-gray-900 mt-3 group-hover:text-mystory">Factures</p>
-          <p className="text-sm text-gray-500 mt-1">Facturation et relances.</p>
-        </Link>
-        <Link href="/bpf"
-              className="group bg-white border border-gray-200 rounded-xl p-5 hover:border-mystory hover:shadow-sm transition-all">
-          <div className="w-10 h-10 rounded-lg bg-mystory-clair flex items-center justify-center text-mystory text-xl">📊</div>
-          <p className="font-semibold text-gray-900 mt-3 group-hover:text-mystory">BPF</p>
-          <p className="text-sm text-gray-500 mt-1">Bilan pédagogique et financier.</p>
-        </Link>
-        <Link href="/taches"
-              className="group bg-white border border-gray-200 rounded-xl p-5 hover:border-mystory hover:shadow-sm transition-all">
-          <div className="w-10 h-10 rounded-lg bg-mystory-clair flex items-center justify-center text-mystory text-xl">✅</div>
-          <p className="font-semibold text-gray-900 mt-3 group-hover:text-mystory">Tâches par agence</p>
-          <p className="text-sm text-gray-500 mt-1">Le pense-bête opérationnel de chaque site.</p>
-        </Link>
-      </div>
+      {tuiles.length > 0 && (
+        <>
+          <p className="text-xs uppercase tracking-wide text-gray-400 mt-8 mb-2">Transverse</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {tuiles.map((tu) => (
+              <Link key={tu.href} href={tu.href}
+                    className="group bg-white border border-gray-200 rounded-xl p-5 hover:border-mystory hover:shadow-sm transition-all">
+                <div className="w-10 h-10 rounded-lg bg-mystory-clair flex items-center justify-center text-mystory text-xl">{tu.emoji}</div>
+                <p className="font-semibold text-gray-900 mt-3 group-hover:text-mystory">{tu.titre}</p>
+                <p className="text-sm text-gray-500 mt-1">{tu.desc}</p>
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
     </main>
   );
 }

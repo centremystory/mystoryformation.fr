@@ -1,19 +1,22 @@
 /**
- * MYSTORY — Rôles & permissions (item 18).
- * La plupart des actions sont ouvertes à tout staff connecté ; seules quelques
- * actions sensibles sont restreintes par rôle. La session « équipe » historique
- * (role "staff", mot de passe partagé) garde l'accès complet le temps de la bascule.
+ * MYSTORY — Rôles & permissions (contrôle d'accès v2).
+ * Jeu DÉFINITIF de 5 rôles staff. La vraie barrière est CÔTÉ SERVEUR
+ * (requireRole sur les routes + middleware sur les pages + filtrage NavBar/compteurs) :
+ * le CRM interroge Supabase via service_role, donc la RLS ne restreint pas l'app.
+ *
+ * Filet de transition : tant que le mot de passe d'équipe (rôle "staff") est actif,
+ * une session sans rôle individuel garde l'accès complet — le gating « dur » par rôle
+ * ne mord que sur les comptes individuels. ('partenaire' = portail à jeton, hors matrice staff.)
  */
-export const ROLES = ["direction", "pedagogie", "formatrice", "commercial", "secretariat", "communication"] as const;
+export const ROLES = ["direction", "manager", "commercial", "formatrice", "back_office"] as const;
 export type Role = (typeof ROLES)[number];
 
 export const ROLE_LABEL: Record<Role, string> = {
   direction: "Direction",
-  pedagogie: "Pédagogie / Qualité",
-  formatrice: "Formatrice",
+  manager: "Manager de site",
   commercial: "Commercial",
-  secretariat: "Secrétariat",
-  communication: "Communication",
+  formatrice: "Formatrice",
+  back_office: "Back-office",
 };
 
 export type ActionSensible =
@@ -25,17 +28,16 @@ export type ActionSensible =
 
 export const PERMISSIONS: Record<ActionSensible, { label: string; roles: Role[] }> = {
   comptes_gerer: { label: "Gérer les comptes & accès", roles: ["direction"] },
-  conventions_envoyer: { label: "Envoyer une convention en signature", roles: ["direction", "secretariat"] },
+  conventions_envoyer: { label: "Envoyer une convention en signature", roles: ["direction", "manager", "back_office"] },
   bpf_saisir: { label: "BPF : saisir le déposé / exports", roles: ["direction"] },
-  facturation: { label: "Facturation", roles: ["direction", "secretariat"] },
-  evaluation_finale: { label: "Évaluation finale (niveau atteint)", roles: ["pedagogie", "formatrice", "direction"] },
+  facturation: { label: "Facturation", roles: ["direction", "manager", "back_office"] },
+  evaluation_finale: { label: "Évaluation finale (niveau atteint)", roles: ["direction", "manager", "formatrice"] },
 };
 
 /**
  * Agit-il avec l'autorité de la Direction ? Direction + le filet de transition
  * (session équipe "staff", ou token de service sans rôle = n8n/cron) passent.
- * Sert à la « Validation Direction » (point 26) : un rôle individuel non-Direction
- * voit ses actions sensibles passer en file d'attente au lieu d'être exécutées.
+ * Sert à la « Validation Direction » (point 26).
  */
 export function estDirection(role: string | undefined | null): boolean {
   return !role || role === "staff" || role === "direction";
@@ -49,24 +51,50 @@ export function peut(role: string | undefined | null, action: ActionSensible): b
 }
 
 /**
- * Permissions PAR PAGE (item 22). Préfixe de chemin → rôles autorisés.
- * Tout chemin NON listé est ouvert à tous les rôles. Le filet de transition
- * (rôle "staff" du mot de passe d'équipe, ou session sans rôle) garde l'accès complet
- * tant que les comptes individuels ne sont pas généralisés.
+ * Permissions PAR PAGE. Préfixe de chemin → rôles autorisés.
+ * Tout chemin NON listé est ouvert à tous les rôles staff. Le filet de transition
+ * (rôle "staff" / session sans rôle) garde l'accès complet tant que les comptes
+ * individuels ne sont pas généralisés.
+ *
+ * Direction SEULE : finances globales & administration (jamais l'équipe).
+ * Le scoping fin (commercial = SES stats, manager = SON site) arrive avec la brique multi-sites.
  */
 export const PAGE_PERMISSIONS: Record<string, Role[]> = {
+  // — Direction seule —
   "/comptes": ["direction"],
-  "/bpf": ["direction"],
   "/journal": ["direction"],
-  "/incidents": ["direction", "pedagogie"],
-  "/factures": ["direction", "secretariat"],
-  "/examens/remboursements": ["direction", "secretariat"],
+  "/bpf": ["direction"],
+  "/classement": ["direction"],          // CA & primes globaux (vue par site -> multi-sites)
+  "/incidents": ["direction"],
+  // — Finance unitaire / contractualisation —
+  "/factures": ["direction", "manager", "back_office"],
+  "/examens/remboursements": ["direction", "manager", "back_office"],
+  // — Commercial / prospects —
+  "/inscriptions": ["direction", "manager", "commercial", "back_office"],
+  "/messages": ["direction", "manager", "commercial"],
+  // — Dossiers / conformité / EDOF (back-office) —
+  "/dossiers/conformite": ["direction", "manager", "back_office"],
+  "/dossiers/edof": ["direction", "manager", "back_office"],
+  "/edof": ["direction", "manager", "back_office"],
+  "/dossiers": ["direction", "manager", "back_office", "formatrice"],
+  // — Pédagogie / suivi élèves (formatrice) —
+  "/formation": ["direction", "manager", "formatrice"],
+  "/programmes": ["direction", "manager", "formatrice"],
+  "/contenu-pedagogique": ["direction", "manager", "formatrice"],
+  "/suivi-eleves": ["direction", "manager", "formatrice"],
+  "/satisfaction-cours": ["direction", "manager", "formatrice"],
+  "/emargement": ["direction", "manager", "formatrice", "back_office"],
+  // — RH équipe (encadrement) —
+  "/formateurs": ["direction", "manager"],
+  "/planning-employes": ["direction", "manager"],
+  "/pointage": ["direction", "manager"],
+  "/equipe": ["direction", "manager"],
 };
 
 /** Le rôle peut-il accéder à cette page ? "staff"/sans-rôle = oui (transition). Non listé = oui. */
 export function peutVoirPage(role: string | undefined | null, pathname: string): boolean {
   if (!role || role === "staff") return true; // filet de transition
-  // Préfixe le plus spécifique d'abord (ex. /examens/remboursements avant /examens).
+  // Préfixe le plus spécifique d'abord (ex. /dossiers/conformite avant /dossiers).
   const cles = Object.keys(PAGE_PERMISSIONS).sort((a, b) => b.length - a.length);
   for (const cle of cles) {
     if (pathname === cle || pathname.startsWith(cle + "/")) {
@@ -74,4 +102,13 @@ export function peutVoirPage(role: string | undefined | null, pathname: string):
     }
   }
   return true; // page non restreinte
+}
+
+/** Rôles autorisés pour une page (pour requireRole côté API). [] si non restreinte. */
+export function rolesAutorisesPage(pathname: string): Role[] {
+  const cles = Object.keys(PAGE_PERMISSIONS).sort((a, b) => b.length - a.length);
+  for (const cle of cles) {
+    if (pathname === cle || pathname.startsWith(cle + "/")) return PAGE_PERMISSIONS[cle];
+  }
+  return [];
 }
