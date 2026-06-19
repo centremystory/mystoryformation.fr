@@ -12,6 +12,9 @@ import { peutVoirPage } from "@/lib/roles";
 const CHEMINS_PUBLICS = [
   "/connexion",             // page de connexion
   "/api/auth/login",        // vérification du mot de passe
+  "/api/auth/mot-de-passe-oublie", // demande de réinitialisation
+  "/api/auth/reinitialiser", // pose du nouveau mot de passe
+  "/reinitialiser",         // page publique de réinitialisation
   "/api/webhooks/docuseal", // DocuSeal : vérifie sa signature HMAC lui-même
   "/qcm",                   // test de positionnement public (stagiaires)
   "/positionnement",

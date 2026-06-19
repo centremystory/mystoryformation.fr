@@ -49,10 +49,28 @@ function RenderMarkdown({ texte }: { texte: string }) {
       liste = [];
     }
   };
+  let table: string[] = [];
+  const flushTable = () => {
+    if (!table.length) return;
+    const cells = (r: string) => r.replace(/^\||\|$/g, "").split("|").map((c) => c.trim());
+    const rows = table.filter((r) => !/^\|[\s:|-]+\|$/.test(r)); // retire la ligne séparatrice |---|---|
+    const header = cells(rows[0] ?? "");
+    const body = rows.slice(1).map(cells);
+    blocs.push(
+      <div key={`tbl-${blocs.length}`} className="my-2 overflow-x-auto">
+        <table className="w-full border-collapse text-sm">
+          <thead><tr>{header.map((h, i) => <th key={i} className="border border-gray-200 bg-gray-50 px-2 py-1 text-left font-semibold text-gray-800">{renderInline(h, `th-${i}`)}</th>)}</tr></thead>
+          <tbody>{body.map((r, ri) => <tr key={ri}>{r.map((c, ci) => <td key={ci} className="border border-gray-200 px-2 py-1 align-top text-gray-700">{renderInline(c, `td-${ri}-${ci}`)}</td>)}</tr>)}</tbody>
+        </table>
+      </div>,
+    );
+    table = [];
+  };
   lignes.forEach((ln, idx) => {
     const t = ln.trim();
-    if (/^[-•]\s+/.test(t)) { liste.push(t.replace(/^[-•]\s+/, "")); return; }
-    flush();
+    if (/^[-•]\s+/.test(t)) { flushTable(); liste.push(t.replace(/^[-•]\s+/, "")); return; }
+    if (/^\|.*\|$/.test(t)) { flush(); table.push(t); return; }
+    flush(); flushTable();
     if (!t) return;
     if (t.startsWith("## ")) {
       blocs.push(<p key={idx} className="mt-2 font-semibold text-gray-900">{t.slice(3)}</p>);
@@ -60,7 +78,7 @@ function RenderMarkdown({ texte }: { texte: string }) {
       blocs.push(<p key={idx} className="text-sm text-gray-700">{renderInline(t, `p-${idx}`)}</p>);
     }
   });
-  flush();
+  flush(); flushTable();
   return <div className="space-y-1">{blocs}</div>;
 }
 

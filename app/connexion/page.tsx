@@ -11,6 +11,9 @@ export default function PageConnexion() {
   const [email, setEmail] = useState("");
   const [motDePasse, setMotDePasse] = useState("");
   const [erreur, setErreur] = useState<string | null>(null);
+  const [oubli, setOubli] = useState(false);
+  const [emailOubli, setEmailOubli] = useState("");
+  const [msgOubli, setMsgOubli] = useState<string | null>(null);
   const [chargement, setChargement] = useState(false);
 
   async function seConnecter() {
@@ -34,6 +37,17 @@ export default function PageConnexion() {
       setErreur("Erreur de connexion au serveur. Réessayez.");
       setChargement(false);
     }
+  }
+
+  async function demanderReset() {
+    setMsgOubli(null);
+    try {
+      await fetch("/api/auth/mot-de-passe-oublie", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: emailOubli.trim() }),
+      });
+    } catch {}
+    setMsgOubli("Si un compte existe avec cet email, un lien de réinitialisation vient d'être envoyé.");
   }
 
   const champ: React.CSSProperties = {
@@ -75,6 +89,22 @@ export default function PageConnexion() {
             cursor: chargement || !motDePasse ? "not-allowed" : "pointer" }}>
           {chargement ? "Connexion…" : "Se connecter"}
         </button>
+
+        <div style={{ marginTop: 14, textAlign: "center" }}>
+          <button type="button" onClick={() => setOubli((o) => !o)} style={{ background: "none", border: "none", color: "#2F72DE", cursor: "pointer", fontSize: 12, textDecoration: "underline", padding: 0 }}>
+            Mot de passe oublié ?
+          </button>
+        </div>
+        {oubli && (
+          <div style={{ marginTop: 10, padding: 12, background: "#F4F7FC", borderRadius: 8 }}>
+            <label style={lab}>Votre email</label>
+            <input type="email" value={emailOubli} autoComplete="username" onChange={(e) => setEmailOubli(e.target.value)} onKeyDown={(e) => e.key === "Enter" && demanderReset()} placeholder="prenom@mystoryformation.fr" style={champ} />
+            <button type="button" onClick={demanderReset} disabled={!emailOubli.trim()} style={{ width: "100%", marginTop: 10, padding: "10px", color: "#fff", fontSize: 14, fontWeight: 600, background: emailOubli.trim() ? "#2F72DE" : "#9DBCEB", border: "none", borderRadius: 8, cursor: emailOubli.trim() ? "pointer" : "not-allowed" }}>
+              Recevoir un lien de réinitialisation
+            </button>
+            {msgOubli && <div style={{ marginTop: 10, fontSize: 12, color: "#1E7E45" }}>{msgOubli}</div>}
+          </div>
+        )}
 
         <div style={{ marginTop: 14, textAlign: "center", fontSize: 12, color: "#8A99B5" }}>
           Astuce : laisse l'email vide pour l'accès équipe temporaire.
