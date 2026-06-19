@@ -9,20 +9,22 @@
  * GET — liste des ventes (?session=… pour le jour J, sinon 50 dernières).
  */
 import { NextRequest, NextResponse } from "next/server";
-import { requireUser, UnauthorizedError } from "@/lib/auth";
+import { requireUser, UnauthorizedError, type SessionUser } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import {
   chargerVente, genererDocumentsVente, envoyerDocumentsVente, journal,
   SOUS_TYPES_CIVIQUE, MOTIVATIONS_TEF, PLATEFORMES,
 } from "@/lib/examens";
 import { facturerVente, envoyerFacture } from "@/lib/factures";
+import { checkInscriptionExamen } from "@/lib/examenCarence";
+import { estDirection } from "@/lib/roles";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
-async function garde(req: NextRequest) {
-  try { await requireUser(req); return null; }
+async function garde(req: NextRequest): Promise<NextResponse | { user: SessionUser }> {
+  try { const user = await requireUser(req); return { user }; }
   catch (e) {
     if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Non authentifié" }, { status: 401 });
     throw e;
@@ -30,7 +32,7 @@ async function garde(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  const refus = await garde(req); if (refus) return refus;
+  const g = await garde(req); if (g instanceof NextResponse) return g;
   const session = req.nextUrl.searchParams.get("session");
   let q = supabaseAdmin
     .from("ventes_examen")
@@ -43,7 +45,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const refus = await garde(req); if (refus) return refus;
+  const g = await garde(req); if (g instanceof NextResponse) return g;
+  const u = g.user;
   let body: any;
   try { body = await req.json(); }
   catch { return NextResponse.json({ ok: false, erreur: "JSON invalide." }, { status: 400 }); }
@@ -73,6 +76,13 @@ export async function POST(req: NextRequest) {
   const agence = String(v.agence ?? "").trim();
   const sessionId = String(v.session_id ?? "").trim() || null;
 
+  // Déclaratif : TEF déjà passé dans un autre centre (case + date), intégré au calcul de carence.
+  const tefExterneDeclare = v.tef_passage_externe === true || v.tef_passage_externe === "true" || v.tef_passage_externe === 1;
+  const tefExterneDate = String(v.tef_passage_externe_date ?? "").trim() || null;
+  // Override Direction d'une carence (motif obligatoire, journalisé).
+  const carenceForcer = v.carence_forcer === true || v.carence_forcer === "true" || v.carence_forcer === 1;
+  const carenceMotif = String(v.carence_motif ?? "").trim();
+
   if (!["TEF_IRN", "Examen_civique", "Vente_plateforme"].includes(type)) recap.push("Type d'examen invalide.");
   if (type === "Examen_civique" && !SOUS_TYPES_CIVIQUE.includes(sousType))
     recap.push("Sous-type OBLIGATOIRE pour l'examen civique (la mention conditionne l'épreuve).");
@@ -90,6 +100,10 @@ export async function POST(req: NextRequest) {
   if (statutPaiement !== "Acompte" && resteAPayer > 0) recap.push("Reste à payer > 0 uniquement avec le statut « Acompte ».");
   if (!venduPar) recap.push("« Vendu par » obligatoire (traçabilité : qui fait quoi).");
   if (!["Gagny", "Sarcelles", "Rosny"].includes(agence)) recap.push("Agence de vente : Gagny / Sarcelles / Rosny.");
+  if (tefExterneDeclare) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(tefExterneDate ?? "")) recap.push("Indiquez la date du TEF déjà passé dans un autre centre.");
+    else if (tefExterneDate! > new Date().toISOString().slice(0, 10)) recap.push("La date du TEF déjà passé ne peut pas être dans le futur.");
+  }
 
   if (recap.length > 0) return NextResponse.json({ ok: false, status: "gate_ko", recap }, { status: 409 });
 
@@ -127,6 +141,31 @@ export async function POST(req: NextRequest) {
     candidatId = (data as any).id;
   }
 
+  // ----- Carences & règles d'inscription examen (conformité, §2) -----
+  let dateExamen: string | null = null;
+  if (sessionId && type !== "Vente_plateforme") {
+    const { data: sess } = await supabaseAdmin
+      .from("sessions_examen").select("date_examen").eq("id", sessionId).maybeSingle();
+    dateExamen = (sess as any)?.date_examen ?? null;
+  }
+  const carence = await checkInscriptionExamen({
+    candidatId, type, sousType: sousType || null, dateExamen,
+    declaratifTefDate: tefExterneDeclare ? tefExterneDate : null,
+  });
+  if (!carence.ok) {
+    // Blocage dur — sauf override Direction explicite avec motif (journalisé).
+    if (carenceForcer && estDirection(u.role) && carenceMotif) {
+      await journal("ventes_examen", candidatId, "carence_forcee", { motif: carenceMotif, recap: carence.recap }, u.email ?? venduPar);
+    } else if (carenceForcer && !estDirection(u.role)) {
+      return NextResponse.json({ ok: false, status: "gate_ko", recap: [...carence.recap, "Seule la Direction peut forcer une inscription en carence."] }, { status: 409 });
+    } else if (carenceForcer && !carenceMotif) {
+      return NextResponse.json({ ok: false, status: "gate_ko", recap: [...carence.recap, "Motif obligatoire pour forcer l'inscription malgré la carence."] }, { status: 409 });
+    } else {
+      return NextResponse.json({ ok: false, status: "gate_ko", recap: carence.recap }, { status: 409 });
+    }
+  }
+  const carenceAppliquee = !carence.ok; // true ⇒ forçage Direction validé ci-dessus
+
   // ----- Vente : le trigger SQL attribue le numéro et applique les verrous -----
   const { data: vente, error: venteErr } = await supabaseAdmin
     .from("ventes_examen")
@@ -139,6 +178,10 @@ export async function POST(req: NextRequest) {
       statut_paiement: statutPaiement, reste_a_payer: resteAPayer,
       vendu_par: venduPar, agence,
       commentaire: String(v.commentaire ?? "").trim() || null,
+      tef_passage_externe_declare: tefExterneDeclare,
+      tef_passage_externe_date: tefExterneDeclare ? tefExterneDate : null,
+      carence_forcee: carenceAppliquee,
+      carence_forcee_motif: carenceAppliquee ? carenceMotif : null,
       numero_attestation: "ATTRIBUE_PAR_LE_SERVEUR", // remplacé par le trigger (séquence)
     })
     .select("id, numero_attestation")
