@@ -2,6 +2,7 @@
 // app/recherche/page.tsx — Recherche globale (stagiaires/dossiers, formateurs, formatrices).
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { Search } from "lucide-react";
 
 type Res = { id: string; label: string; sous?: string | null; agence?: string | null; type?: string; href: string };
 
@@ -37,11 +38,11 @@ export default function PageRecherche() {
     if (!items.length) return null;
     return (
       <div className="mb-5">
-        <p className="text-xs uppercase tracking-wide text-gray-400 mb-2">{titre} ({items.length})</p>
+        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">{titre} ({items.length})</p>
         <div className="space-y-1">
           {items.map((r) => (
             <Link key={r.id} href={r.href}
-              className="flex items-center justify-between bg-white border border-gray-200 rounded-xl px-4 py-2.5 hover:border-mystory transition-colors">
+              className="card card-hover flex items-center justify-between !p-3">
               <span className="text-sm text-gray-800">{r.label || "—"}
                 {r.sous && <span className="text-gray-400"> · {r.sous}</span>}
                 {r.type && <span className="text-gray-400"> · {r.type === "interne" ? "interne" : "sous-traitant"}</span>}
@@ -55,14 +56,20 @@ export default function PageRecherche() {
   }
 
   return (
-    <main className="max-w-2xl mx-auto px-4 md:px-6 py-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">Recherche</h1>
-      <p className="text-sm text-gray-500 mb-4">Un stagiaire, un dossier, un formateur ou une formatrice — par nom, prénom ou email.</p>
-      <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tapez un nom…"
-        className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm mb-5" />
+    <main className="mx-auto max-w-2xl px-4 py-8 md:px-6">
+      <header className="page-header">
+        <div>
+          <h1 className="page-title">Recherche</h1>
+          <p className="page-subtitle">Un stagiaire, un dossier, un formateur ou une formatrice — par nom, prénom ou email.</p>
+        </div>
+      </header>
+      <div className="relative mb-5">
+        <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tapez un nom…" className="input pl-10" />
+      </div>
 
-      {q.trim().length >= 2 && !charge && total === 0 && <p className="text-gray-500 text-sm">Aucun résultat.</p>}
-      {charge && <p className="text-gray-400 text-sm">Recherche…</p>}
+      {q.trim().length >= 2 && !charge && total === 0 && <p className="text-sm text-gray-500">Aucun résultat.</p>}
+      {charge && <p className="text-sm text-gray-400">Recherche…</p>}
 
       {data && (
         <>

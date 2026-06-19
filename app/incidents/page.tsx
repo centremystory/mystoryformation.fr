@@ -1,9 +1,10 @@
 "use client";
 // app/incidents/page.tsx — Surveillance des échecs (emails, n8n, système).
 import { useCallback, useEffect, useState } from "react";
+import { CheckCircle2 } from "lucide-react";
 
 type Incident = { id: string; source: string; titre: string; detail: string | null; resolu: boolean; cree_le: string };
-const BADGE: Record<string, string> = { email: "bg-blue-100 text-blue-700", n8n: "bg-purple-100 text-purple-700", systeme: "bg-gray-100 text-gray-600" };
+const BADGE: Record<string, string> = { email: "badge-info", n8n: "bg-purple-100 text-purple-700", systeme: "badge-neutral" };
 
 export default function PageIncidents() {
   const [tous, setTous] = useState(false);
@@ -30,38 +31,43 @@ export default function PageIncidents() {
   }
 
   return (
-    <main className="max-w-3xl mx-auto px-4 md:px-6 py-8">
-      <header className="mb-5 flex items-center gap-3">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/embleme-bleu.png" alt="" className="h-10 w-auto" />
+    <main className="mx-auto max-w-3xl px-4 py-8 md:px-6">
+      <header className="page-header">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Incidents techniques</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Échecs d'emails, de workflows n8n ou système — pour ne rien rater.</p>
+          <h1 className="page-title">Incidents techniques</h1>
+          <p className="page-subtitle">Échecs d'emails, de workflows n8n ou système — pour ne rien rater.</p>
         </div>
       </header>
 
-      <div className="flex gap-2 mb-4">
-        <button onClick={() => setTous(false)} className={`text-xs px-3 py-1.5 rounded-full border ${!tous ? "bg-mystory text-white border-mystory" : "border-gray-300 text-gray-600"}`}>À résoudre</button>
-        <button onClick={() => setTous(true)} className={`text-xs px-3 py-1.5 rounded-full border ${tous ? "bg-mystory text-white border-mystory" : "border-gray-300 text-gray-600"}`}>Tous</button>
+      <div className="mb-4 flex gap-2">
+        <button onClick={() => setTous(false)} className={`rounded-full border px-3 py-1.5 text-xs transition ${!tous ? "border-mystory bg-mystory text-white" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>À résoudre</button>
+        <button onClick={() => setTous(true)} className={`rounded-full border px-3 py-1.5 text-xs transition ${tous ? "border-mystory bg-mystory text-white" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>Tous</button>
       </div>
 
-      {charge ? <p className="text-gray-500 text-sm">Chargement…</p> : incidents.length === 0 ? (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">Aucun incident {tous ? "" : "à résoudre"} ✅</div>
+      {charge ? (
+        <div className="space-y-2">{[0, 1, 2].map((i) => <div key={i} className="skeleton h-20" />)}</div>
+      ) : incidents.length === 0 ? (
+        <div className="card">
+          <div className="empty-state">
+            <CheckCircle2 size={28} strokeWidth={1.75} className="text-success-600" />
+            <p className="text-sm font-medium text-gray-700">Aucun incident {tous ? "" : "à résoudre"}</p>
+          </div>
+        </div>
       ) : (
         <div className="space-y-2">
           {incidents.map((i) => (
-            <div key={i.id} className={`border rounded-xl bg-white p-4 ${i.resolu ? "border-gray-200 opacity-70" : "border-amber-200"}`}>
+            <div key={i.id} className={`card !p-4 ${i.resolu ? "opacity-70" : "border-warning-200"}`}>
               <div className="flex flex-wrap items-center gap-2">
-                <span className={`text-xs px-2 py-0.5 rounded-full ${BADGE[i.source] ?? "bg-gray-100 text-gray-600"}`}>{i.source}</span>
+                <span className={`badge ${BADGE[i.source] ?? "badge-neutral"}`}>{i.source}</span>
                 <span className="font-medium text-gray-900">{i.titre}</span>
                 <span className="flex-1" />
                 <span className="text-xs text-gray-400">{new Date(i.cree_le).toLocaleString("fr-FR")}</span>
               </div>
-              {i.detail && <p className="text-sm text-gray-600 mt-1.5 break-words">{i.detail}</p>}
+              {i.detail && <p className="mt-1.5 break-words text-sm text-gray-600">{i.detail}</p>}
               <div className="mt-2">
                 {i.resolu
-                  ? <button onClick={() => basculer(i.id, false)} disabled={busy === i.id} className="text-xs text-blue-600 underline disabled:opacity-50">Rouvrir</button>
-                  : <button onClick={() => basculer(i.id, true)} disabled={busy === i.id} className="text-xs text-green-700 underline disabled:opacity-50">Marquer résolu</button>}
+                  ? <button onClick={() => basculer(i.id, false)} disabled={busy === i.id} className="text-xs text-mystory underline disabled:opacity-50">Rouvrir</button>
+                  : <button onClick={() => basculer(i.id, true)} disabled={busy === i.id} className="text-xs text-success-700 underline disabled:opacity-50">Marquer résolu</button>}
               </div>
             </div>
           ))}

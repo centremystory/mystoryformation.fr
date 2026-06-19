@@ -31,25 +31,31 @@ export default function AListe() {
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-8">
-      <h1 className="text-2xl font-extrabold text-gray-900">À noter</h1>
-      <p className="mt-1 text-sm text-gray-500">Tests de positionnement terminés par les candidats, en attente des notes d'expression écrite et orale de la formatrice.</p>
+    <main className="mx-auto max-w-3xl px-4 py-8 md:px-6">
+      <header className="page-header">
+        <div>
+          <h1 className="page-title">À noter</h1>
+          <p className="page-subtitle">Tests de positionnement terminés par les candidats, en attente des notes d'expression écrite et orale de la formatrice.</p>
+        </div>
+      </header>
 
-      {erreur && <p className="mt-4 rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{erreur}</p>}
-      {!liste && !erreur && <p className="mt-6 text-sm text-gray-400">Chargement…</p>}
-      {liste && liste.length === 0 && <p className="mt-6 rounded-xl border border-dashed border-gray-300 p-6 text-center text-sm text-gray-500">Aucun test en attente de notation.</p>}
+      {erreur && <p className="badge badge-danger mb-4 block w-full !rounded-xl !py-3 text-sm">{erreur}</p>}
+      {!liste && !erreur && <p className="text-sm text-gray-400">Chargement…</p>}
+      {liste && liste.length === 0 && (
+        <div className="card"><div className="empty-state"><p className="text-sm text-gray-500">Aucun test en attente de notation.</p></div></div>
+      )}
 
-      <div className="mt-4 space-y-3">
+      <div className="space-y-3">
         {liste?.map((it) => (
-          <div key={it.token} className="flex flex-wrap items-center gap-3 rounded-2xl border border-gray-200 bg-white p-4">
+          <div key={it.token} className="card flex flex-wrap items-center gap-3">
             <div className="min-w-0 flex-1">
               <div className="font-semibold text-gray-900">{it.civilite ? it.civilite + " " : ""}{it.prenom} {it.nom}</div>
               <div className="mt-0.5 text-xs text-gray-500">
                 {it.certif === "LEVELTEL" ? "LEVELTEL" : "TEF IRN"}{it.niveau_vise ? ` · visé ${it.niveau_vise}` : ""} · CE {it.ce_sur20 ?? "—"}/20 · CO {it.co_sur10 ?? "—"}/10 · {new Date(it.created_at).toLocaleDateString("fr-FR")}
               </div>
             </div>
-            <a href={`/positionnement/${it.token}`} className="rounded-lg bg-mystory px-3 py-2 text-sm font-semibold text-white">Noter</a>
-            <button onClick={() => copier(it.token)} className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            <a href={`/positionnement/${it.token}`} className="btn-primary">Noter</a>
+            <button onClick={() => copier(it.token)} className="btn-ghost">
               {copie === it.token ? "Lien copié ✓" : "Copier le lien"}
             </button>
           </div>
