@@ -89,6 +89,8 @@ export const PAGE_PERMISSIONS: Record<string, Role[]> = {
   "/planning-employes": ["direction", "manager"],
   "/pointage": ["direction", "manager"],
   "/equipe": ["direction", "manager"],
+  // — Supervision automatisations (lecture seule n8n) —
+  "/automatisations": ["direction", "manager"],
 };
 
 /** Le rôle peut-il accéder à cette page ? "staff"/sans-rôle = oui (transition). Non listé = oui. */
