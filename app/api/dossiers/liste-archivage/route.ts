@@ -28,7 +28,11 @@ export async function GET(req: NextRequest) {
     .order("created_at", { ascending: true });
   if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
 
-  const dossiers = (data ?? []).map((d: any) => {
+  // On n'archive QUE les dossiers ayant au moins une pièce archivée (sinon export-zip répond 409).
+  const { data: arch } = await supabaseAdmin.from("archives").select("dossier_id");
+  const avecPieces = new Set((arch ?? []).map((a: any) => a.dossier_id));
+
+  const dossiers = (data ?? []).filter((d: any) => avecPieces.has(d.id)).map((d: any) => {
     const nom = d.stagiaires?.nom ?? "";
     const prenom = d.stagiaires?.prenom ?? "";
     return {
