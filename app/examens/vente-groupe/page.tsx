@@ -153,7 +153,7 @@ export default function PageVenteGroupe() {
                 <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
                   <span className="inline-flex items-center gap-1"><Mail size={13} /> {i.email?.envoye ? `envoyé à ${i.email.a}` : `email non envoyé`}</span>
                   {i.factureDifferee && <span className="inline-flex items-center gap-1 text-warning-600"><Receipt size={13} /> facture différée (espèces)</span>}
-                  {i.facture?.numero && <span className="inline-flex items-center gap-1"><Receipt size={13} /> facture {i.facture.numero}</span>}
+                  {i.facture?.numero && <span className="inline-flex items-center gap-1"><Receipt size={13} /> {i.facture.groupee ? "facture groupée" : "facture"} {i.facture.numero}</span>}
                   {i.groupee && <span className="inline-flex items-center gap-1 text-mystory"><Layers size={13} /> convocation groupée</span>}
                 </div>
               ) : <p className="mt-1 text-xs text-danger-600">{i.erreur}</p>}
@@ -251,7 +251,7 @@ export default function PageVenteGroupe() {
 
       {aPack && (
         <div className="mb-3 rounded-xl border border-mystory/20 bg-mystory-clair/50 px-4 py-2.5 text-sm text-mystory-fonce">
-          Pack <strong>TEF IRN + civique = 265 €</strong> — répartis le montant entre les deux examens (ex. 265 € sur le TEF, 0 € sur le civique).
+          Pack <strong>TEF IRN + civique = 265 €</strong> — répartis le montant entre les deux examens. Ils seront regroupés sur <strong>une seule facture</strong> dont le total doit faire 265 €.
         </div>
       )}
 

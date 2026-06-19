@@ -20,7 +20,7 @@ import {
   type DocumentGenere, type VenteComplete,
 } from "@/lib/examens";
 import { fusionnerPdfs } from "@/lib/pdfMerge";
-import { facturerVente, envoyerFacture } from "@/lib/factures";
+import { facturerVente, facturerGroupe, envoyerFacture } from "@/lib/factures";
 import { checkInscriptionExamen } from "@/lib/examenCarence";
 import { estDirection } from "@/lib/roles";
 
@@ -178,7 +178,7 @@ export async function POST(req: NextRequest) {
   type Ligne = {
     e: any; insertOk: boolean; venteId: string; numero: string; statut: string; mode: string;
     vc: VenteComplete | null; docs: DocumentGenere[]; dateExamen: string | null;
-    facture: { numero: string; envoyee: boolean; erreur?: string } | null; factureDifferee: boolean;
+    facture: { numero: string; envoyee: boolean; erreur?: string; groupee?: boolean } | null; factureDifferee: boolean;
     erreurDocs: string | null; erreurInsert?: string;
   };
   const lignes: Ligne[] = [];
@@ -234,26 +234,8 @@ export async function POST(req: NextRequest) {
       await journal("ventes_examen", venteId, "documents_echec", { erreur: erreurDocs }, venduPar);
     }
 
-    // Facturation (identique au mono : Espèces différée, CB/Mixte automatique).
-    let facture: { numero: string; envoyee: boolean; erreur?: string } | null = null;
-    let factureDifferee = false;
-    if (["Annulé", "Remboursé"].includes(statut)) {
-      // pas de document comptable
-    } else if (mode === "Espèces") {
-      factureDifferee = true;
-      await journal("ventes_examen", venteId, "facture_differee_especes", { numero_attestation: numero }, venduPar);
-    } else {
-      try {
-        const f = await facturerVente(venteId, venduPar);
-        const ef = await envoyerFacture(f.id, "emission", venduPar);
-        facture = { numero: f.numero, envoyee: ef.ok, erreur: ef.erreur };
-      } catch (err: any) {
-        facture = { numero: "", envoyee: false, erreur: err?.message ?? String(err) };
-        await journal("ventes_examen", venteId, "facture_echec", { erreur: facture.erreur }, venduPar);
-      }
-    }
-
-    lignes.push({ e, insertOk: true, venteId, numero, statut, mode, vc, docs, dateExamen, facture, factureDifferee, erreurDocs });
+    // Facturation déléguée à la PHASE 2c (groupée si plusieurs examens payés ensemble).
+    lignes.push({ e, insertOk: true, venteId, numero, statut, mode, vc, docs, dateExamen, facture: null, factureDifferee: false, erreurDocs });
   }
 
   // ----- PHASE 2b : envoi (convocations du même jour fusionnées en un seul email) -----
@@ -320,6 +302,41 @@ export async function POST(req: NextRequest) {
       }
     } catch (err: any) {
       envoiParVente[l.venteId] = { envoye: false, erreur: err?.message ?? "Échec de l'envoi." };
+    }
+  }
+
+  // ----- PHASE 2c : facturation (UNE facture pour le panier si plusieurs payés ensemble) -----
+  const nonComptable = (l: Ligne) => ["Annulé", "Remboursé"].includes(l.statut);
+  const especes = lignes.filter((l) => l.insertOk && l.mode === "Espèces" && !nonComptable(l));
+  const facturables = lignes.filter((l) => l.insertOk && l.mode !== "Espèces" && !nonComptable(l));
+
+  // Espèces → facture différée, à émettre plus tard depuis Factures (par vente, inchangé).
+  for (const l of especes) {
+    l.factureDifferee = true;
+    await journal("ventes_examen", l.venteId, "facture_differee_especes", { numero_attestation: l.numero }, venduPar);
+  }
+
+  if (facturables.length >= 2) {
+    // Facture GROUPÉE : une seule facture multi-lignes pour tout le panier (résout le pack).
+    try {
+      const f = await facturerGroupe(facturables.map((l) => ({ refType: "vente" as const, refId: l.venteId })), venduPar);
+      const ef = await envoyerFacture(f.id, "emission", venduPar);
+      for (const l of facturables) l.facture = { numero: f.numero, envoyee: ef.ok, erreur: ef.erreur, groupee: true };
+    } catch (err: any) {
+      const msg = err?.message ?? String(err);
+      for (const l of facturables) l.facture = { numero: "", envoyee: false, erreur: msg };
+      await journal("ventes_examen", facturables[0].venteId, "facture_groupee_echec", { erreur: msg }, venduPar);
+    }
+  } else if (facturables.length === 1) {
+    const l = facturables[0];
+    try {
+      const f = await facturerVente(l.venteId, venduPar);
+      const ef = await envoyerFacture(f.id, "emission", venduPar);
+      l.facture = { numero: f.numero, envoyee: ef.ok, erreur: ef.erreur };
+    } catch (err: any) {
+      const msg = err?.message ?? String(err);
+      l.facture = { numero: "", envoyee: false, erreur: msg };
+      await journal("ventes_examen", l.venteId, "facture_echec", { erreur: msg }, venduPar);
     }
   }
 
