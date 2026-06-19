@@ -126,7 +126,7 @@ export default function PageCorrections() {
     <main className="max-w-3xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Corrections tracées</h1>
+          <h1 className="page-title">Corrections tracées</h1>
           <p className="text-sm text-gray-500">Chaque correction est inscrite au registre immuable · documents regénérés « (corrigée) »</p>
         </div>
         <Link href="/examens" className="px-4 py-2 rounded-lg text-sm border border-gray-300 bg-white text-gray-700">← Sessions</Link>

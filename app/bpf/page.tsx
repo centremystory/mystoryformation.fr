@@ -110,7 +110,7 @@ export default function Bpf() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
-      <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">📊 Bilan Pédagogique et Financier</h1>
+      <h1 className="page-title">Bilan Pédagogique et Financier</h1>
       <p className="mt-1 text-sm text-gray-500">
         Cerfa 10443*16 — dépôt avant le 30 avril. Réconcilie CRM ↔ EDOF ↔ compta. Les écarts sont affichés, jamais lissés.
       </p>

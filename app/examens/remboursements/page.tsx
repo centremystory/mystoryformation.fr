@@ -79,7 +79,7 @@ export default function PageRemboursements() {
 
   return (
     <main className="max-w-4xl mx-auto px-4 md:px-6 py-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">Reports & remboursements</h1>
+      <h1 className="page-title">Reports & remboursements</h1>
       <p className="text-sm text-gray-500 mb-5">Report, remboursement (total/partiel) et avoir — avec garde-fou des 7 jours.</p>
 
       {/* Création */}

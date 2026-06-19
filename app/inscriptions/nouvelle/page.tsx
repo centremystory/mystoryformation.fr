@@ -74,11 +74,11 @@ export default function NouvelleInscription() {
   if (envoi === "ok") return (
     <main className="max-w-2xl mx-auto p-8 text-center space-y-4">
       <div className="text-5xl">✅</div>
-      <h1 className="text-2xl font-bold">Inscription enregistrée</h1>
+      <h1 className="page-title">Inscription enregistrée</h1>
       <p>{form.declencherContractualisation
         ? "Dossier créé et conforme — la convention part automatiquement en signature DocuSeal (le stagiaire la reçoit par email dans quelques minutes)."
         : "Dossier créé et conforme. La convention partira quand tu déclencheras la contractualisation depuis la fiche dossier."}</p>
-      <a href="/inscriptions/nouvelle" className="inline-block px-4 py-2 rounded text-white" style={{ background: BLEU }}
+      <a href="/inscriptions/nouvelle" className="btn-primary"
          onClick={() => location.reload()}>Nouvelle inscription</a>
     </main>
   );
@@ -88,7 +88,7 @@ export default function NouvelleInscription() {
 
   return (
     <main className="max-w-4xl mx-auto p-6 space-y-6">
-      <h1 className="text-2xl font-bold" style={{ color: BLEU }}>Nouvelle inscription — Formation</h1>
+      <h1 className="page-title">Nouvelle inscription — Formation</h1>
 
       {/* Identité */}
       <section className="bg-white border rounded-lg p-4 grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -177,7 +177,7 @@ export default function NouvelleInscription() {
                 style={gen.jours.includes(j.v) ? { background: BLEU } : {}}
                 onClick={() => setGen(g => ({ ...g, jours: g.jours.includes(j.v) ? g.jours.filter(x => x !== j.v) : [...g.jours, j.v] }))}>
                 {j.l}</button>))}</div></div>
-          <button type="button" onClick={genererPlan} className="px-3 py-1.5 rounded text-white text-sm" style={{ background: BLEU }}>
+          <button type="button" onClick={genererPlan} className="btn-primary">
             ⚡ Générer un plan conforme</button>
         </div>
         {seances.length > 0 && (

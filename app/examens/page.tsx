@@ -120,7 +120,7 @@ export default function PageExamens() {
     <main className="max-w-5xl mx-auto px-4 py-8">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Sessions d'examen</h1>
+          <h1 className="page-title">Sessions d'examen</h1>
           <p className="text-sm text-gray-500">Centre d'examen : Gagny — 3 bis av. de Gagny, 93220</p>
         </div>
         <div className="flex gap-2">

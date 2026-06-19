@@ -124,7 +124,7 @@ export default function PageFactures() {
   return (
     <main className="max-w-5xl mx-auto px-4 md:px-6 py-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl font-semibold">Factures</h1>
+        <h1 className="page-title">Factures</h1>
         <button
           onClick={lancerRelances}
           disabled={busy !== null}

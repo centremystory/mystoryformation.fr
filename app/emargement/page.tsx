@@ -100,7 +100,7 @@ export default function EmargementDuJour() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
-      <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">🖊️ Émargement du jour</h1>
+      <h1 className="page-title">Émargement du jour</h1>
       <p className="mt-1 text-sm text-gray-500">
         Lieu : <b>Gagny</b> — signature stagiaire + formatrice par demi-journée. Présence horodatée au dépôt (anti-antidate).
       </p>

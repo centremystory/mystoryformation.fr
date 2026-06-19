@@ -234,7 +234,7 @@ export default function PageEquipe() {
   return (
     <main className="max-w-4xl mx-auto p-6 md:p-8">
       <header className="mb-6">
-        <h1 className="text-2xl font-bold" style={{ color: BLEU }}>Équipe</h1>
+        <h1 className="page-title">Équipe</h1>
         <p className="text-sm text-gray-600 mt-1">
           Rôles &amp; fonctions, formateurs et commerciaux de MYSTORY. Aucune suppression — on désactive (traçabilité 5 ans).
         </p>
@@ -306,30 +306,28 @@ export default function PageEquipe() {
           {!ajoutOuvert ? (
             <button
               onClick={() => setAjoutOuvert(true)}
-              className="px-4 py-2 rounded text-white font-medium"
-              style={{ background: BLEU }}
+              className="btn-primary"
             >
               + Ajouter un formateur
             </button>
           ) : (
-            <div className="border rounded p-4 bg-gray-50 flex flex-wrap items-end gap-3">
+            <div className="card !bg-gray-50 flex flex-wrap items-end gap-3">
               <label className="text-sm">
                 <span className="block mb-1 font-medium">Prénom</span>
                 <input value={prenom} onChange={(e) => setPrenom(e.target.value)}
-                       className="border rounded px-3 py-2 w-44" placeholder="Prénom" />
+                       className="input w-44" placeholder="Prénom" />
               </label>
               <label className="text-sm">
                 <span className="block mb-1 font-medium">Nom</span>
                 <input value={nom} onChange={(e) => setNom(e.target.value)}
-                       className="border rounded px-3 py-2 w-44" placeholder="NOM" />
+                       className="input w-44" placeholder="NOM" />
               </label>
               <button onClick={ajouter} disabled={enCours}
-                      className="px-4 py-2 rounded text-white font-medium disabled:opacity-50"
-                      style={{ background: BLEU }}>
+                      className="btn-primary">
                 {enCours ? "Ajout…" : "Ajouter"}
               </button>
               <button onClick={() => { setAjoutOuvert(false); setNom(""); setPrenom(""); }}
-                      className="px-4 py-2 rounded border text-gray-700">
+                      className="btn-ghost">
                 Annuler
               </button>
               <p className="w-full text-xs text-gray-500 m-0">
@@ -420,30 +418,28 @@ export default function PageEquipe() {
           {!ajoutOuvertC ? (
             <button
               onClick={() => setAjoutOuvertC(true)}
-              className="px-4 py-2 rounded text-white font-medium"
-              style={{ background: BLEU }}
+              className="btn-primary"
             >
               + Ajouter un commercial
             </button>
           ) : (
-            <div className="border rounded p-4 bg-gray-50 flex flex-wrap items-end gap-3">
+            <div className="card !bg-gray-50 flex flex-wrap items-end gap-3">
               <label className="text-sm">
                 <span className="block mb-1 font-medium">Prénom</span>
                 <input value={prenomC} onChange={(e) => setPrenomC(e.target.value)}
-                       className="border rounded px-3 py-2 w-44" placeholder="Prénom" />
+                       className="input w-44" placeholder="Prénom" />
               </label>
               <label className="text-sm">
                 <span className="block mb-1 font-medium">Nom</span>
                 <input value={nomC} onChange={(e) => setNomC(e.target.value)}
-                       className="border rounded px-3 py-2 w-44" placeholder="NOM" />
+                       className="input w-44" placeholder="NOM" />
               </label>
               <button onClick={ajouterCommercial} disabled={enCoursC}
-                      className="px-4 py-2 rounded text-white font-medium disabled:opacity-50"
-                      style={{ background: BLEU }}>
+                      className="btn-primary">
                 {enCoursC ? "Ajout…" : "Ajouter"}
               </button>
               <button onClick={() => { setAjoutOuvertC(false); setNomC(""); setPrenomC(""); }}
-                      className="px-4 py-2 rounded border text-gray-700">
+                      className="btn-ghost">
                 Annuler
               </button>
             </div>

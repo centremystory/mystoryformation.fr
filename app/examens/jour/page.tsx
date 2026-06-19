@@ -120,7 +120,7 @@ export default function PageJourJ() {
     <main className="max-w-5xl mx-auto px-4 py-8">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-5 print:hidden">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Jour J — présences & résultats</h1>
+          <h1 className="page-title">Jour J — présences & résultats</h1>
           <p className="text-sm text-gray-500">Centre d'examen : Gagny · ⚠️ = non inscrit CCI</p>
         </div>
         <div className="flex items-center gap-2">

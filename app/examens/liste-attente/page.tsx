@@ -59,7 +59,7 @@ export default function PageListeAttente() {
 
   return (
     <main className="max-w-3xl mx-auto px-4 md:px-6 py-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">Liste d'attente</h1>
+      <h1 className="page-title">Liste d'attente</h1>
       <p className="text-sm text-gray-500 mb-5">Quand une session est complète, on garde les candidats en file — à recontacter dès qu'une place se libère.</p>
 
       <section className="card mb-6">

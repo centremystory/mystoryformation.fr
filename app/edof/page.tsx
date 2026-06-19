@@ -80,7 +80,7 @@ export default function ImportEdof() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
-      <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">📥 Import EDOF</h1>
+      <h1 className="page-title">Import EDOF</h1>
       <p className="mt-1 text-sm text-gray-500">
         Réconciliation <b>EDOF → CRM</b> (sens unique). Le CRM reste la source de vérité : on complète les champs vides,
         on signale les écarts, on n'écrase jamais. L'historique est archivé hors du flux Qualiopi vivant.
