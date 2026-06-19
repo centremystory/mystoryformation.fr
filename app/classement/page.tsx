@@ -4,6 +4,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { COOKIE_SITE, siteValide } from "@/lib/sites";
 
 type Vendeur = { vendeur: string; ventes: number; ca: number; prime_acquise: number; prime_attente: number };
 type Agence = { nom: string; vendeurs: Vendeur[]; totaux: { ventes: number; ca: number; prime_acquise: number; prime_attente: number } };
@@ -32,6 +33,12 @@ export default function ClassementPage() {
   const [classement, setClassement] = useState<Classement | null>(null);
   const [message, setMessage] = useState<string>("");
   const [chargement, setChargement] = useState(true);
+  const [site, setSite] = useState<string>("");
+
+  useEffect(() => {
+    const m = document.cookie.split("; ").find((c) => c.startsWith(COOKIE_SITE + "="));
+    setSite(siteValide(m ? decodeURIComponent(m.split("=").slice(1).join("=")) : ""));
+  }, []);
 
   useEffect(() => {
     fetch("/api/classement")
@@ -73,8 +80,10 @@ export default function ClassementPage() {
               <Tuile titre="Primes en attente" valeur={eur(classement.payload.total_centre.prime_attente)} />
             </div>
 
-            {/* Une carte par agence */}
-            {classement.payload.agences.map((a) => (
+            {/* Une carte par agence (filtrée sur le site choisi dans la barre du haut) */}
+            {classement.payload.agences
+              .filter((a) => !site || a.nom === site)
+              .map((a) => (
               <section key={a.nom} className="mt-8 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
                 <div className="border-b border-gray-200 px-5 py-3" style={{ backgroundColor: "#2F72DE" }}>
                   <h2 className="font-semibold text-white">{a.nom === "AUTRES" ? "🌍 " : "🏢 "}{a.nom}</h2>

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { peutVoirPage } from "@/lib/roles";
+import { SITES, COOKIE_SITE, siteValide } from "@/lib/sites";
 
 const PAGES_SANS_NAV = ["/connexion", "/qcm", "/positionnement", "/suivi", "/evaluation", "/fiche-besoin", "/emargement/signer", "/satisfaction", "/formateur-questionnaire", "/contact", "/partenaire"];
 
@@ -54,6 +55,20 @@ export default function NavBar() {
   const router = useRouter();
   const [ouvert, setOuvert] = useState<string | null>(null);
   const [role, setRole] = useState<string | null | undefined>(undefined);
+  const [site, setSite] = useState<string>("");
+
+  // Site courant lu depuis le cookie (filtre global, lentille interne — jamais le lieu des documents).
+  useEffect(() => {
+    const m = document.cookie.split("; ").find((c) => c.startsWith(COOKIE_SITE + "="));
+    setSite(siteValide(m ? decodeURIComponent(m.split("=").slice(1).join("=")) : ""));
+  }, []);
+
+  function changerSite(v: string) {
+    const val = siteValide(v);
+    document.cookie = `${COOKIE_SITE}=${encodeURIComponent(val)}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
+    setSite(val);
+    window.location.reload(); // recharge : compteurs serveur + listes client repassent par le cookie
+  }
 
   useEffect(() => {
     let vivant = true;
@@ -108,9 +123,22 @@ export default function NavBar() {
           })}
         </div>
 
-        <button onClick={quitter} className="ml-auto px-3 py-1.5 rounded-md text-sm text-blue-100 hover:bg-white/10 hover:text-white whitespace-nowrap">
-          Quitter
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          <select
+            value={site}
+            onChange={(e) => changerSite(e.target.value)}
+            aria-label="Filtrer par site"
+            className="px-2 py-1.5 rounded-md text-sm bg-white/10 text-white border border-white/20 hover:bg-white/15 cursor-pointer focus:outline-none"
+          >
+            <option value="" className="text-gray-900">Tous les sites</option>
+            {SITES.map((s) => (
+              <option key={s} value={s} className="text-gray-900">{s}</option>
+            ))}
+          </select>
+          <button onClick={quitter} className="px-3 py-1.5 rounded-md text-sm text-blue-100 hover:bg-white/10 hover:text-white whitespace-nowrap">
+            Quitter
+          </button>
+        </div>
       </div>
 
       {/* Sous-barre du groupe ouvert */}

@@ -1,20 +1,29 @@
 // app/page.tsx — Accueil du CRM : tableau de bord à deux espaces (Formation / Examen)
 // Compteurs temps réel (lecture seule, service_role côté serveur) + deux grandes portes + transverse.
 import Link from "next/link";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { conformiteFormateurs } from "@/lib/conformiteFormateurs";
 import { verifySession } from "@/lib/auth";
 import { peutVoirPage } from "@/lib/roles";
+import { siteValide, COOKIE_SITE, type SiteFiltre } from "@/lib/sites";
 
 export const dynamic = "force-dynamic";
 
-async function compter() {
+async function compter(site: SiteFiltre) {
   const zero = { enCours: 0, complets: 0, aRelancer: 0, fleOk: 0, fleTotal: 0 };
   try {
+    const compteDossiers = (statut: string) => {
+      let q = supabaseAdmin
+        .from("dossiers")
+        .select(site ? "id, stagiaires!inner(agence)" : "id", { count: "exact", head: true })
+        .eq("statut", statut);
+      if (site) q = q.eq("stagiaires.agence", site);
+      return q;
+    };
     const [incomplets, complets, relances, formatrices] = await Promise.all([
-      supabaseAdmin.from("dossiers").select("id", { count: "exact", head: true }).eq("statut", "incomplet"),
-      supabaseAdmin.from("dossiers").select("id", { count: "exact", head: true }).eq("statut", "complet"),
+      compteDossiers("incomplet"),
+      compteDossiers("complet"),
       supabaseAdmin.from("v_conventions_a_relancer").select("*", { count: "exact", head: true }),
       supabaseAdmin.from("formatrices").select("justificatif_fle").eq("actif", true),
     ]);
@@ -31,12 +40,18 @@ async function compter() {
   }
 }
 
-async function aTraiter() {
+async function aTraiter(site: SiteFiltre) {
   const zero = { participation: 0, identite: 0, conges: 0, messages: 0, formateurDocs: 0, incidents: 0, validations: 0 };
   try {
     const estCpf = (d: any) => d.financement === "CPF" || d.origine_fonds === "CPF_CDC";
+    let dq = supabaseAdmin
+      .from("dossiers")
+      .select(site
+        ? "financement, origine_fonds, participation_forfaitaire_reglee, participation_forfaitaire_exemptee, cpf_identite_ok, stagiaires!inner(agence)"
+        : "financement, origine_fonds, participation_forfaitaire_reglee, participation_forfaitaire_exemptee, cpf_identite_ok");
+    if (site) dq = dq.eq("stagiaires.agence", site);
     const [dossiers, conges, messages, fdocs, validations] = await Promise.all([
-      supabaseAdmin.from("dossiers").select("financement, origine_fonds, participation_forfaitaire_reglee, participation_forfaitaire_exemptee, cpf_identite_ok"),
+      dq,
       supabaseAdmin.from("conges").select("id", { count: "exact", head: true }).eq("statut", "en_attente"),
       supabaseAdmin.from("messages_prospects").select("id", { count: "exact", head: true }).eq("statut", "nouveau"),
       supabaseAdmin.from("formateur_documents").select("id", { count: "exact", head: true }).eq("statut", "envoye_a_signer"),
@@ -67,7 +82,8 @@ function Compteur({ libelle, valeur, accent }: { libelle: string; valeur: string
 }
 
 export default async function Accueil() {
-  const [c, t, cf] = await Promise.all([compter(), aTraiter(), conformiteFormateurs()]);
+  const site = siteValide(cookies().get(COOKIE_SITE)?.value);
+  const [c, t, cf] = await Promise.all([compter(site), aTraiter(site), conformiteFormateurs()]);
 
   // Rôle de la session (filtrage du périmètre — défense en profondeur, en plus du middleware).
   const h = headers();
@@ -108,7 +124,12 @@ export default async function Accueil() {
         <img src="/embleme-bleu.png" alt="MYSTORY" className="h-11 w-auto" />
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{salut} 👋</h1>
-          <p className="text-sm text-gray-500">Tableau de bord MYSTORY — Formation &amp; Examen.</p>
+          <p className="text-sm text-gray-500">
+            Tableau de bord MYSTORY — Formation &amp; Examen.
+            <span className="ml-2 inline-block text-xs font-medium text-mystory bg-mystory-clair rounded-full px-2 py-0.5">
+              {site ? `Site : ${site}` : "Tous les sites"}
+            </span>
+          </p>
         </div>
       </header>
 
