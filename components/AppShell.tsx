@@ -49,21 +49,29 @@ const NAV: Entree[] = [
   },
   {
     type: "menu", label: "RH", icon: Users, items: [
+      { href: "/equipe", label: "Équipe", icon: Users },
+      { href: "/formateurs", label: "Formateurs", icon: UserCog },
       { href: "/conges", label: "Congés", icon: Plane },
       { href: "/planning-employes", label: "Planning équipe", icon: CalendarRange },
       { href: "/pointage", label: "Pointage", icon: Clock },
     ],
   },
   {
-    type: "menu", label: "Gestion", icon: Settings, items: [
+    type: "menu", label: "Finances", icon: Receipt, items: [
       { href: "/factures", label: "Factures", icon: Receipt },
       { href: "/validations", label: "Validations", icon: CheckCircle2 },
       { href: "/bpf", label: "BPF", icon: FileSpreadsheet },
-      { href: "/equipe", label: "Équipe", icon: Users },
-      { href: "/formateurs", label: "Formateurs", icon: UserCog },
+    ],
+  },
+  {
+    type: "menu", label: "Relation", icon: MessageSquare, items: [
       { href: "/messages", label: "Messages", icon: MessageSquare },
-      { href: "/veille", label: "Veille", icon: Eye },
       { href: "/faq", label: "FAQ", icon: HelpCircle },
+      { href: "/veille", label: "Veille", icon: Eye },
+    ],
+  },
+  {
+    type: "menu", label: "Système", icon: Settings, items: [
       { href: "/comptes", label: "Comptes", icon: KeyRound },
       { href: "/incidents", label: "Incidents", icon: AlertTriangle },
       { href: "/automatisations", label: "Automatisations", icon: Workflow },
