@@ -1,22 +1,25 @@
 /**
- * MYSTORY — /api/examens/ventes-groupe  (Sens A1 : inscription CROISÉE / panier)
+ * MYSTORY — /api/examens/ventes-groupe  (Sens A1 + A3 : inscription CROISÉE / panier)
  * POST — inscrit un candidat à PLUSIEURS examens en une seule action.
  *   1) Candidat créé/retrouvé par email (une seule fiche).
  *   2) PRÉ-CONTRÔLE GLOBAL (rien créé) : places + carences de chaque examen
  *      + règle « pas 2 mentions civiques différentes le même jour » À L'INTÉRIEUR du panier.
  *      Si une seule règle bloque → 409, RIEN n'est créé (sauf override Direction + motif).
- *   3) Création de chaque inscription (insert → attestation+convocation → email → facture),
- *      en réutilisant les helpers du flux mono. Tout journalisé (groupe=true).
- * Le pack tarifaire (ex. 265 € TEF+civique) est porté par les montants envoyés (réparti côté UI).
+ *   3) Création de chaque inscription (insert → attestation+convocation → facture).
+ *   4) ENVOI (A3) : les convocations d'un MÊME JOUR sont FUSIONNÉES en un seul PDF et
+ *      envoyées en un seul email (avec les attestations du jour). Les examens isolés
+ *      ou plateforme partent en envoi individuel comme le mono.
  * Le mono /api/examens/ventes reste inchangé.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, UnauthorizedError, type SessionUser } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import {
-  chargerVente, genererDocumentsVente, envoyerDocumentsVente, journal,
+  chargerVente, genererDocumentsVente, envoyerDocumentsVente, envoyerConvocationsGroupees, journal,
   SOUS_TYPES_CIVIQUE, MOTIVATIONS_TEF, PLATEFORMES,
+  type DocumentGenere, type VenteComplete,
 } from "@/lib/examens";
+import { fusionnerPdfs } from "@/lib/pdfMerge";
 import { facturerVente, envoyerFacture } from "@/lib/factures";
 import { checkInscriptionExamen } from "@/lib/examenCarence";
 import { estDirection } from "@/lib/roles";
@@ -171,9 +174,16 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // ----- PHASE 2 : création de chaque inscription -----
-  const inscriptions: any[] = [];
-  for (const { e } of prepare) {
+  // ----- PHASE 2a : création de chaque inscription (documents générés, PAS encore envoyés) -----
+  type Ligne = {
+    e: any; insertOk: boolean; venteId: string; numero: string; statut: string; mode: string;
+    vc: VenteComplete | null; docs: DocumentGenere[]; dateExamen: string | null;
+    facture: { numero: string; envoyee: boolean; erreur?: string } | null; factureDifferee: boolean;
+    erreurDocs: string | null; erreurInsert?: string;
+  };
+  const lignes: Ligne[] = [];
+
+  for (const { e, dateExamen } of prepare) {
     const estPlat = e.type_examen === "Vente_plateforme";
     const mode = String(e.mode_paiement);
     const statut = String(e.statut_paiement);
@@ -202,7 +212,7 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (venteErr || !vente) {
-      inscriptions.push({ ok: false, type: e.type_examen, sousType: e.sous_type || null, erreur: venteErr?.message ?? "Insertion impossible." });
+      lignes.push({ e, insertOk: false, venteId: "", numero: "", statut, mode, vc: null, docs: [], dateExamen, facture: null, factureDifferee: false, erreurDocs: null, erreurInsert: venteErr?.message ?? "Insertion impossible." });
       continue;
     }
     const venteId = (vente as any).id as string;
@@ -210,25 +220,15 @@ export async function POST(req: NextRequest) {
     await journal("ventes_examen", venteId, "examen_vendu",
       { numero_attestation: numero, type: e.type_examen, sous_type: e.sous_type || null, montant: Number(e.montant), agence, candidat: `${prenom} ${nom}`, groupe: true }, venduPar);
 
-    // Documents + email (la vente reste valide même en cas d'échec ici).
-    let documents: Array<{ piece: string; chemin: string }> = [];
-    let envoiOk = false; let erreurDocs: string | null = null;
+    // Documents (génération + archivage, SANS envoi : l'envoi est groupé en phase 2b).
+    let vc: VenteComplete | null = null;
+    let docs: DocumentGenere[] = [];
+    let erreurDocs: string | null = null;
     try {
-      const vc = (await chargerVente(venteId))!;
-      const docs = await genererDocumentsVente(vc);
-      documents = docs.map((d) => ({ piece: d.piece, chemin: d.chemin }));
+      vc = (await chargerVente(venteId))!;
+      docs = await genererDocumentsVente(vc);
       await journal("ventes_examen", venteId, "attestation_emise", { numero_attestation: numero }, venduPar);
       if (docs.some((d) => d.piece === "convocation")) await journal("ventes_examen", venteId, "convocation_generee", { numero_attestation: numero }, venduPar);
-      const envoi = await envoyerDocumentsVente(vc, docs);
-      envoiOk = envoi.ok;
-      if (envoi.ok) {
-        await journal("ventes_examen", venteId, "convocation_envoyee", { a: email }, venduPar);
-        const maintenant = new Date().toISOString();
-        const maj: Record<string, string> = {};
-        if (docs.some((d) => d.piece === "convocation")) maj.convocation_envoyee_le = maintenant;
-        if (docs.some((d) => d.piece === "attestation")) maj.attestation_envoyee_le = maintenant;
-        if (Object.keys(maj).length) await supabaseAdmin.from("ventes_examen").update(maj).eq("id", venteId);
-      }
     } catch (err: any) {
       erreurDocs = err?.message ?? String(err);
       await journal("ventes_examen", venteId, "documents_echec", { erreur: erreurDocs }, venduPar);
@@ -253,12 +253,88 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    inscriptions.push({
-      ok: true, venteId, type: e.type_examen, sousType: e.sous_type || null,
-      numeroAttestation: numero, documents, factureDifferee, facture,
-      email: envoiOk ? { envoye: true, a: email } : { envoye: false, erreur: erreurDocs ?? "Échec de l'envoi." },
-    });
+    lignes.push({ e, insertOk: true, venteId, numero, statut, mode, vc, docs, dateExamen, facture, factureDifferee, erreurDocs });
   }
+
+  // ----- PHASE 2b : envoi (convocations du même jour fusionnées en un seul email) -----
+  const envoiParVente: Record<string, { envoye: boolean; erreur?: string }> = {};
+  const dejaEnvoye = new Set<string>();
+
+  // Lignes ayant une convocation officielle ET une date → regroupables par jour.
+  const parJour: Record<string, Ligne[]> = {};
+  for (const l of lignes) {
+    if (l.insertOk && l.vc && l.dateExamen && l.docs.some((d) => d.piece === "convocation")) {
+      (parJour[l.dateExamen] ??= []).push(l);
+    }
+  }
+
+  for (const [jour, grp] of Object.entries(parJour)) {
+    if (grp.length < 2) continue; // un seul examen ce jour-là → envoi individuel ci-dessous
+    try {
+      const convocs = grp.map((l) => l.docs.find((d) => d.piece === "convocation")!.pdf);
+      const attests = grp.map((l) => l.docs.find((d) => d.piece === "attestation")!).filter(Boolean) as DocumentGenere[];
+      const candidatJour = grp[0].vc!.candidat;
+      const nomFus = `Convocations_${String(candidatJour.nom ?? "")}_${jour}.pdf`;
+      const fus = await fusionnerPdfs(convocs);
+      const env = await envoyerConvocationsGroupees({
+        candidat: candidatJour,
+        dateExamenISO: jour,
+        examensDuJour: grp.map((l) => ({
+          vente: { ...l.vc!.vente, numero_attestation: l.numero, type_examen: l.e.type_examen, sous_type: l.e.sous_type || null, vendu_par: venduPar },
+          session: l.vc!.session,
+        })),
+        attestations: attests,
+        convocationGroupee: { nom: nomFus, pdf: fus },
+      });
+      const maintenant = new Date().toISOString();
+      for (const l of grp) {
+        dejaEnvoye.add(l.venteId);
+        envoiParVente[l.venteId] = { envoye: env.ok, erreur: env.ok ? undefined : (env.erreur ?? "Échec de l'envoi groupé.") };
+        if (env.ok) {
+          await journal("ventes_examen", l.venteId, "convocation_groupee_envoyee", { a: email, jour, epreuves: grp.length }, venduPar);
+          await supabaseAdmin.from("ventes_examen").update({ convocation_envoyee_le: maintenant, attestation_envoyee_le: maintenant }).eq("id", l.venteId);
+        }
+      }
+    } catch (err: any) {
+      for (const l of grp) {
+        dejaEnvoye.add(l.venteId);
+        envoiParVente[l.venteId] = { envoye: false, erreur: err?.message ?? "Fusion / envoi groupé impossible." };
+      }
+    }
+  }
+
+  // Envoi individuel pour tout ce qui n'a pas été envoyé en groupe (examens isolés + plateformes).
+  for (const l of lignes) {
+    if (!l.insertOk || dejaEnvoye.has(l.venteId)) continue;
+    if (!l.vc) { envoiParVente[l.venteId] = { envoye: false, erreur: l.erreurDocs ?? "Documents non générés." }; continue; }
+    try {
+      const env = await envoyerDocumentsVente(l.vc, l.docs);
+      envoiParVente[l.venteId] = { envoye: env.ok, erreur: env.ok ? undefined : (env.erreur ?? "Échec de l'envoi.") };
+      if (env.ok) {
+        await journal("ventes_examen", l.venteId, "convocation_envoyee", { a: email }, venduPar);
+        const maintenant = new Date().toISOString();
+        const maj: Record<string, string> = {};
+        if (l.docs.some((d) => d.piece === "convocation")) maj.convocation_envoyee_le = maintenant;
+        if (l.docs.some((d) => d.piece === "attestation")) maj.attestation_envoyee_le = maintenant;
+        if (Object.keys(maj).length) await supabaseAdmin.from("ventes_examen").update(maj).eq("id", l.venteId);
+      }
+    } catch (err: any) {
+      envoiParVente[l.venteId] = { envoye: false, erreur: err?.message ?? "Échec de l'envoi." };
+    }
+  }
+
+  // ----- Résultat par examen -----
+  const inscriptions = lignes.map((l) => {
+    if (!l.insertOk) return { ok: false, type: l.e.type_examen, sousType: l.e.sous_type || null, erreur: l.erreurInsert ?? "Insertion impossible." };
+    const env = envoiParVente[l.venteId] ?? { envoye: false, erreur: "Non envoyé." };
+    return {
+      ok: true, venteId: l.venteId, type: l.e.type_examen, sousType: l.e.sous_type || null,
+      numeroAttestation: l.numero, documents: l.docs.map((d) => ({ piece: d.piece, chemin: d.chemin })),
+      factureDifferee: l.factureDifferee, facture: l.facture,
+      email: env.envoye ? { envoye: true, a: email } : { envoye: false, erreur: env.erreur ?? l.erreurDocs ?? "Échec de l'envoi." },
+      groupee: dejaEnvoye.has(l.venteId),
+    };
+  });
 
   return NextResponse.json({ ok: true, candidatId, inscriptions });
 }

@@ -10,7 +10,7 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Plus, Trash2, CheckCircle2, Mail, Receipt, FileText, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, CheckCircle2, Mail, Receipt, FileText, AlertTriangle, Layers } from "lucide-react";
 
 const SOUS_TYPES_CIVIQUE = ["Carte de séjour pluriannuelle", "Carte de résident", "Naturalisation"];
 const MOTIVATIONS_TEF = ["04. Intégration française", "05. Carte de séjour pluriannuelle", "06. Carte de résident en France", "10. Naturalisation française"];
@@ -154,6 +154,7 @@ export default function PageVenteGroupe() {
                   <span className="inline-flex items-center gap-1"><Mail size={13} /> {i.email?.envoye ? `envoyé à ${i.email.a}` : `email non envoyé`}</span>
                   {i.factureDifferee && <span className="inline-flex items-center gap-1 text-warning-600"><Receipt size={13} /> facture différée (espèces)</span>}
                   {i.facture?.numero && <span className="inline-flex items-center gap-1"><Receipt size={13} /> facture {i.facture.numero}</span>}
+                  {i.groupee && <span className="inline-flex items-center gap-1 text-mystory"><Layers size={13} /> convocation groupée</span>}
                 </div>
               ) : <p className="mt-1 text-xs text-danger-600">{i.erreur}</p>}
             </div>

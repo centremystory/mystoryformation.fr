@@ -213,6 +213,53 @@ export async function envoyerDocumentsVente(
   });
 }
 
+/**
+ * Envoi GROUPÉ (Sens A3) : pour un même jour, un seul email avec la convocation
+ * fusionnée (toutes les épreuves) et les attestations de chaque examen.
+ */
+export async function envoyerConvocationsGroupees(params: {
+  candidat: any;
+  dateExamenISO: string;
+  examensDuJour: Array<{ vente: any; session: any }>;
+  attestations: DocumentGenere[];
+  convocationGroupee: { nom: string; pdf: Buffer };
+}): Promise<{ ok: boolean; erreur?: string }> {
+  const { candidat, dateExamenISO, examensDuJour, attestations, convocationGroupee } = params;
+  if (!candidat.email) return { ok: false, erreur: "Candidat sans adresse email." };
+
+  const lignes = examensDuJour
+    .slice()
+    .sort((a, b) => horaires(a.session).debut.localeCompare(horaires(b.session).debut))
+    .map(({ vente, session }) => {
+      const typeLabel = vente.type_examen === "TEF_IRN" ? "TEF IRN" : "Examen civique";
+      const mention = vente.sous_type ? ` — ${escapeHtml(String(vente.sous_type))}` : "";
+      return `<li><strong>${typeLabel}</strong>${mention} — à <strong>${escapeHtml(horaires(session).debut)}</strong> (n° ${escapeHtml(String(vente.numero_attestation))})</li>`;
+    }).join("");
+
+  const corps = `
+    <p>Bonjour ${escapeHtml(candidat.prenom ?? "")},</p>
+    <p>Nous vous confirmons votre inscription. Vous êtes convoqué(e) le <strong>${dateFR(dateExamenISO)}</strong> à MYSTORY (Gagny) pour les épreuves suivantes :</p>
+    <ul>${lignes}</ul>
+    <p>Lieu : <strong>3 bis avenue de Gagny, 93220 Gagny</strong> (RER E station Gagny).<br>
+       Merci de vous présenter <strong>15 minutes avant la première épreuve</strong>, muni(e) d'une <strong>pièce d'identité en cours de validité</strong> et de votre convocation (imprimée ou sur téléphone).</p>
+    <p>En pièces jointes : <strong>votre convocation regroupant toutes vos épreuves du jour</strong> et vos attestations.</p>
+    <p>Pour toute question : 06 81 43 16 54 · contact@mystoryformation.fr</p>
+    <p>L'équipe MYSTORY</p>`;
+
+  return envoyerEmail({
+    a: candidat.email,
+    objet: `Vos convocations à l'examen — ${dateFR(dateExamenISO)} (${examensDuJour.length} épreuves) (${candidat.nom ?? ""})`,
+    html: gabaritEmail("Convocations à l'examen", corps),
+    piecesJointes: [
+      { nom: convocationGroupee.nom, contenu: convocationGroupee.pdf },
+      ...attestations.map((a) => ({ nom: a.nomFichier, contenu: a.pdf })),
+    ],
+    entite: "ventes_examen",
+    entiteId: examensDuJour[0]?.vente?.id ?? null,
+    auteur: examensDuJour[0]?.vente?.vendu_par ?? null,
+  });
+}
+
 export async function journal(entite: string, entiteId: string | null, evenement: string, valeurs?: Record<string, unknown>, auteur?: string | null) {
   try {
     await supabaseAdmin.from("journal").insert({
