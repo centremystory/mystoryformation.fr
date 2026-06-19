@@ -11,6 +11,7 @@ import {
   ClipboardList, Users, Plane, CalendarRange, Clock, Settings, Receipt, CheckCircle2,
   FileSpreadsheet, UserCog, MessageSquare, Eye, HelpCircle, KeyRound, AlertTriangle,
   Workflow, ScrollText, LogOut, Menu, X, ChevronDown,
+  Plus, FileCheck, Hourglass, RotateCcw, Percent, Trophy,
 } from "lucide-react";
 import { peutVoirPage, ROLE_LABEL } from "@/lib/roles";
 import { SITES, COOKIE_SITE, siteValide } from "@/lib/sites";
@@ -32,7 +33,20 @@ const NAV: Entree[] = [
       { href: "/programmes", label: "Séquençage", icon: ListOrdered },
     ],
   },
-  { type: "link", href: "/examen", label: "Examen", icon: ClipboardList },
+  {
+    type: "menu", label: "Examen", icon: ClipboardList, items: [
+      { href: "/examen", label: "Espace Examen", icon: LayoutGrid },
+      { href: "/examens/vente", label: "Inscription", icon: Plus },
+      { href: "/examens/candidats", label: "Candidats", icon: Users },
+      { href: "/examens", label: "Sessions", icon: CalendarDays },
+      { href: "/examens/jour", label: "Jour J", icon: CheckCircle2 },
+      { href: "/examens/corrections", label: "Corrections", icon: FileCheck },
+      { href: "/examens/liste-attente", label: "Liste d'attente", icon: Hourglass },
+      { href: "/examens/remboursements", label: "Remboursements", icon: RotateCcw },
+      { href: "/examens/taux", label: "Taux de réussite", icon: Percent },
+      { href: "/classement", label: "Classement", icon: Trophy },
+    ],
+  },
   {
     type: "menu", label: "RH", icon: Users, items: [
       { href: "/conges", label: "Congés", icon: Plane },
@@ -58,7 +72,19 @@ const NAV: Entree[] = [
   },
 ];
 
-const estActif = (pathname: string, href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
+const TOUS_HREFS: string[] = NAV.flatMap((e) => (e.type === "link" ? [e.href] : e.items.map((i) => i.href)));
+
+/** href actif = le plus long préfixe du chemin courant. Évite que /examen et /examens
+ *  (ou /examens et /examens/jour) soient marqués actifs en même temps. */
+function hrefActifDe(pathname: string): string {
+  let best = "";
+  for (const h of TOUS_HREFS) {
+    const ok = h === "/" ? pathname === "/" : (pathname === h || pathname.startsWith(h + "/"));
+    if (ok && h.length > best.length) best = h;
+  }
+  return best;
+}
+const estActif = (pathname: string, href: string) => href === hrefActifDe(pathname);
 
 /** Titre de page dérivé du chemin courant (pour la topbar). */
 function titreDe(pathname: string): string {
