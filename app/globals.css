@@ -2,8 +2,75 @@
 @tailwind components;
 @tailwind utilities;
 
-/* MYSTORY — base visuelle du CRM */
-body {
-  @apply bg-gray-50 text-gray-900 antialiased;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+/* ============================================================
+   MYSTORY — Design system (SaaS épuré, esprit Linear / Notion)
+   Réutilisable par toutes les pages : .card, .btn-*, .badge*,
+   .kpi, .page-header, .table, .input, .empty-state, .skeleton.
+   ============================================================ */
+
+@layer base {
+  body {
+    @apply bg-canvas text-gray-900 antialiased font-sans;
+  }
+  /* Anneau de focus clavier cohérent (accessibilité) */
+  :focus-visible {
+    @apply outline-none;
+  }
+}
+
+@layer components {
+  /* En-tête de page : titre + sous-titre + actions à droite */
+  .page-header { @apply flex flex-wrap items-start justify-between gap-3 mb-6; }
+  .page-title { @apply text-xl font-semibold tracking-tight text-gray-900; }
+  .page-subtitle { @apply mt-0.5 text-sm text-gray-500; }
+
+  /* Cartes */
+  .card { @apply bg-white border border-gray-200/80 rounded-2xl shadow-soft p-5; }
+  .card-hover { @apply transition duration-150 hover:shadow-pop hover:border-gray-300; }
+
+  /* Boutons */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-mystory px-4 py-2 text-sm font-medium text-white transition
+           hover:bg-mystory-fonce focus-visible:ring-2 focus-visible:ring-mystory/40 disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition
+           hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-gray-200 disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-danger-600 px-4 py-2 text-sm font-medium text-white transition
+           hover:bg-danger-700 focus-visible:ring-2 focus-visible:ring-danger-300 disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  /* Badges / pastilles */
+  .badge { @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium; }
+  .badge-neutral { @apply bg-gray-100 text-gray-600; }
+  .badge-success { @apply bg-success-50 text-success-700; }
+  .badge-warning { @apply bg-warning-50 text-warning-700; }
+  .badge-danger { @apply bg-danger-50 text-danger-700; }
+  .badge-info { @apply bg-mystory-clair text-mystory-fonce; }
+
+  /* Carte chiffre (KPI) */
+  .kpi { @apply bg-white border border-gray-200/80 rounded-2xl shadow-soft p-4; }
+  .kpi-value { @apply text-2xl font-semibold tracking-tight text-gray-900; }
+  .kpi-label { @apply text-xs font-medium uppercase tracking-wide text-gray-500; }
+
+  /* Champs */
+  .input {
+    @apply w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 transition
+           focus:border-mystory focus-visible:ring-2 focus-visible:ring-mystory/30;
+  }
+
+  /* Tableaux : en-tête sticky, lignes zébrées discrètes */
+  .table { @apply w-full text-sm; }
+  .table thead th { @apply sticky top-0 z-10 bg-gray-50 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500; }
+  .table tbody td { @apply border-t border-gray-100 px-3 py-2; }
+  .table tbody tr:nth-child(even) { @apply bg-gray-50/40; }
+  .table tbody tr:hover { @apply bg-mystory-clair/40; }
+
+  /* État vide */
+  .empty-state { @apply flex flex-col items-center justify-center gap-2 px-4 py-12 text-center text-gray-500; }
+
+  /* Squelette de chargement */
+  .skeleton { @apply animate-pulse rounded-lg bg-gray-100; }
 }
