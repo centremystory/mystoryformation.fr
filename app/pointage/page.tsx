@@ -70,12 +70,10 @@ export default function PagePointage() {
 
   return (
     <main className="max-w-3xl mx-auto px-4 md:px-6 py-8">
-      <header className="mb-5 flex items-center gap-3">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/embleme-bleu.png" alt="" className="h-10 w-auto" />
+      <header className="page-header">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Pointage</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{peutGerer ? "Pointe ton temps · suivi de l'équipe." : "Pointe ton entrée et ta sortie."}</p>
+          <h1 className="page-title">Pointage</h1>
+          <p className="page-subtitle">{peutGerer ? "Pointe ton temps · suivi de l'équipe." : "Pointe ton entrée et ta sortie."}</p>
         </div>
       </header>
 
@@ -95,18 +93,18 @@ export default function PagePointage() {
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex-1 min-w-[180px]">
               <p className="text-sm text-gray-500 mb-1">Aucune entrée en cours.</p>
-              <select value={site} onChange={(e) => setSite(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+              <select value={site} onChange={(e) => setSite(e.target.value)} className="input">
                 {SITES.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
-            <button onClick={() => pointer("entree")} disabled={busy} className="px-5 py-3 rounded-xl bg-mystory text-white text-sm font-semibold disabled:opacity-50">
+            <button onClick={() => pointer("entree")} disabled={busy} className="btn-primary">
               {busy ? "…" : "Pointer mon entrée"}
             </button>
           </div>
         )}
       </section>
 
-      {err && <div className="mb-4 px-4 py-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm">{err}</div>}
+      {err && <div className="mb-4 rounded-xl border border-danger-200 bg-danger-50 p-3 text-sm text-danger-700">{err}</div>}
 
       <h2 className="text-sm font-semibold text-gray-800 mb-2">{peutGerer ? "Historique de l'équipe" : "Mon historique"}</h2>
       {charge ? <p className="text-gray-500 text-sm">Chargement…</p> : pointages.length === 0 ? (

@@ -90,7 +90,7 @@ export default function PageTaux() {
   return (
     <main className="max-w-4xl mx-auto px-4 md:px-6 py-8">
       <header className="mb-5">
-        <h1 className="text-2xl font-bold text-gray-900">Taux de réussite examen</h1>
+        <h1 className="page-title">Taux de réussite examen</h1>
         <p className="text-sm text-gray-500 mt-0.5">Indicateur de résultats (audit Qualiopi). Présentation = présents / saisis · Réussite = réussis / présents.</p>
       </header>
 
@@ -120,7 +120,7 @@ export default function PageTaux() {
         </div>
       </div>
 
-      {err && <div className="mb-4 px-4 py-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm">{err}</div>}
+      {err && <div className="mb-4 rounded-xl border border-danger-200 bg-danger-50 p-3 text-sm text-danger-700">{err}</div>}
       {charge && !data ? (
         <p className="text-gray-500 text-sm">Chargement…</p>
       ) : data ? (

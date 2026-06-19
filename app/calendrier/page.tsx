@@ -73,12 +73,10 @@ export default function PageCalendrier() {
 
   return (
     <main className="max-w-3xl mx-auto px-4 md:px-6 py-8">
-      <header className="mb-5 flex items-center gap-3">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/embleme-bleu.png" alt="" className="h-10 w-auto" />
+      <header className="page-header">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Calendrier</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Séances élèves &amp; planning équipe. Lieu de formation : <strong>Gagny</strong>.</p>
+          <h1 className="page-title">Calendrier</h1>
+          <p className="page-subtitle">Séances élèves &amp; planning équipe. Lieu de formation : <strong>Gagny</strong>.</p>
         </div>
       </header>
 
@@ -94,7 +92,7 @@ export default function PageCalendrier() {
         </select>
       </div>
 
-      {erreur && <div className="mb-4 px-4 py-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm">{erreur}</div>}
+      {erreur && <div className="mb-4 rounded-xl border border-danger-200 bg-danger-50 p-3 text-sm text-danger-700">{erreur}</div>}
 
       <div className="space-y-2">
         {jours.map((d, i) => {

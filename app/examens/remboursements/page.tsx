@@ -83,25 +83,25 @@ export default function PageRemboursements() {
       <p className="text-sm text-gray-500 mb-5">Report, remboursement (total/partiel) et avoir — avec garde-fou des 7 jours.</p>
 
       {/* Création */}
-      <section className="border border-gray-200 rounded-xl bg-white p-4 mb-6">
+      <section className="card mb-6">
         <p className="font-medium text-gray-800 mb-3">Nouvelle demande</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <input value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="N° d'attestation (MYS-…)" className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-          <select value={type} onChange={(e) => setType(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+          <input value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="N° d'attestation (MYS-…)" className="input" />
+          <select value={type} onChange={(e) => setType(e.target.value)} className="input">
             <option value="remboursement_total">Remboursement total</option>
             <option value="remboursement_partiel">Remboursement partiel</option>
             <option value="avoir">Avoir</option>
             <option value="report">Report</option>
           </select>
-          {besoinMontant && <input value={montant} onChange={(e) => setMontant(e.target.value)} type="number" step="0.01" placeholder="Montant €" className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />}
-          <input value={motif} onChange={(e) => setMotif(e.target.value)} placeholder="Motif (obligatoire)" className="border border-gray-300 rounded-lg px-3 py-2 text-sm sm:col-span-2" />
+          {besoinMontant && <input value={montant} onChange={(e) => setMontant(e.target.value)} type="number" step="0.01" placeholder="Montant €" className="input" />}
+          <input value={motif} onChange={(e) => setMotif(e.target.value)} placeholder="Motif (obligatoire)" className="input sm:col-span-2" />
         </div>
         <label className="flex items-center gap-2 mt-3 text-sm text-gray-600">
           <input type="checkbox" checked={override} onChange={(e) => setOverride(e.target.checked)} />
           Dérogation à la règle des 7 jours (journalisée)
         </label>
         <button onClick={creer} disabled={busy === "creer" || !numero.trim() || !motif.trim()}
-                className="mt-3 px-4 py-2 rounded-lg bg-mystory text-white text-sm disabled:opacity-50">
+                className="btn-primary mt-3">
           {busy === "creer" ? "Création…" : "Créer la demande"}
         </button>
         {msg && <p className="mt-2 text-sm text-gray-700">{msg}</p>}
@@ -128,7 +128,7 @@ export default function PageRemboursements() {
             const v = r.ventes_examen;
             const cand = v?.stagiaires ? `${v.stagiaires.prenom ?? ""} ${v.stagiaires.nom ?? ""}`.trim() : "—";
             return (
-              <div key={r.id} className="border border-gray-200 rounded-xl bg-white p-4">
+              <div key={r.id} className="card">
                 <div className="flex flex-wrap items-center gap-2 text-sm">
                   <span className="font-medium text-gray-900">{cand}</span>
                   <span className="text-xs text-gray-400">{v?.numero_attestation}</span>

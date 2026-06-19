@@ -125,7 +125,7 @@ export default function PageJourJ() {
         </div>
         <div className="flex items-center gap-2">
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white" />
+                 className="input" />
           <button onClick={() => window.print()} className="px-4 py-2 rounded-lg text-sm border border-gray-300 bg-white text-gray-700">🖨 Imprimer la feuille</button>
           <button onClick={envoyerTous} disabled={busy === "envoi" || totalCandidats === 0}
                   className="px-4 py-2 rounded-lg text-sm text-white bg-mystory disabled:opacity-50">

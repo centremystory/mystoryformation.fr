@@ -114,7 +114,7 @@ export default function PageExamens() {
     }
   }
 
-  const champ = "border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white";
+  const champ = "input";
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-8">

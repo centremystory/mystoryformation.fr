@@ -78,29 +78,27 @@ export default function PageVeille() {
 
   return (
     <main className="max-w-4xl mx-auto px-4 md:px-6 py-8">
-      <header className="mb-5 flex items-center gap-3">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/embleme-bleu.png" alt="" className="h-10 w-auto" />
+      <header className="page-header">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Veille</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Registre de veille — légale, emploi/métiers, pédagogie/technologies, handicap (traçabilité Qualiopi).</p>
+          <h1 className="page-title">Veille</h1>
+          <p className="page-subtitle">Registre de veille — légale, emploi/métiers, pédagogie/technologies, handicap (traçabilité Qualiopi).</p>
         </div>
       </header>
 
       {/* Ajout */}
-      <section className="border border-gray-200 rounded-xl bg-white p-4 mb-6">
+      <section className="card mb-6">
         <h2 className="text-sm font-semibold text-gray-800 mb-3">Ajouter une veille</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <select value={categorie} onChange={(e) => setCategorie(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+          <select value={categorie} onChange={(e) => setCategorie(e.target.value)} className="input">
             {CATS.map((c) => <option key={c.v} value={c.v}>{c.label}</option>)}
           </select>
-          <input value={titre} onChange={(e) => setTitre(e.target.value)} placeholder="Titre / sujet" className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-          <input value={source} onChange={(e) => setSource(e.target.value)} placeholder="Source (ex. Légifrance, France Compétences…)" className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-          <input value={lien} onChange={(e) => setLien(e.target.value)} placeholder="Lien (https://…)" className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-          <textarea value={resume} onChange={(e) => setResume(e.target.value)} placeholder="Résumé" rows={2} className="border border-gray-300 rounded-lg px-3 py-2 text-sm sm:col-span-2" />
-          <textarea value={impact} onChange={(e) => setImpact(e.target.value)} placeholder="Impact / action pour MYSTORY" rows={2} className="border border-gray-300 rounded-lg px-3 py-2 text-sm sm:col-span-2" />
+          <input value={titre} onChange={(e) => setTitre(e.target.value)} placeholder="Titre / sujet" className="input" />
+          <input value={source} onChange={(e) => setSource(e.target.value)} placeholder="Source (ex. Légifrance, France Compétences…)" className="input" />
+          <input value={lien} onChange={(e) => setLien(e.target.value)} placeholder="Lien (https://…)" className="input" />
+          <textarea value={resume} onChange={(e) => setResume(e.target.value)} placeholder="Résumé" rows={2} className="input sm:col-span-2" />
+          <textarea value={impact} onChange={(e) => setImpact(e.target.value)} placeholder="Impact / action pour MYSTORY" rows={2} className="input sm:col-span-2" />
         </div>
-        <button onClick={ajouter} disabled={busy === "__add__"} className="mt-3 px-4 py-2 rounded-lg bg-mystory text-white text-sm font-semibold disabled:opacity-50">
+        <button onClick={ajouter} disabled={busy === "__add__"} className="btn-primary mt-3">
           {busy === "__add__" ? "Ajout…" : "Ajouter"}
         </button>
       </section>
@@ -115,14 +113,14 @@ export default function PageVeille() {
         ))}
       </div>
 
-      {err && <div className="mb-4 px-4 py-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm">{err}</div>}
+      {err && <div className="mb-4 rounded-xl border border-danger-200 bg-danger-50 p-3 text-sm text-danger-700">{err}</div>}
 
       {charge ? <p className="text-gray-500 text-sm">Chargement…</p> : entrees.length === 0 ? (
         <p className="text-gray-500 text-sm">Aucune veille pour ce filtre. Ajoute la première ci-dessus.</p>
       ) : (
         <div className="space-y-2">
           {entrees.map((e) => (
-            <div key={e.id} className="border border-gray-200 rounded-xl bg-white p-4">
+            <div key={e.id} className="card">
               <div className="flex flex-wrap items-center gap-2 mb-1">
                 <span className="text-xs px-2 py-0.5 rounded-full bg-mystory-clair text-mystory">{LABEL[e.categorie] ?? e.categorie}</span>
                 <span className="text-xs text-gray-400">{dateFr(e.date_veille)}{e.auteur ? ` · ${e.auteur}` : ""}</span>

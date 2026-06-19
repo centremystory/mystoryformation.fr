@@ -147,12 +147,10 @@ export default function PagePlanning() {
 
   return (
     <main className="max-w-3xl mx-auto px-4 md:px-6 py-8">
-      <header className="mb-6 flex items-center gap-3">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/embleme-bleu.png" alt="" className="h-10 w-auto" />
+      <header className="page-header">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Planning des élèves</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
+          <h1 className="page-title">Planning des élèves</h1>
+          <p className="page-subtitle">
             Séances de formation par site. Lieu de formation : <strong>Gagny</strong> ; l'agence sert au suivi interne.
           </p>
         </div>
@@ -164,7 +162,7 @@ export default function PagePlanning() {
           value={recherche}
           onChange={(e) => setRecherche(e.target.value)}
           placeholder="Rechercher un élève…"
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-56 bg-white"
+          className="input w-56 bg-white"
         />
         <div className="flex gap-1.5">
           {([["toutes", "Toutes agences"], ["Gagny", "Gagny"], ["Sarcelles", "Sarcelles"], ["Rosny", "Rosny"]] as const).map(([v, l]) => (
@@ -185,7 +183,7 @@ export default function PagePlanning() {
       </div>
 
       {erreur && (
-        <div className="mb-4 px-4 py-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm">{erreur}</div>
+        <div className="mb-4 rounded-xl border border-danger-200 bg-danger-50 p-3 text-sm text-danger-700">{erreur}</div>
       )}
 
       {chargement ? (

@@ -69,22 +69,20 @@ export default function PageJournal() {
 
   return (
     <main className="max-w-4xl mx-auto px-4 md:px-6 py-8">
-      <header className="mb-5 flex items-center gap-3">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/embleme-bleu.png" alt="" className="h-10 w-auto" />
+      <header className="page-header">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Journal d'activité</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Qui fait quoi sur le CRM — traçabilité des actions.</p>
+          <h1 className="page-title">Journal d'activité</h1>
+          <p className="page-subtitle">Qui fait quoi sur le CRM — traçabilité des actions.</p>
         </div>
       </header>
 
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-3">
-        <input value={recherche} onChange={(e) => setRecherche(e.target.value)} placeholder="Rechercher…" className="border border-gray-300 rounded-lg px-3 py-2 text-sm sm:col-span-2" />
-        <select value={entite} onChange={(e) => setEntite(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+        <input value={recherche} onChange={(e) => setRecherche(e.target.value)} placeholder="Rechercher…" className="input sm:col-span-2" />
+        <select value={entite} onChange={(e) => setEntite(e.target.value)} className="input">
           <option value="">Toutes entités</option>
           {entites.map((x) => <option key={x} value={x}>{x}</option>)}
         </select>
-        <select value={auteur} onChange={(e) => setAuteur(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+        <select value={auteur} onChange={(e) => setAuteur(e.target.value)} className="input">
           <option value="">Tous les auteurs</option>
           {auteurs.map((x) => <option key={x} value={x}>{x}</option>)}
           <option value="__sans__">— sans auteur (équipe / système) —</option>
@@ -96,12 +94,12 @@ export default function PageJournal() {
         ))}
       </div>
 
-      {err && <div className="mb-4 px-4 py-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm">{err}</div>}
+      {err && <div className="mb-4 rounded-xl border border-danger-200 bg-danger-50 p-3 text-sm text-danger-700">{err}</div>}
 
       {entrees.length === 0 && !charge ? <p className="text-gray-500 text-sm">Aucune activité pour ces filtres.</p> : (
         <div className="space-y-1.5">
           {entrees.map((e) => (
-            <div key={e.id} className="border border-gray-200 rounded-xl bg-white px-4 py-2.5">
+            <div key={e.id} className="card !px-4 !py-2.5">
               <div className="flex flex-wrap items-center gap-2 text-sm">
                 <span className="font-medium text-gray-900">{ev(e.evenement)}</span>
                 <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">{e.entite}</span>
@@ -119,7 +117,7 @@ export default function PageJournal() {
 
       {charge && <p className="text-gray-400 text-sm mt-3">Chargement…</p>}
       {suite && !charge && (
-        <button onClick={() => charger(false)} className="mt-4 px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700">Charger plus</button>
+        <button onClick={() => charger(false)} className="btn-ghost mt-4">Charger plus</button>
       )}
     </main>
   );

@@ -128,7 +128,7 @@ export default function PageFactures() {
         <button
           onClick={lancerRelances}
           disabled={busy !== null}
-          className="px-3 py-1.5 rounded-md text-sm bg-mystory text-white hover:opacity-90 disabled:opacity-50"
+          className="btn-primary"
         >
           {busy === "relances" ? "Relances en cours…" : "Lancer les relances dues (J+7 / J+15)"}
         </button>
@@ -170,7 +170,7 @@ export default function PageFactures() {
             <div className="mt-2 flex items-center gap-3 rounded-lg border border-mystory/40 bg-blue-50 px-3 py-2">
               <span className="text-sm text-gray-700">{selection.size} produits sélectionnés</span>
               <button onClick={facturerEnsemble} disabled={busy !== null}
-                className="px-3 py-1.5 rounded-md text-sm bg-mystory text-white hover:opacity-90 disabled:opacity-40">
+                className="btn-primary">
                 {busy === "groupe" ? "Émission…" : "Facturer ensemble"}
               </button>
               <button onClick={() => setSelection(new Set())} className="text-sm text-gray-500 underline">Annuler la sélection</button>
@@ -194,7 +194,7 @@ export default function PageFactures() {
                 <button
                   onClick={() => action("/api/factures", { dossier_id: d.dossierId }, d.dossierId, "Facture émise et envoyée")}
                   disabled={!d.facturable || busy !== null}
-                  className="px-3 py-1.5 rounded-md text-sm bg-mystory text-white hover:opacity-90 disabled:opacity-40"
+                  className="btn-primary"
                 >
                   {busy === d.dossierId ? "Émission…" : "Facturer"}
                 </button>
@@ -212,7 +212,7 @@ export default function PageFactures() {
                 <button
                   onClick={() => action("/api/factures", { vente_id: v.venteId }, v.venteId, "Facture émise et envoyée")}
                   disabled={busy !== null}
-                  className="px-3 py-1.5 rounded-md text-sm bg-mystory text-white hover:opacity-90 disabled:opacity-40"
+                  className="btn-primary"
                 >
                   {busy === v.venteId ? "Émission…" : "Facturer"}
                 </button>

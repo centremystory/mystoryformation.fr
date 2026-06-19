@@ -62,21 +62,21 @@ export default function PageListeAttente() {
       <h1 className="text-2xl font-bold text-gray-900 mb-1">Liste d'attente</h1>
       <p className="text-sm text-gray-500 mb-5">Quand une session est complète, on garde les candidats en file — à recontacter dès qu'une place se libère.</p>
 
-      <section className="border border-gray-200 rounded-xl bg-white p-4 mb-6">
+      <section className="card mb-6">
         <p className="font-medium text-gray-800 mb-3">Ajouter à une liste d'attente</p>
-        <select value={sessionId} onChange={(e) => setSessionId(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white mb-3">
+        <select value={sessionId} onChange={(e) => setSessionId(e.target.value)} className="w-full input mb-3">
           <option value="">Choisir une session…</option>
           {sessions.map((s) => <option key={s.id} value={s.id}>{labelSession(s)}</option>)}
         </select>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Nom *" className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-          <input value={prenom} onChange={(e) => setPrenom(e.target.value)} placeholder="Prénom" className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-          <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-          <input value={telephone} onChange={(e) => setTelephone(e.target.value)} placeholder="Téléphone" className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note" className="border border-gray-300 rounded-lg px-3 py-2 text-sm sm:col-span-2" />
+          <input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Nom *" className="input" />
+          <input value={prenom} onChange={(e) => setPrenom(e.target.value)} placeholder="Prénom" className="input" />
+          <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" className="input" />
+          <input value={telephone} onChange={(e) => setTelephone(e.target.value)} placeholder="Téléphone" className="input" />
+          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note" className="input sm:col-span-2" />
         </div>
         <button onClick={ajouter} disabled={busy === "add" || !sessionId || !nom.trim()}
-                className="mt-3 px-4 py-2 rounded-lg bg-mystory text-white text-sm disabled:opacity-50">
+                className="btn-primary mt-3">
           {busy === "add" ? "Ajout…" : "Ajouter"}
         </button>
       </section>
@@ -91,7 +91,7 @@ export default function PageListeAttente() {
               <p className="text-sm font-semibold text-gray-800 mb-2">{s ? labelSession(s) : "Session"}</p>
               <div className="space-y-1.5">
                 {items.map((e, i) => (
-                  <div key={e.id} className="border border-gray-200 rounded-xl bg-white px-4 py-2.5 flex flex-wrap items-center gap-2 text-sm">
+                  <div key={e.id} className="card !px-4 !py-2.5 flex flex-wrap items-center gap-2 text-sm">
                     <span className="text-gray-400 text-xs">#{i + 1}</span>
                     <span className="font-medium text-gray-900">{e.prenom} {e.nom}</span>
                     {e.telephone && <span className="text-gray-500 text-xs">{e.telephone}</span>}

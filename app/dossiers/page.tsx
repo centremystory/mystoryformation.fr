@@ -148,7 +148,7 @@ export default function PageDossiers() {
     <main className="max-w-5xl mx-auto px-4 md:px-6 py-8">
       <header className="mb-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-2xl font-bold text-gray-900">Suivi des dossiers</h1>
+          <h1 className="page-title">Suivi des dossiers</h1>
           <a href="/dossiers/conformite"
              className="px-3 py-1.5 rounded-lg text-sm font-medium border border-mystory text-mystory bg-white hover:bg-mystory hover:text-white">
             🛡️ Scanner de conformité
@@ -164,7 +164,7 @@ export default function PageDossiers() {
           value={recherche}
           onChange={(e) => setRecherche(e.target.value)}
           placeholder="Rechercher un stagiaire…"
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-64 bg-white"
+          className="input w-64 bg-white"
         />
         <div className="flex gap-1.5">
           {([
@@ -214,7 +214,7 @@ export default function PageDossiers() {
       </div>
 
       {erreur && (
-        <div className="mb-4 px-4 py-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm">{erreur}</div>
+        <div className="mb-4 rounded-xl border border-danger-200 bg-danger-50 p-3 text-sm text-danger-700">{erreur}</div>
       )}
 
       {chargement ? (
@@ -305,7 +305,7 @@ function ClotureFormation({ dossierId, recharger }: { dossierId: string; recharg
   const a = apercu;
 
   return (
-    <div className="mt-4 border border-gray-200 rounded-xl bg-white p-4">
+    <div className="mt-4 card">
       <h4 className="text-sm font-semibold text-gray-800 mb-3">🏁 Clôture de formation</h4>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
         <div>
@@ -345,7 +345,7 @@ function ClotureFormation({ dossierId, recharger }: { dossierId: string; recharg
       {msg && <div className="mt-3 px-3 py-2 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800 text-sm">{msg}</div>}
 
       <button onClick={cloturer} disabled={busy || a.nbSeancesEmargees === 0}
-        className="mt-3 px-4 py-2 rounded-lg bg-mystory text-white text-sm font-semibold disabled:opacity-50">
+        className="btn-primary mt-3">
         {busy ? "Clôture…" : "Clôturer la formation"}
       </button>
       {a.nbSeancesEmargees === 0 && (
@@ -888,14 +888,14 @@ function Remarques({ dossierId }: { dossierId: string }) {
           value={auteur}
           onChange={(e) => setAuteur(e.target.value)}
           placeholder="Ton prénom"
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-32 bg-white"
+          className="input w-32 bg-white"
         />
         <textarea
           value={texte}
           onChange={(e) => setTexte(e.target.value)}
           placeholder="Ajouter une remarque (appel, pièce reçue, report de séance…)"
           rows={2}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm flex-1 min-w-[220px] bg-white resize-y"
+          className="input flex-1 min-w-[220px] bg-white resize-y"
         />
         <button
           onClick={ajouter}
@@ -974,7 +974,7 @@ function FormulaireCompletion({
     }
   }
 
-  const champClasses = "border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white";
+  const champClasses = "input";
 
   return (
     <div className="mt-3 border border-mystory/30 bg-mystory-clair/40 rounded-lg p-4">

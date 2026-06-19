@@ -56,7 +56,7 @@ export default function PageVenteExamen() {
   }, [etape, type]);
 
   const sessionChoisie = useMemo(() => sessions.find((s) => s.id === sessionId) ?? null, [sessions, sessionId]);
-  const champ = "border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white w-full";
+  const champ = "input w-full";
   const estPlateforme = type === "Vente_plateforme";
 
   function choisirType(t: string) {

@@ -44,7 +44,7 @@ function LigneSeance({ s, onSaved }: { s: Seance; onSaved: () => void }) {
   }
 
   return (
-    <div className="border border-gray-200 rounded-xl bg-white p-4">
+    <div className="card">
       <div className="flex flex-wrap items-center gap-2 mb-1">
         <span className="text-xs text-gray-400">{dateFr(s.date_seance)}{s.demi_journee ? ` · ${s.demi_journee}` : ""}{s.agence ? ` · ${s.agence}` : ""}</span>
         <span className="flex-1" />
@@ -63,9 +63,9 @@ function LigneSeance({ s, onSaved }: { s: Seance; onSaved: () => void }) {
         <span className="text-xs text-gray-400 ml-2">1 = très insatisfait · 5 = très satisfait</span>
       </div>
       <input value={commentaire} onChange={(e) => setCommentaire(e.target.value)} placeholder="Commentaire (optionnel)"
-        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-2" />
+        className="w-full input mt-2" />
       {err && <p className="text-xs text-red-600 mt-1">{err}</p>}
-      <button onClick={enregistrer} disabled={busy} className="mt-2 px-3 py-1.5 rounded-lg bg-mystory text-white text-sm font-semibold disabled:opacity-50">
+      <button onClick={enregistrer} disabled={busy} className="btn-primary mt-2">
         {busy ? "Enregistrement…" : s.note != null ? "Mettre à jour" : "Enregistrer"}
       </button>
     </div>
@@ -96,27 +96,25 @@ export default function PageSatisfaction() {
 
   return (
     <main className="max-w-4xl mx-auto px-4 md:px-6 py-8">
-      <header className="mb-5 flex items-center gap-3">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/embleme-bleu.png" alt="" className="h-10 w-auto" />
+      <header className="page-header">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Satisfaction à chaud</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Évaluation par cours, saisie par l'équipe après chaque séance émargée.</p>
+          <h1 className="page-title">Satisfaction à chaud</h1>
+          <p className="page-subtitle">Évaluation par cours, saisie par l'équipe après chaque séance émargée.</p>
         </div>
       </header>
 
       {/* Synthèse */}
       <div className="grid grid-cols-3 gap-3 mb-5">
-        <div className="border border-gray-200 rounded-xl bg-white p-4 text-center">
+        <div className="card text-center">
           <p className="text-2xl font-bold text-mystory">{resume.moyenne != null ? `${resume.moyenne}/5` : "—"}</p>
           <p className="text-xs text-gray-500 mt-1">Note moyenne</p>
         </div>
-        <div className="border border-gray-200 rounded-xl bg-white p-4 text-center">
-          <p className="text-2xl font-bold text-gray-900">{resume.notees}</p>
+        <div className="card text-center">
+          <p className="page-title">{resume.notees}</p>
           <p className="text-xs text-gray-500 mt-1">Séances notées</p>
         </div>
-        <div className="border border-gray-200 rounded-xl bg-white p-4 text-center">
-          <p className="text-2xl font-bold text-gray-900">{resume.total}</p>
+        <div className="card text-center">
+          <p className="page-title">{resume.total}</p>
           <p className="text-xs text-gray-500 mt-1">Séances évaluables</p>
         </div>
       </div>
@@ -133,7 +131,7 @@ export default function PageSatisfaction() {
         </div>
       )}
 
-      {err && <div className="mb-4 px-4 py-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm">{err}</div>}
+      {err && <div className="mb-4 rounded-xl border border-danger-200 bg-danger-50 p-3 text-sm text-danger-700">{err}</div>}
 
       {charge ? <p className="text-gray-500 text-sm">Chargement…</p> : seances.length === 0 ? (
         <p className="text-gray-500 text-sm">Aucune séance émargée à évaluer pour l'instant. Les séances apparaissent ici une fois émargées et présentes.</p>

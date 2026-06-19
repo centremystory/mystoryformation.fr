@@ -98,33 +98,31 @@ export default function PageFaq() {
 
   return (
     <main className="max-w-4xl mx-auto px-4 md:px-6 py-8">
-      <header className="mb-5 flex items-center gap-3">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/embleme-bleu.png" alt="" className="h-10 w-auto" />
+      <header className="page-header">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">FAQ interne</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Les bonnes réponses aux questions des prospects — pour que toute l'équipe dise la même chose.</p>
+          <h1 className="page-title">FAQ interne</h1>
+          <p className="page-subtitle">Les bonnes réponses aux questions des prospects — pour que toute l'équipe dise la même chose.</p>
         </div>
       </header>
 
       {/* Ajout */}
-      <section className="border border-gray-200 rounded-xl bg-white p-4 mb-6">
+      <section className="card mb-6">
         <h2 className="text-sm font-semibold text-gray-800 mb-3">Ajouter une question / réponse</h2>
         <div className="grid grid-cols-1 gap-2">
-          <select value={categorie} onChange={(e) => setCategorie(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white sm:w-64">
+          <select value={categorie} onChange={(e) => setCategorie(e.target.value)} className="input sm:w-64">
             {CATS.map((c) => <option key={c.v} value={c.v}>{c.label}</option>)}
           </select>
-          <input value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Question (ex. « Le CPF couvre-t-il tout ? »)" className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-          <textarea value={reponse} onChange={(e) => setReponse(e.target.value)} placeholder="Réponse validée à donner au prospect" rows={3} className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+          <input value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Question (ex. « Le CPF couvre-t-il tout ? »)" className="input" />
+          <textarea value={reponse} onChange={(e) => setReponse(e.target.value)} placeholder="Réponse validée à donner au prospect" rows={3} className="input" />
         </div>
-        <button onClick={ajouter} disabled={busy === "__add__"} className="mt-3 px-4 py-2 rounded-lg bg-mystory text-white text-sm font-semibold disabled:opacity-50">
+        <button onClick={ajouter} disabled={busy === "__add__"} className="btn-primary mt-3">
           {busy === "__add__" ? "Ajout…" : "Ajouter"}
         </button>
       </section>
 
       {/* Recherche + filtre */}
       <input value={recherche} onChange={(e) => setRecherche(e.target.value)} placeholder="Rechercher une question…"
-        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-3" />
+        className="w-full input mb-3" />
       <div className="flex flex-wrap gap-2 mb-4">
         {[{ v: "toutes", label: "Toutes" }, ...CATS].map((c) => (
           <button key={c.v} onClick={() => setFiltre(c.v)}
@@ -134,21 +132,21 @@ export default function PageFaq() {
         ))}
       </div>
 
-      {err && <div className="mb-4 px-4 py-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm">{err}</div>}
+      {err && <div className="mb-4 rounded-xl border border-danger-200 bg-danger-50 p-3 text-sm text-danger-700">{err}</div>}
 
       {charge ? <p className="text-gray-500 text-sm">Chargement…</p> : visibles.length === 0 ? (
         <p className="text-gray-500 text-sm">Aucune question pour ce filtre. Ajoute la première ci-dessus.</p>
       ) : (
         <div className="space-y-2">
           {visibles.map((e) => (
-            <div key={e.id} className="border border-gray-200 rounded-xl bg-white p-4">
+            <div key={e.id} className="card">
               {editId === e.id ? (
                 <div className="space-y-2">
-                  <select value={editC} onChange={(ev) => setEditC(ev.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white sm:w-64">
+                  <select value={editC} onChange={(ev) => setEditC(ev.target.value)} className="input sm:w-64">
                     {CATS.map((c) => <option key={c.v} value={c.v}>{c.label}</option>)}
                   </select>
-                  <input value={editQ} onChange={(ev) => setEditQ(ev.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-                  <textarea value={editR} onChange={(ev) => setEditR(ev.target.value)} rows={3} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                  <input value={editQ} onChange={(ev) => setEditQ(ev.target.value)} className="w-full input" />
+                  <textarea value={editR} onChange={(ev) => setEditR(ev.target.value)} rows={3} className="w-full input" />
                   <div className="flex gap-2">
                     <button onClick={enregistrerEdition} disabled={busy === `edit-${e.id}`} className="px-3 py-1.5 rounded-lg bg-mystory text-white text-sm font-semibold disabled:opacity-50">Enregistrer</button>
                     <button onClick={() => setEditId(null)} className="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 text-sm">Annuler</button>

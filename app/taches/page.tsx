@@ -134,12 +134,10 @@ export default function PageTaches() {
 
   return (
     <main className="max-w-3xl mx-auto px-4 md:px-6 py-8">
-      <header className="mb-6 flex items-center gap-3">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/embleme-bleu.png" alt="" className="h-10 w-auto" />
+      <header className="page-header">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Tâches par agence</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Le pense-bête opérationnel de chaque site.</p>
+          <h1 className="page-title">Tâches par agence</h1>
+          <p className="page-subtitle">Le pense-bête opérationnel de chaque site.</p>
         </div>
       </header>
 
@@ -196,7 +194,7 @@ export default function PageTaches() {
       </div>
 
       {erreur && (
-        <div className="mb-4 px-4 py-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm">{erreur}</div>
+        <div className="mb-4 rounded-xl border border-danger-200 bg-danger-50 p-3 text-sm text-danger-700">{erreur}</div>
       )}
 
       {chargement ? (

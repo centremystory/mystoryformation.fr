@@ -90,34 +90,32 @@ export default function PageContenu() {
 
   return (
     <main className="max-w-4xl mx-auto px-4 md:px-6 py-8">
-      <header className="mb-5 flex items-center gap-3">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/embleme-bleu.png" alt="" className="h-10 w-auto" />
+      <header className="page-header">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Contenu pédagogique</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Bibliothèque interne des programmes et supports, classés par certification et niveau.</p>
+          <h1 className="page-title">Contenu pédagogique</h1>
+          <p className="page-subtitle">Bibliothèque interne des programmes et supports, classés par certification et niveau.</p>
         </div>
       </header>
 
       {/* Upload */}
-      <section className="border border-gray-200 rounded-xl bg-white p-4 mb-6">
+      <section className="card mb-6">
         <h2 className="text-sm font-semibold text-gray-800 mb-3">Ajouter un support</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          <select value={certification} onChange={(e) => setCertification(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+          <select value={certification} onChange={(e) => setCertification(e.target.value)} className="input">
             {CERTIFS.map((c) => <option key={c.v} value={c.v}>{c.label}</option>)}
           </select>
-          <select value={niveau} onChange={(e) => setNiveau(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+          <select value={niveau} onChange={(e) => setNiveau(e.target.value)} className="input">
             {NIVEAUX.map((n) => <option key={n} value={n}>{n === "tous" ? "Tous niveaux" : n}</option>)}
           </select>
-          <select value={type} onChange={(e) => setType(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+          <select value={type} onChange={(e) => setType(e.target.value)} className="input">
             {TYPES.map((t) => <option key={t.v} value={t.v}>{t.label}</option>)}
           </select>
         </div>
-        <input value={titre} onChange={(e) => setTitre(e.target.value)} placeholder="Titre du support" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-2" />
-        <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description (optionnel)" rows={2} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-2" />
+        <input value={titre} onChange={(e) => setTitre(e.target.value)} placeholder="Titre du support" className="w-full input mt-2" />
+        <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description (optionnel)" rows={2} className="w-full input mt-2" />
         <input ref={fileRef} type="file" className="block w-full text-sm text-gray-600 mt-2 file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-mystory-clair file:text-mystory file:text-sm" />
         <p className="text-xs text-gray-400 mt-1">PDF, Word, PowerPoint, Excel, image ou txt — 25 Mo max.</p>
-        <button onClick={ajouter} disabled={busy === "__add__"} className="mt-3 px-4 py-2 rounded-lg bg-mystory text-white text-sm font-semibold disabled:opacity-50">
+        <button onClick={ajouter} disabled={busy === "__add__"} className="btn-primary mt-3">
           {busy === "__add__" ? "Envoi…" : "Ajouter"}
         </button>
       </section>
@@ -142,14 +140,14 @@ export default function PageContenu() {
         </select>
       </div>
 
-      {err && <div className="mb-4 px-4 py-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm">{err}</div>}
+      {err && <div className="mb-4 rounded-xl border border-danger-200 bg-danger-50 p-3 text-sm text-danger-700">{err}</div>}
 
       {charge ? <p className="text-gray-500 text-sm">Chargement…</p> : entrees.length === 0 ? (
         <p className="text-gray-500 text-sm">Aucun support pour ce filtre. Ajoute le premier ci-dessus.</p>
       ) : (
         <div className="space-y-2">
           {entrees.map((e) => (
-            <div key={e.id} className="border border-gray-200 rounded-xl bg-white p-4">
+            <div key={e.id} className="card">
               <div className="flex flex-wrap items-center gap-2 mb-1">
                 <span className="text-xs px-2 py-0.5 rounded-full bg-mystory-clair text-mystory">{CERTIF_LABEL[e.certification] ?? e.certification}</span>
                 <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">{e.niveau === "tous" ? "Tous niveaux" : e.niveau}</span>

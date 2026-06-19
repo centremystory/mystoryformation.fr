@@ -36,7 +36,7 @@ function Carte({ d, peutValider, onAction }: { d: Demande; peutValider: boolean;
   const [remplacant, setRemplacant] = useState(d.remplace_par ?? "");
   const editable = peutValider && (d.statut === "en_attente" || d.statut === "approuve");
   return (
-    <div className="border border-gray-200 rounded-xl bg-white p-4">
+    <div className="card">
       <div className="flex flex-wrap items-center gap-2 mb-1">
         <span className={`text-xs px-2 py-0.5 rounded-full ${st.cls}`}>{st.label}</span>
         <span className="text-xs px-2 py-0.5 rounded-full bg-mystory-clair text-mystory">{TYPE_LABEL[d.type] ?? d.type}</span>
@@ -135,32 +135,30 @@ export default function PageConges() {
 
   return (
     <main className="max-w-3xl mx-auto px-4 md:px-6 py-8">
-      <header className="mb-5 flex items-center gap-3">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/embleme-bleu.png" alt="" className="h-10 w-auto" />
+      <header className="page-header">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Congés</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{peutValider ? "Demandes de l'équipe — à valider." : "Dépose et suis tes demandes de congés."}</p>
+          <h1 className="page-title">Congés</h1>
+          <p className="page-subtitle">{peutValider ? "Demandes de l'équipe — à valider." : "Dépose et suis tes demandes de congés."}</p>
         </div>
       </header>
 
       {/* Demande */}
-      <section className="border border-gray-200 rounded-xl bg-white p-4 mb-6">
+      <section className="card mb-6">
         <h2 className="text-sm font-semibold text-gray-800 mb-3">Nouvelle demande</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          <select value={type} onChange={(e) => setType(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+          <select value={type} onChange={(e) => setType(e.target.value)} className="input">
             {TYPES.map((t) => <option key={t.v} value={t.v}>{t.label}</option>)}
           </select>
           <label className="text-sm text-gray-600 flex items-center gap-2">Du <input type="date" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)} className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm flex-1" /></label>
           <label className="text-sm text-gray-600 flex items-center gap-2">Au <input type="date" value={dateFin} onChange={(e) => setDateFin(e.target.value)} className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm flex-1" /></label>
         </div>
-        <input value={motif} onChange={(e) => setMotif(e.target.value)} placeholder="Motif (optionnel)" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-2" />
-        <button onClick={demander} disabled={busy} className="mt-3 px-4 py-2 rounded-lg bg-mystory text-white text-sm font-semibold disabled:opacity-50">
+        <input value={motif} onChange={(e) => setMotif(e.target.value)} placeholder="Motif (optionnel)" className="w-full input mt-2" />
+        <button onClick={demander} disabled={busy} className="btn-primary mt-3">
           {busy ? "Envoi…" : "Demander"}
         </button>
       </section>
 
-      {err && <div className="mb-4 px-4 py-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm">{err}</div>}
+      {err && <div className="mb-4 rounded-xl border border-danger-200 bg-danger-50 p-3 text-sm text-danger-700">{err}</div>}
 
       {charge ? <p className="text-gray-500 text-sm">Chargement…</p> : (
         <>

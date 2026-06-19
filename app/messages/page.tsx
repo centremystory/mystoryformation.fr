@@ -63,12 +63,10 @@ export default function PageMessages() {
 
   return (
     <main className="max-w-3xl mx-auto px-4 md:px-6 py-8">
-      <header className="mb-5 flex items-center gap-3">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/embleme-bleu.png" alt="" className="h-10 w-auto" />
+      <header className="page-header">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Messages</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Messages reçus depuis le formulaire du site (prospects).</p>
+          <h1 className="page-title">Messages</h1>
+          <p className="page-subtitle">Messages reçus depuis le formulaire du site (prospects).</p>
         </div>
       </header>
 
@@ -87,14 +85,14 @@ export default function PageMessages() {
         )}
       </div>
 
-      {err && <div className="mb-4 px-4 py-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm">{err}</div>}
+      {err && <div className="mb-4 rounded-xl border border-danger-200 bg-danger-50 p-3 text-sm text-danger-700">{err}</div>}
 
       {charge ? <p className="text-gray-500 text-sm">Chargement…</p> : visibles.length === 0 ? (
         <p className="text-gray-500 text-sm">Aucun message.</p>
       ) : (
         <div className="space-y-2">
           {visibles.map((m) => (
-            <div key={m.id} className="border border-gray-200 rounded-xl bg-white p-4">
+            <div key={m.id} className="card">
               <div className="flex flex-wrap items-center gap-2">
                 <span className={`text-xs px-2 py-0.5 rounded-full ${BADGE[m.statut] ?? "bg-gray-100 text-gray-600"}`}>{m.statut}</span>
                 {m.source === "pre-inscription" && <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">Pré-inscription</span>}

@@ -88,7 +88,7 @@ export default function PageComptes() {
   if (interdit) {
     return (
       <main className="max-w-2xl mx-auto px-4 py-10">
-        <h1 className="text-2xl font-bold text-gray-900">Comptes & accès</h1>
+        <h1 className="page-title">Comptes & accès</h1>
         <p className="mt-3 text-gray-600">Cette page est réservée à la <strong>Direction</strong>.</p>
       </main>
     );
@@ -96,31 +96,29 @@ export default function PageComptes() {
 
   return (
     <main className="max-w-3xl mx-auto px-4 md:px-6 py-8">
-      <header className="mb-6 flex items-center gap-3">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/embleme-bleu.png" alt="" className="h-10 w-auto" />
+      <header className="page-header">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Comptes & accès</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Une connexion par personne. Les comptes ne sont jamais supprimés, seulement désactivés.</p>
+          <h1 className="page-title">Comptes & accès</h1>
+          <p className="page-subtitle">Une connexion par personne. Les comptes ne sont jamais supprimés, seulement désactivés.</p>
         </div>
       </header>
 
-      {erreur && <div className="mb-4 px-4 py-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm">{erreur}</div>}
+      {erreur && <div className="mb-4 rounded-xl border border-danger-200 bg-danger-50 p-3 text-sm text-danger-700">{erreur}</div>}
       {info && <div className="mb-4 px-4 py-3 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800 text-sm">{info}</div>}
 
       {/* Création */}
-      <section className="border border-gray-200 rounded-xl bg-white p-4 mb-6">
+      <section className="card mb-6">
         <h2 className="text-sm font-semibold text-gray-800 mb-3">Créer un compte</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Nom" className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-          <input value={prenom} onChange={(e) => setPrenom(e.target.value)} placeholder="Prénom" className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-          <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" inputMode="email" className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-          <select value={role} onChange={(e) => setRole(e.target.value as Role)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+          <input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Nom" className="input" />
+          <input value={prenom} onChange={(e) => setPrenom(e.target.value)} placeholder="Prénom" className="input" />
+          <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" inputMode="email" className="input" />
+          <select value={role} onChange={(e) => setRole(e.target.value as Role)} className="input">
             {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
           </select>
-          <input value={mdp} onChange={(e) => setMdp(e.target.value)} placeholder="Mot de passe temporaire (8 car. min)" className="border border-gray-300 rounded-lg px-3 py-2 text-sm sm:col-span-2" />
+          <input value={mdp} onChange={(e) => setMdp(e.target.value)} placeholder="Mot de passe temporaire (8 car. min)" className="input sm:col-span-2" />
         </div>
-        <button onClick={creer} disabled={busy === "__create__"} className="mt-3 px-4 py-2 rounded-lg bg-mystory text-white text-sm font-semibold disabled:opacity-50">
+        <button onClick={creer} disabled={busy === "__create__"} className="btn-primary mt-3">
           {busy === "__create__" ? "Création…" : "Créer le compte"}
         </button>
         <p className="mt-2 text-xs text-gray-400">La personne se connecte avec son email + ce mot de passe, puis tu peux le réinitialiser à tout moment.</p>
@@ -203,7 +201,7 @@ function SauvegardeSection() {
         Export complet des données (un ZIP de fichiers JSON), à conserver hors de Supabase. Une sauvegarde automatique est aussi envoyée chaque semaine par email.
       </p>
       <div className="flex flex-wrap gap-2">
-        <a href="/api/admin/backup" className="px-4 py-2 rounded-lg bg-mystory text-white text-sm">⬇️ Télécharger une sauvegarde</a>
+        <a href="/api/admin/backup" className="btn-primary">⬇️ Télécharger une sauvegarde</a>
         <button onClick={envoyer} disabled={busy} className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm bg-white disabled:opacity-50">
           {busy ? "Envoi…" : "✉️ Envoyer par email maintenant"}
         </button>

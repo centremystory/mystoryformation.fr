@@ -72,7 +72,7 @@ export default function AutomatisationsPage() {
           <div className="mt-5 space-y-2">
             {visibles.length === 0 && <p className="text-sm text-gray-400">Aucun workflow dans ce filtre.</p>}
             {visibles.map((w) => (
-              <div key={w.id} className="border border-gray-200 rounded-xl bg-white p-4">
+              <div key={w.id} className="card">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className={`text-xs px-2 py-0.5 rounded-full ${w.active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-500"}`}>{w.active ? "Actif" : "Inactif"}</span>
                   <span className="text-sm font-medium text-gray-800">{w.name}</span>

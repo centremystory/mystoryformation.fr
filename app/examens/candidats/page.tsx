@@ -259,12 +259,10 @@ export default function PageCandidatsExamen() {
 
   return (
     <main className="max-w-4xl mx-auto px-4 md:px-6 py-8">
-      <header className="mb-6 flex items-center gap-3">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/embleme-bleu.png" alt="" className="h-10 w-auto" />
+      <header className="page-header">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Candidats d'examen</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
+          <h1 className="page-title">Candidats d'examen</h1>
+          <p className="page-subtitle">
             Liste par session (TEF IRN &amp; civique) — centre d'examen : Gagny. Filtrable par agence d'inscription.
           </p>
         </div>
@@ -294,7 +292,7 @@ export default function PageCandidatsExamen() {
           value={recherche}
           onChange={(e) => setRecherche(e.target.value)}
           placeholder="Rechercher un candidat…"
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-60 bg-white"
+          className="input w-60 bg-white"
         />
         <div className="flex gap-1.5">
           {([
@@ -335,7 +333,7 @@ export default function PageCandidatsExamen() {
       </div>
 
       {erreur && (
-        <div className="mb-4 px-4 py-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm">{erreur}</div>
+        <div className="mb-4 rounded-xl border border-danger-200 bg-danger-50 p-3 text-sm text-danger-700">{erreur}</div>
       )}
 
       {/* Input fichier caché, partagé par tous les boutons de dépôt d'attestation */}

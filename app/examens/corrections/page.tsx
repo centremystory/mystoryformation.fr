@@ -87,7 +87,7 @@ export default function PageCorrections() {
     finally { setBusy(false); }
   }
 
-  const champStyle = "border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white w-full";
+  const champStyle = "input w-full";
 
   function saisieValeur() {
     if (!vente) return null;
@@ -134,7 +134,7 @@ export default function PageCorrections() {
 
       <div className="flex gap-2 mb-5">
         <input value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="MYS-2026-01508"
-               className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white flex-1 font-mono" />
+               className="input flex-1 font-mono" />
         <button onClick={chercher} disabled={busy} className="px-4 py-2 rounded-lg text-sm text-white bg-mystory disabled:opacity-50">
           {busy ? "…" : "Rechercher"}
         </button>
@@ -185,7 +185,7 @@ export default function PageCorrections() {
                 <label className="block text-sm">
                   Message au candidat <span className="text-gray-400">(joint à l'email de renvoi — « désolé pour l'erreur »)</span>
                   <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={3}
-                            className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white"
+                            className="mt-1 w-full input"
                             placeholder="Message personnalisé…" />
                   <span className="text-xs text-gray-400">Laisse vide pour le texte de correction par défaut.</span>
                 </label>
@@ -196,7 +196,7 @@ export default function PageCorrections() {
                   Renvoyer les documents corrigés par email
                 </label>
                 <input value={demandePar} onChange={(e) => setDemandePar(e.target.value)} placeholder="Demandé par (prénom)"
-                       className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white w-44" />
+                       className="input w-44" />
                 <button onClick={corriger} disabled={busy || !valeur || !demandePar.trim()}
                         className="px-4 py-2 rounded-lg text-sm text-white bg-mystory disabled:opacity-50">
                   {busy ? "Correction…" : "Appliquer la correction"}

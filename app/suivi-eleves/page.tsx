@@ -91,18 +91,16 @@ export default function PageSuiviEleves() {
 
   return (
     <main className="max-w-3xl mx-auto px-4 md:px-6 py-8">
-      <header className="mb-6 flex items-center gap-3">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/embleme-bleu.png" alt="" className="h-10 w-auto" />
+      <header className="page-header">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Suivi des élèves</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Progression, absences et prochaine séance. Lieu de formation : <strong>Gagny</strong>.</p>
+          <h1 className="page-title">Suivi des élèves</h1>
+          <p className="page-subtitle">Progression, absences et prochaine séance. Lieu de formation : <strong>Gagny</strong>.</p>
         </div>
       </header>
 
       <div className="flex flex-wrap items-center gap-3 mb-5">
         <input value={recherche} onChange={(e) => setRecherche(e.target.value)} placeholder="Rechercher un élève…"
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-56 bg-white" />
+          className="input w-56 bg-white" />
         <div className="flex gap-1.5">
           {([["toutes", "Toutes agences"], ["Gagny", "Gagny"], ["Sarcelles", "Sarcelles"], ["Rosny", "Rosny"]] as const).map(([v, l]) => (
             <button key={v} onClick={() => setFAgence(v)}
@@ -113,7 +111,7 @@ export default function PageSuiviEleves() {
         </div>
       </div>
 
-      {erreur && <div className="mb-4 px-4 py-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm">{erreur}</div>}
+      {erreur && <div className="mb-4 rounded-xl border border-danger-200 bg-danger-50 p-3 text-sm text-danger-700">{erreur}</div>}
 
       {chargement ? (
         <p className="text-gray-500">Chargement…</p>
@@ -124,7 +122,7 @@ export default function PageSuiviEleves() {
           {filtres.map((e) => {
             const pct = e.heures_prevues > 0 ? Math.min(100, Math.round((e.heures_faites / e.heures_prevues) * 100)) : 0;
             return (
-              <div key={e.dossier_id} className="border border-gray-200 rounded-xl bg-white px-4 py-3">
+              <div key={e.dossier_id} className="card !px-4 !py-3">
                 <div className="flex items-center gap-3">
                   <span className="flex-1 min-w-0">
                     <span className="font-medium text-gray-900">{e.stagiaire}</span>

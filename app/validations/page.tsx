@@ -48,7 +48,7 @@ function Carte({ d, peutValider, onAction, busy }:
   const [com, setCom] = useState("");
   const res = resumeResultat(d.resultat);
   return (
-    <div className="border border-gray-200 rounded-xl bg-white p-4">
+    <div className="card">
       <div className="flex flex-wrap items-center gap-2 mb-1">
         <span className={`text-xs px-2 py-0.5 rounded-full ${st.cls}`}>{st.label}</span>
         <span className={`text-xs px-2 py-0.5 rounded-full ${t.cls}`}>{t.label}</span>
