@@ -11,7 +11,7 @@ import {
   ClipboardList, Users, Plane, CalendarRange, Clock, Settings, Receipt, CheckCircle2,
   FileSpreadsheet, UserCog, MessageSquare, Eye, HelpCircle, KeyRound, AlertTriangle,
   Workflow, ScrollText, LogOut, Menu, X, ChevronDown,
-  Plus, FileCheck, Hourglass, RotateCcw, Percent, Trophy, Table2,
+  Plus, FileCheck, Hourglass, RotateCcw, Percent, Trophy, Table2, Layers,
 } from "lucide-react";
 import { peutVoirPage, ROLE_LABEL } from "@/lib/roles";
 import { SITES, COOKIE_SITE, siteValide } from "@/lib/sites";
@@ -37,6 +37,7 @@ const NAV: Entree[] = [
     type: "menu", label: "Examen", icon: ClipboardList, items: [
       { href: "/examen", label: "Espace Examen", icon: LayoutGrid },
       { href: "/examens/vente", label: "Inscription", icon: Plus },
+      { href: "/examens/vente-groupe", label: "Inscription croisée", icon: Layers },
       { href: "/examens/candidats", label: "Candidats", icon: Users },
       { href: "/examens", label: "Sessions", icon: CalendarDays },
       { href: "/examens/jour", label: "Jour J", icon: CheckCircle2 },
