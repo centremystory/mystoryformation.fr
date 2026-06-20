@@ -7,7 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
-  Home, Search, GraduationCap, LayoutGrid, CalendarDays, Star, BookOpen, ListOrdered,
+  Home, Search, GraduationCap, LayoutGrid, CalendarDays, Star, BookOpen, FolderOpen, ClipboardCheck,
   ClipboardList, Users, Plane, CalendarRange, Clock, Settings, Receipt, CheckCircle2,
   FileSpreadsheet, UserCog, MessageSquare, Eye, HelpCircle, KeyRound, AlertTriangle,
   Workflow, ScrollText, LogOut, Menu, X, ChevronDown,
@@ -25,11 +25,12 @@ const NAV: Entree[] = [
   { type: "link", href: "/recherche", label: "Rechercher", icon: Search },
   {
     type: "menu", label: "Formation", icon: GraduationCap, items: [
-      { href: "/formation", label: "Espace Formation", icon: LayoutGrid },
-      { href: "/calendrier", label: "Calendrier", icon: CalendarDays },
-      { href: "/satisfaction-cours", label: "Satisfaction", icon: Star },
+      { href: "/formation", label: "Tableau de bord", icon: LayoutGrid },
+      { href: "/inscriptions/nouvelle", label: "Inscrire", icon: Plus },
+      { href: "/dossiers", label: "Dossiers", icon: FolderOpen },
+      { href: "/emargement", label: "Suivi des cours", icon: ClipboardCheck },
       { href: "/contenu-pedagogique", label: "Pédagogie", icon: BookOpen },
-      { href: "/programmes", label: "Séquençage", icon: ListOrdered },
+      { href: "/satisfaction-cours", label: "Satisfaction", icon: Star },
     ],
   },
   {
@@ -77,7 +78,7 @@ const NAV: Entree[] = [
 
 const TOUS_HREFS: string[] = NAV.flatMap((e) => (e.type === "link" ? [e.href] : e.items.map((i) => i.href)));
 
-/** Sous-pages Examen regroupées sous une entrée de menu (pour le surlignage du menu). */
+/** Sous-pages regroupées sous une entrée de menu (pour le surlignage du menu). */
 const ALIAS_EXAMEN: Record<string, string> = {
   "/examens/vente-groupe": "/examens/vente",
   "/examens/preinscriptions": "/examens/vente",
@@ -86,6 +87,13 @@ const ALIAS_EXAMEN: Record<string, string> = {
   "/examens/jour": "/examens",
   "/examens/liste-attente": "/examens",
   "/examens/taux": "/examens/corrections",
+  // Formation
+  "/positionnements": "/inscriptions/nouvelle",
+  "/edof": "/dossiers",
+  "/suivi-eleves": "/emargement",
+  "/planning": "/emargement",
+  "/calendrier": "/emargement",
+  "/programmes": "/contenu-pedagogique",
 };
 
 /** href actif = le plus long préfixe du chemin courant. Évite que /examen et /examens
