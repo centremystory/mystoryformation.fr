@@ -36,50 +36,47 @@ export default function PageReinitialiser() {
     finally { setChargement(false); }
   }
 
-  const champ: React.CSSProperties = { width: "100%", boxSizing: "border-box", padding: "12px 14px", fontSize: 15, border: "1px solid #C9D6EC", borderRadius: 8, outline: "none" };
-  const lab: React.CSSProperties = { display: "block", fontSize: 13, fontWeight: 600, color: "#33415C", margin: "0 0 6px" };
+  const labelCls = "mb-1.5 block text-sm font-semibold text-gray-700";
 
   return (
-    <main style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#F4F7FC", fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif", padding: 16 }}>
-      <div style={{ width: "100%", maxWidth: 400, background: "#FFFFFF", borderRadius: 14, boxShadow: "0 8px 30px rgba(47,114,222,0.12)", padding: "36px 32px" }}>
-        <div style={{ textAlign: "center", marginBottom: 24 }}>
-          <div style={{ fontSize: 26, fontWeight: 800, color: "#2F72DE", letterSpacing: 1 }}>MYSTORY</div>
-          <div style={{ color: "#5A6B85", marginTop: 6, fontSize: 14 }}>Nouveau mot de passe</div>
+    <main className="flex min-h-screen items-center justify-center bg-[#FAFBFC] p-4">
+      <div className="card w-full max-w-sm p-8">
+        <div className="mb-6 text-center">
+          <div className="text-2xl font-extrabold tracking-wide text-mystory">MYSTORY</div>
+          <p className="mt-1 text-sm text-gray-500">Nouveau mot de passe</p>
         </div>
 
         {ok ? (
           <div>
-            <div style={{ padding: "12px 14px", background: "#E7F6EC", color: "#1E7E45", borderRadius: 8, fontSize: 14 }}>
+            <div className="rounded-lg bg-emerald-50 px-3 py-3 text-sm text-emerald-700">
               ✅ Votre mot de passe a été modifié. Vous pouvez maintenant vous connecter.
             </div>
-            <a href="/connexion" style={{ display: "block", textAlign: "center", marginTop: 18, padding: "12px", background: "#2F72DE", color: "#fff", borderRadius: 8, textDecoration: "none", fontWeight: 600 }}>Aller à la connexion</a>
+            <a href="/connexion" className="btn-primary mt-5 w-full justify-center">Aller à la connexion</a>
           </div>
         ) : token === null ? (
-          <div style={{ padding: "12px 14px", background: "#FDECEC", color: "#B3261E", borderRadius: 8, fontSize: 13, textAlign: "center" }}>
+          <div className="rounded-lg bg-danger-50 px-3 py-3 text-center text-sm text-danger-700">
             Lien invalide. Refaites une demande depuis « Mot de passe oublié » sur la page de connexion.
           </div>
         ) : (
           <>
-            <label htmlFor="mdp" style={lab}>Nouveau mot de passe</label>
+            <label htmlFor="mdp" className={labelCls}>Nouveau mot de passe</label>
             <input id="mdp" type="password" value={mdp} autoComplete="new-password"
-              onChange={(e) => setMdp(e.target.value)} placeholder="Au moins 8 caractères" style={{ ...champ, marginBottom: 14 }} />
+              onChange={(e) => setMdp(e.target.value)} placeholder="Au moins 8 caractères" className="input" />
 
-            <label htmlFor="conf" style={lab}>Confirmer le mot de passe</label>
+            <label htmlFor="conf" className={`${labelCls} mt-3`}>Confirmer le mot de passe</label>
             <input id="conf" type="password" value={confirme} autoComplete="new-password"
-              onChange={(e) => setConfirme(e.target.value)} onKeyDown={(e) => e.key === "Enter" && valider()} style={champ} />
+              onChange={(e) => setConfirme(e.target.value)} onKeyDown={(e) => e.key === "Enter" && valider()} className="input" />
 
             {erreur && (
-              <div style={{ marginTop: 12, padding: "10px 12px", background: "#FDECEC", color: "#B3261E", borderRadius: 8, fontSize: 13 }}>{erreur}</div>
+              <div className="mt-3 rounded-lg bg-danger-50 px-3 py-2 text-sm text-danger-700">{erreur}</div>
             )}
 
             <button onClick={valider} disabled={chargement || !mdp || !confirme}
-              style={{ width: "100%", marginTop: 18, padding: "12px", color: "#fff", fontSize: 15, fontWeight: 700,
-                background: chargement || !mdp || !confirme ? "#9DBCEB" : "#2F72DE", border: "none", borderRadius: 8,
-                cursor: chargement || !mdp || !confirme ? "not-allowed" : "pointer" }}>
+              className="btn-primary mt-5 w-full justify-center disabled:cursor-not-allowed disabled:opacity-50">
               {chargement ? "Validation…" : "Valider le nouveau mot de passe"}
             </button>
-            <div style={{ marginTop: 14, textAlign: "center", fontSize: 12 }}>
-              <a href="/connexion" style={{ color: "#2F72DE", textDecoration: "none" }}>Retour à la connexion</a>
+            <div className="mt-4 text-center text-xs">
+              <a href="/connexion" className="text-mystory hover:underline">Retour à la connexion</a>
             </div>
           </>
         )}

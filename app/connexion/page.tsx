@@ -50,68 +50,56 @@ export default function PageConnexion() {
     setMsgOubli("Si un compte existe avec cet email, un lien de réinitialisation vient d'être envoyé.");
   }
 
-  const champ: React.CSSProperties = {
-    width: "100%", boxSizing: "border-box", padding: "12px 14px", fontSize: 15,
-    border: "1px solid #C9D6EC", borderRadius: 8, outline: "none",
-  };
-  const lab: React.CSSProperties = {
-    display: "block", fontSize: 13, fontWeight: 600, color: "#33415C", margin: "0 0 6px",
-  };
+  const labelCls = "mb-1.5 block text-sm font-semibold text-gray-700";
 
   return (
-    <main style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
-      background: "#F4F7FC", fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif", padding: 16 }}>
-      <div style={{ width: "100%", maxWidth: 400, background: "#FFFFFF", borderRadius: 14,
-        boxShadow: "0 8px 30px rgba(47,114,222,0.12)", padding: "36px 32px" }}>
-        <div style={{ textAlign: "center", marginBottom: 24 }}>
-          <div style={{ fontSize: 26, fontWeight: 800, color: "#2F72DE", letterSpacing: 1 }}>MYSTORY</div>
-          <div style={{ color: "#5A6B85", marginTop: 6, fontSize: 14 }}>Espace équipe — accès réservé</div>
+    <main className="flex min-h-screen items-center justify-center bg-[#FAFBFC] p-4">
+      <div className="card w-full max-w-sm p-8">
+        <div className="mb-6 text-center">
+          <div className="text-2xl font-extrabold tracking-wide text-mystory">MYSTORY</div>
+          <p className="mt-1 text-sm text-gray-500">Espace équipe — accès réservé</p>
         </div>
 
-        <label htmlFor="email" style={lab}>Email</label>
+        <label htmlFor="email" className={labelCls}>Email</label>
         <input id="email" type="email" value={email} autoComplete="username"
           onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === "Enter" && seConnecter()}
-          placeholder="prenom@mystoryformation.fr" style={{ ...champ, marginBottom: 14 }} />
+          placeholder="prenom@mystoryformation.fr" className="input" />
 
-        <label htmlFor="mdp" style={lab}>Mot de passe</label>
+        <label htmlFor="mdp" className={`${labelCls} mt-3`}>Mot de passe</label>
         <input id="mdp" type="password" value={motDePasse} autoComplete="current-password"
-          onChange={(e) => setMotDePasse(e.target.value)} onKeyDown={(e) => e.key === "Enter" && seConnecter()} style={champ} />
+          onChange={(e) => setMotDePasse(e.target.value)} onKeyDown={(e) => e.key === "Enter" && seConnecter()} className="input" />
 
         {erreur && (
-          <div style={{ marginTop: 12, padding: "10px 12px", background: "#FDECEC", color: "#B3261E", borderRadius: 8, fontSize: 13 }}>
-            {erreur}
-          </div>
+          <div className="mt-3 rounded-lg bg-danger-50 px-3 py-2 text-sm text-danger-700">{erreur}</div>
         )}
 
         <button onClick={seConnecter} disabled={chargement || !motDePasse}
-          style={{ width: "100%", marginTop: 18, padding: "12px 14px", fontSize: 15, fontWeight: 700, color: "#FFFFFF",
-            background: chargement || !motDePasse ? "#9DBCEB" : "#2F72DE", border: "none", borderRadius: 8,
-            cursor: chargement || !motDePasse ? "not-allowed" : "pointer" }}>
+          className="btn-primary mt-5 w-full justify-center disabled:cursor-not-allowed disabled:opacity-50">
           {chargement ? "Connexion…" : "Se connecter"}
         </button>
 
-        <div style={{ marginTop: 14, textAlign: "center" }}>
-          <button type="button" onClick={() => setOubli((o) => !o)} style={{ background: "none", border: "none", color: "#2F72DE", cursor: "pointer", fontSize: 12, textDecoration: "underline", padding: 0 }}>
+        <div className="mt-4 text-center">
+          <button type="button" onClick={() => setOubli((o) => !o)} className="text-xs text-mystory underline">
             Mot de passe oublié ?
           </button>
         </div>
+
         {oubli && (
-          <div style={{ marginTop: 10, padding: 12, background: "#F4F7FC", borderRadius: 8 }}>
-            <label style={lab}>Votre email</label>
-            <input type="email" value={emailOubli} autoComplete="username" onChange={(e) => setEmailOubli(e.target.value)} onKeyDown={(e) => e.key === "Enter" && demanderReset()} placeholder="prenom@mystoryformation.fr" style={champ} />
-            <button type="button" onClick={demanderReset} disabled={!emailOubli.trim()} style={{ width: "100%", marginTop: 10, padding: "10px", color: "#fff", fontSize: 14, fontWeight: 600, background: emailOubli.trim() ? "#2F72DE" : "#9DBCEB", border: "none", borderRadius: 8, cursor: emailOubli.trim() ? "pointer" : "not-allowed" }}>
+          <div className="mt-3 rounded-xl bg-gray-50 p-3">
+            <label className={labelCls}>Votre email</label>
+            <input type="email" value={emailOubli} autoComplete="username"
+              onChange={(e) => setEmailOubli(e.target.value)} onKeyDown={(e) => e.key === "Enter" && demanderReset()}
+              placeholder="prenom@mystoryformation.fr" className="input" />
+            <button type="button" onClick={demanderReset} disabled={!emailOubli.trim()}
+              className="btn-primary mt-2.5 w-full justify-center disabled:cursor-not-allowed disabled:opacity-50">
               Recevoir un lien de réinitialisation
             </button>
-            {msgOubli && <div style={{ marginTop: 10, fontSize: 12, color: "#1E7E45" }}>{msgOubli}</div>}
+            {msgOubli && <p className="mt-2.5 text-xs text-emerald-600">{msgOubli}</p>}
           </div>
         )}
 
-        <div style={{ marginTop: 14, textAlign: "center", fontSize: 12, color: "#8A99B5" }}>
-          Astuce : laisse l'email vide pour l'accès équipe temporaire.
-        </div>
-        <div style={{ marginTop: 12, textAlign: "center", fontSize: 12, color: "#8A99B5" }}>
-          contact@mystoryformation.fr · 06 81 43 16 54
-        </div>
+        <p className="mt-4 text-center text-xs text-gray-400">Astuce : laisse l'email vide pour l'accès équipe temporaire.</p>
+        <p className="mt-2 text-center text-xs text-gray-400">contact@mystoryformation.fr · 06 81 43 16 54</p>
       </div>
     </main>
   );
