@@ -267,6 +267,9 @@ export default function PageExamens() {
                       Modifier capacité / note
                     </button>
                   )}
+                  <div className="mt-2">
+                    <Link href={`/examens/sessions/${s.id}`} className="text-xs underline text-mystory">Voir les inscrits →</Link>
+                  </div>
                 </div>
               ))}
             </div>
