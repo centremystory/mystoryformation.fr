@@ -66,6 +66,10 @@ type Dossier = {
   heures_prevues: number | null;
   service_fait_valide: boolean;
   satisfaction_froid_envoyee_le: string | null;
+  niveau_initial: string | null;
+  niveau_vise: string | null;
+  niveau_atteint: string | null;
+  positionnement?: { niveau_global: string | null; total_sur20: number | null; statut: string | null; source: string | null; created_at: string | null } | null;
   stagiaires: { nom: string; prenom: string | null; agence: string | null } | null;
   formatrices: { nom: string; prenom: string | null } | null;
   formatrice_libre?: string | null;
@@ -424,6 +428,34 @@ function LigneDossier({
             <TunnelControl d={d} recharger={recharger} />
             <PiecesActions d={d} recharger={recharger} />
             <ClotureFormation dossierId={d.id} recharger={recharger} />
+            <div className="mt-3 rounded-xl border border-gray-200 bg-white p-3 text-sm">
+              <p className="mb-2 font-semibold text-gray-800">Tests &amp; évaluations</p>
+              <div className="grid gap-1 sm:grid-cols-2">
+                <div>
+                  <span className="text-gray-500">Test initial :</span>{" "}
+                  {d.positionnement ? (
+                    <span className="text-gray-900">
+                      niveau {d.positionnement.niveau_global ?? "—"}
+                      {d.positionnement.total_sur20 != null ? ` · ${d.positionnement.total_sur20}/20` : ""}
+                      <span className="text-gray-400"> ({dateFr((d.positionnement.created_at ?? "").slice(0, 10) || null)})</span>
+                    </span>
+                  ) : d.niveau_initial ? (
+                    <span className="text-gray-900">niveau {d.niveau_initial}</span>
+                  ) : (
+                    <span className="text-gray-400">non enregistré</span>
+                  )}
+                </div>
+                <div>
+                  <span className="text-gray-500">Test final :</span>{" "}
+                  {d.niveau_atteint ? (
+                    <span className="text-gray-900">niveau atteint {d.niveau_atteint}</span>
+                  ) : (
+                    <span className="text-gray-400">non enregistré</span>
+                  )}
+                </div>
+                <div className="text-xs text-gray-500 sm:col-span-2">Niveau visé : {d.niveau_vise ?? "—"}</div>
+              </div>
+            </div>
             <div className="mt-3 text-sm text-gray-600">
               Satisfaction à froid (J+3 mois) :{" "}
               {d.satisfaction_froid_envoyee_le ? (
