@@ -383,7 +383,10 @@ export default function PageCandidatsExamen() {
                         {g.items.map((c) => (
                           <tr key={c.id} className="border-t border-gray-100">
                             <td data-label="Date" className="px-4 py-2 whitespace-nowrap text-gray-700">{dateFr(c.date_examen)}{c.a_confirmer && <span className="ml-2 text-xs text-amber-700">⏳</span>}</td>
-                            <td data-label="Type" className="px-4 py-2 text-gray-600">{TYPE_LABEL[c.type_norm] ?? c.type_norm}{c.source === "vente" && <span className="ml-1 text-xs text-emerald-700">•</span>}</td>
+                            <td data-label="Type" className="px-4 py-2 text-gray-600">
+                              {TYPE_LABEL[c.type_norm] ?? c.type_norm}{c.source === "vente" && <span className="ml-1 text-xs text-emerald-700">•</span>}
+                              {c.sous_type && <span className="block text-xs text-gray-500">{c.sous_type}</span>}
+                            </td>
                             <td data-label="État" className="px-4 py-2">
                               {c.statut_examen && (
                                 <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${CLASSES_TON[c.statut_examen.ton as keyof typeof CLASSES_TON] ?? "bg-gray-100 text-gray-600"}`}>{c.statut_examen.label}</span>
