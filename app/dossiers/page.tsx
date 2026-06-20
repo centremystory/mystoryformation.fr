@@ -65,6 +65,7 @@ type Dossier = {
   token: string;
   heures_prevues: number | null;
   service_fait_valide: boolean;
+  satisfaction_froid_envoyee_le: string | null;
   stagiaires: { nom: string; prenom: string | null; agence: string | null } | null;
   formatrices: { nom: string; prenom: string | null } | null;
   formatrice_libre?: string | null;
@@ -423,6 +424,14 @@ function LigneDossier({
             <TunnelControl d={d} recharger={recharger} />
             <PiecesActions d={d} recharger={recharger} />
             <ClotureFormation dossierId={d.id} recharger={recharger} />
+            <div className="mt-3 text-sm text-gray-600">
+              Satisfaction à froid (J+3 mois) :{" "}
+              {d.satisfaction_froid_envoyee_le ? (
+                <span className="font-medium text-success-700">envoyée le {dateFr(d.satisfaction_froid_envoyee_le)}</span>
+              ) : (
+                <span className="text-gray-500">pas encore envoyée</span>
+              )}
+            </div>
             <a
               href={`/suivi?token=${d.token}`}
               target="_blank"
