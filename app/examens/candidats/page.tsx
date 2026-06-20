@@ -138,6 +138,7 @@ export default function PageCandidatsExamen() {
   const [ouverts, setOuverts] = useState<Set<string>>(new Set());
   const [vue, setVue] = useState<"session" | "candidat">("session");
   const [uploadRef, setUploadRef] = useState<string | null>(null);
+  const [renvoiRef, setRenvoiRef] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cibleRef = useRef<{ examen_ref: string; source: string } | null>(null);
 
@@ -253,6 +254,22 @@ export default function PageCandidatsExamen() {
     } catch (e: any) {
       setErreur(e?.message || "Lien indisponible.");
     }
+  }
+
+  async function renvoyerAttestation(c: Candidat) {
+    if (!window.confirm(`Renvoyer le résultat par email à ${c.email || "ce candidat"} ?`)) return;
+    setRenvoiRef(c.id); setErreur(null);
+    try {
+      const r = await fetch("/api/examens/attestations/renvoyer", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ examen_ref: c.id, source: c.source }),
+      });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.erreur || "Échec de l'envoi.");
+      window.alert("✓ Résultat renvoyé par email.");
+    } catch (e: any) {
+      setErreur(e?.message || "Échec de l'envoi.");
+    } finally { setRenvoiRef(null); }
   }
 
   const compteType = (t: string) => candidats.filter((c) => c.type_norm === t).length;
@@ -399,10 +416,11 @@ export default function PageCandidatsExamen() {
                                 <span>
                                   <button onClick={() => voirAttestation(c)} className="underline" style={{ color: BLEU }}>📄 Voir</button>
                                   <button onClick={() => ouvrirDepot(c)} disabled={uploadRef === c.id} className="ml-2 text-gray-500 hover:text-mystory disabled:opacity-50">{uploadRef === c.id ? "Envoi…" : "Remplacer"}</button>
+                                  {c.email && <button onClick={() => renvoyerAttestation(c)} disabled={renvoiRef === c.id} className="ml-2 text-mystory hover:underline disabled:opacity-50">{renvoiRef === c.id ? "Envoi…" : "Renvoyer"}</button>}
                                 </span>
-                              ) : c.type_norm === "TEF_IRN" ? (
+                              ) : (
                                 <button onClick={() => ouvrirDepot(c)} disabled={uploadRef === c.id} className="px-2.5 py-1 rounded border text-xs disabled:opacity-50" style={{ color: BLEU, borderColor: BLEU }}>{uploadRef === c.id ? "Envoi…" : "Déposer"}</button>
-                              ) : (<span className="text-gray-400">—</span>)}
+                              )}
                             </td>
                             <td data-label="Résultat" className="px-4 py-2"><SaisieResultat c={c} /></td>
                           </tr>
@@ -480,15 +498,19 @@ export default function PageCandidatsExamen() {
                                           className="ml-2 text-gray-500 hover:text-mystory disabled:opacity-50">
                                     {uploadRef === c.id ? "Envoi…" : "Remplacer"}
                                   </button>
+                                  {c.email && (
+                                    <button onClick={() => renvoyerAttestation(c)} disabled={renvoiRef === c.id}
+                                            className="ml-2 text-mystory hover:underline disabled:opacity-50">
+                                      {renvoiRef === c.id ? "Envoi…" : "Renvoyer"}
+                                    </button>
+                                  )}
                                 </span>
-                              ) : c.type_norm === "TEF_IRN" ? (
+                              ) : (
                                 <button onClick={() => ouvrirDepot(c)} disabled={uploadRef === c.id}
                                         className="px-2.5 py-1 rounded border text-xs disabled:opacity-50"
                                         style={{ color: BLEU, borderColor: BLEU }}>
                                   {uploadRef === c.id ? "Envoi…" : "Déposer"}
                                 </button>
-                              ) : (
-                                <span className="text-gray-400">—</span>
                               )}
                             </td>
                             <td data-label="Vendu par" className="px-4 py-2 text-gray-600">{c.vendu_par ?? "—"}</td>
