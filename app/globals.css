@@ -109,8 +109,8 @@
     color: #9CA3AF;
     margin-bottom: 2px;
   }
-  /* dernière cellule = actions : boutons en ligne, séparés du reste */
-  table.table-cards tbody td:last-child {
+  /* dernière cellule SANS libellé (et hors colspan) = bloc d'actions : boutons en ligne */
+  table.table-cards tbody td:not([data-label]):not([colspan]):last-child {
     margin-top: 6px;
     padding-top: 10px !important;
     border-top: 1px solid #F3F4F6 !important;

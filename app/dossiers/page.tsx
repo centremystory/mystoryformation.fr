@@ -225,7 +225,7 @@ export default function PageDossiers() {
         </p>
       ) : (
         <div className="overflow-x-auto border border-gray-200 rounded-xl bg-white">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm table-cards">
             <thead>
               <tr className="bg-gray-50 text-left text-gray-500 text-xs uppercase tracking-wide">
                 <th className="px-4 py-3 font-medium">Stagiaire</th>
@@ -369,21 +369,21 @@ function LigneDossier({
   return (
     <>
       <tr onClick={onToggle} className="border-t border-gray-100 cursor-pointer hover:bg-gray-50">
-        <td className="px-4 py-3 font-medium text-gray-900">
+        <td data-label="Stagiaire" className="px-4 py-3 font-medium text-gray-900">
           {nomStagiaire}
           {d.stagiaires?.agence && (
             <span className="block text-xs font-normal text-gray-400">{d.stagiaires.agence}</span>
           )}
         </td>
-        <td className="px-4 py-3 text-gray-600">
+        <td data-label="Formation" className="px-4 py-3 text-gray-600">
           {LIBELLE_CERTIF[d.certif] ?? d.certif}
           <span className="text-gray-400"> · {d.financement}</span>
         </td>
-        <td className="px-4 py-3 text-gray-600">{nomFormatrice}{d.formatrice_libre && <span className="block text-xs text-gray-400">+ intervenante : {d.formatrice_libre}</span>}</td>
-        <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+        <td data-label="Formatrice" className="px-4 py-3 text-gray-600">{nomFormatrice}{d.formatrice_libre && <span className="block text-xs text-gray-400">+ intervenante : {d.formatrice_libre}</span>}</td>
+        <td data-label="Dates" className="px-4 py-3 text-gray-600 whitespace-nowrap">
           {dateFr(d.date_debut)} → {dateFr(d.date_fin)}
         </td>
-        <td className="px-4 py-3 min-w-[120px]">
+        <td data-label="Pièces" className="px-4 py-3 min-w-[120px]">
           <div className="flex items-center gap-2">
             <div className="h-1.5 w-16 bg-gray-100 rounded-full overflow-hidden">
               <div
@@ -394,7 +394,7 @@ function LigneDossier({
             <span className="text-gray-600 whitespace-nowrap">{faites}/{obligatoires.length}</span>
           </div>
         </td>
-        <td className="px-4 py-3">
+        <td data-label="Dossier" className="px-4 py-3">
           {d.statut === "complet" ? (
             <span className="inline-block px-2.5 py-0.5 rounded-full text-xs bg-green-50 text-green-800">✅ Complet</span>
           ) : (

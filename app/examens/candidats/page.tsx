@@ -367,7 +367,7 @@ export default function PageCandidatsExamen() {
                 </button>
                 {ouvert && (
                   <div className="overflow-x-auto border-t border-gray-100">
-                    <table className="w-full text-sm">
+                    <table className="w-full text-sm table-cards">
                       <thead>
                         <tr className="bg-gray-50 text-left text-gray-500 text-xs uppercase tracking-wide">
                           <th className="px-4 py-2 font-medium">Date</th>
@@ -382,16 +382,16 @@ export default function PageCandidatsExamen() {
                       <tbody>
                         {g.items.map((c) => (
                           <tr key={c.id} className="border-t border-gray-100">
-                            <td className="px-4 py-2 whitespace-nowrap text-gray-700">{dateFr(c.date_examen)}{c.a_confirmer && <span className="ml-2 text-xs text-amber-700">⏳</span>}</td>
-                            <td className="px-4 py-2 text-gray-600">{TYPE_LABEL[c.type_norm] ?? c.type_norm}{c.source === "vente" && <span className="ml-1 text-xs text-emerald-700">•</span>}</td>
-                            <td className="px-4 py-2">
+                            <td data-label="Date" className="px-4 py-2 whitespace-nowrap text-gray-700">{dateFr(c.date_examen)}{c.a_confirmer && <span className="ml-2 text-xs text-amber-700">⏳</span>}</td>
+                            <td data-label="Type" className="px-4 py-2 text-gray-600">{TYPE_LABEL[c.type_norm] ?? c.type_norm}{c.source === "vente" && <span className="ml-1 text-xs text-emerald-700">•</span>}</td>
+                            <td data-label="État" className="px-4 py-2">
                               {c.statut_examen && (
                                 <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${CLASSES_TON[c.statut_examen.ton as keyof typeof CLASSES_TON] ?? "bg-gray-100 text-gray-600"}`}>{c.statut_examen.label}</span>
                               )}
                             </td>
-                            <td className="px-4 py-2"><span className={paye(c.statut_paiement) ? "text-emerald-700" : "text-gray-600"}>{c.statut_paiement ?? "—"}</span></td>
-                            <td className="px-4 py-2 text-gray-600">{c.numero_attestation ?? "—"}</td>
-                            <td className="px-4 py-2 whitespace-nowrap">
+                            <td data-label="Paiement" className="px-4 py-2"><span className={paye(c.statut_paiement) ? "text-emerald-700" : "text-gray-600"}>{c.statut_paiement ?? "—"}</span></td>
+                            <td data-label="N° attest." className="px-4 py-2 text-gray-600">{c.numero_attestation ?? "—"}</td>
+                            <td data-label="Fichier attest." className="px-4 py-2 whitespace-nowrap">
                               {c.attestation_depose_le ? (
                                 <span>
                                   <button onClick={() => voirAttestation(c)} className="underline" style={{ color: BLEU }}>📄 Voir</button>
@@ -401,7 +401,7 @@ export default function PageCandidatsExamen() {
                                 <button onClick={() => ouvrirDepot(c)} disabled={uploadRef === c.id} className="px-2.5 py-1 rounded border text-xs disabled:opacity-50" style={{ color: BLEU, borderColor: BLEU }}>{uploadRef === c.id ? "Envoi…" : "Déposer"}</button>
                               ) : (<span className="text-gray-400">—</span>)}
                             </td>
-                            <td className="px-4 py-2"><SaisieResultat c={c} /></td>
+                            <td data-label="Résultat" className="px-4 py-2"><SaisieResultat c={c} /></td>
                           </tr>
                         ))}
                       </tbody>
@@ -434,7 +434,7 @@ export default function PageCandidatsExamen() {
                 </button>
                 {ouvert && (
                   <div className="overflow-x-auto border-t border-gray-100">
-                    <table className="w-full text-sm">
+                    <table className="w-full text-sm table-cards">
                       <thead>
                         <tr className="bg-gray-50 text-left text-gray-500 text-xs uppercase tracking-wide">
                           <th className="px-4 py-2 font-medium">Candidat</th>
@@ -450,26 +450,26 @@ export default function PageCandidatsExamen() {
                       <tbody>
                         {g.items.map((c) => (
                           <tr key={c.id} className="border-t border-gray-100">
-                            <td className="px-4 py-2 font-medium text-gray-900">
+                            <td data-label="Candidat" className="px-4 py-2 font-medium text-gray-900">
                               {c.civilite ? `${c.civilite} ` : ""}{c.prenom ? `${c.prenom} ` : ""}{c.nom}
                               {c.a_confirmer && <span className="ml-2 text-xs text-amber-700">⏳ à confirmer</span>}
                               {c.source === "vente" && <span className="ml-2 text-xs text-emerald-700">• vente</span>}
                             </td>
-                            <td className="px-4 py-2">
+                            <td data-label="État" className="px-4 py-2">
                               {c.statut_examen && (
                                 <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${CLASSES_TON[c.statut_examen.ton as keyof typeof CLASSES_TON] ?? "bg-gray-100 text-gray-600"}`}>
                                   {c.statut_examen.label}
                                 </span>
                               )}
                             </td>
-                            <td className="px-4 py-2 text-gray-600">{c.agence ?? "—"}</td>
-                            <td className="px-4 py-2">
+                            <td data-label="Agence" className="px-4 py-2 text-gray-600">{c.agence ?? "—"}</td>
+                            <td data-label="Paiement" className="px-4 py-2">
                               <span className={paye(c.statut_paiement) ? "text-emerald-700" : "text-gray-600"}>
                                 {c.statut_paiement ?? "—"}
                               </span>
                             </td>
-                            <td className="px-4 py-2 text-gray-600">{c.numero_attestation ?? "—"}</td>
-                            <td className="px-4 py-2 whitespace-nowrap">
+                            <td data-label="N° attest." className="px-4 py-2 text-gray-600">{c.numero_attestation ?? "—"}</td>
+                            <td data-label="Fichier attest." className="px-4 py-2 whitespace-nowrap">
                               {c.attestation_depose_le ? (
                                 <span>
                                   <button onClick={() => voirAttestation(c)} className="underline" style={{ color: BLEU }}>📄 Voir</button>
@@ -488,8 +488,8 @@ export default function PageCandidatsExamen() {
                                 <span className="text-gray-400">—</span>
                               )}
                             </td>
-                            <td className="px-4 py-2 text-gray-600">{c.vendu_par ?? "—"}</td>
-                            <td className="px-4 py-2"><SaisieResultat c={c} /></td>
+                            <td data-label="Vendu par" className="px-4 py-2 text-gray-600">{c.vendu_par ?? "—"}</td>
+                            <td data-label="Résultat" className="px-4 py-2"><SaisieResultat c={c} /></td>
                           </tr>
                         ))}
                       </tbody>
