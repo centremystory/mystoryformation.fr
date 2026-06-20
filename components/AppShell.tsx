@@ -11,8 +11,7 @@ import {
   ClipboardList, Users, Plane, CalendarRange, Clock, Settings, Receipt, CheckCircle2,
   FileSpreadsheet, UserCog, MessageSquare, Eye, HelpCircle, KeyRound, AlertTriangle,
   Workflow, ScrollText, LogOut, Menu, X, ChevronDown,
-  Plus, FileCheck, Hourglass, RotateCcw, Percent, Trophy, Table2, Layers, Phone,
-} from "lucide-react";
+  Plus, FileCheck, RotateCcw, } from "lucide-react";
 import { peutVoirPage, ROLE_LABEL } from "@/lib/roles";
 import { SITES, COOKIE_SITE, siteValide } from "@/lib/sites";
 
@@ -35,19 +34,12 @@ const NAV: Entree[] = [
   },
   {
     type: "menu", label: "Examen", icon: ClipboardList, items: [
-      { href: "/examen", label: "Espace Examen", icon: LayoutGrid },
-      { href: "/examens/vente", label: "Inscription", icon: Plus },
-      { href: "/examens/vente-groupe", label: "Inscription multiple", icon: Layers },
-      { href: "/examens/preinscriptions", label: "Pré-inscriptions", icon: Phone },
+      { href: "/examen", label: "Tableau de bord", icon: LayoutGrid },
+      { href: "/examens/vente", label: "Inscrire", icon: Plus },
       { href: "/examens/candidats", label: "Candidats", icon: Users },
       { href: "/examens", label: "Sessions", icon: CalendarDays },
-      { href: "/examens/jour", label: "Jour J", icon: CheckCircle2 },
-      { href: "/examens/corrections", label: "Corrections", icon: FileCheck },
-      { href: "/examens/liste-attente", label: "Liste d'attente", icon: Hourglass },
+      { href: "/examens/corrections", label: "Résultats", icon: FileCheck },
       { href: "/examens/remboursements", label: "Remboursements", icon: RotateCcw },
-      { href: "/examens/taux", label: "Taux de réussite", icon: Percent },
-      { href: "/classement", label: "Classement", icon: Trophy },
-      { href: "/examens/croise", label: "Vue croisée", icon: Table2 },
     ],
   },
   {
@@ -85,9 +77,23 @@ const NAV: Entree[] = [
 
 const TOUS_HREFS: string[] = NAV.flatMap((e) => (e.type === "link" ? [e.href] : e.items.map((i) => i.href)));
 
+/** Sous-pages Examen regroupées sous une entrée de menu (pour le surlignage du menu). */
+const ALIAS_EXAMEN: Record<string, string> = {
+  "/examens/vente-groupe": "/examens/vente",
+  "/examens/preinscriptions": "/examens/vente",
+  "/examens/croise": "/examens/candidats",
+  "/classement": "/examens/candidats",
+  "/examens/jour": "/examens",
+  "/examens/liste-attente": "/examens",
+  "/examens/taux": "/examens/corrections",
+};
+
 /** href actif = le plus long préfixe du chemin courant. Évite que /examen et /examens
  *  (ou /examens et /examens/jour) soient marqués actifs en même temps. */
 function hrefActifDe(pathname: string): string {
+  for (const [prefixe, cible] of Object.entries(ALIAS_EXAMEN)) {
+    if (pathname === prefixe || pathname.startsWith(prefixe + "/")) return cible;
+  }
   let best = "";
   for (const h of TOUS_HREFS) {
     const ok = h === "/" ? pathname === "/" : (pathname === h || pathname.startsWith(h + "/"));
