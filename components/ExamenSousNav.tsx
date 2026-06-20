@@ -20,7 +20,6 @@ const GROUPES: { cle: string; onglets: { href: string; label: string }[] }[] = [
   { cle: "candidats", onglets: [
     { href: "/examens/candidats", label: "Liste" },
     { href: "/examens/croise", label: "Vue croisée" },
-    { href: "/classement", label: "Classement" },
   ] },
   { cle: "sessions", onglets: [
     { href: "/examens", label: "Sessions" },

@@ -1,152 +1,109 @@
-// app/classement/page.tsx
-// Classement vendeurs EXAMENS par agence — lit le cache calculé chaque soir à 19h par n8n.
-// Règle : prime 2 % acquise à l'encaissement · CPF / remboursé / annulé = sans prime.
 "use client";
 
+/**
+ * MYSTORY — /classement : classement vendeur GLOBAL (examen + formation).
+ * 3 vues (Global / Examen / Formation), CA + nombre de ventes par vendeur, filtre période.
+ * Réservé à la Direction. Données calculées à la volée par /api/classement/global.
+ */
 import { useEffect, useState } from "react";
-import { COOKIE_SITE, siteValide } from "@/lib/sites";
 
-type Vendeur = { vendeur: string; ventes: number; ca: number; prime_acquise: number; prime_attente: number };
-type Agence = { nom: string; vendeurs: Vendeur[]; totaux: { ventes: number; ca: number; prime_acquise: number; prime_attente: number } };
-type Classement = {
-  periode_debut: string;
-  periode_fin: string;
-  maj_le: string;
-  payload: {
-    agences: Agence[];
-    total_centre: { ventes: number; ca: number; prime_acquise: number; prime_attente: number };
-    regle?: string;
-  };
+type Ligne = {
+  vendeur: string; ventes: number; ca: number;
+  ventesExamen?: number; caExamen?: number; ventesFormation?: number; caFormation?: number;
 };
 
-const MEDAILLES = ["🥇", "🥈", "🥉"];
+const eur = (n: number) => `${Math.round(n).toLocaleString("fr-FR")} €`;
+const MEDAILLE = ["🥇", "🥈", "🥉"];
 
-function eur(n: number) {
-  return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(n || 0);
-}
-function dateFR(iso: string) {
-  const [a, m, j] = (iso || "").split("-");
-  return a && m && j ? `${j}/${m}/${a}` : iso;
-}
-
-export default function ClassementPage() {
-  const [classement, setClassement] = useState<Classement | null>(null);
-  const [message, setMessage] = useState<string>("");
-  const [chargement, setChargement] = useState(true);
-  const [site, setSite] = useState<string>("");
+export default function PageClassement() {
+  const [vue, setVue] = useState<"global" | "examen" | "formation">("global");
+  const [periode, setPeriode] = useState<"mois" | "tout">("mois");
+  const [data, setData] = useState<any>(null);
+  const [charge, setCharge] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
-    const m = document.cookie.split("; ").find((c) => c.startsWith(COOKIE_SITE + "="));
-    setSite(siteValide(m ? decodeURIComponent(m.split("=").slice(1).join("=")) : ""));
-  }, []);
-
-  useEffect(() => {
-    fetch("/api/classement")
+    setCharge(true); setErr(null);
+    fetch(`/api/classement/global?periode=${periode}`)
       .then((r) => r.json())
-      .then((d) => {
-        if (d.ok && d.classement) setClassement(d.classement);
-        else setMessage(d.message || d.erreur || "Classement indisponible.");
-      })
-      .catch(() => setMessage("Impossible de charger le classement."))
-      .finally(() => setChargement(false));
-  }, []);
+      .then((j) => { if (j.ok) setData(j); else setErr(j.erreur ?? "Erreur"); })
+      .catch(() => setErr("Erreur de chargement"))
+      .finally(() => setCharge(false));
+  }, [periode]);
+
+  const lignes: Ligne[] = data?.[vue] ?? [];
+  const total = data?.totaux?.[vue] ?? { ventes: 0, ca: 0 };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <main className="mx-auto max-w-5xl px-4 py-8">
-        <h1 className="page-title">🏆 Classement vendeurs — Examens</h1>
+    <main className="mx-auto max-w-3xl px-4 py-8 md:px-6">
+      <header className="page-header">
+        <div>
+          <h1 className="page-title">🏆 Classement vendeurs</h1>
+          <p className="page-subtitle">CA et nombre de ventes par vendeur — examen, formation et global.</p>
+        </div>
+      </header>
 
-        {classement && (
-          <p className="mt-1 text-sm text-gray-600">
-            Primes du trimestre du <strong>{dateFR(classement.periode_debut)}</strong> au{" "}
-            <strong>{dateFR(classement.periode_fin)}</strong> · prime 2 % acquise à l'encaissement (CPF / remboursé /
-            annulé = sans prime) · mise à jour{" "}
-            {new Date(classement.maj_le).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}
-          </p>
-        )}
+      <div className="mb-3 flex gap-1 border-b border-gray-200">
+        {([["global", "Global"], ["examen", "Examen"], ["formation", "Formation"]] as const).map(([v, l]) => (
+          <button key={v} onClick={() => setVue(v)}
+            className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium transition ${vue === v ? "border-mystory text-mystory" : "border-transparent text-gray-500 hover:text-gray-800"}`}>{l}</button>
+        ))}
+      </div>
 
-        {chargement && <p className="mt-8 text-gray-500">Chargement…</p>}
-        {!chargement && !classement && (
-          <div className="mt-8 rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-800">{message}</div>
-        )}
+      <div className="mb-4 flex gap-2">
+        {([["mois", "Ce mois-ci"], ["tout", "Depuis le début"]] as const).map(([p, l]) => (
+          <button key={p} onClick={() => setPeriode(p)}
+            className={`rounded-lg border px-3 py-1.5 text-sm ${periode === p ? "border-mystory bg-mystory text-white" : "border-gray-300 bg-white text-gray-700 hover:border-mystory"}`}>{l}</button>
+        ))}
+      </div>
 
-        {classement && (
-          <>
-            {/* Total centre */}
-            <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <Tuile titre="Ventes examens" valeur={String(classement.payload.total_centre.ventes)} />
-              <Tuile titre="CA total" valeur={eur(classement.payload.total_centre.ca)} />
-              <Tuile titre="Primes acquises" valeur={eur(classement.payload.total_centre.prime_acquise)} accent />
-              <Tuile titre="Primes en attente" valeur={eur(classement.payload.total_centre.prime_attente)} />
-            </div>
+      {err && <div className="mb-4 rounded-xl border border-danger-200 bg-danger-50 p-3 text-sm text-danger-700">{err}</div>}
 
-            {/* Une carte par agence (filtrée sur le site choisi dans la barre du haut) */}
-            {classement.payload.agences
-              .filter((a) => !site || a.nom === site)
-              .map((a) => (
-              <section key={a.nom} className="mt-8 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-                <div className="border-b border-gray-200 px-5 py-3" style={{ backgroundColor: "#2F72DE" }}>
-                  <h2 className="font-semibold text-white">{a.nom === "AUTRES" ? "🌍 " : "🏢 "}{a.nom}</h2>
-                </div>
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-100 text-left text-gray-500">
-                      <th className="px-5 py-2 font-medium">Rang</th>
-                      <th className="px-5 py-2 font-medium">Vendeur</th>
-                      <th className="px-5 py-2 text-right font-medium">Ventes</th>
-                      <th className="px-5 py-2 text-right font-medium">CA</th>
-                      <th className="px-5 py-2 text-right font-medium">Prime acquise</th>
-                      <th className="px-5 py-2 text-right font-medium">Prime en attente</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(() => {
-                      let rang = 0;
-                      return a.vendeurs.map((v) => {
-                        const label = v.prime_acquise > 0 ? MEDAILLES[rang] || String(rang + 1) : "—";
-                        if (v.prime_acquise > 0) rang += 1;
-                        return (
-                          <tr key={v.vendeur} className="border-b border-gray-50 last:border-0 hover:bg-gray-50">
-                            <td className="px-5 py-2 text-lg">{label}</td>
-                            <td className="px-5 py-2 font-medium text-gray-900">{v.vendeur}</td>
-                            <td className="px-5 py-2 text-right">{v.ventes}</td>
-                            <td className="px-5 py-2 text-right">{eur(v.ca)}</td>
-                            <td className="px-5 py-2 text-right font-semibold text-green-700">{eur(v.prime_acquise)}</td>
-                            <td className="px-5 py-2 text-right text-amber-600">{eur(v.prime_attente)}</td>
-                          </tr>
-                        );
-                      });
-                    })()}
-                  </tbody>
-                  <tfoot>
-                    <tr className="bg-gray-50 font-semibold text-gray-900">
-                      <td className="px-5 py-2" colSpan={2}>TOTAL {a.nom}</td>
-                      <td className="px-5 py-2 text-right">{a.totaux.ventes}</td>
-                      <td className="px-5 py-2 text-right">{eur(a.totaux.ca)}</td>
-                      <td className="px-5 py-2 text-right text-green-700">{eur(a.totaux.prime_acquise)}</td>
-                      <td className="px-5 py-2 text-right text-amber-600">{eur(a.totaux.prime_attente)}</td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </section>
-            ))}
+      {charge ? (
+        <p className="text-sm text-gray-500">Chargement…</p>
+      ) : lignes.length === 0 ? (
+        <div className="empty-state">Aucune vente sur cette période.</div>
+      ) : (
+        <div className="card overflow-x-auto p-0">
+          <table className="table w-full">
+            <thead>
+              <tr>
+                <th className="w-10">#</th>
+                <th>Vendeur</th>
+                <th className="text-right">Ventes</th>
+                <th className="text-right">CA</th>
+                {vue === "global" && <th className="hidden text-right text-xs sm:table-cell">dont examen / formation</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {lignes.map((l, i) => (
+                <tr key={l.vendeur}>
+                  <td className="text-center">{MEDAILLE[i] ?? i + 1}</td>
+                  <td className="font-medium text-gray-900">{l.vendeur}</td>
+                  <td className="text-right">{l.ventes}</td>
+                  <td className="text-right font-semibold">{eur(l.ca)}</td>
+                  {vue === "global" && (
+                    <td className="hidden text-right text-xs text-gray-500 sm:table-cell">
+                      {l.ventesExamen ?? 0} · {eur(l.caExamen ?? 0)} &nbsp;/&nbsp; {l.ventesFormation ?? 0} · {eur(l.caFormation ?? 0)}
+                    </td>
+                  )}
+                </tr>
+              ))}
+              <tr className="border-t-2 border-gray-200 font-semibold">
+                <td></td>
+                <td>Total</td>
+                <td className="text-right">{total.ventes}</td>
+                <td className="text-right">{eur(total.ca)}</td>
+                {vue === "global" && <td className="hidden sm:table-cell"></td>}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
 
-            <p className="mt-6 text-xs text-gray-400">
-              Source : Suivi des ventes examens (Google Sheet) · calcul quotidien à 19h par le robot n8n « Classement
-              vendeurs AUTO » · la trace de chaque mise à jour est conservée dans le journal du CRM.
-            </p>
-          </>
-        )}
-      </main>
-    </div>
-  );
-}
-
-function Tuile({ titre, valeur, accent }: { titre: string; valeur: string; accent?: boolean }) {
-  return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-      <div className="text-xs uppercase tracking-wide text-gray-500">{titre}</div>
-      <div className={`mt-1 text-xl font-bold ${accent ? "text-green-700" : "text-gray-900"}`}>{valeur}</div>
-    </div>
+      <p className="mt-3 text-xs text-gray-400">
+        Le vendeur d'une formation est le prénom saisi à l'inscription. Les ventes sans vendeur apparaissent en « (non attribué) ».
+      </p>
+    </main>
   );
 }

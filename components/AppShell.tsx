@@ -11,7 +11,7 @@ import {
   ClipboardList, Users, Plane, CalendarRange, Clock, Settings, Receipt, CheckCircle2,
   FileSpreadsheet, UserCog, MessageSquare, Eye, HelpCircle, KeyRound, AlertTriangle,
   Workflow, ScrollText, LogOut, Menu, X, ChevronDown,
-  Plus, FileCheck, RotateCcw, } from "lucide-react";
+  Plus, FileCheck, RotateCcw, Trophy, } from "lucide-react";
 import { peutVoirPage, ROLE_LABEL } from "@/lib/roles";
 import { SITES, COOKIE_SITE, siteValide } from "@/lib/sites";
 
@@ -57,6 +57,7 @@ const NAV: Entree[] = [
       { href: "/factures", label: "Factures", icon: Receipt },
       { href: "/validations", label: "Validations", icon: CheckCircle2 },
       { href: "/bpf", label: "BPF", icon: FileSpreadsheet },
+      { href: "/classement", label: "Classement", icon: Trophy },
     ],
   },
   {
@@ -83,7 +84,6 @@ const ALIAS_EXAMEN: Record<string, string> = {
   "/examens/vente-groupe": "/examens/vente",
   "/examens/preinscriptions": "/examens/vente",
   "/examens/croise": "/examens/candidats",
-  "/classement": "/examens/candidats",
   "/examens/jour": "/examens",
   "/examens/liste-attente": "/examens",
   "/examens/taux": "/examens/corrections",

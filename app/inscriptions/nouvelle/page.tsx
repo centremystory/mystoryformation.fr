@@ -22,12 +22,15 @@ export default function NouvelleInscription() {
     formule: "16H" as CodeFormule, niveauVise: "B1" as const,
     agenceInscription: "GAGNY" as const, resteAChargeAccepte: false,
     declencherContractualisation: true, formatriceId: "", formatriceLibre: "",
-    remise: 0, remiseMotif: "",
+    remise: 0, remiseMotif: "", venduPar: "",
   });
   const [formatrices, setFormatrices] = useState<{ id: string; nom: string; prenom: string | null }[]>([]);
   useEffect(() => {
     fetch("/api/inscriptions").then(r => r.json())
       .then(d => setFormatrices(d.formatrices ?? [])).catch(() => {});
+  }, []);
+  useEffect(() => {
+    try { const a = localStorage.getItem("mystory_auteur"); if (a) setForm(f => ({ ...f, venduPar: a })); } catch {}
   }, []);
   const [seances, setSeances] = useState<SeanceInput[]>([]);
   const [gen, setGen] = useState({ premiere: "", creneau: "MATIN" as "MATIN" | "APRES_MIDI", jours: [2, 6] });
@@ -57,6 +60,7 @@ export default function NouvelleInscription() {
 
   const enregistrer = async (confirmerDoublon = false) => {
     setEnvoi("loading"); setErreursApi([]); setDoublon(null);
+    try { if (form.venduPar.trim()) localStorage.setItem("mystory_auteur", form.venduPar.trim()); } catch {}
     const res = await fetch("/api/inscriptions", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -120,6 +124,8 @@ export default function NouvelleInscription() {
         <div><label className={label}>Agence d'inscription (interne)</label>
           <select className={champ} value={form.agenceInscription} onChange={e => set("agenceInscription", e.target.value)}>
             <option value="GAGNY">Gagny</option><option value="SARCELLES">Sarcelles</option><option value="ROSNY">Rosny</option></select></div>
+        <div><label className={label}>Vendeur</label>
+          <input className={champ} value={form.venduPar} onChange={e => set("venduPar", e.target.value)} placeholder="Ton prénom" /></div>
         <div><label className={label}>Formatrice référente *</label>
           <select className={champ} value={form.formatriceId} onChange={e => set("formatriceId", e.target.value)}>
             <option value="">— choisir —</option>
