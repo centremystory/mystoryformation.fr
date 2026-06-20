@@ -230,7 +230,7 @@ export default function PageFactures() {
           <p className="text-sm text-gray-500 mt-2">Aucune facture émise pour le moment.</p>
         ) : (
           <div className="mt-2 overflow-x-auto rounded-lg border bg-white">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm table-cards">
               <thead>
                 <tr className="bg-gray-50 text-left text-xs text-gray-500">
                   <th className="px-3 py-2">N°</th>
@@ -245,15 +245,15 @@ export default function PageFactures() {
               <tbody>
                 {facturesVue.map((f) => (
                   <tr key={f.id} className="border-t align-top">
-                    <td className="px-3 py-2 font-mono whitespace-nowrap">
+                    <td data-label="N°" className="px-3 py-2 font-mono whitespace-nowrap">
                       {f.numero}
                       <div className="flex gap-1 mt-0.5">
                         {f.serie && <span className="font-sans text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">{f.serie === "TEF_PRODUIT" ? "Examen" : f.serie}</span>}
                         {f.type === "attestation_paiement" && <span className="font-sans text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">Attestation de paiement</span>}
                       </div>
                     </td>
-                    <td className="px-3 py-2">{f.client}</td>
-                    <td className="px-3 py-2 text-gray-600 max-w-[280px]">
+                    <td data-label="Client" className="px-3 py-2">{f.client}</td>
+                    <td data-label="Désignation" className="px-3 py-2 text-gray-600 max-w-[280px]">
                       {(f.facture_lignes && f.facture_lignes.length > 1) ? (
                         <ul className="space-y-0.5">
                           {[...f.facture_lignes].sort((a, b) => a.ordre - b.ordre).map((l, i) => (
@@ -265,9 +265,9 @@ export default function PageFactures() {
                         </ul>
                       ) : f.designation}
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap font-medium">{Number(f.montant).toLocaleString("fr-FR")} €</td>
-                    <td className="px-3 py-2 whitespace-nowrap">{dateFR(f.date_emission)}</td>
-                    <td className="px-3 py-2 whitespace-nowrap">
+                    <td data-label="Montant" className="px-3 py-2 whitespace-nowrap font-medium">{Number(f.montant).toLocaleString("fr-FR")} €</td>
+                    <td data-label="Émise le" className="px-3 py-2 whitespace-nowrap">{dateFR(f.date_emission)}</td>
+                    <td data-label="Statut" className="px-3 py-2 whitespace-nowrap">
                       <span className={`text-xs px-2 py-0.5 rounded border ${BADGE[f.statut] ?? "bg-gray-50 border-gray-200 text-gray-700"}`}>
                         {LIBELLE_STATUT[f.statut] ?? f.statut}
                       </span>
