@@ -43,6 +43,7 @@ export default function EmargementDuJour() {
   const [walkinOuvert, setWalkinOuvert] = useState(false);
   const [scan, setScan] = useState<{ url: string | null; nom: string | null; depose_le: string | null } | null>(null);
   const [scanBusy, setScanBusy] = useState(false);
+  const [recherche, setRecherche] = useState("");
   const scanInputRef = useRef<HTMLInputElement>(null);
 
   const chargerScan = useCallback(async () => {
@@ -90,7 +91,12 @@ export default function EmargementDuJour() {
     if (!sel) return;
     const maj = seances.find((s) => s.id === sel.id);
     if (maj) setSel(maj);
-  }, [seances]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [seances]);
+
+  const seancesVisibles = useMemo(() => {
+    const q = recherche.trim().toLowerCase();
+    return q ? seances.filter((s) => (s.stagiaire ?? "").toLowerCase().includes(q)) : seances;
+  }, [seances, recherche]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const totaux = useMemo(() => {
     const total = seances.length;
@@ -159,8 +165,16 @@ export default function EmargementDuJour() {
         <p className="mt-8 text-center text-sm text-gray-400">Aucune séance sur ce créneau.</p>
       )}
 
-      <ul className="mt-4 divide-y divide-gray-100 rounded-2xl border border-gray-200 bg-white">
-        {seances.map((s) => {
+      {seances.length > 0 && (
+        <input value={recherche} onChange={(e) => setRecherche(e.target.value)} placeholder="Rechercher un élève…"
+          className="mt-4 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white" />
+      )}
+
+      <ul className="mt-2 divide-y divide-gray-100 rounded-2xl border border-gray-200 bg-white">
+        {seances.length > 0 && seancesVisibles.length === 0 && (
+          <li className="p-4 text-sm text-gray-400">Aucun élève ne correspond à la recherche.</li>
+        )}
+        {seancesVisibles.map((s) => {
           const b = BADGE[s.statut] ?? BADGE.a_faire;
           return (
             <li key={s.id} className="flex items-center gap-3 p-4">
@@ -190,7 +204,8 @@ export default function EmargementDuJour() {
 
 function WalkIn({ date, demiDefaut, onCreated }: { date: string; demiDefaut: "matin" | "apres_midi"; onCreated: (demi: "matin" | "apres_midi") => void }) {
   const [dossiers, setDossiers] = useState<{ id: string; nom: string; certif: string | null }[]>([]);
-  const [dossierId, setDossierId] = useState("");
+  const [recherche, setRecherche] = useState("");
+  const [selection, setSelection] = useState<Set<string>>(new Set());
   const [demi, setDemi] = useState<"matin" | "apres_midi">(demiDefaut);
   const [heures, setHeures] = useState(3);
   const [busy, setBusy] = useState(false);
@@ -202,17 +217,30 @@ function WalkIn({ date, demiDefaut, onCreated }: { date: string; demiDefaut: "ma
       .catch(() => setErr("Liste indisponible."));
   }, []);
 
+  const visibles = useMemo(() => {
+    const q = recherche.trim().toLowerCase();
+    return q ? dossiers.filter((d) => d.nom.toLowerCase().includes(q)) : dossiers;
+  }, [dossiers, recherche]);
+
+  function toggle(id: string) {
+    setSelection((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  }
+
   async function ajouter() {
-    if (!dossierId) { setErr("Choisis un élève."); return; }
+    if (selection.size === 0) { setErr("Sélectionne au moins un élève."); return; }
     setBusy(true); setErr(null);
+    let echecs = 0;
     try {
-      const r = await fetch("/api/emargement/walk-in", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dossierId, demi_journee: demi, heures }),
-      });
-      const j = await r.json();
-      if (!j.ok) { setErr(j.erreur || "Échec."); return; }
-      setDossierId("");
+      for (const id of Array.from(selection)) {
+        const r = await fetch("/api/emargement/walk-in", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ dossierId: id, demi_journee: demi, heures }),
+        });
+        const j = await r.json();
+        if (!j.ok) echecs++;
+      }
+      setSelection(new Set());
+      if (echecs > 0) setErr(`${echecs} élève(s) n'ont pas pu être ajoutés (déjà présents ?).`);
       onCreated(demi);
     } catch { setErr("Échec de l'ajout."); }
     finally { setBusy(false); }
@@ -220,28 +248,37 @@ function WalkIn({ date, demiDefaut, onCreated }: { date: string; demiDefaut: "ma
 
   return (
     <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
-      <p className="text-sm font-semibold text-gray-800">Ajouter un élève non planifié (walk-in)</p>
-      <p className="text-xs text-gray-500">Séance créée pour aujourd'hui ({date}) à Gagny, puis à émarger comme les autres.</p>
-      <div className="mt-3 grid gap-2 sm:grid-cols-2">
-        <select value={dossierId} onChange={(e) => setDossierId(e.target.value)}
-          className="rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white">
-          <option value="">— choisir l'élève —</option>
-          {dossiers.map((d) => <option key={d.id} value={d.id}>{d.nom}{d.certif ? ` · ${d.certif}` : ""}</option>)}
-        </select>
-        <div className="flex gap-2">
-          <select value={demi} onChange={(e) => setDemi(e.target.value as "matin" | "apres_midi")}
-            className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white">
-            <option value="matin">Matin</option><option value="apres_midi">Après-midi</option>
-          </select>
-          <input type="number" min={0.5} step={0.5} value={heures} title="Heures"
-            onChange={(e) => setHeures(Math.max(0, Number(e.target.value) || 0))}
-            className="w-20 rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white" />
-        </div>
+      <p className="text-sm font-semibold text-gray-800">Ajouter des élèves (walk-in)</p>
+      <p className="text-xs text-gray-500">Parmi les inscrits — séances créées pour aujourd'hui ({date}) à Gagny, puis à émarger comme les autres.</p>
+
+      <input value={recherche} onChange={(e) => setRecherche(e.target.value)} placeholder="Rechercher un élève…"
+        className="mt-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white" />
+
+      <div className="mt-2 max-h-52 divide-y divide-gray-100 overflow-auto rounded-lg border border-gray-200 bg-white">
+        {visibles.length === 0 ? (
+          <p className="p-3 text-sm text-gray-400">Aucun élève.</p>
+        ) : visibles.map((d) => (
+          <label key={d.id} className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50">
+            <input type="checkbox" checked={selection.has(d.id)} onChange={() => toggle(d.id)} />
+            <span>{d.nom}{d.certif ? ` · ${d.certif}` : ""}</span>
+          </label>
+        ))}
       </div>
+
+      <div className="mt-2 flex gap-2">
+        <select value={demi} onChange={(e) => setDemi(e.target.value as "matin" | "apres_midi")}
+          className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white">
+          <option value="matin">Matin</option><option value="apres_midi">Après-midi</option>
+        </select>
+        <input type="number" min={0.5} step={0.5} value={heures} title="Heures"
+          onChange={(e) => setHeures(Math.max(0, Number(e.target.value) || 0))}
+          className="w-20 rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white" />
+      </div>
+
       {err && <p className="mt-2 text-sm text-red-600">{err}</p>}
-      <button onClick={ajouter} disabled={busy || !dossierId}
+      <button onClick={ajouter} disabled={busy || selection.size === 0}
         className="mt-3 rounded-lg bg-mystory px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
-        {busy ? "Ajout…" : "Ajouter & émarger"}
+        {busy ? "Ajout…" : `Ajouter & émarger${selection.size ? ` (${selection.size})` : ""}`}
       </button>
     </div>
   );
