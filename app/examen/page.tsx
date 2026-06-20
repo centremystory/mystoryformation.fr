@@ -58,7 +58,7 @@ async function kpis(site: SiteFiltre) {
 }
 
 const ACCES: { href: string; icone: LucideIcon; titre: string; desc: string; primaire?: boolean }[] = [
-  { href: "/examens/vente", icone: Plus, titre: "Inscrire un candidat", desc: "TEF IRN ou examen civique, en une action.", primaire: true },
+  { href: "/examens/vente-groupe", icone: Plus, titre: "Inscrire un candidat", desc: "TEF IRN ou examen civique, en une action.", primaire: true },
   { href: "/examens/candidats", icone: Users, titre: "Candidats", desc: "Liste par session, état de chaque candidat." },
   { href: "/examens", icone: CalendarDays, titre: "Sessions", desc: "Planning des sessions — centre : Gagny." },
   { href: "/examens/jour", icone: CheckCircle2, titre: "Jour J", desc: "Candidats du jour, présence et déroulé." },

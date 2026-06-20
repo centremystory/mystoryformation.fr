@@ -202,7 +202,7 @@ export default async function Accueil() {
         <Porte icone={ClipboardList} titre="Espace Examen"
           desc="Inscriptions, sessions, jour J, corrections, classement des vendeurs — centre d'examen : Gagny.">
           <Link href="/examen" className="btn-ghost">Ouvrir l'espace <ArrowRight size={16} /></Link>
-          <Link href="/examens/vente" className="btn-primary"><Plus size={16} /> Inscription Examen</Link>
+          <Link href="/examens/vente-groupe" className="btn-primary"><Plus size={16} /> Inscription Examen</Link>
         </Porte>
       </div>
 

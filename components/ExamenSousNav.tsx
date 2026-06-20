@@ -13,8 +13,7 @@ import { peutVoirPage } from "@/lib/roles";
 
 const GROUPES: { cle: string; onglets: { href: string; label: string }[] }[] = [
   { cle: "inscrire", onglets: [
-    { href: "/examens/vente", label: "Inscription simple" },
-    { href: "/examens/vente-groupe", label: "Inscription multiple" },
+    { href: "/examens/vente-groupe", label: "Inscrire" },
     { href: "/examens/preinscriptions", label: "Par téléphone" },
   ] },
   { cle: "candidats", onglets: [

@@ -36,7 +36,7 @@ const NAV: Entree[] = [
   {
     type: "menu", label: "Examen", icon: ClipboardList, items: [
       { href: "/examen", label: "Tableau de bord", icon: LayoutGrid },
-      { href: "/examens/vente", label: "Inscrire", icon: Plus },
+      { href: "/examens/vente-groupe", label: "Inscrire", icon: Plus },
       { href: "/examens/candidats", label: "Candidats", icon: Users },
       { href: "/examens", label: "Sessions", icon: CalendarDays },
       { href: "/examens/corrections", label: "Résultats", icon: FileCheck },
@@ -81,8 +81,8 @@ const TOUS_HREFS: string[] = NAV.flatMap((e) => (e.type === "link" ? [e.href] : 
 
 /** Sous-pages regroupées sous une entrée de menu (pour le surlignage du menu). */
 const ALIAS_EXAMEN: Record<string, string> = {
-  "/examens/vente-groupe": "/examens/vente",
-  "/examens/preinscriptions": "/examens/vente",
+  "/examens/vente": "/examens/vente-groupe",
+  "/examens/preinscriptions": "/examens/vente-groupe",
   "/examens/croise": "/examens/candidats",
   "/examens/jour": "/examens",
   "/examens/liste-attente": "/examens",

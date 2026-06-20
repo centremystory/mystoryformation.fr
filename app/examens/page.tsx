@@ -124,7 +124,7 @@ export default function PageExamens() {
           <p className="text-sm text-gray-500">Centre d'examen : Gagny — 3 bis av. de Gagny, 93220</p>
         </div>
         <div className="flex gap-2">
-          <Link href="/examens/vente" className="px-4 py-2 rounded-lg text-sm text-white bg-mystory font-medium">
+          <Link href="/examens/vente-groupe" className="px-4 py-2 rounded-lg text-sm text-white bg-mystory font-medium">
             + Vendre un examen
           </Link>
           <Link href="/examens/jour" className="px-4 py-2 rounded-lg text-sm border border-gray-300 bg-white text-gray-700">
