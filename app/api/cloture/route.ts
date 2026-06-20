@@ -16,6 +16,7 @@ import { requireUser, UnauthorizedError, type SessionUser } from "@/lib/auth";
 import { peut } from "@/lib/roles";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { journal } from "@/lib/examens";
+import { genererEtEnvoyerDocFin } from "@/lib/documentsAuto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -159,5 +160,12 @@ export async function POST(req: NextRequest) {
     absences: calc.nbAbsences,
   }, u.email ?? null);
 
-  return NextResponse.json({ ok: true, dateFinReelle: calc.dateFinReelle, heuresRealisees: calc.heuresRealisees, niveauAtteint, ecart });
+  // Attestation de fin : générée + envoyée automatiquement au stagiaire à la clôture (best-effort).
+  // Le certificat de réalisation, lui, est émis au moment du « service fait validé EDOF » (pas ici).
+  const attestation = await genererEtEnvoyerDocFin(dossierId, "attestation_fin", u.email ?? null);
+
+  return NextResponse.json({
+    ok: true, dateFinReelle: calc.dateFinReelle, heuresRealisees: calc.heuresRealisees, niveauAtteint, ecart,
+    attestationEnvoyee: attestation.ok, attestationErreur: attestation.ok ? undefined : attestation.erreur,
+  });
 }

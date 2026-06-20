@@ -8,6 +8,7 @@
  */
 import { supabaseAdmin } from "./supabaseAdmin";
 import { journal } from "./examens";
+import { genererEtEnvoyerDocFin } from "./documentsAuto";
 
 // En-têtes exacts de l'export CDC (Export_<SIRET>_<date>.csv ; séparateur « ; »).
 const COL = {
@@ -211,6 +212,9 @@ export async function importerEdof(
         await journal("dossiers", String(d.id), "service_fait_valide_edof",
           { source: "import_edof", statut_edof: r.statut_dossier, numero_edof: r.numero_dossier }, opts.auteur ?? null);
         servicesFaitOuverts++;
+        // Certificat de réalisation : généré + envoyé au stagiaire dès le service fait validé
+        // côté EDOF (sa copie ; le dépôt EDOF qui déclenche le paiement reste un acte humain).
+        try { await genererEtEnvoyerDocFin(String(d.id), "certificat_realisation", opts.auteur ?? null); } catch { /* best-effort */ }
       }
     }
     await supabaseAdmin.from("imports_edof").insert({
