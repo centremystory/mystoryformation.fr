@@ -259,7 +259,9 @@ export default function PageVenteGroupe() {
         {panier.map((e, idx) => (
           <section key={e.uid} className="card">
             <div className="mb-3 flex items-center justify-between">
-              <span className="badge badge-neutral">Examen {idx + 1}</span>
+              <span className={`badge ${e.type === "Vente_plateforme" ? "badge-info" : "badge-neutral"}`}>
+                {e.type === "Vente_plateforme" ? "Accès plateforme" : `Examen ${idx + 1}`}
+              </span>
               {panier.length > 1 && (
                 <button onClick={() => retirer(e.uid)} className="rounded-lg p-1.5 text-gray-400 transition hover:bg-danger-50 hover:text-danger-600" aria-label="Retirer">
                   <Trash2 size={16} />
@@ -267,12 +269,16 @@ export default function PageVenteGroupe() {
               )}
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <label className="col-span-2 text-sm">Type d'examen *
+              <label className="col-span-2 text-sm">Type *
                 <select value={e.type} onChange={(ev) => majExamen(e.uid, { type: ev.target.value })} className="input mt-1">
                   <option value="">—</option>
-                  <option value="TEF_IRN">TEF IRN</option>
-                  <option value="Examen_civique">Examen civique</option>
-                  <option value="Vente_plateforme">Vente plateforme</option>
+                  <optgroup label="Examens">
+                    <option value="TEF_IRN">TEF IRN</option>
+                    <option value="Examen_civique">Examen civique</option>
+                  </optgroup>
+                  <optgroup label="Vente d'accès (hors examen)">
+                    <option value="Vente_plateforme">Vente plateforme</option>
+                  </optgroup>
                 </select>
               </label>
 
