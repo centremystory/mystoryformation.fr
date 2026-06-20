@@ -6,6 +6,22 @@
 
 ---
 
+## ✅ Avancement
+
+**P1 — TERMINÉ (20/06).** Tous les chantiers P1 sont livrés et en ligne :
+- A1/A2/A3 — accueil actionnable : indicateurs cliquables, « Dossiers à finaliser » (formation finie + dossier incomplet), clic → état des pièces.
+- SD4 — satisfaction à froid : date d'envoi affichée au dossier.
+- EX1 — vente plateforme séparée des examens (sous-groupe + badge).
+- EX2/EX3 — session cliquable → candidats inscrits + report/remboursement par candidat.
+- EC1/EC2 — mention civique affichée + import PDF des résultats étendu aux civiques + renvoi par email au candidat.
+- SD5 — attestation de fin auto à la clôture + certificat de réalisation auto au « service fait validé EDOF » (séparation conformité), envoyés au stagiaire.
+- SD1 — test initial (positionnement) & test final (niveau atteint) visibles au dossier.
+- EJ1 — émargement du jour : recherche d'élèves + walk-in multi-sélection.
+
+**Prochaines étapes : P2**, et les **bugs B1/B2/B3** (à arbitrer).
+
+---
+
 ## 🐞 Bugs & confusions à régler en priorité
 
 | # | Sujet | Constat | Action |
