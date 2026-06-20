@@ -18,7 +18,7 @@ import { siteValide, COOKIE_SITE, type SiteFiltre } from "@/lib/sites";
 export const dynamic = "force-dynamic";
 
 async function compter(site: SiteFiltre) {
-  const zero = { enCours: 0, complets: 0, aRelancer: 0, fleOk: 0, fleTotal: 0 };
+  const zero = { enCours: 0, aFinaliser: 0, aRelancer: 0, fleOk: 0, fleTotal: 0 };
   try {
     const compteDossiers = (statut: string) => {
       let q = supabaseAdmin
@@ -28,16 +28,24 @@ async function compter(site: SiteFiltre) {
       if (site) q = q.eq("stagiaires.agence", site);
       return q;
     };
-    const [incomplets, complets, relances, formatrices] = await Promise.all([
+    const compteAFinaliser = () => {
+      let q = supabaseAdmin
+        .from("dossiers")
+        .select(site ? "id, stagiaires!inner(agence)" : "id", { count: "exact", head: true })
+        .eq("statut", "incomplet").not("date_fin", "is", null);
+      if (site) q = q.eq("stagiaires.agence", site);
+      return q;
+    };
+    const [incomplets, aFinaliser, relances, formatrices] = await Promise.all([
       compteDossiers("incomplet"),
-      compteDossiers("complet"),
+      compteAFinaliser(),
       supabaseAdmin.from("v_conventions_a_relancer").select("*", { count: "exact", head: true }),
       supabaseAdmin.from("formatrices").select("justificatif_fle").eq("actif", true),
     ]);
     const actives = formatrices.data ?? [];
     return {
       enCours: incomplets.count ?? 0,
-      complets: complets.count ?? 0,
+      aFinaliser: aFinaliser.count ?? 0,
       aRelancer: relances.count ?? 0,
       fleOk: actives.filter((f) => f.justificatif_fle).length,
       fleTotal: actives.length,
@@ -79,14 +87,15 @@ async function aTraiter(site: SiteFiltre) {
 }
 
 /** Carte chiffre (KPI) du design system, avec accent sémantique optionnel. */
-function Kpi({ libelle, valeur, accent }: { libelle: string; valeur: string; accent?: "ambre" | "vert" }) {
+function Kpi({ libelle, valeur, accent, href }: { libelle: string; valeur: string; accent?: "ambre" | "vert"; href?: string }) {
   const couleur = accent === "ambre" ? "text-warning-600" : accent === "vert" ? "text-success-700" : "text-gray-900";
-  return (
-    <div className="kpi">
+  const inner = (
+    <div className={`kpi ${href ? "card-hover cursor-pointer" : ""}`}>
       <p className="kpi-label">{libelle}</p>
       <p className={`kpi-value mt-1 ${couleur}`}>{valeur}</p>
     </div>
   );
+  return href ? <Link href={href} className="block">{inner}</Link> : inner;
 }
 
 /** Grande porte d'un espace (Formation / Examen). */
@@ -159,10 +168,10 @@ export default async function Accueil() {
 
       {/* Compteurs */}
       <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Kpi libelle="Dossiers en cours" valeur={String(c.enCours)} />
-        <Kpi libelle="Dossiers complets" valeur={String(c.complets)} accent="vert" />
-        <Kpi libelle="Conventions à relancer" valeur={String(c.aRelancer)} accent={c.aRelancer > 0 ? "ambre" : undefined} />
-        <Kpi libelle="Formatrices en règle" valeur={`${c.fleOk} / ${c.fleTotal}`} accent={c.fleOk === c.fleTotal ? "vert" : "ambre"} />
+        <Kpi libelle="Dossiers en cours" valeur={String(c.enCours)} href="/dossiers?vue=incomplet" />
+        <Kpi libelle="Dossiers à finaliser" valeur={String(c.aFinaliser)} accent={c.aFinaliser > 0 ? "ambre" : undefined} href="/dossiers?vue=a_finaliser" />
+        <Kpi libelle="Conventions à relancer" valeur={String(c.aRelancer)} accent={c.aRelancer > 0 ? "ambre" : undefined} href="/dossiers" />
+        <Kpi libelle="Formatrices en règle" valeur={`${c.fleOk} / ${c.fleTotal}`} accent={c.fleOk === c.fleTotal ? "vert" : "ambre"} href="/formateurs" />
       </div>
 
       {/* À traiter */}

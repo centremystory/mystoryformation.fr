@@ -107,7 +107,13 @@ export default function PageDossiers() {
     const v = new URLSearchParams(window.location.search).get("q");
     if (v) setRecherche(v);
   }, []);
-  const [filtre, setFiltre] = useState<"tous" | "incomplet" | "complet">("tous");
+  const [filtre, setFiltre] = useState<"tous" | "incomplet" | "complet" | "a_finaliser">(() => {
+    if (typeof window !== "undefined") {
+      const v = new URLSearchParams(window.location.search).get("vue");
+      if (v === "a_finaliser" || v === "incomplet" || v === "complet") return v;
+    }
+    return "tous";
+  });
   const [filtreAgence, setFiltreAgence] = useState<string>("toutes");
   const [filtreTunnel, setFiltreTunnel] = useState<string>("tous");
   const [ouvert, setOuvert] = useState<string | null>(null);
@@ -131,7 +137,8 @@ export default function PageDossiers() {
   const visibles = useMemo(() => {
     const q = recherche.trim().toLowerCase();
     return dossiers.filter((d) => {
-      if (filtre !== "tous" && d.statut !== filtre) return false;
+      if (filtre === "a_finaliser") { if (!(d.date_fin != null && d.statut === "incomplet")) return false; }
+      else if (filtre !== "tous" && d.statut !== filtre) return false;
       if (filtreAgence !== "toutes" && (d.stagiaires?.agence ?? "") !== filtreAgence) return false;
       if (filtreTunnel !== "tous") {
         if (filtreTunnel === "aucun" ? d.statut_tunnel != null : d.statut_tunnel !== filtreTunnel) return false;
@@ -143,6 +150,7 @@ export default function PageDossiers() {
   }, [dossiers, recherche, filtre, filtreAgence, filtreTunnel]);
 
   const nbIncomplets = dossiers.filter((d) => d.statut === "incomplet").length;
+  const nbAFinaliser = dossiers.filter((d) => d.date_fin != null && d.statut === "incomplet").length;
 
   return (
     <main className="max-w-5xl mx-auto px-4 md:px-6 py-8">
@@ -171,6 +179,7 @@ export default function PageDossiers() {
             ["tous", `Tous (${dossiers.length})`],
             ["incomplet", `Incomplets (${nbIncomplets})`],
             ["complet", `Complets (${dossiers.length - nbIncomplets})`],
+            ["a_finaliser", `À finaliser (${nbAFinaliser})`],
           ] as const).map(([v, l]) => (
             <button
               key={v}
