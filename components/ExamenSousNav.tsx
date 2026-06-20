@@ -21,7 +21,7 @@ const GROUPES: { cle: string; onglets: { href: string; label: string }[] }[] = [
     { href: "/examens/croise", label: "Vue croisée" },
   ] },
   { cle: "sessions", onglets: [
-    { href: "/examens", label: "Sessions" },
+    { href: "/examens/sessions", label: "Sessions" },
     { href: "/examens/jour", label: "Jour J" },
     { href: "/examens/liste-attente", label: "Liste d'attente" },
   ] },

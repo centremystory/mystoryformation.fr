@@ -60,7 +60,7 @@ async function kpis(site: SiteFiltre) {
 const ACCES: { href: string; icone: LucideIcon; titre: string; desc: string; primaire?: boolean }[] = [
   { href: "/examens/vente-groupe", icone: Plus, titre: "Inscrire un candidat", desc: "TEF IRN ou examen civique, en une action.", primaire: true },
   { href: "/examens/candidats", icone: Users, titre: "Candidats", desc: "Liste par session, état de chaque candidat." },
-  { href: "/examens", icone: CalendarDays, titre: "Sessions", desc: "Planning des sessions — centre : Gagny." },
+  { href: "/examens/sessions", icone: CalendarDays, titre: "Sessions", desc: "Planning des sessions — centre : Gagny." },
   { href: "/examens/jour", icone: CheckCircle2, titre: "Jour J", desc: "Candidats du jour, présence et déroulé." },
   { href: "/examens/corrections", icone: FileCheck, titre: "Résultats", desc: "Saisie et envoi des résultats." },
   { href: "/examens/preinscriptions", icone: Phone, titre: "Pré-inscriptions", desc: "Réservations par téléphone, en attente de paiement." },
@@ -104,7 +104,7 @@ export default async function HubExamen() {
       <section className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
         <Kpi icone={CheckCircle2} valeur={k.ventesMois} label="Ventes ce mois" ton="bg-emerald-100 text-emerald-700" />
         <Kpi icone={Banknote} valeur={eur(k.caMois)} label="CA examen ce mois" ton="bg-emerald-100 text-emerald-700" />
-        <Kpi icone={CalendarDays} valeur={k.examensSemaine} label="Examens sous 7 jours" href="/examens" ton="bg-mystory-clair text-mystory-fonce" />
+        <Kpi icone={CalendarDays} valeur={k.examensSemaine} label="Examens sous 7 jours" href="/examens/sessions" ton="bg-mystory-clair text-mystory-fonce" />
         <Kpi icone={Send} valeur={k.aConvoquer} label="À convoquer" href="/examens/candidats" ton="bg-amber-100 text-amber-700" />
         <Kpi icone={Phone} valeur={k.preinscriptions} label="Pré-inscriptions en attente" href="/examens/preinscriptions" ton="bg-amber-100 text-amber-700" />
         <Kpi icone={Hourglass} valeur={k.listeAttente} label="Liste d'attente" href="/examens/liste-attente" ton="bg-mystory-clair text-mystory-fonce" />

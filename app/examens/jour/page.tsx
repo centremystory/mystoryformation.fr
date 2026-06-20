@@ -131,7 +131,7 @@ export default function PageJourJ() {
                   className="px-4 py-2 rounded-lg text-sm text-white bg-mystory disabled:opacity-50">
             {busy === "envoi" ? "Envoi…" : "📧 Envoyer tous les résultats"}
           </button>
-          <Link href="/examens" className="px-4 py-2 rounded-lg text-sm border border-gray-300 bg-white text-gray-700">← Sessions</Link>
+          <Link href="/examens/sessions" className="px-4 py-2 rounded-lg text-sm border border-gray-300 bg-white text-gray-700">← Sessions</Link>
         </div>
       </div>
 

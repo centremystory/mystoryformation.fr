@@ -129,7 +129,7 @@ export default function PageCorrections() {
           <h1 className="page-title">Corrections tracées</h1>
           <p className="text-sm text-gray-500">Chaque correction est inscrite au registre immuable · documents regénérés « (corrigée) »</p>
         </div>
-        <Link href="/examens" className="px-4 py-2 rounded-lg text-sm border border-gray-300 bg-white text-gray-700">← Sessions</Link>
+        <Link href="/examens/sessions" className="px-4 py-2 rounded-lg text-sm border border-gray-300 bg-white text-gray-700">← Sessions</Link>
       </div>
 
       <div className="flex gap-2 mb-5">
