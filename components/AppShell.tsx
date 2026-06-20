@@ -11,7 +11,7 @@ import {
   ClipboardList, Users, Plane, CalendarRange, Clock, Settings, Receipt, CheckCircle2,
   FileSpreadsheet, UserCog, MessageSquare, Eye, HelpCircle, KeyRound, AlertTriangle,
   Workflow, ScrollText, LogOut, Menu, X, ChevronDown,
-  Plus, FileCheck, RotateCcw, Trophy, } from "lucide-react";
+  Plus, FileCheck, RotateCcw, Trophy, UserPlus, Phone, } from "lucide-react";
 import { peutVoirPage, ROLE_LABEL } from "@/lib/roles";
 import { SITES, COOKIE_SITE, siteValide } from "@/lib/sites";
 
@@ -80,6 +80,14 @@ const NAV: Entree[] = [
 const TOUS_HREFS: string[] = NAV.flatMap((e) => (e.type === "link" ? [e.href] : e.items.map((i) => i.href)));
 
 /** Sous-pages regroupées sous une entrée de menu (pour le surlignage du menu). */
+const ACTIONS_RAPIDES: { href: string; label: string; icone: LucideIcon }[] = [
+  { href: "/examens/vente-groupe", label: "Inscrire un candidat", icone: UserPlus },
+  { href: "/inscriptions/nouvelle", label: "Inscrire un stagiaire", icone: GraduationCap },
+  { href: "/examens/preinscriptions", label: "Pré-inscription (téléphone)", icone: Phone },
+  { href: "/emargement", label: "Émarger", icone: ClipboardCheck },
+  { href: "/factures", label: "Encaisser / Factures", icone: Receipt },
+];
+
 const ALIAS_EXAMEN: Record<string, string> = {
   "/examens/vente": "/examens/vente-groupe",
   "/examens/preinscriptions": "/examens/vente-groupe",
@@ -131,6 +139,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [drawer, setDrawer] = useState(false);
   const [ouverts, setOuverts] = useState<string[]>([]);
   const [recherche, setRecherche] = useState("");
+  const [actionsOuvert, setActionsOuvert] = useState(false);
 
   useEffect(() => {
     let vivant = true;
@@ -146,6 +155,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const navVisible = useMemo(() => NAV
     .map((e) => (e.type === "menu" ? { ...e, items: e.items.filter((i) => peutVoirPage(role, i.href)) } : e))
     .filter((e) => (e.type === "link" ? peutVoirPage(role, e.href) : e.items.length > 0)), [role]);
+
+  const actionsRapides = useMemo(() => ACTIONS_RAPIDES.filter((a) => peutVoirPage(role, a.href)), [role]);
 
   // Ouvre automatiquement le groupe contenant la page active.
   useEffect(() => {
@@ -280,6 +291,30 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </button>
           <h1 className="text-base font-semibold tracking-tight text-gray-900">{titreDe(pathname)}</h1>
           <div className="ml-auto flex items-center gap-2">
+            {actionsRapides.length > 0 && (
+              <div className="relative">
+                <button onClick={() => setActionsOuvert((o) => !o)} aria-label="Actions rapides"
+                  className="flex items-center gap-1 rounded-lg bg-mystory px-2.5 py-1.5 text-sm font-medium text-white transition hover:bg-mystory-fonce focus-visible:ring-2 focus-visible:ring-mystory/30">
+                  <Plus size={16} /> <span className="hidden sm:inline">Nouveau</span>
+                </button>
+                {actionsOuvert && (
+                  <>
+                    <div className="fixed inset-0 z-30" onClick={() => setActionsOuvert(false)} />
+                    <div className="absolute right-0 top-full z-40 mt-1 w-60 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-pop">
+                      {actionsRapides.map((a) => {
+                        const Ic = a.icone;
+                        return (
+                          <Link key={a.href} href={a.href} onClick={() => setActionsOuvert(false)}
+                            className="flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-mystory-clair hover:text-mystory-fonce">
+                            <Ic size={16} className="text-mystory" /> {a.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
             <form onSubmit={lancerRecherche} className="hidden sm:block">
               <div className="relative">
                 <Search size={16} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
