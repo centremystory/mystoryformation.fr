@@ -40,7 +40,9 @@
     - ✅ **B3 — kiosque enrichi** : civilité, niveau visé, **adresse/cp/ville** (parité dossier avec l'ancien QCM ; pont `mystory_creer_stagiaire_dossier` étendu).
     - ✅ **B4 — bascule activée** : `next.config` redirige `/qcm` et `/qcm.html` → `/test/kiosque` (temporaire, **réversible** : retirer les redirects + restaurer le rewrite). `qcm.html` conservé physiquement ; ancien système `positionnements` consultable. **Unification B terminée.**
 
-**Reste P2 :** PL1 (planning grille jour×heures), T1/RH1 (module tâches + rapport hebdo, dépend des comptes individuels), guide techniques de vente, EV2 (satisfaction à chaud + évals plus complètes), satisfaction par fin de cours, B1 (émargement figé demi-journée → décision conformité).
+**Reste P2 :** B1 (émargement heures réelles — DÉCISION PRISE, à coder), A8 (tâches par agence sur l'accueil), PL1 (planning grille jour×heures), guide techniques de vente, EV2 (satisfaction à chaud + évals plus complètes), satisfaction par fin de cours.
+
+**Module tâches + rapport hebdo — FAIT :** tâches (table `taches` : agence, assignee, échéance) + **temps passé** saisi à la clôture (`temps_minutes`). **Rapport hebdomadaire** (table `rapports_hebdo`) remplace le pointage : chacun note activité+durée par semaine ; les tâches clôturées de la semaine s'y collent automatiquement (jointes en lecture) ; Direction/Manager consultent via `?employe=`. Onglet « Pointage » → « Rapport hebdo ». Présence = relevé de connexion (DIR1 à venir). **B1 tranché : heures réelles, défaut créneau standard 3h (9h30–12h30 / 14h–17h) modifiable, total dossier = somme des durées réelles.**
 
 **Contrat de confidentialité — FAIT :** tous postes (salariés + formateurs), signature électronique 1 signataire (le membre), annexe périmètre calculée depuis les rôles (union). Table `contrats_confidentialite` ; `lib/confidentialiteDoc` ; `createConfidentialiteSubmission` (external_id `confid:<id>`) ; webhook archive le PDF signé (bucket `documents`) ; page `/confidentialite` (RH, direction/manager), e-mail à la volée pour les personnes sans compte.
 
@@ -73,7 +75,7 @@
 
 ## ✅ TÂCHES (nouveau module)
 
-- **T1 — Module tâches** 🔴 **P2** : attribution par le directeur / responsable, **par agence et par personne** ; à la clôture, la personne **coche** + saisit le **temps passé** ; les tâches d'agence réalisées **se collent automatiquement** au rapport hebdomadaire (voir RH).
+- **T1 — Module tâches** ✅ **FAIT** (ex-🔴 P2) : attribution par le directeur / responsable, **par agence et par personne** ; à la clôture, la personne **coche** + saisit le **temps passé** ; les tâches d'agence réalisées **se collent automatiquement** au rapport hebdomadaire (voir RH).
 
 ## 📝 TEST INITIAL (positionnement à distance)
 
@@ -129,7 +131,7 @@
 
 ## 🕒 RH — POINTAGE → RAPPORT HEBDOMADAIRE
 
-- **RH1 — Rapport hebdomadaire** 🔴 **P2** : transformer le pointage en rapport hebdo où chacun note ce qu'il fait + la durée ; les tâches d'agence réalisées (T1) s'y collent automatiquement.
+- **RH1 — Rapport hebdomadaire** ✅ **FAIT** (ex-🔴 P2) : transformer le pointage en rapport hebdo où chacun note ce qu'il fait + la durée ; les tâches d'agence réalisées (T1) s'y collent automatiquement.
 - **RH2 — Planning équipe enrichi** 🟡 **P3** : voir les changements (congés), poser des questions à quelqu'un.
 
 ## 🛡️ DIRECTION
