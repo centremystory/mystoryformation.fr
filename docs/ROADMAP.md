@@ -18,7 +18,12 @@
 - SD1 — test initial (positionnement) & test final (niveau atteint) visibles au dossier.
 - EJ1 — émargement du jour : recherche d'élèves + walk-in multi-sélection.
 
-**Prochaines étapes : P2**, et les **bugs B1/B2/B3** (à arbitrer).
+**Bugs/confusions :**
+- ✅ **B2 — Planning / Calendrier fusionnés** : un seul onglet « Planning », bascule vue liste ↔ vue calendrier.
+- ✅ **B3 — Espace pédagogique par module** : `/contenu-pedagogique` organise désormais cours / exercices / corrections **par module** (champ module + affichage groupé) ; lien vers le Séquençage pour la structure.
+- ⏳ **B1 — émargement heures figées** : décision de conformité à prendre (heures réelles variables vs demi-journée).
+
+**Prochaines étapes : P2** (au fur et à mesure).
 
 ---
 
