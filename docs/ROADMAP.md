@@ -40,7 +40,9 @@
     - ✅ **B3 — kiosque enrichi** : civilité, niveau visé, **adresse/cp/ville** (parité dossier avec l'ancien QCM ; pont `mystory_creer_stagiaire_dossier` étendu).
     - ✅ **B4 — bascule activée** : `next.config` redirige `/qcm` et `/qcm.html` → `/test/kiosque` (temporaire, **réversible** : retirer les redirects + restaurer le rewrite). `qcm.html` conservé physiquement ; ancien système `positionnements` consultable. **Unification B terminée.**
 
-**Reste P2 :** FS1 (contrat confidentialité — formateurs, commerciaux & tous postes), PL1 (planning grille jour×heures), T1/RH1 (module tâches + rapport hebdo, dépend des comptes individuels), guide techniques de vente, EV2 (satisfaction à chaud + évals plus complètes), satisfaction par fin de cours, B1 (émargement figé demi-journée → décision conformité).
+**Reste P2 :** PL1 (planning grille jour×heures), T1/RH1 (module tâches + rapport hebdo, dépend des comptes individuels), guide techniques de vente, EV2 (satisfaction à chaud + évals plus complètes), satisfaction par fin de cours, B1 (émargement figé demi-journée → décision conformité).
+
+**Contrat de confidentialité — FAIT :** tous postes (salariés + formateurs), signature électronique 1 signataire (le membre), annexe périmètre calculée depuis les rôles (union). Table `contrats_confidentialite` ; `lib/confidentialiteDoc` ; `createConfidentialiteSubmission` (external_id `confid:<id>`) ; webhook archive le PDF signé (bucket `documents`) ; page `/confidentialite` (RH, direction/manager), e-mail à la volée pour les personnes sans compte.
 
 **Multi-rôles (polyvalence) — FAIT :** une personne peut cumuler plusieurs rôles. `utilisateurs.roles[]` (role conservé = roles[0]) ; helpers `lib/roles` acceptent rôle OU liste (union) ; `lib/auth` session `roles[]` + `requireRole` intersection ; login JWT `roles[]` ; `/api/me` expose `roles`+`roles_labels` ; AppShell + middleware filtrent sur `roles` ; `/comptes` attribue via cases à cocher (création + modif). Filet `staff` préservé. Le contrat de confidentialité lira ces rôles pour le périmètre.
 
