@@ -40,7 +40,9 @@
     - ✅ **B3 — kiosque enrichi** : civilité, niveau visé, **adresse/cp/ville** (parité dossier avec l'ancien QCM ; pont `mystory_creer_stagiaire_dossier` étendu).
     - ✅ **B4 — bascule activée** : `next.config` redirige `/qcm` et `/qcm.html` → `/test/kiosque` (temporaire, **réversible** : retirer les redirects + restaurer le rewrite). `qcm.html` conservé physiquement ; ancien système `positionnements` consultable. **Unification B terminée.**
 
-**Reste P2 :** TI1/TI2/TI3 (test initial à distance + QR + kiosque), SD2/EV2 (analyse de besoin signée + évals complètes), FS1 (contrat confidentialité formateurs), PL1 (planning grille jour×heures), T1/RH1 (tâches + rapport hebdo, dépend des comptes individuels), relation/guide de vente.
+**Reste P2 :** FS1 (contrat confidentialité — formateurs, commerciaux & tous postes), PL1 (planning grille jour×heures), T1/RH1 (module tâches + rapport hebdo, dépend des comptes individuels), guide techniques de vente.
+
+**Fait P2 (avancement) :** TI (tests évolutifs) complet + unification QCM prospect (B1-B4). SD2/EV2 — **Fiche d'analyse de besoin signée FAITE** (champ disponibilités + signature DocuSeal stagiaire + centre `contact@`, archivage auto via webhook branche `fiche_besoin:`). À noter conformité : **délai satisfaction à froid à trancher (2 mois selon Arudhan vs 3 mois cadre/workflow n8n)**.
 
 ---
 
@@ -78,7 +80,7 @@
 ## 📂 SUIVI DES DOSSIERS
 
 - **SD1 — Test initial & final visibles** 🟡 **P1** : afficher les tests enregistrés dans le dossier (conformité).
-- **SD2 — Fiche d'analyse de besoin signée** 🟡 **P2** : signature stagiaire + centre (signature électronique).
+- **SD2 — Fiche d'analyse de besoin signée** ✅ **FAIT** : champ disponibilités + génération + signature DocuSeal stagiaire + centre (`contact@`), à distance ou sur place ; webhook archive la fiche signée. Reste possible : étoffer l'éval initiale/finale (EV2).
 - **SD3 — Émargement consolidé** 🔴 **P2** : entrée/sortie libre → chaque élève signe seul à sa venue, et **ça s'affecte directement au dossier** ; la feuille regroupe toutes ses signatures.
 - **SD4 — Satisfaction à froid : date d'envoi** 🟢 **P1** : afficher la date d'envoi du questionnaire à froid.
 - **SD5 — Attestation + certificat auto** 🟡 **P1** : génération automatique en fin de formation + **envoi mail auto** (⚠️ le certificat de réalisation déclenche le paiement CDC — garde-fous).
