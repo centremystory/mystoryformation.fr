@@ -164,9 +164,38 @@ async function examenSemaine(site: SiteFiltre) {
   } catch { return zero; }
 }
 
+/** Top vendeurs et top agences du mois (CA) pour le widget d'accueil — Direction/Manager. */
+async function classementAccueil() {
+  const vide = { vendeurs: [] as { nom: string; ca: number }[], agences: [] as { nom: string; ca: number }[] };
+  try {
+    const d = new Date();
+    const depuis = new Date(d.getFullYear(), d.getMonth(), 1).toISOString();
+    const { data: exAll } = await supabaseAdmin
+      .from("ventes_examen").select("vendu_par, montant, agence, statut_paiement, created_at").gte("created_at", depuis);
+    const ex = (exAll ?? []).filter((r: any) => !["Annulé", "Remboursé"].includes(r.statut_paiement));
+    const { data: foAll } = await supabaseAdmin
+      .from("dossiers").select("vendu_par, montant, statut, created_at, stagiaires:stagiaire_id(agence)").gte("created_at", depuis);
+    const fo = (foAll ?? []).filter((r: any) => !["annule", "archive", "annulé", "archivé"].includes(String(r.statut ?? "").toLowerCase()));
+
+    const vMap = new Map<string, { nom: string; ca: number }>();
+    const aMap = new Map<string, { nom: string; ca: number }>();
+    const add = (m: Map<string, { nom: string; ca: number }>, cle: string | null | undefined, montant: number | null) => {
+      const nom = (cle ?? "").trim() || "(non attribué)";
+      const cur = m.get(nom.toLowerCase()) ?? { nom, ca: 0 };
+      cur.ca += Number(montant ?? 0);
+      m.set(nom.toLowerCase(), cur);
+    };
+    const agence = (r: any): string | null | undefined => Array.isArray(r.stagiaires) ? r.stagiaires[0]?.agence : r.stagiaires?.agence;
+    ex.forEach((r: any) => { add(vMap, r.vendu_par, r.montant); add(aMap, r.agence, r.montant); });
+    fo.forEach((r: any) => { add(vMap, r.vendu_par, r.montant); add(aMap, agence(r), r.montant); });
+    const top = (m: Map<string, { nom: string; ca: number }>) => [...m.values()].sort((a, b) => b.ca - a.ca).slice(0, 3);
+    return { vendeurs: top(vMap), agences: top(aMap) };
+  } catch { return vide; }
+}
+
 export default async function Accueil() {
   const site = siteValide(cookies().get(COOKIE_SITE)?.value);
-  const [c, t, cf, ex] = await Promise.all([compter(site), aTraiter(site), conformiteFormateurs(), examenSemaine(site)]);
+  const [c, t, cf, ex, cl] = await Promise.all([compter(site), aTraiter(site), conformiteFormateurs(), examenSemaine(site), classementAccueil()]);
 
   // Rôle de la session (filtrage du périmètre — défense en profondeur, en plus du middleware).
   const h = headers();
@@ -235,6 +264,35 @@ export default async function Accueil() {
           <Kpi libelle="Liens de paiement en attente" valeur={String(ex.liens)} accent={ex.liens > 0 ? "ambre" : undefined} href="/examens/preinscriptions" />
         </div>
       </div>
+
+      {(role === "direction" || role === "manager") && (
+        <div className="mb-8">
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-gray-700">Classement du mois</h2>
+            <Link href="/classement" className="text-xs text-mystory underline">Voir tout</Link>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="card">
+              <p className="mb-2 text-xs font-semibold text-gray-500">Top vendeurs</p>
+              {cl.vendeurs.length === 0 ? <p className="text-sm text-gray-400">—</p> : cl.vendeurs.map((v, i) => (
+                <div key={v.nom} className="flex justify-between py-0.5 text-sm">
+                  <span>{["🥇", "🥈", "🥉"][i] ?? ""} {v.nom}</span>
+                  <span className="font-medium text-gray-900">{Math.round(v.ca)} €</span>
+                </div>
+              ))}
+            </div>
+            <div className="card">
+              <p className="mb-2 text-xs font-semibold text-gray-500">Top agences</p>
+              {cl.agences.length === 0 ? <p className="text-sm text-gray-400">—</p> : cl.agences.map((a, i) => (
+                <div key={a.nom} className="flex justify-between py-0.5 text-sm">
+                  <span>{["🥇", "🥈", "🥉"][i] ?? ""} {a.nom}</span>
+                  <span className="font-medium text-gray-900">{Math.round(a.ca)} €</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* À traiter */}
       <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">À traiter</p>
