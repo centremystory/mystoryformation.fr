@@ -23,7 +23,11 @@
 - ✅ **B3 — Espace pédagogique par module** : `/contenu-pedagogique` organise désormais cours / exercices / corrections **par module** (champ module + affichage groupé) ; lien vers le Séquençage pour la structure.
 - ⏳ **B1 — émargement heures figées** : décision de conformité à prendre (heures réelles variables vs demi-journée).
 
-**Prochaines étapes : P2** (au fur et à mesure).
+**P2 — en cours (livré au fur et à mesure) :**
+- ✅ **A6/A7 — accueil complété** : section « Examen — cette semaine » (places libres TEF IRN & civique des sessions de la semaine + liens de paiement en attente) ; widget « Classement du mois » (top vendeurs + top agences, Direction/Manager).
+- ✅ **SE1/SE2 — suivi des élèves cours par cours** : table `suivi_cours` + API `/api/suivi-cours` + section « Suivi pédagogique — cours par cours » dans `/suivi-eleves` (contenu fait, points forts/faibles, satisfaction de fin de cours, archivage).
+
+**Reste P2 :** TI1/TI2/TI3 (test initial à distance + QR + kiosque), SD2/EV2 (analyse de besoin signée + évals complètes), FS1 (contrat confidentialité formateurs), PL1 (planning grille jour×heures), T1/RH1 (tâches + rapport hebdo, dépend des comptes individuels), relation/guide de vente.
 
 ---
 
