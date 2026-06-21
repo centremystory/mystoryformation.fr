@@ -40,7 +40,9 @@
     - ✅ **B3 — kiosque enrichi** : civilité, niveau visé, **adresse/cp/ville** (parité dossier avec l'ancien QCM ; pont `mystory_creer_stagiaire_dossier` étendu).
     - ✅ **B4 — bascule activée** : `next.config` redirige `/qcm` et `/qcm.html` → `/test/kiosque` (temporaire, **réversible** : retirer les redirects + restaurer le rewrite). `qcm.html` conservé physiquement ; ancien système `positionnements` consultable. **Unification B terminée.**
 
-**Reste P2 :** FS1 (contrat confidentialité — formateurs, commerciaux & tous postes), PL1 (planning grille jour×heures), T1/RH1 (module tâches + rapport hebdo, dépend des comptes individuels), guide techniques de vente.
+**Reste P2 :** FS1 (contrat confidentialité — formateurs, commerciaux & tous postes), PL1 (planning grille jour×heures), T1/RH1 (module tâches + rapport hebdo, dépend des comptes individuels), guide techniques de vente, EV2 (satisfaction à chaud + évals plus complètes), satisfaction par fin de cours, B1 (émargement figé demi-journée → décision conformité).
+
+**Multi-rôles (polyvalence) — FAIT :** une personne peut cumuler plusieurs rôles. `utilisateurs.roles[]` (role conservé = roles[0]) ; helpers `lib/roles` acceptent rôle OU liste (union) ; `lib/auth` session `roles[]` + `requireRole` intersection ; login JWT `roles[]` ; `/api/me` expose `roles`+`roles_labels` ; AppShell + middleware filtrent sur `roles` ; `/comptes` attribue via cases à cocher (création + modif). Filet `staff` préservé. Le contrat de confidentialité lira ces rôles pour le périmètre.
 
 **Fait P2 (avancement) :** TI (tests évolutifs) complet + unification QCM prospect (B1-B4). SD2/EV2 — **Fiche d'analyse de besoin signée FAITE** (champ disponibilités + signature DocuSeal stagiaire + centre `contact@`, archivage auto via webhook branche `fiche_besoin:`). Satisfaction à froid = **3 mois confirmé** (workflow n8n `AGyvOBXGtksJhHuD` déjà correct).
 
