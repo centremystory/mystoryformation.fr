@@ -29,6 +29,13 @@ type Jour = {
   date: string; demi: string; heures: number; heures_realisees: number | null;
   statut: string; motif: string | null; walk_in: boolean; contenu: string | null;
 };
+type Cours = {
+  id: string; numero_cours: number | null; date_cours: string | null;
+  contenu_fait: string | null; points_forts: string | null; points_faibles: string | null;
+  satisfaction: number | null; auteur: string | null; cree_le: string;
+};
+type FormCours = { numero: string; date: string; contenu: string; forts: string; faibles: string; satis: string };
+const F0: FormCours = { numero: "", date: "", contenu: "", forts: "", faibles: "", satis: "" };
 const DEMI_LBL: Record<string, string> = { matin: "Matin", apres_midi: "Après-midi" };
 const STATUT_JOUR: Record<string, { t: string; c: string }> = {
   present: { t: "✅ Présent", c: "bg-green-100 text-green-800" },
@@ -46,6 +53,13 @@ export default function PageSuiviEleves() {
   const [detail, setDetail] = useState<Record<string, Jour[]>>({});
   const [ouvert, setOuvert] = useState<Set<string>>(new Set());
   const [chargeJours, setChargeJours] = useState<Set<string>>(new Set());
+  const [cours, setCours] = useState<Record<string, Cours[]>>({});
+  const [chargeCours, setChargeCours] = useState<Set<string>>(new Set());
+  const [form, setForm] = useState<Record<string, FormCours>>({});
+  const [envoi, setEnvoi] = useState<Set<string>>(new Set());
+  const [erreurForm, setErreurForm] = useState<Record<string, string | null>>({});
+  const getForm = (id: string) => form[id] ?? F0;
+  const setF = (id: string, patch: Partial<FormCours>) => setForm((f) => ({ ...f, [id]: { ...(f[id] ?? F0), ...patch } }));
 
   async function basculerJours(dossierId: string) {
     setOuvert((prev) => {
@@ -62,6 +76,46 @@ export default function PageSuiviEleves() {
       } catch { /* silencieux : le bouton reste utilisable */ }
       finally { setChargeJours((p) => { const n = new Set(p); n.delete(dossierId); return n; }); }
     }
+    if (!cours[dossierId]) {
+      setChargeCours((p) => new Set(p).add(dossierId));
+      try {
+        const r = await fetch(`/api/suivi-cours?dossier=${encodeURIComponent(dossierId)}`, { cache: "no-store" });
+        const j = await r.json();
+        if (j.ok) setCours((c) => ({ ...c, [dossierId]: j.cours }));
+      } catch { /* silencieux */ }
+      finally { setChargeCours((p) => { const n = new Set(p); n.delete(dossierId); return n; }); }
+    }
+  }
+
+  async function ajouterCours(dossierId: string) {
+    const f = getForm(dossierId);
+    setErreurForm((e) => ({ ...e, [dossierId]: null }));
+    setEnvoi((p) => new Set(p).add(dossierId));
+    try {
+      const r = await fetch("/api/suivi-cours", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          dossier_id: dossierId,
+          numero_cours: f.numero || null, date_cours: f.date || null,
+          contenu_fait: f.contenu, points_forts: f.forts, points_faibles: f.faibles,
+          satisfaction: f.satis || null,
+        }),
+      });
+      const j = await r.json();
+      if (!j.ok) { setErreurForm((e) => ({ ...e, [dossierId]: j.erreur || "Erreur." })); return; }
+      setCours((c) => ({ ...c, [dossierId]: [...(c[dossierId] ?? []), j.entree] }));
+      setForm((ff) => ({ ...ff, [dossierId]: F0 }));
+    } catch { setErreurForm((e) => ({ ...e, [dossierId]: "Erreur réseau." })); }
+    finally { setEnvoi((p) => { const n = new Set(p); n.delete(dossierId); return n; }); }
+  }
+
+  async function archiverCours(dossierId: string, id: string) {
+    if (!confirm("Archiver cette entrée de suivi ?")) return;
+    try {
+      const r = await fetch("/api/suivi-cours", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+      const j = await r.json();
+      if (j.ok) setCours((c) => ({ ...c, [dossierId]: (c[dossierId] ?? []).filter((x) => x.id !== id) }));
+    } catch { /* silencieux */ }
   }
 
   const charger = useCallback(async () => {
@@ -181,6 +235,57 @@ export default function PageSuiviEleves() {
                         </tbody>
                       </table>
                     )}
+                  </div>
+                )}
+
+                {ouvert.has(e.dossier_id) && (
+                  <div className="mt-3 border-t border-gray-100 pt-3">
+                    <p className="mb-2 text-xs font-semibold text-gray-600">Suivi pédagogique — cours par cours</p>
+                    {chargeCours.has(e.dossier_id) && !cours[e.dossier_id] ? (
+                      <p className="text-xs text-gray-400">Chargement…</p>
+                    ) : (cours[e.dossier_id]?.length ?? 0) === 0 ? (
+                      <p className="mb-2 text-xs text-gray-400">Aucune entrée de suivi pour le moment.</p>
+                    ) : (
+                      <ul className="mb-3 space-y-2">
+                        {cours[e.dossier_id].map((co) => (
+                          <li key={co.id} className="rounded-lg bg-gray-50 p-2 text-xs">
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium text-gray-700">
+                                {co.numero_cours != null ? `Cours ${co.numero_cours}` : "Cours"}{co.date_cours ? ` · ${dateCourteFr(co.date_cours)}` : ""}
+                                {co.satisfaction != null && <span className="ml-1 text-amber-600">{"★".repeat(co.satisfaction)}{"☆".repeat(5 - co.satisfaction)}</span>}
+                              </span>
+                              <button onClick={() => archiverCours(e.dossier_id, co.id)} className="text-gray-400 hover:text-red-600">Archiver</button>
+                            </div>
+                            {co.contenu_fait && <p className="mt-1 text-gray-600"><span className="text-gray-400">Fait : </span>{co.contenu_fait}</p>}
+                            {co.points_forts && <p className="text-emerald-700"><span className="text-gray-400">Points forts : </span>{co.points_forts}</p>}
+                            {co.points_faibles && <p className="text-amber-700"><span className="text-gray-400">À renforcer : </span>{co.points_faibles}</p>}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <div className="rounded-lg border border-gray-200 p-2">
+                      <div className="mb-2 flex flex-wrap gap-2">
+                        <input type="number" min={1} value={getForm(e.dossier_id).numero} onChange={(ev) => setF(e.dossier_id, { numero: ev.target.value })} placeholder="N° cours" className="input w-24 bg-white !py-1 text-xs" />
+                        <input type="date" value={getForm(e.dossier_id).date} onChange={(ev) => setF(e.dossier_id, { date: ev.target.value })} className="input w-40 bg-white !py-1 text-xs" />
+                        <select value={getForm(e.dossier_id).satis} onChange={(ev) => setF(e.dossier_id, { satis: ev.target.value })} className="input w-44 bg-white !py-1 text-xs">
+                          <option value="">Satisfaction (fin de cours)…</option>
+                          <option value="5">★★★★★ Très satisfait</option>
+                          <option value="4">★★★★ Satisfait</option>
+                          <option value="3">★★★ Moyen</option>
+                          <option value="2">★★ Peu satisfait</option>
+                          <option value="1">★ Insatisfait</option>
+                        </select>
+                      </div>
+                      <textarea value={getForm(e.dossier_id).contenu} onChange={(ev) => setF(e.dossier_id, { contenu: ev.target.value })} placeholder="Contenu travaillé pendant le cours…" rows={2} className="input mb-2 w-full bg-white !py-1 text-xs" />
+                      <div className="mb-2 flex flex-wrap gap-2">
+                        <textarea value={getForm(e.dossier_id).forts} onChange={(ev) => setF(e.dossier_id, { forts: ev.target.value })} placeholder="Points forts" rows={2} className="input min-w-[140px] flex-1 bg-white !py-1 text-xs" />
+                        <textarea value={getForm(e.dossier_id).faibles} onChange={(ev) => setF(e.dossier_id, { faibles: ev.target.value })} placeholder="Points à renforcer" rows={2} className="input min-w-[140px] flex-1 bg-white !py-1 text-xs" />
+                      </div>
+                      {erreurForm[e.dossier_id] && <p className="mb-1 text-xs text-red-600">{erreurForm[e.dossier_id]}</p>}
+                      <button onClick={() => ajouterCours(e.dossier_id)} disabled={envoi.has(e.dossier_id)} className="btn-primary !py-1 !text-xs">
+                        {envoi.has(e.dossier_id) ? "Ajout…" : "Ajouter l'entrée"}
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
