@@ -154,9 +154,9 @@ export async function POST(req: NextRequest) {
   });
   if (!carence.ok) {
     // Blocage dur — sauf override Direction explicite avec motif (journalisé).
-    if (carenceForcer && estDirection(u.role) && carenceMotif) {
+    if (carenceForcer && estDirection(u.roles ?? u.role) && carenceMotif) {
       await journal("ventes_examen", candidatId, "carence_forcee", { motif: carenceMotif, recap: carence.recap }, u.email ?? venduPar);
-    } else if (carenceForcer && !estDirection(u.role)) {
+    } else if (carenceForcer && !estDirection(u.roles ?? u.role)) {
       return NextResponse.json({ ok: false, status: "gate_ko", recap: [...carence.recap, "Seule la Direction peut forcer une inscription en carence."] }, { status: 409 });
     } else if (carenceForcer && !carenceMotif) {
       return NextResponse.json({ ok: false, status: "gate_ko", recap: [...carence.recap, "Motif obligatoire pour forcer l'inscription malgré la carence."] }, { status: 409 });

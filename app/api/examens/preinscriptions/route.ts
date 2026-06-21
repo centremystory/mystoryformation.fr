@@ -216,10 +216,10 @@ export async function PATCH(req: NextRequest) {
     if (!car.ok) blocages.push(...car.recap);
     let carenceAppliquee = false;
     if (blocages.length) {
-      if (carenceForcer && estDirection(u.role) && carenceMotif) {
+      if (carenceForcer && estDirection(u.roles ?? u.role) && carenceMotif) {
         carenceAppliquee = true;
         await journal("preinscriptions_examen", id, "carence_forcee", { motif: carenceMotif, recap: blocages }, u.email ?? null);
-      } else if (carenceForcer && !estDirection(u.role)) {
+      } else if (carenceForcer && !estDirection(u.roles ?? u.role)) {
         return NextResponse.json({ ok: false, recap: [...blocages, "Seule la Direction peut forcer une carence."] }, { status: 409 });
       } else {
         return NextResponse.json({ ok: false, recap: blocages }, { status: 409 });

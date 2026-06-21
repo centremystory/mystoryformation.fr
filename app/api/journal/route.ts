@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
     throw e;
   }
-  if (!peut(u.role, "comptes_gerer")) return NextResponse.json({ ok: false, erreur: "Réservé à la Direction." }, { status: 403 });
+  if (!peut(u.roles ?? u.role, "comptes_gerer")) return NextResponse.json({ ok: false, erreur: "Réservé à la Direction." }, { status: 403 });
 
   const sp = req.nextUrl.searchParams;
   const entite = sp.get("entite") ?? "";

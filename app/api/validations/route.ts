@@ -27,7 +27,7 @@ async function garde(req: NextRequest): Promise<NextResponse | SessionUser> {
 
 export async function GET(req: NextRequest) {
   const g = await garde(req); if (g instanceof NextResponse) return g;
-  const tout = estDirection(g.role);
+  const tout = estDirection(g.roles ?? g.role);
   const statut = req.nextUrl.searchParams.get("statut");
 
   let q = supabaseAdmin
@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   const g = await garde(req); if (g instanceof NextResponse) return g;
-  if (!estDirection(g.role))
+  if (!estDirection(g.roles ?? g.role))
     return NextResponse.json({ ok: false, erreur: "Validation réservée à la Direction." }, { status: 403 });
 
   let body: any;

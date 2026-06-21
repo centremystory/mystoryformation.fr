@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
   };
 
   // Saisie par un non-Direction → file « Validation Direction » (point 26) ; rien n'est inséré avant approbation.
-  if (!estDirection(u?.role)) {
+  if (!estDirection(u?.roles ?? u?.role)) {
     const { id } = await demanderValidation({
       type: "sous_traitance",
       libelle: `Sous-traitance ${sens === "recue" ? "reçue" : "confiée"} — ${prestataire}, ${montant.toLocaleString("fr-FR")} € (${annee})`,

@@ -39,15 +39,24 @@ export const PERMISSIONS: Record<ActionSensible, { label: string; roles: Role[] 
  * (session équipe "staff", ou token de service sans rôle = n8n/cron) passent.
  * Sert à la « Validation Direction » (point 26).
  */
-export function estDirection(role: string | undefined | null): boolean {
-  return !role || role === "staff" || role === "direction";
+/** Normalise un rôle unique OU une liste de rôles en tableau (multi-rôles / polyvalence). */
+export function asRoles(role: string | string[] | undefined | null): string[] {
+  if (!role) return [];
+  return (Array.isArray(role) ? role : [role]).filter(Boolean) as string[];
+}
+
+export function estDirection(role: string | string[] | undefined | null): boolean {
+  const rs = asRoles(role);
+  return rs.length === 0 || rs.includes("staff") || rs.includes("direction");
 }
 
 /** Le rôle peut-il réaliser l'action sensible ? La session équipe ("staff") garde l'accès complet. */
-export function peut(role: string | undefined | null, action: ActionSensible): boolean {
-  if (role === "staff") return true; // session équipe historique (transition)
-  if (!role) return false;
-  return PERMISSIONS[action].roles.includes(role as Role);
+export function peut(role: string | string[] | undefined | null, action: ActionSensible): boolean {
+  const rs = asRoles(role);
+  if (rs.includes("staff")) return true; // session équipe historique (transition)
+  if (rs.length === 0) return false;
+  // Multi-rôles : autorisé si AU MOINS UN rôle porte l'action (union des droits).
+  return rs.some((r) => PERMISSIONS[action].roles.includes(r as Role));
 }
 
 /**
@@ -57,8 +66,9 @@ export function peut(role: string | undefined | null, action: ActionSensible): b
  * l'exemption en rejouant un cookie de session humain en en-tête Bearer.
  */
 const ROLES_MATRICE = new Set<string>([...ROLES, "staff"]);
-export function estAutomate(role: string | undefined | null): boolean {
-  return !!role && !ROLES_MATRICE.has(role);
+export function estAutomate(role: string | string[] | undefined | null): boolean {
+  const rs = asRoles(role);
+  return rs.length > 0 && rs.every((r) => !ROLES_MATRICE.has(r));
 }
 
 /**
@@ -66,10 +76,11 @@ export function estAutomate(role: string | undefined | null): boolean {
  * Passe si : sans rôle (filet équipe partagée) · "staff" · automate de confiance · rôle autorisé.
  * Ne bloque qu'un humain identifié dont le rôle n'a pas l'action.
  */
-export function peutAgir(role: string | undefined | null, action: ActionSensible): boolean {
-  if (!role || role === "staff") return true;
-  if (estAutomate(role)) return true;
-  return peut(role, action);
+export function peutAgir(role: string | string[] | undefined | null, action: ActionSensible): boolean {
+  const rs = asRoles(role);
+  if (rs.length === 0 || rs.includes("staff")) return true;
+  if (estAutomate(rs)) return true;
+  return peut(rs, action);
 }
 
 /**
@@ -119,13 +130,15 @@ export const PAGE_PERMISSIONS: Record<string, Role[]> = {
 };
 
 /** Le rôle peut-il accéder à cette page ? "staff"/sans-rôle = oui (transition). Non listé = oui. */
-export function peutVoirPage(role: string | undefined | null, pathname: string): boolean {
-  if (!role || role === "staff") return true; // filet de transition
+export function peutVoirPage(role: string | string[] | undefined | null, pathname: string): boolean {
+  const rs = asRoles(role);
+  if (rs.length === 0 || rs.includes("staff")) return true; // filet de transition
   // Préfixe le plus spécifique d'abord (ex. /dossiers/conformite avant /dossiers).
   const cles = Object.keys(PAGE_PERMISSIONS).sort((a, b) => b.length - a.length);
   for (const cle of cles) {
     if (pathname === cle || pathname.startsWith(cle + "/")) {
-      return PAGE_PERMISSIONS[cle].includes(role as Role);
+      // Multi-rôles : accès si AU MOINS UN rôle est autorisé sur la page.
+      return rs.some((r) => PAGE_PERMISSIONS[cle].includes(r as Role));
     }
   }
   return true; // page non restreinte

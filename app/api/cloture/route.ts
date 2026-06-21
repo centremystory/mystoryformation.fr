@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
     if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
     throw e;
   }
-  if (u.role && !peut(u.role, "evaluation_finale")) {
+  if (u.role && !peut(u.roles ?? u.role, "evaluation_finale")) {
     return NextResponse.json({ ok: false, erreur: "Clôture réservée à la Pédagogie, aux Formatrices et à la Direction." }, { status: 403 });
   }
 

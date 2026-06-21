@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     throw e;
   }
   // Restriction : envoi en signature réservé Direction + Secrétariat (token de service sans rôle = n8n → passe).
-  if (!peutAgir(u.role, "conventions_envoyer")) {
+  if (!peutAgir(u.roles ?? u.role, "conventions_envoyer")) {
     return NextResponse.json({ error: "Action réservée à la Direction et au Secrétariat." }, { status: 403 });
   }
 

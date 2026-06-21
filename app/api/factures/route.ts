@@ -33,7 +33,7 @@ const refusFacturation = () => NextResponse.json(
 );
 /** Les tokens de service (n8n/cron, sans rôle) et la session équipe passent ; un rôle individuel non autorisé est bloqué. */
 function peutFacturer(u: SessionUser): boolean {
-  return !u.role || peut(u.role, "facturation");
+  return !u.role || peut(u.roles ?? u.role, "facturation");
 }
 
 export async function GET(req: NextRequest) {
@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
   // Validation Direction (point 26) : un rôle individuel NON-Direction n'émet pas directement
   // une facture HORS CPF — la demande passe en file (/validations) et n'est émise qu'à l'approbation.
   // Le CPF reste hors périmètre (facturation CDC séparée, déjà encadrée par la permission « facturation »).
-  if (!estDirection(g.role)) {
+  if (!estDirection(g.roles ?? g.role)) {
     const envoyer = body?.envoyer !== false;
     if (items) {
       const { id } = await demanderValidation({

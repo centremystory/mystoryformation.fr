@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
     throw e;
   }
-  if (u.role && !peut(u.role, "bpf_saisir")) return NextResponse.json({ ok: false, erreur: "Action réservée à la Direction." }, { status: 403 });
+  if (u.role && !peut(u.roles ?? u.role, "bpf_saisir")) return NextResponse.json({ ok: false, erreur: "Action réservée à la Direction." }, { status: 403 });
   const a = Number(req.nextUrl.searchParams.get("annee"));
   const annee = Number.isInteger(a) && a >= 2000 && a <= 2100 ? a : new Date().getFullYear() - 1;
   const format = (req.nextUrl.searchParams.get("format") || "csv").toLowerCase();

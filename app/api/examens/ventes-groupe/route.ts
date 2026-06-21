@@ -164,10 +164,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, status: "gate_ko", recap: [...blocagesDurs, ...blocages] }, { status: 409 });
   }
   if (blocages.length > 0) {
-    if (carenceForcer && estDirection(u.role) && carenceMotif) {
+    if (carenceForcer && estDirection(u.roles ?? u.role) && carenceMotif) {
       carenceAppliquee = true;
       await journal("ventes_examen", candidatId, "carence_forcee_groupe", { motif: carenceMotif, recap: blocages }, u.email ?? venduPar);
-    } else if (carenceForcer && !estDirection(u.role)) {
+    } else if (carenceForcer && !estDirection(u.roles ?? u.role)) {
       return NextResponse.json({ ok: false, status: "gate_ko", recap: [...blocages, "Seule la Direction peut forcer une inscription en carence."] }, { status: 409 });
     } else {
       return NextResponse.json({ ok: false, status: "gate_ko", recap: blocages }, { status: 409 });

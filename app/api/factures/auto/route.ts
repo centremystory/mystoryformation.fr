@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const g = await garde(req); if (g instanceof NextResponse) return g;
-  if (!peutAgir(g.role, "facturation")) {
+  if (!peutAgir(g.roles ?? g.role, "facturation")) {
     return NextResponse.json({ ok: false, erreur: "Action réservée à la Direction et au Secrétariat (facturation)." }, { status: 403 });
   }
   const auteur = "facturation-auto";

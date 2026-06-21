@@ -54,7 +54,7 @@ async function envoyerAcces(
 
 async function gardeDirection(req: NextRequest) {
   const u = await requireUser(req); // lève UnauthorizedError si pas de session
-  if (!peut(u.role, "comptes_gerer")) return { interdit: true as const, u };
+  if (!peut(u.roles ?? u.role, "comptes_gerer")) return { interdit: true as const, u };
   return { interdit: false as const, u };
 }
 

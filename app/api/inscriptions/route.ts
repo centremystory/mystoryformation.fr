@@ -158,7 +158,7 @@ export async function POST(req: NextRequest) {
 
   // Champs hors-RPC reportés sur le dossier (la RPC ne doit jamais être modifiée).
   // Remise hors CPF : appliquée directement par la Direction ; sinon → file « Validation Direction » (point 26).
-  const estDir = estDirection(u.role);
+  const estDir = estDirection(u.roles ?? u.role);
   const remiseAValider = remise > 0 && !estDir;
   const formatriceLibre = String(inscription.formatriceLibre ?? "").trim().slice(0, 200) || null;
   if (dossierId) {

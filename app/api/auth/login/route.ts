@@ -45,7 +45,7 @@ export async function POST(req: Request) {
   if (email) {
     const { data: u, error } = await supabaseAdmin
       .from("utilisateurs")
-      .select("id, nom, prenom, email, role, mot_de_passe_hash, actif, doit_changer_mdp")
+      .select("id, nom, prenom, email, role, roles, mot_de_passe_hash, actif, doit_changer_mdp")
       .ilike("email", email)
       .maybeSingle();
     if (error) return NextResponse.json({ erreur: "Erreur serveur." }, { status: 500 });
@@ -54,7 +54,8 @@ export async function POST(req: Request) {
     }
     await supabaseAdmin.from("utilisateurs").update({ derniere_connexion: new Date().toISOString() }).eq("id", u.id);
 
-    const jwt = await new SignJWT({ email: u.email, role: u.role, nom: `${u.prenom ?? ""} ${u.nom}`.trim() })
+    const rolesArr = (Array.isArray((u as any).roles) && (u as any).roles.length > 0) ? (u as any).roles as string[] : (u.role ? [u.role] : []);
+    const jwt = await new SignJWT({ email: u.email, role: rolesArr[0] ?? u.role, roles: rolesArr, nom: `${u.prenom ?? ""} ${u.nom}`.trim() })
       .setProtectedHeader({ alg: "HS256" })
       .setSubject(u.id)
       .setIssuedAt()

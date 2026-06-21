@@ -51,7 +51,7 @@ export async function middleware(req: NextRequest) {
   if (utilisateur) {
     // Gating par page selon le rôle. Pages uniquement : les API gardent leurs propres
     // contrôles peut(). Filet de transition : rôle "staff"/absent = accès complet.
-    if (!pathname.startsWith("/api/") && !peutVoirPage(utilisateur.role, pathname)) {
+    if (!pathname.startsWith("/api/") && !peutVoirPage(utilisateur.roles ?? utilisateur.role, pathname)) {
       const url = req.nextUrl.clone();
       url.pathname = "/acces-refuse";
       url.search = "";

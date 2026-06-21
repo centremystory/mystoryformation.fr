@@ -137,6 +137,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [role, setRole] = useState<string | null | undefined>(undefined);
+  const [roles, setRoles] = useState<string[] | undefined>(undefined);
   const [site, setSite] = useState<string>("");
   const [drawer, setDrawer] = useState(false);
   const [ouverts, setOuverts] = useState<string[]>([]);
@@ -145,7 +146,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let vivant = true;
-    fetch("/api/me").then((r) => r.json()).then((j) => { if (vivant) setRole(j?.ok ? (j.user?.role ?? null) : null); }).catch(() => {});
+    fetch("/api/me").then((r) => r.json()).then((j) => { if (vivant) { setRole(j?.ok ? (j.user?.role ?? null) : null); setRoles(j?.ok ? (j.user?.roles ?? undefined) : undefined); } }).catch(() => {});
     return () => { vivant = false; };
   }, []);
 
@@ -155,10 +156,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   const navVisible = useMemo(() => NAV
-    .map((e) => (e.type === "menu" ? { ...e, items: e.items.filter((i) => peutVoirPage(role, i.href)) } : e))
-    .filter((e) => (e.type === "link" ? peutVoirPage(role, e.href) : e.items.length > 0)), [role]);
+    .map((e) => (e.type === "menu" ? { ...e, items: e.items.filter((i) => peutVoirPage(roles ?? role, i.href)) } : e))
+    .filter((e) => (e.type === "link" ? peutVoirPage(roles ?? role, e.href) : e.items.length > 0)), [role, roles]);
 
-  const actionsRapides = useMemo(() => ACTIONS_RAPIDES.filter((a) => peutVoirPage(role, a.href)), [role]);
+  const actionsRapides = useMemo(() => ACTIONS_RAPIDES.filter((a) => peutVoirPage(roles ?? role, a.href)), [role, roles]);
 
   // Ouvre automatiquement le groupe contenant la page active.
   useEffect(() => {

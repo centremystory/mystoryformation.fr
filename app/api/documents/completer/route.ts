@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Restriction : l'évaluation finale (niveau atteint) est réservée Pédagogie / Formatrice / Direction.
-  if (type === "evaluation_finale" && u.role && !peut(u.role, "evaluation_finale")) {
+  if (type === "evaluation_finale" && u.role && !peut(u.roles ?? u.role, "evaluation_finale")) {
     return NextResponse.json({ ok: false, erreur: "Évaluation finale réservée à la Pédagogie, aux Formatrices et à la Direction." }, { status: 403 });
   }
 

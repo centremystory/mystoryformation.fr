@@ -20,7 +20,8 @@ const AUTH_COOKIE = process.env.AUTH_COOKIE ?? "mystory_session";
 export interface SessionUser {
   id: string;
   email?: string;
-  role?: string;
+  role?: string;       // rôle principal (= roles[0]) — conservé pour rétro-compat
+  roles?: string[];    // multi-rôles (polyvalence) — union des droits
 }
 
 export class UnauthorizedError extends Error {
@@ -54,7 +55,10 @@ export async function verifySession(req: Request): Promise<SessionUser | null> {
     const { payload } = await jwtVerify(token, new TextEncoder().encode(AUTH_SECRET));
     const id = (payload.sub ?? payload.id) as string | undefined;
     if (!id) return null;
-    return { id, email: payload.email as string | undefined, role: payload.role as string | undefined };
+    const rolesArr = Array.isArray(payload.roles)
+      ? (payload.roles as string[]).filter(Boolean)
+      : (payload.role ? [payload.role as string] : []);
+    return { id, email: payload.email as string | undefined, role: rolesArr[0] ?? (payload.role as string | undefined), roles: rolesArr };
   } catch {
     return null; // signature/exp invalide
   }
@@ -82,7 +86,9 @@ export class ForbiddenError extends Error {
  */
 export async function requireRole(req: Request, roles: readonly string[]): Promise<SessionUser> {
   const user = await requireUser(req);
-  if (!user.role || user.role === "staff") return user; // filet de transition
-  if (!roles.includes(user.role)) throw new ForbiddenError();
+  const rs = user.roles && user.roles.length > 0 ? user.roles : (user.role ? [user.role] : []);
+  if (rs.length === 0 || rs.includes("staff")) return user; // filet de transition
+  // Multi-rôles : autorisé si AU MOINS UN rôle est dans la liste permise.
+  if (!rs.some((r) => roles.includes(r))) throw new ForbiddenError();
   return user;
 }
