@@ -990,7 +990,7 @@ function FormulaireCompletion({
 }) {
   const [champs, setChamps] = useState<Record<string, any>>(
     type === "fiche_analyse_besoin"
-      ? { objectif: "", projet: "", apport_francais: "", compensation: "non", compensation_detail: "", coherence: false }
+      ? { objectif: "", projet: "", apport_francais: "", disponibilites: "", compensation: "non", compensation_detail: "", coherence: false }
       : { niveau_co: "", niveau_ce: "", niveau_eo: "", niveau_ee: "", niveau_global: "", commentaires: "", axes: "" }
   );
   const [auteur, setAuteur] = useState("");
@@ -1053,6 +1053,12 @@ function FormulaireCompletion({
           <label className="block text-sm">
             <span className="font-medium">En quoi la maîtrise du français sert ce projet</span>
             <textarea value={champs.apport_francais} onChange={(e) => set("apport_francais", e.target.value)} rows={2}
+                      className={`${champClasses} mt-1 block w-full resize-y`} />
+          </label>
+          <label className="block text-sm">
+            <span className="font-medium">Disponibilités du stagiaire (jours / créneaux)</span>
+            <textarea value={champs.disponibilites} onChange={(e) => set("disponibilites", e.target.value)} rows={2}
+                      placeholder="ex : lundi et mercredi après-midi, samedi matin…"
                       className={`${champClasses} mt-1 block w-full resize-y`} />
           </label>
           <div className="flex flex-wrap items-center gap-3 text-sm">

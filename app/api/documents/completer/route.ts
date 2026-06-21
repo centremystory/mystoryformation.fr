@@ -95,11 +95,13 @@ export async function POST(req: NextRequest) {
     const compensation = String(champs.compensation ?? "non");
     const compDetail = String(champs.compensation_detail ?? "").trim();
     const coherence = champs.coherence === true;
+    const disponibilites = String(champs.disponibilites ?? "").trim();
 
     if (!["emploi", "maintien", "mobilite"].includes(objectif))
       recap.push("Objectif principal à choisir (nécessairement professionnel — règle CPF).");
     if (!projet) recap.push("Description du projet professionnel obligatoire.");
     if (!apport) recap.push("« En quoi la maîtrise du français sert ce projet » est obligatoire.");
+    if (!disponibilites) recap.push("Disponibilités du stagiaire à renseigner.");
     if (compensation === "oui" && !compDetail) recap.push("Besoin de compensation coché « Oui » : précision obligatoire.");
     if (!coherence) recap.push("La cohérence durée / écart de niveau doit être vérifiée et cochée avant de générer la fiche.");
     if (recap.length > 0) return NextResponse.json({ ok: false, status: "gate_ko", recap }, { status: 409 });
@@ -111,6 +113,7 @@ export async function POST(req: NextRequest) {
       obj_mobilite: box(objectif === "mobilite"),
       projet,
       apport_francais: apport,
+      disponibilites,
       comp_non: box(compensation !== "oui"),
       comp_oui: box(compensation === "oui"),
       compensation_detail: compensation === "oui" ? compDetail : null,
@@ -124,7 +127,7 @@ export async function POST(req: NextRequest) {
       vise_b2: box(fiche.niveauVise === "B2"),
       vise_c1: box(fiche.niveauVise === "C1"),
     };
-    champsValides = { objectif, projet, apport_francais: apport, compensation, compensation_detail: compDetail, coherence };
+    champsValides = { objectif, projet, apport_francais: apport, disponibilites, compensation, compensation_detail: compDetail, coherence };
   }
 
   if (type === "evaluation_finale") {
