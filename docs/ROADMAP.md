@@ -37,8 +37,8 @@
   - 🟡 Unification du QCM prospect (B) :
     - ✅ **B1 — pont A3 sur le nouveau moteur** : fonction `mystory_creer_stagiaire_dossier()` + trigger `trg_evaluation_to_dossier` (une évaluation initiale prospect passée à `complet` crée le stagiaire + dossier, comme `mystory_positionnement_to_dossier`). Colonne `evaluations.niveau_vise`. Le kiosque devient un point d'acquisition complet. Ancien système `positionnements` intact.
     - ✅ **B2 — oral enregistré** : `tests.oral_questions`, `/api/tests/oral` (dépôt par jeton, bucket privé), enregistreur micro dans `/test/[token]`, écoute via URLs signées dans `/tests/a-noter`, questions orales éditables dans la banque.
-    - ✅ **B3 — kiosque enrichi** : civilité + niveau visé (dossier mieux renseigné à l'acquisition).
-    - ⏸️ **B4 — bascule `qcm.html` → kiosque** : EN ATTENTE de validation terrain (décision Arudhan = garder les 2 en parallèle quelques jours, tester le nouveau flux, puis basculer). Pour activer : ajouter dans `next.config` une redirection `/qcm` et `/qcm.html` → `/test/kiosque`. Réversible. L'ancien système `positionnements` reste consultable.
+    - ✅ **B3 — kiosque enrichi** : civilité, niveau visé, **adresse/cp/ville** (parité dossier avec l'ancien QCM ; pont `mystory_creer_stagiaire_dossier` étendu).
+    - ✅ **B4 — bascule activée** : `next.config` redirige `/qcm` et `/qcm.html` → `/test/kiosque` (temporaire, **réversible** : retirer les redirects + restaurer le rewrite). `qcm.html` conservé physiquement ; ancien système `positionnements` consultable. **Unification B terminée.**
 
 **Reste P2 :** TI1/TI2/TI3 (test initial à distance + QR + kiosque), SD2/EV2 (analyse de besoin signée + évals complètes), FS1 (contrat confidentialité formateurs), PL1 (planning grille jour×heures), T1/RH1 (tâches + rapport hebdo, dépend des comptes individuels), relation/guide de vente.
 
