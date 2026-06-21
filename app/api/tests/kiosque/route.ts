@@ -25,6 +25,8 @@ export async function POST(req: NextRequest) {
   const prenom = String(body.prenom ?? "").trim().slice(0, 120);
   const email = body.email ? String(body.email).trim().slice(0, 200) : null;
   const telephone = body.telephone ? String(body.telephone).trim().slice(0, 40) : null;
+  const civilite = ["Madame", "Monsieur", "Autre"].includes(String(body.civilite)) ? String(body.civilite) : null;
+  const niveau_vise = ["A1", "A2", "B1", "B2"].includes(String(body.niveau_vise)) ? String(body.niveau_vise) : null;
   if (!nom || !prenom) return NextResponse.json({ ok: false, erreur: "Nom et prénom requis." }, { status: 400 });
 
   const { data: t } = await supabaseAdmin
@@ -34,7 +36,7 @@ export async function POST(req: NextRequest) {
 
   const { data: ev, error } = await supabaseAdmin.from("evaluations").insert({
     test_id: t.id, phase: "initial", dossier_id: null,
-    nom, prenom, email, telephone, statut: "en_cours", auteur: "kiosque",
+    nom, prenom, email, telephone, civilite, niveau_vise, statut: "en_cours", auteur: "kiosque",
   }).select("id, token").maybeSingle();
   if (error || !ev) return NextResponse.json({ ok: false, erreur: "Création impossible." }, { status: 502 });
 

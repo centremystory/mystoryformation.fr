@@ -9,6 +9,7 @@ import { useState } from "react";
 export default function Kiosque() {
   const [nom, setNom] = useState(""); const [prenom, setPrenom] = useState("");
   const [email, setEmail] = useState(""); const [tel, setTel] = useState("");
+  const [civilite, setCivilite] = useState(""); const [niveauVise, setNiveauVise] = useState("");
   const [envoi, setEnvoi] = useState(false); const [err, setErr] = useState<string | null>(null);
 
   async function demarrer() {
@@ -17,7 +18,7 @@ export default function Kiosque() {
     try {
       const r = await fetch("/api/tests/kiosque", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nom, prenom, email, telephone: tel }),
+        body: JSON.stringify({ nom, prenom, email, telephone: tel, civilite, niveau_vise: niveauVise }),
       });
       const j = await r.json();
       if (j.ok && j.url) { window.location.href = `${j.url}?k=1`; }
@@ -32,6 +33,11 @@ export default function Kiosque() {
         <p className="text-sm text-gray-500">Renseignez vos informations pour commencer votre test de français.</p>
       </div>
       <div className="card space-y-3">
+        <label className="block text-sm text-gray-700">Civilité
+          <select value={civilite} onChange={(e) => setCivilite(e.target.value)} className="input mt-1 w-full">
+            <option value="">—</option><option value="Madame">Madame</option><option value="Monsieur">Monsieur</option><option value="Autre">Autre</option>
+          </select>
+        </label>
         <div className="grid grid-cols-2 gap-3">
           <label className="text-sm text-gray-700">Prénom*
             <input value={prenom} onChange={(e) => setPrenom(e.target.value)} className="input mt-1 w-full" />
@@ -45,6 +51,11 @@ export default function Kiosque() {
         </label>
         <label className="block text-sm text-gray-700">Téléphone
           <input value={tel} onChange={(e) => setTel(e.target.value)} className="input mt-1 w-full" />
+        </label>
+        <label className="block text-sm text-gray-700">Niveau visé <span className="text-gray-400">(si connu)</span>
+          <select value={niveauVise} onChange={(e) => setNiveauVise(e.target.value)} className="input mt-1 w-full">
+            <option value="">— je ne sais pas —</option><option value="A1">A1</option><option value="A2">A2</option><option value="B1">B1</option><option value="B2">B2</option>
+          </select>
         </label>
         {err && <p className="text-sm text-red-600">{err}</p>}
         <button onClick={demarrer} disabled={envoi} className="btn-primary w-full">{envoi ? "Démarrage…" : "Commencer le test"}</button>
