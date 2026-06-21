@@ -33,7 +33,8 @@
   - Notation formatrice `/tests/a-noter` + API `/api/tests/notation` (EE/EO → niveau /20 → rattaché au dossier).
   - ✅ Diffusion : QR code + envoi par mail (`/api/tests/envoyer`) + **kiosque** `/test/kiosque` (`/api/tests/kiosque`, public rate-limité, « Candidat suivant »).
   - ✅ Éditeur de banque `/tests/banque` (+ `/tests/banque/[id]`) : créer/dupliquer/versionner, éditer questions (options, mots-clés, points, blocs), upload audio/images (`/api/tests/audio`), archivage. Ex.1 Q1 du final corrigé (option « bureau »).
-  - **Reste TI** : affichage initial→final + progression dans `/suivi-eleves`, finir le rebranchement du QCM initial prospect (kiosque déjà en place).
+  - ✅ Progression initial→final dans `/suivi-eleves` (`/api/tests/progression` : niveaux du dossier + évals complètes, bloc Initial→Visé→Atteint + détail CE/CO/EE/EO).
+  - **Reste TI** : finir le rebranchement du QCM initial prospect `qcm.html` (kiosque `/test/kiosque` déjà en place) — décision à prendre (rediriger vs garder en parallèle, cohabitation avec l'ancien système `positionnements`).
 
 **Reste P2 :** TI1/TI2/TI3 (test initial à distance + QR + kiosque), SD2/EV2 (analyse de besoin signée + évals complètes), FS1 (contrat confidentialité formateurs), PL1 (planning grille jour×heures), T1/RH1 (tâches + rapport hebdo, dépend des comptes individuels), relation/guide de vente.
 
