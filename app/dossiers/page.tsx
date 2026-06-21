@@ -1004,19 +1004,22 @@ function FormulaireCompletion({
       .catch(() => {});
   }, [dossierId, type]);
 
+  const [signUrl, setSignUrl] = useState<string | null>(null);
   const set = (k: string, v: any) => setChamps((c) => ({ ...c, [k]: v }));
 
-  async function envoyer() {
-    setEnvoi(true); onErreurs([]);
+  async function envoyer(avecSignature = false) {
+    setEnvoi(true); onErreurs([]); setSignUrl(null);
     try {
+      const champsEnvoi = avecSignature ? { ...champs, envoyer_signature: true } : champs;
       const r = await fetch("/api/documents/completer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dossierId, type, champs, auteur: auteur.trim() || null }),
+        body: JSON.stringify({ dossierId, type, champs: champsEnvoi, auteur: auteur.trim() || null }),
       });
       const j = await r.json();
       if (!j.ok) { onErreurs(j.recap ?? [j.erreur || "Erreur lors de la génération."]); return; }
       try { if (auteur.trim()) localStorage.setItem("mystory_auteur", auteur.trim()); } catch {}
+      if (j.signUrl) setSignUrl(j.signUrl);
       await onFini();
     } catch (e: any) {
       onErreurs([e?.message || "Erreur lors de la génération."]);
@@ -1111,12 +1114,25 @@ function FormulaireCompletion({
       <div className="flex flex-wrap items-center gap-2 mt-4">
         <input value={auteur} onChange={(e) => setAuteur(e.target.value)} placeholder="Ton prénom"
                className={`${champClasses} w-32`} />
-        <button onClick={envoyer} disabled={envoi}
+        <button onClick={() => envoyer(false)} disabled={envoi}
                 className="px-4 py-2 rounded-lg text-sm text-white bg-mystory disabled:opacity-50">
           {envoi ? "Génération…" : "Générer le PDF"}
         </button>
+        {type === "fiche_analyse_besoin" && (
+          <button onClick={() => envoyer(true)} disabled={envoi}
+                  className="px-4 py-2 rounded-lg text-sm text-mystory border border-mystory disabled:opacity-50">
+            {envoi ? "Envoi…" : "Générer + envoyer à signer"}
+          </button>
+        )}
         <span className="text-xs text-gray-500">La saisie est tracée (horodatage serveur) et le PDF archivé au dossier.</span>
       </div>
+      {signUrl && (
+        <div className="mt-3 rounded-lg border border-green-300 bg-green-50 p-3 text-sm">
+          <p className="font-medium text-green-800">Fiche envoyée à signer ✓</p>
+          <p className="text-xs text-gray-600">Le stagiaire et le centre reçoivent le lien par e-mail. Pour signer <strong>sur place</strong>, ouvre ce lien :</p>
+          <a href={signUrl} target="_blank" rel="noreferrer" className="break-all text-mystory underline">{signUrl}</a>
+        </div>
+      )}
     </div>
   );
 }

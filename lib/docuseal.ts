@@ -145,6 +145,46 @@ export async function createConventionSubmissionFromHtml(params: {
   return { submissionId, submitterIds, slug, signUrl, raw: json };
 }
 
+export const CENTRE_ROLE = "Centre";
+
+/**
+ * Fiche d'analyse du besoin : DEUX signataires (Stagiaire + Centre).
+ * Les positions viennent des balises <signature-field role="Stagiaire"|"Centre"> injectées dans le HTML.
+ * external_id = "fiche_besoin:<dossierId>" sur les deux submitters -> rattachement au dossier au webhook.
+ */
+export async function createFicheBesoinSubmissionFromHtml(params: {
+  html: string;
+  stagiaire: ConventionSignataire;
+  centreEmail: string;
+  centreNom?: string;
+  dossierId: string;
+  sendEmail?: boolean;
+}): Promise<CreateSubmissionResult> {
+  assertConfigured();
+  const { html, stagiaire, centreEmail, centreNom = "MYSTORY Formation", dossierId, sendEmail = true } = params;
+  const ext = `fiche_besoin:${dossierId}`;
+  const body = {
+    name: `Fiche d'analyse du besoin — ${stagiaire.prenom} ${stagiaire.nom}`,
+    send_email: sendEmail,
+    documents: [{ name: "Fiche d'analyse du besoin", html, size: "A4" }],
+    submitters: [
+      { role: STAGIAIRE_ROLE, email: stagiaire.email, name: `${stagiaire.prenom} ${stagiaire.nom}`, external_id: ext },
+      { role: CENTRE_ROLE, email: centreEmail, name: centreNom, external_id: ext },
+    ],
+  };
+  const res = await fetch(`${BASE_URL}/submissions/html`, {
+    method: "POST",
+    headers: { "X-Auth-Token": API_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) { const detail = await safeText(res); throw new Error(`DocuSeal createFicheBesoinSubmissionFromHtml ${res.status}: ${detail}`); }
+  const json = (await res.json()) as unknown;
+  const { submissionId, submitterIds, slug, embedSrc } = extractSubmission(json);
+  if (!submissionId) throw new Error("DocuSeal: submission_id absent de la réponse");
+  const signUrl = embedSrc ?? (slug ? `${APP_URL}/s/${slug}` : undefined);
+  return { submissionId, submitterIds, slug, signUrl, raw: json };
+}
+
 /**
  * La réponse de création peut être un tableau de submitters (forme habituelle des
  * endpoints /submissions*) ou un objet submission. On gère les deux défensivement.

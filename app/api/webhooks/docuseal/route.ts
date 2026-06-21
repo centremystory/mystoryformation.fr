@@ -71,6 +71,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, scope: "formateur" });
   }
 
+  // Branche fiche d'analyse du besoin : external_id = "fiche_besoin:<dossierId>" (2 signataires).
+  if (typeof dossierId === "string" && dossierId.startsWith("fiche_besoin:")) {
+    const realDossierId = dossierId.slice("fiche_besoin:".length);
+    if (submissionId && event.event_type === "submission.completed") {
+      await finalizeFicheBesoinSignature(realDossierId, submissionId, event);
+      await recomputeDossierStatus(realDossierId);
+    } else if (submissionId && event.event_type === "form.completed") {
+      await setPieceStatus({ dossierId: realDossierId, piece: "fiche_analyse_besoin", status: "signature_en_cours", at: new Date().toISOString() });
+    }
+    await markEventProcessed(eventKey, { submissionId: submissionId ?? undefined, eventType: event.event_type, dossierId: realDossierId, payload: event });
+    return NextResponse.json({ ok: true, scope: "fiche_besoin" });
+  }
+
   const resolvedDossierId = dossierId ?? (await findDossierBySubmission(submissionId!));
   if (!resolvedDossierId) {
     await markEventProcessed(eventKey, {
@@ -131,6 +144,18 @@ async function finalizeSignature(dossierId: string, submissionId: number, event:
     event_type: event.event_type,
   });
  }
+
+/** Fiche d'analyse du besoin signée (stagiaire + centre) : archive le PDF signé et passe la pièce à « signée ». */
+async function finalizeFicheBesoinSignature(dossierId: string, submissionId: number, event: DocusealEvent): Promise<void> {
+  let docs = event.data?.documents ?? [];
+  if (docs.length === 0) docs = await getSubmissionDocuments(submissionId);
+  for (const docMeta of docs) {
+    const pdf = await downloadSignedDocument(docMeta.url);
+    await archiveDocument({ dossierId, piece: "fiche_analyse_besoin", variant: "signe", pdf, generatedAt: new Date().toISOString() });
+  }
+  await setPieceStatus({ dossierId, piece: "fiche_analyse_besoin", status: "signee", docusealSubmissionId: submissionId, at: new Date().toISOString() });
+  await journal("dossier", dossierId, "fiche_besoin_signee", { submission_id: submissionId, event_type: event.event_type });
+}
 
 /** Onboarding formateur : stocke le PDF signé dans le bucket et passe le document à « signée ». */
 async function finalizeFormateurSignature(externalId: string, submissionId: number, event: DocusealEvent): Promise<void> {
