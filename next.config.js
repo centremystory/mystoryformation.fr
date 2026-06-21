@@ -1,9 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  async rewrites() {
+  async redirects() {
     return [
-      // QCM candidat servi en statique depuis public/qcm.html (URL propre /qcm)
-      { source: "/qcm", destination: "/qcm.html" },
+      // Bascule B4 : l'ancien QCM prospect pointe désormais vers le kiosque (nouveau moteur de tests).
+      // Réversible : retirer ces redirections et restaurer le rewrite /qcm -> /qcm.html pour revenir en arrière.
+      { source: "/qcm", destination: "/test/kiosque", permanent: false },
+      { source: "/qcm.html", destination: "/test/kiosque", permanent: false },
     ];
   },
   experimental: {

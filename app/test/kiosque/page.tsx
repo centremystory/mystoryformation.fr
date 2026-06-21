@@ -10,6 +10,7 @@ export default function Kiosque() {
   const [nom, setNom] = useState(""); const [prenom, setPrenom] = useState("");
   const [email, setEmail] = useState(""); const [tel, setTel] = useState("");
   const [civilite, setCivilite] = useState(""); const [niveauVise, setNiveauVise] = useState("");
+  const [adresse, setAdresse] = useState(""); const [cp, setCp] = useState(""); const [ville, setVille] = useState("");
   const [envoi, setEnvoi] = useState(false); const [err, setErr] = useState<string | null>(null);
 
   async function demarrer() {
@@ -18,7 +19,7 @@ export default function Kiosque() {
     try {
       const r = await fetch("/api/tests/kiosque", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nom, prenom, email, telephone: tel, civilite, niveau_vise: niveauVise }),
+        body: JSON.stringify({ nom, prenom, email, telephone: tel, civilite, niveau_vise: niveauVise, adresse, cp, ville }),
       });
       const j = await r.json();
       if (j.ok && j.url) { window.location.href = `${j.url}?k=1`; }
@@ -52,6 +53,17 @@ export default function Kiosque() {
         <label className="block text-sm text-gray-700">Téléphone
           <input value={tel} onChange={(e) => setTel(e.target.value)} className="input mt-1 w-full" />
         </label>
+        <label className="block text-sm text-gray-700">Adresse
+          <input value={adresse} onChange={(e) => setAdresse(e.target.value)} className="input mt-1 w-full" />
+        </label>
+        <div className="grid grid-cols-3 gap-3">
+          <label className="text-sm text-gray-700">Code postal
+            <input value={cp} onChange={(e) => setCp(e.target.value)} className="input mt-1 w-full" />
+          </label>
+          <label className="col-span-2 text-sm text-gray-700">Ville
+            <input value={ville} onChange={(e) => setVille(e.target.value)} className="input mt-1 w-full" />
+          </label>
+        </div>
         <label className="block text-sm text-gray-700">Niveau visé <span className="text-gray-400">(si connu)</span>
           <select value={niveauVise} onChange={(e) => setNiveauVise(e.target.value)} className="input mt-1 w-full">
             <option value="">— je ne sais pas —</option><option value="A1">A1</option><option value="A2">A2</option><option value="B1">B1</option><option value="B2">B2</option>
