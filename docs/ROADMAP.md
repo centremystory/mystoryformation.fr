@@ -42,7 +42,7 @@
 
 **Reste P2 :** FS1 (contrat confidentialité — formateurs, commerciaux & tous postes), PL1 (planning grille jour×heures), T1/RH1 (module tâches + rapport hebdo, dépend des comptes individuels), guide techniques de vente.
 
-**Fait P2 (avancement) :** TI (tests évolutifs) complet + unification QCM prospect (B1-B4). SD2/EV2 — **Fiche d'analyse de besoin signée FAITE** (champ disponibilités + signature DocuSeal stagiaire + centre `contact@`, archivage auto via webhook branche `fiche_besoin:`). À noter conformité : **délai satisfaction à froid à trancher (2 mois selon Arudhan vs 3 mois cadre/workflow n8n)**.
+**Fait P2 (avancement) :** TI (tests évolutifs) complet + unification QCM prospect (B1-B4). SD2/EV2 — **Fiche d'analyse de besoin signée FAITE** (champ disponibilités + signature DocuSeal stagiaire + centre `contact@`, archivage auto via webhook branche `fiche_besoin:`). Satisfaction à froid = **3 mois confirmé** (workflow n8n `AGyvOBXGtksJhHuD` déjà correct).
 
 ---
 
