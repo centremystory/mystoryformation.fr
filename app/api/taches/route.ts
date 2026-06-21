@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
   const agence = String(url.searchParams.get("agence") ?? "").trim();
   let q = supabaseAdmin
     .from("taches")
-    .select("id, agence, titre, echeance, fait, fait_le, cree_le, assignee, cree_par")
+    .select("id, agence, titre, echeance, fait, fait_le, temps_minutes, cree_le, assignee, cree_par")
     .eq("actif", true)
     .order("fait", { ascending: true })
     .order("echeance", { ascending: true, nullsFirst: false })
@@ -74,8 +74,12 @@ export async function PATCH(req: NextRequest) {
   if (!id) return NextResponse.json({ ok: false, erreur: "id requis." }, { status: 400 });
 
   let patch: Record<string, any>;
-  if (action === "fait") patch = { fait: true, fait_le: new Date().toISOString() };
-  else if (action === "repris") patch = { fait: false, fait_le: null };
+  if (action === "fait") {
+    const t = body?.temps_minutes;
+    const temps = (t === null || t === undefined || t === "") ? null : Math.max(0, Math.round(Number(t)));
+    patch = { fait: true, fait_le: new Date().toISOString(), temps_minutes: Number.isFinite(temps as number) ? temps : null };
+  }
+  else if (action === "repris") patch = { fait: false, fait_le: null, temps_minutes: null };
   else if (action === "archive") patch = { actif: false };
   else if (action === "assigner") patch = { assignee: body?.assignee ? String(body.assignee).trim() : null };
   else return NextResponse.json({ ok: false, erreur: "action : fait | repris | archive | assigner." }, { status: 400 });

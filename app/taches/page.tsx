@@ -13,6 +13,7 @@ type Tache = {
   echeance: string | null;
   fait: boolean;
   fait_le: string | null;
+  temps_minutes: number | null;
   cree_le: string;
   assignee: string | null;
   assignee_nom: string | null;
@@ -98,13 +99,13 @@ export default function PageTaches() {
     finally { setBusy(null); }
   }
 
-  async function patch(id: string, action: "fait" | "repris" | "archive", cle: string) {
+  async function patch(id: string, action: "fait" | "repris" | "archive", cle: string, temps_minutes?: number | null) {
     setBusy(cle); setErreur(null);
     try {
       const r = await fetch("/api/taches", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, action }),
+        body: JSON.stringify({ id, action, temps_minutes }),
       });
       const j = await r.json();
       if (!j.ok) throw new Error(j.erreur || "Erreur.");
@@ -212,7 +213,13 @@ export default function PageTaches() {
                 {g.items.map((t) => (
                   <div key={t.id} className="flex items-center gap-3 px-4 py-2.5">
                     <input type="checkbox" checked={t.fait} disabled={busy === `t-${t.id}`}
-                           onChange={() => patch(t.id, t.fait ? "repris" : "fait", `t-${t.id}`)}
+                           onChange={() => {
+                             if (t.fait) { patch(t.id, "repris", `t-${t.id}`); return; }
+                             const saisie = window.prompt("Temps passé sur cette tâche ? (en minutes — laisser vide si non suivi)", "");
+                             if (saisie === null) return; // annulé
+                             const min = saisie.trim() === "" ? null : Math.max(0, Math.round(Number(saisie)));
+                             patch(t.id, "fait", `t-${t.id}`, Number.isFinite(min as number) ? min : null);
+                           }}
                            className="h-4 w-4 accent-[#2F72DE] cursor-pointer" />
                     <span className={`flex-1 text-sm ${t.fait ? "line-through text-gray-400" : "text-gray-900"}`}>
                       {t.titre}
@@ -220,6 +227,9 @@ export default function PageTaches() {
                         <span className={`ml-2 text-xs ${enRetard(t) ? "text-red-600 font-medium" : "text-gray-400"}`}>
                           ⏱ {dateFr(t.echeance)}{enRetard(t) ? " (en retard)" : ""}
                         </span>
+                      )}
+                      {t.fait && t.temps_minutes != null && (
+                        <span className="ml-2 text-xs text-mystory">⏲ {t.temps_minutes} min</span>
                       )}
                     </span>
                     <select value={t.assignee ?? ""} onChange={(e) => assigner(t.id, e.target.value)} disabled={busy === `as-${t.id}`}
