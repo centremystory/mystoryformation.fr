@@ -15,7 +15,7 @@ import {
 import { peutVoirPage, ROLE_LABEL } from "@/lib/roles";
 import { SITES, COOKIE_SITE, siteValide } from "@/lib/sites";
 
-const PAGES_SANS_NAV = ["/connexion", "/qcm", "/positionnement", "/suivi", "/evaluation", "/fiche-besoin", "/emargement/signer", "/satisfaction", "/formateur-questionnaire", "/contact", "/partenaire"];
+const PAGES_SANS_NAV = ["/connexion", "/qcm", "/positionnement", "/suivi", "/evaluation", "/fiche-besoin", "/emargement/signer", "/satisfaction", "/formateur-questionnaire", "/contact", "/partenaire", "/test"];
 
 type Lien = { href: string; label: string; icon: LucideIcon };
 type Entree = { type: "link"; href: string; label: string; icon: LucideIcon } | { type: "menu"; label: string; icon: LucideIcon; items: Lien[] };
