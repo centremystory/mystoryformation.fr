@@ -148,11 +148,14 @@ export default function PagePlanning() {
   return (
     <main className="max-w-3xl mx-auto px-4 md:px-6 py-8">
       <header className="page-header">
-        <div>
-          <h1 className="page-title">Planning des élèves</h1>
-          <p className="page-subtitle">
-            Séances de formation par site. Lieu de formation : <strong>Gagny</strong> ; l'agence sert au suivi interne.
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="page-title">Planning des élèves</h1>
+            <p className="page-subtitle">
+              Séances de formation par site. Lieu de formation : <strong>Gagny</strong> ; l'agence sert au suivi interne.
+            </p>
+          </div>
+          <a href="/calendrier" className="btn-ghost text-sm whitespace-nowrap">▦ Vue calendrier (semaine)</a>
         </div>
       </header>
 
