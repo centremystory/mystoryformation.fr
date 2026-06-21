@@ -112,9 +112,61 @@ function Porte({ icone: Icone, titre, desc, children }: { icone: LucideIcon; tit
   );
 }
 
+function bornesSemaineParis(): { lundi: string; dimanche: string } {
+  const todayStr = new Intl.DateTimeFormat("fr-CA", { timeZone: "Europe/Paris" }).format(new Date());
+  const [y, m, d] = todayStr.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  const dow = dt.getUTCDay(); // 0=dim … 6=sam
+  const offsetLundi = dow === 0 ? -6 : 1 - dow;
+  const lundi = new Date(dt); lundi.setUTCDate(dt.getUTCDate() + offsetLundi);
+  const dimanche = new Date(lundi); dimanche.setUTCDate(lundi.getUTCDate() + 6);
+  const iso = (x: Date) => x.toISOString().slice(0, 10);
+  return { lundi: iso(lundi), dimanche: iso(dimanche) };
+}
+
+/** Indicateurs examen pour l'accueil : places libres TEF/civique de la semaine + liens de paiement en attente. */
+async function examenSemaine(site: SiteFiltre) {
+  const zero = { placesTef: 0, placesCiv: 0, liens: 0 };
+  try {
+    const { lundi, dimanche } = bornesSemaineParis();
+    const { data: sessions } = await supabaseAdmin
+      .from("sessions_examen")
+      .select("id, type, capacite, date_examen")
+      .gte("date_examen", lundi)
+      .lte("date_examen", dimanche);
+    const ids = (sessions ?? []).map((x: any) => x.id);
+    const inscrits = new Map<string, number>();
+    if (ids.length) {
+      const { data: v } = await supabaseAdmin
+        .from("ventes_examen")
+        .select("session_id, statut_paiement")
+        .in("session_id", ids);
+      (v ?? []).forEach((x: any) => {
+        if (x.statut_paiement !== "Annulé" && x.statut_paiement !== "Remboursé") {
+          inscrits.set(x.session_id, (inscrits.get(x.session_id) ?? 0) + 1);
+        }
+      });
+    }
+    let placesTef = 0, placesCiv = 0;
+    (sessions ?? []).forEach((s: any) => {
+      const libres = Math.max(0, (s.capacite ?? 0) - (inscrits.get(s.id) ?? 0));
+      if (s.type === "TEF_IRN") placesTef += libres;
+      else if (s.type === "Examen_civique") placesCiv += libres;
+    });
+    let qp = supabaseAdmin
+      .from("preinscriptions_examen")
+      .select("id", { count: "exact", head: true })
+      .not("lien_paiement", "is", null)
+      .eq("statut", "en_attente");
+    if (site) qp = qp.eq("agence", site);
+    const { count: liens } = await qp;
+    return { placesTef, placesCiv, liens: liens ?? 0 };
+  } catch { return zero; }
+}
+
 export default async function Accueil() {
   const site = siteValide(cookies().get(COOKIE_SITE)?.value);
-  const [c, t, cf] = await Promise.all([compter(site), aTraiter(site), conformiteFormateurs()]);
+  const [c, t, cf, ex] = await Promise.all([compter(site), aTraiter(site), conformiteFormateurs(), examenSemaine(site)]);
 
   // Rôle de la session (filtrage du périmètre — défense en profondeur, en plus du middleware).
   const h = headers();
@@ -172,6 +224,16 @@ export default async function Accueil() {
         <Kpi libelle="Dossiers à finaliser" valeur={String(c.aFinaliser)} accent={c.aFinaliser > 0 ? "ambre" : undefined} href="/dossiers?vue=a_finaliser" />
         <Kpi libelle="Conventions à relancer" valeur={String(c.aRelancer)} accent={c.aRelancer > 0 ? "ambre" : undefined} href="/dossiers" />
         <Kpi libelle="Formatrices en règle" valeur={`${c.fleOk} / ${c.fleTotal}`} accent={c.fleOk === c.fleTotal ? "vert" : "ambre"} href="/formateurs" />
+      </div>
+
+      {/* Examen — cette semaine */}
+      <div className="mb-8">
+        <h2 className="mb-2 text-sm font-semibold text-gray-700">Examen — cette semaine</h2>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+          <Kpi libelle="Places TEF IRN (semaine)" valeur={String(ex.placesTef)} accent={ex.placesTef === 0 ? "ambre" : undefined} href="/examens/sessions" />
+          <Kpi libelle="Places civique (semaine)" valeur={String(ex.placesCiv)} accent={ex.placesCiv === 0 ? "ambre" : undefined} href="/examens/sessions" />
+          <Kpi libelle="Liens de paiement en attente" valeur={String(ex.liens)} accent={ex.liens > 0 ? "ambre" : undefined} href="/examens/preinscriptions" />
+        </div>
       </div>
 
       {/* À traiter */}
