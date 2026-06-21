@@ -36,8 +36,10 @@ export default function Passation({ params }: { params: { token: string } }) {
   const [envoi, setEnvoi] = useState(false);
   const [fini, setFini] = useState(false);
   const [deja, setDeja] = useState(false);
+  const [kiosque, setKiosque] = useState(false);
 
   useEffect(() => {
+    if (typeof window !== "undefined" && window.location.search.includes("k=1")) setKiosque(true);
     fetch(`/api/tests/passation?token=${encodeURIComponent(params.token)}`)
       .then((r) => r.json())
       .then((j) => { if (j.ok) setData(j); else { setErreur(j.erreur || "Introuvable."); if (j.dejaFait) setDeja(true); } })
@@ -59,7 +61,7 @@ export default function Passation({ params }: { params: { token: string } }) {
     finally { setEnvoi(false); }
   }
 
-  if (fini) return <Centre><h1 className="mb-2 text-2xl font-bold text-mystory">✓ Test envoyé</h1><p>Merci ! Une formatrice évaluera votre expression écrite et orale, puis votre niveau vous sera communiqué.</p></Centre>;
+  if (fini) return <Centre><h1 className="mb-2 text-2xl font-bold text-mystory">✓ Test envoyé</h1><p>Merci ! Une formatrice évaluera votre expression écrite et orale, puis votre niveau vous sera communiqué.</p>{kiosque && <a href="/test/kiosque" className="btn-primary mt-5">Candidat suivant →</a>}</Centre>;
   if (deja) return <Centre><h1 className="mb-2 text-2xl font-bold text-mystory">Test déjà envoyé</h1><p>Ce test a déjà été complété. Merci !</p></Centre>;
   if (erreur && !data) return <Centre><p className="text-red-700">{erreur}</p></Centre>;
   if (!data) return <Centre><p>Chargement…</p></Centre>;

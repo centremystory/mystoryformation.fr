@@ -1118,10 +1118,15 @@ function FormulaireCompletion({
 
 
 function LienTestFinal({ dossierId }: { dossierId: string }) {
+  const [id, setId] = useState<string | null>(null);
   const [lien, setLien] = useState<string | null>(null);
+  const [qr, setQr] = useState<string | null>(null);
   const [creation, setCreation] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [copie, setCopie] = useState(false);
+  const [mail, setMail] = useState<string | null>(null);
+  const [envoiMail, setEnvoiMail] = useState(false);
+
   async function creer() {
     setCreation(true); setErreur(null);
     try {
@@ -1130,19 +1135,39 @@ function LienTestFinal({ dossierId }: { dossierId: string }) {
         body: JSON.stringify({ dossier_id: dossierId, phase: "final" }),
       });
       const j = await r.json();
-      if (j.ok) setLien(j.url); else setErreur(j.erreur || "Création impossible.");
+      if (j.ok) { setId(j.id); setLien(j.url); setQr(j.qr ?? null); } else setErreur(j.erreur || "Création impossible.");
     } catch { setErreur("Création impossible."); }
     finally { setCreation(false); }
   }
+
+  async function envoyer() {
+    if (!id) return;
+    setEnvoiMail(true); setErreur(null); setMail(null);
+    try {
+      const r = await fetch("/api/tests/envoyer", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const j = await r.json();
+      if (j.ok) setMail(`Envoyé à ${j.email}`); else setErreur(j.erreur || "Envoi impossible.");
+    } catch { setErreur("Envoi impossible."); }
+    finally { setEnvoiMail(false); }
+  }
+
   return (
     <div className="mt-3 rounded-xl border border-gray-200 bg-white p-3 text-sm" onClick={(e) => e.stopPropagation()}>
       <p className="mb-2 font-semibold text-gray-800">Test final en ligne</p>
       {lien ? (
-        <div className="space-y-2">
-          <p className="text-xs text-gray-500">Lien à envoyer au stagiaire (ou à ouvrir sur place) :</p>
-          <div className="flex flex-wrap items-center gap-2">
-            <a href={lien} target="_blank" rel="noreferrer" className="break-all text-mystory underline">{lien}</a>
-            <button onClick={() => { navigator.clipboard?.writeText(lien); setCopie(true); setTimeout(() => setCopie(false), 1500); }} className="btn-ghost !py-1 !text-xs">{copie ? "Copié ✓" : "Copier"}</button>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+          {qr && <img src={qr} alt="QR code du test" className="h-32 w-32 shrink-0 rounded-lg border border-gray-200" />}
+          <div className="space-y-2">
+            <p className="text-xs text-gray-500">Lien à envoyer, à scanner (QR) ou à ouvrir sur place :</p>
+            <a href={lien} target="_blank" rel="noreferrer" className="block break-all text-mystory underline">{lien}</a>
+            <div className="flex flex-wrap items-center gap-2">
+              <button onClick={() => { navigator.clipboard?.writeText(lien); setCopie(true); setTimeout(() => setCopie(false), 1500); }} className="btn-ghost !py-1 !text-xs">{copie ? "Copié ✓" : "Copier le lien"}</button>
+              <button onClick={envoyer} disabled={envoiMail} className="btn-primary !py-1 !text-xs">{envoiMail ? "Envoi…" : "Envoyer par mail"}</button>
+            </div>
+            {mail && <p className="text-xs text-success-700">{mail}</p>}
           </div>
         </div>
       ) : (

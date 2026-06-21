@@ -31,6 +31,7 @@ export default function ANoter() {
       <div className="page-header">
         <h1 className="page-title">Tests à noter</h1>
         <p className="page-subtitle">Expression écrite et orale à évaluer pour finaliser le niveau du candidat.</p>
+        <a href="/test/kiosque" target="_blank" rel="noreferrer" className="mt-1 inline-block text-sm text-mystory underline">Ouvrir le kiosque de positionnement ↗</a>
       </div>
       {erreur && <p className="text-red-700">{erreur}</p>}
       {chargement ? (

@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireUser, UnauthorizedError } from "@/lib/auth";
 import { journal } from "@/lib/examens";
+import QRCode from "qrcode";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -55,5 +56,8 @@ export async function POST(req: NextRequest) {
   await journal("evaluation", ev.id, "test_cree", { phase, dossier_id }, u.email ?? null);
 
   const origin = req.nextUrl.origin;
-  return NextResponse.json({ ok: true, token: ev.token, url: `${origin}/test/${ev.token}` });
+  const url = `${origin}/test/${ev.token}`;
+  let qr: string | null = null;
+  try { qr = await QRCode.toDataURL(url, { width: 220, margin: 1 }); } catch { qr = null; }
+  return NextResponse.json({ ok: true, id: ev.id, token: ev.token, url, qr });
 }
