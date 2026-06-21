@@ -84,6 +84,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, scope: "fiche_besoin" });
   }
 
+  // Branche engagement de confidentialité : external_id = "confid:<id>" (1 signataire).
+  if (typeof dossierId === "string" && dossierId.startsWith("confid:")) {
+    const confidId = dossierId.slice("confid:".length);
+    if (submissionId && ["form.completed", "submission.completed"].includes(event.event_type)) {
+      await finalizeConfidentialiteSignature(confidId, submissionId, event);
+    }
+    await markEventProcessed(eventKey, { submissionId: submissionId ?? undefined, eventType: event.event_type, dossierId: null, payload: event });
+    return NextResponse.json({ ok: true, scope: "confid" });
+  }
+
   const resolvedDossierId = dossierId ?? (await findDossierBySubmission(submissionId!));
   if (!resolvedDossierId) {
     await markEventProcessed(eventKey, {
@@ -155,6 +165,22 @@ async function finalizeFicheBesoinSignature(dossierId: string, submissionId: num
   }
   await setPieceStatus({ dossierId, piece: "fiche_analyse_besoin", status: "signee", docusealSubmissionId: submissionId, at: new Date().toISOString() });
   await journal("dossier", dossierId, "fiche_besoin_signee", { submission_id: submissionId, event_type: event.event_type });
+}
+
+/** Engagement de confidentialité signé : stocke le PDF signé dans le bucket et passe à « signée ». */
+async function finalizeConfidentialiteSignature(confidId: string, submissionId: number, event: DocusealEvent): Promise<void> {
+  let docs = event.data?.documents ?? [];
+  if (docs.length === 0) docs = await getSubmissionDocuments(submissionId);
+  let chemin: string | null = null;
+  if (docs[0]?.url) {
+    const pdf = await downloadSignedDocument(docs[0].url);
+    chemin = `confidentialite/${confidId}/contrat_signe_${Date.now()}.pdf`;
+    await supabaseAdmin.storage.from("documents").upload(chemin, pdf, { contentType: "application/pdf", upsert: true });
+  }
+  await supabaseAdmin.from("contrats_confidentialite")
+    .update({ statut: "signee", signe_le: new Date().toISOString(), fichier_signe_path: chemin })
+    .eq("id", confidId);
+  await journal("confidentialite", confidId, "confid_signe", { submission_id: submissionId });
 }
 
 /** Onboarding formateur : stocke le PDF signé dans le bucket et passe le document à « signée ». */

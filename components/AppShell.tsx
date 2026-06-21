@@ -11,7 +11,7 @@ import {
   ClipboardList, Users, Plane, CalendarRange, Clock, Settings, Receipt, CheckCircle2,
   FileSpreadsheet, UserCog, MessageSquare, Eye, HelpCircle, KeyRound, AlertTriangle,
   Workflow, ScrollText, LogOut, Menu, X, ChevronDown,
-  Plus, FileCheck, RotateCcw, Trophy, UserPlus, Phone, } from "lucide-react";
+  Plus, FileCheck, RotateCcw, Trophy, UserPlus, Phone, ShieldCheck, } from "lucide-react";
 import { peutVoirPage, ROLE_LABEL } from "@/lib/roles";
 import { SITES, COOKIE_SITE, siteValide } from "@/lib/sites";
 
@@ -49,6 +49,7 @@ const NAV: Entree[] = [
     type: "menu", label: "RH", icon: Users, items: [
       { href: "/equipe", label: "Équipe", icon: Users },
       { href: "/formateurs", label: "Formateurs", icon: UserCog },
+      { href: "/confidentialite", label: "Confidentialité", icon: ShieldCheck },
       { href: "/conges", label: "Congés", icon: Plane },
       { href: "/planning-employes", label: "Planning équipe", icon: CalendarRange },
       { href: "/pointage", label: "Pointage", icon: Clock },

@@ -122,6 +122,7 @@ export const PAGE_PERMISSIONS: Record<string, Role[]> = {
   "/emargement": ["direction", "manager", "formatrice", "back_office"],
   // — RH équipe (encadrement) —
   "/formateurs": ["direction", "manager"],
+  "/confidentialite": ["direction", "manager"],
   "/planning-employes": ["direction", "manager"],
   "/pointage": ["direction", "manager"],
   "/equipe": ["direction", "manager"],

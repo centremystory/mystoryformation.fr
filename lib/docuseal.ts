@@ -145,6 +145,42 @@ export async function createConventionSubmissionFromHtml(params: {
   return { submissionId, submitterIds, slug, signUrl, raw: json };
 }
 
+export const SIGNATAIRE_ROLE = "Signataire";
+
+/**
+ * Engagement de confidentialité : UN signataire (le membre de l'équipe).
+ * Le HTML porte une balise <signature-field role="Signataire">. external_id = "confid:<id>".
+ */
+export async function createConfidentialiteSubmission(params: {
+  html: string;
+  signataire: { email: string; nom: string; prenom?: string };
+  externalId: string; // "confid:<uuid>"
+  documentName: string;
+  sendEmail?: boolean;
+}): Promise<CreateSubmissionResult> {
+  assertConfigured();
+  const { html, signataire, externalId, documentName, sendEmail = true } = params;
+  const body = {
+    name: documentName,
+    send_email: sendEmail,
+    documents: [{ name: documentName, html, size: "A4" }],
+    submitters: [
+      { role: SIGNATAIRE_ROLE, email: signataire.email, name: `${signataire.prenom ?? ""} ${signataire.nom}`.trim(), external_id: externalId },
+    ],
+  };
+  const res = await fetch(`${BASE_URL}/submissions/html`, {
+    method: "POST",
+    headers: { "X-Auth-Token": API_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) { const detail = await safeText(res); throw new Error(`DocuSeal createConfidentialiteSubmission ${res.status}: ${detail}`); }
+  const json = (await res.json()) as unknown;
+  const { submissionId, submitterIds, slug, embedSrc } = extractSubmission(json);
+  if (!submissionId) throw new Error("DocuSeal: submission_id absent de la réponse");
+  const signUrl = embedSrc ?? (slug ? `${APP_URL}/s/${slug}` : undefined);
+  return { submissionId, submitterIds, slug, signUrl, raw: json };
+}
+
 export const CENTRE_ROLE = "Centre";
 
 /**
