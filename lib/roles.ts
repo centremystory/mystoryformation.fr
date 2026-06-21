@@ -106,6 +106,7 @@ export const PAGE_PERMISSIONS: Record<string, Role[]> = {
   "/contenu-pedagogique": ["direction", "manager", "formatrice"],
   "/suivi-eleves": ["direction", "manager", "formatrice"],
   "/tests/a-noter": ["direction", "manager", "formatrice", "back_office"],
+  "/tests/banque": ["direction", "manager", "formatrice"],
   "/satisfaction-cours": ["direction", "manager", "formatrice"],
   "/emargement": ["direction", "manager", "formatrice", "back_office"],
   // — RH équipe (encadrement) —

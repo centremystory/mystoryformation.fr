@@ -32,6 +32,7 @@ const NAV: Entree[] = [
       { href: "/contenu-pedagogique", label: "Pédagogie", icon: BookOpen },
       { href: "/satisfaction-cours", label: "Satisfaction", icon: Star },
       { href: "/tests/a-noter", label: "Tests à noter", icon: ClipboardList },
+      { href: "/tests/banque", label: "Banque de tests", icon: ScrollText },
     ],
   },
   {
