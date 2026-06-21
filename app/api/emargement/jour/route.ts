@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
   let q = supabaseAdmin
     .from("planning")
     .select(`
-      id, date_seance, demi_journee, heures, emargement_token, hors_planning,
+      id, date_seance, demi_journee, heures, heures_realisees, emargement_token, hors_planning,
       signature_stagiaire_url, signature_formatrice_url, emarge_le,
       dossier:dossiers!dossier_id ( id, certif, stagiaire:stagiaires!stagiaire_id ( prenom, nom ) ),
       formatrice:formatrices!formatrice_id ( nom )
@@ -50,6 +50,7 @@ export async function GET(req: NextRequest) {
       formatrice: r.formatrice?.nom ?? null,
       demi_journee: r.demi_journee,
       heures: Number(r.heures),
+      heures_realisees: r.heures_realisees != null ? Number(r.heures_realisees) : null,
       hors_planning: !!r.hors_planning,
       token: r.emargement_token,
       signe_stagiaire: sig_s,

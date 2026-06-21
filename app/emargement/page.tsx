@@ -11,7 +11,7 @@ import SignaturePad from "@/components/SignaturePad";
 
 type Seance = {
   id: string; dossier_id: string; certif: string | null; stagiaire: string;
-  formatrice: string | null; demi_journee: string; heures: number; token: string;
+  formatrice: string | null; demi_journee: string; heures: number; heures_realisees: number | null; token: string;
   hors_planning?: boolean;
   signe_stagiaire: boolean; signe_formatrice: boolean; emarge_le: string | null; statut: string;
 };
@@ -92,6 +92,20 @@ export default function EmargementDuJour() {
     const maj = seances.find((s) => s.id === sel.id);
     if (maj) setSel(maj);
   }, [seances]);
+
+  async function ajusterDuree(s: Seance) {
+    const saisie = window.prompt(`Durée réelle de la séance de ${s.stagiaire} ? (en heures — ex 3 ou 4)`, String(s.heures_realisees ?? s.heures));
+    if (saisie === null) return;
+    const h = Number(saisie.replace(",", "."));
+    if (!Number.isFinite(h) || h <= 0 || h > 12) { alert("Durée invalide (0 < h ≤ 12)."); return; }
+    const r = await fetch("/api/emargement/duree", {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ planning_id: s.id, heures: h }),
+    });
+    const j = await r.json();
+    if (!j.ok) { alert(j.erreur || "Ajustement impossible."); return; }
+    await charger();
+  }
 
   const seancesVisibles = useMemo(() => {
     const q = recherche.trim().toLowerCase();
@@ -184,7 +198,12 @@ export default function EmargementDuJour() {
                   {s.hors_planning && <span className="ml-2 align-middle text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">walk-in</span>}
                 </div>
                 <div className="text-xs text-gray-500">
-                  {DEMI_LABEL[s.demi_journee]} · {s.heures} h · {s.certif ?? ""} {s.formatrice ? `· ${s.formatrice}` : ""}
+                  {DEMI_LABEL[s.demi_journee]} · {s.statut === "complet" ? (s.heures_realisees ?? s.heures) : s.heures} h
+                  {s.statut === "complet" && (
+                    <button onClick={() => ajusterDuree(s)} title="Ajuster la durée réelle"
+                      className="ml-1 text-mystory hover:underline">✎</button>
+                  )}
+                  {" · "}{s.certif ?? ""} {s.formatrice ? `· ${s.formatrice}` : ""}
                 </div>
               </div>
               <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${b.c}`}>{b.t}</span>

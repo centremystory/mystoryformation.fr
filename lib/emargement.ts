@@ -59,6 +59,19 @@ export interface FeuilleEmargement {
  * Construit le HTML de la feuille d'émargement réelle d'un dossier.
  * Renvoie null s'il n'existe AUCUNE demi-journée émargée (on ne génère pas une feuille vide).
  */
+/** Formate un horaire décimal en libellé FR : 9.5 → "9h30", 14 → "14h", 13.25 → "13h15". */
+function fmtHeure(dec: number): string {
+  const h = Math.floor(dec);
+  const m = Math.round((dec - h) * 60);
+  return m === 0 ? `${h}h` : `${h}h${String(m).padStart(2, "0")}`;
+}
+/** Recalcule l'horaire d'une demi-journée à partir de son début standard + la durée réelle. */
+function horaireReel(demi: string, heures: number): string {
+  const debut = demi === "matin" ? 9.5 : demi === "apres_midi" ? 14 : NaN;
+  if (!Number.isFinite(debut) || !Number.isFinite(heures) || heures <= 0) return "";
+  return `${fmtHeure(debut)} – ${fmtHeure(debut + heures)}`;
+}
+
 export async function genererFeuilleEmargementHtml(dossierId: string): Promise<FeuilleEmargement | null> {
   const { data: d } = await supabaseAdmin
     .from("dossiers")
@@ -90,7 +103,7 @@ export async function genererFeuilleEmargementHtml(dossierId: string): Promise<F
     const dm = DEMI[s.demi_journee] ?? { label: s.demi_journee, horaire: "" };
     lignes.push(`<tr>
       <td>${frDate(s.date_seance)}</td>
-      <td><b>${dm.label}</b><br><span class="muted">${dm.horaire}</span></td>
+      <td><b>${dm.label}</b><br><span class="muted">${horaireReel(s.demi_journee, Number(s.heures_realisees)) || dm.horaire}</span></td>
       <td class="center">${nombreFR(Number(s.heures_realisees))} h</td>
       <td class="sig">${sigS ? `<img src="${sigS}" alt="signature stagiaire">` : "—"}</td>
       <td class="sig">${sigF ? `<img src="${sigF}" alt="signature formatrice">` : "—"}<br><span class="muted">${esc(s.formatrice?.nom ?? "")}</span></td>
