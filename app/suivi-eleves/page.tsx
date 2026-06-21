@@ -44,6 +44,9 @@ const STATUT_JOUR: Record<string, { t: string; c: string }> = {
   non_emarge: { t: "⬜ Non émargé", c: "bg-amber-100 text-amber-800" },
 };
 
+type EvalDetail = { phase: string; ce_sur10: number | null; co_sur10: number | null; ee_sur10: number | null; eo_sur10: number | null; total_sur20: number | null; niveau_global: string | null; complete_le: string | null };
+type Progression = { niveaux: { niveau_initial: string | null; niveau_vise: string | null; niveau_atteint: string | null } | null; initial: EvalDetail | null; final: EvalDetail | null };
+
 export default function PageSuiviEleves() {
   const [eleves, setEleves] = useState<Eleve[]>([]);
   const [chargement, setChargement] = useState(true);
@@ -55,6 +58,7 @@ export default function PageSuiviEleves() {
   const [chargeJours, setChargeJours] = useState<Set<string>>(new Set());
   const [cours, setCours] = useState<Record<string, Cours[]>>({});
   const [chargeCours, setChargeCours] = useState<Set<string>>(new Set());
+  const [prog, setProg] = useState<Record<string, Progression>>({});
   const [form, setForm] = useState<Record<string, FormCours>>({});
   const [envoi, setEnvoi] = useState<Set<string>>(new Set());
   const [erreurForm, setErreurForm] = useState<Record<string, string | null>>({});
@@ -84,6 +88,13 @@ export default function PageSuiviEleves() {
         if (j.ok) setCours((c) => ({ ...c, [dossierId]: j.cours }));
       } catch { /* silencieux */ }
       finally { setChargeCours((p) => { const n = new Set(p); n.delete(dossierId); return n; }); }
+    }
+    if (!prog[dossierId]) {
+      try {
+        const r = await fetch(`/api/tests/progression?dossier=${encodeURIComponent(dossierId)}`, { cache: "no-store" });
+        const j = await r.json();
+        if (j.ok) setProg((pr) => ({ ...pr, [dossierId]: { niveaux: j.niveaux, initial: j.initial, final: j.final } }));
+      } catch { /* silencieux */ }
     }
   }
 
@@ -206,6 +217,7 @@ export default function PageSuiviEleves() {
                 </button>
                 {ouvert.has(e.dossier_id) && (
                   <div className="mt-2 border-t border-gray-100 pt-2 overflow-x-auto">
+                    <ProgressionBloc p={prog[e.dossier_id]} />
                     {chargeJours.has(e.dossier_id) && !detail[e.dossier_id] ? (
                       <p className="text-xs text-gray-400">Chargement…</p>
                     ) : (detail[e.dossier_id]?.length ?? 0) === 0 ? (
@@ -298,5 +310,49 @@ export default function PageSuiviEleves() {
         Les présences proviennent de l'émargement signé ; les absences se marquent depuis le <a href="/planning" className="text-mystory underline">planning</a> (séances passées non émargées).
       </p>
     </main>
+  );
+}
+
+function NiveauBadge({ label, valeur, ton }: { label: string; valeur: string | null; ton: string }) {
+  return (
+    <div className={`rounded-lg border px-3 py-1.5 text-center ${ton}`}>
+      <div className="text-[10px] uppercase tracking-wide opacity-70">{label}</div>
+      <div className="text-sm font-bold">{valeur ?? "—"}</div>
+    </div>
+  );
+}
+
+function DetailEval({ titre, ev }: { titre: string; ev: EvalDetail | null }) {
+  if (!ev) return null;
+  const n = (x: number | null) => (x == null ? "—" : x);
+  return (
+    <p className="text-[11px] text-gray-500">
+      <span className="font-medium text-gray-600">{titre} :</span> CE {n(ev.ce_sur10)}/10 · CO {n(ev.co_sur10)}/10 · EE {n(ev.ee_sur10)}/10 · EO {n(ev.eo_sur10)}/10 · <strong className="text-gray-700">{ev.total_sur20 ?? "—"}/20</strong>{ev.niveau_global ? ` → ${ev.niveau_global}` : ""}
+    </p>
+  );
+}
+
+function ProgressionBloc({ p }: { p: Progression | undefined }) {
+  if (!p) return <p className="mb-2 text-xs text-gray-400">Chargement de la progression…</p>;
+  const niv = p.niveaux;
+  const initial = niv?.niveau_initial ?? p.initial?.niveau_global ?? null;
+  const atteint = niv?.niveau_atteint ?? p.final?.niveau_global ?? null;
+  const rien = !initial && !niv?.niveau_vise && !atteint && !p.initial && !p.final;
+  if (rien) return null;
+  return (
+    <div className="mb-3 rounded-xl bg-mystory-clair/40 p-3">
+      <p className="mb-2 text-xs font-semibold text-mystory">Progression</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <NiveauBadge label="Initial" valeur={initial} ton="border-gray-200 bg-white text-gray-700" />
+        <span className="text-gray-300">→</span>
+        <NiveauBadge label="Visé" valeur={niv?.niveau_vise ?? null} ton="border-mystory/30 bg-white text-mystory" />
+        <span className="text-gray-300">→</span>
+        <NiveauBadge label="Atteint" valeur={atteint} ton={atteint ? "border-green-300 bg-green-50 text-green-700" : "border-gray-200 bg-white text-gray-400"} />
+      </div>
+      <div className="mt-2 space-y-0.5">
+        <DetailEval titre="Test initial" ev={p.initial} />
+        <DetailEval titre="Test final" ev={p.final} />
+      </div>
+    </div>
   );
 }
