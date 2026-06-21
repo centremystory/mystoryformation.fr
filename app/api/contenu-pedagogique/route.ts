@@ -18,7 +18,7 @@ const BUCKET = "documents";
 const MAX_SIZE = 25 * 1024 * 1024; // 25 Mo
 const CERTIFS = ["tef_irn", "leveltel", "transverse"];
 const NIVEAUX = ["tous", "A1", "A2", "B1", "B2", "C1", "C2"];
-const TYPES = ["programme", "support", "exercice", "evaluation", "autre"];
+const TYPES = ["cours", "exercice", "correction", "support", "programme", "evaluation", "autre"];
 const MIME_OK = new Set([
   "application/pdf",
   "application/msword",
@@ -40,10 +40,10 @@ export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   let q = supabaseAdmin
     .from("contenu_pedagogique")
-    .select("id, certification, niveau, type, titre, description, fichier_path, fichier_nom, fichier_type, fichier_taille, auteur, cree_le")
+    .select("id, certification, niveau, type, module, titre, description, fichier_path, fichier_nom, fichier_type, fichier_taille, auteur, cree_le")
     .eq("actif", true)
     .order("cree_le", { ascending: false });
-  for (const [col, key] of [["certification", "certification"], ["niveau", "niveau"], ["type", "type"]] as const) {
+  for (const [col, key] of [["certification", "certification"], ["niveau", "niveau"], ["type", "type"], ["module", "module"]] as const) {
     const v = sp.get(key);
     if (v) q = q.eq(col, v);
   }
@@ -74,6 +74,7 @@ export async function POST(req: NextRequest) {
     const type = String(form.get("type") ?? "support").trim();
     const titre = String(form.get("titre") ?? "").trim();
     const description = String(form.get("description") ?? "").trim() || null;
+    const module = String(form.get("module") ?? "").trim() || null;
     const file = form.get("fichier");
 
     if (!titre) return NextResponse.json({ ok: false, erreur: "Titre requis." }, { status: 400 });
@@ -97,7 +98,7 @@ export async function POST(req: NextRequest) {
     if (upErr) return NextResponse.json({ ok: false, erreur: `Échec de l'envoi : ${upErr.message}` }, { status: 500 });
 
     const { data: ins, error: insErr } = await supabaseAdmin.from("contenu_pedagogique").insert({
-      certification, niveau, type, titre, description,
+      certification, niveau, type, module, titre, description,
       fichier_path: chemin, fichier_nom: file.name, fichier_type: file.type || null, fichier_taille: file.size,
       auteur: u.email ?? null,
     }).select("id").single();
@@ -137,6 +138,7 @@ export async function PATCH(req: NextRequest) {
   if (typeof b?.certification === "string" && CERTIFS.includes(b.certification)) champs.certification = b.certification;
   if (typeof b?.niveau === "string" && NIVEAUX.includes(b.niveau)) champs.niveau = b.niveau;
   if (typeof b?.type === "string" && TYPES.includes(b.type)) champs.type = b.type;
+  if (typeof b?.module === "string") champs.module = b.module.trim() || null;
   if (Object.keys(champs).length === 0) return NextResponse.json({ ok: false, erreur: "Rien à mettre à jour." }, { status: 400 });
 
   const { error } = await supabaseAdmin.from("contenu_pedagogique").update(champs).eq("id", id);

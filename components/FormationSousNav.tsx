@@ -28,7 +28,7 @@ const GROUPES: { cle: string; onglets: { href: string; label: string }[] }[] = [
     { href: "/planning", label: "Planning" },
   ] },
   { cle: "pedagogie", onglets: [
-    { href: "/contenu-pedagogique", label: "Contenu pédagogique" },
+    { href: "/contenu-pedagogique", label: "Espace pédagogique" },
     { href: "/programmes", label: "Séquençage" },
   ] },
 ];

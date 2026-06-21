@@ -1,9 +1,9 @@
 "use client";
 // app/contenu-pedagogique/page.tsx — Bibliothèque de supports pédagogiques (upload).
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type Entree = {
-  id: string; certification: string; niveau: string; type: string; titre: string; description: string | null;
+  id: string; certification: string; niveau: string; type: string; module: string | null; titre: string; description: string | null;
   fichier_nom: string | null; fichier_type: string | null; fichier_taille: number | null;
   auteur: string | null; cree_le: string; url: string | null;
 };
@@ -11,8 +11,8 @@ type Entree = {
 const CERTIFS = [{ v: "tef_irn", label: "TEF IRN" }, { v: "leveltel", label: "LEVELTEL" }, { v: "transverse", label: "Transverse" }];
 const NIVEAUX = ["tous", "A1", "A2", "B1", "B2", "C1", "C2"];
 const TYPES = [
-  { v: "programme", label: "Programme" }, { v: "support", label: "Support" }, { v: "exercice", label: "Exercice" },
-  { v: "evaluation", label: "Évaluation" }, { v: "autre", label: "Autre" },
+  { v: "cours", label: "Cours" }, { v: "exercice", label: "Exercice" }, { v: "correction", label: "Correction" },
+  { v: "support", label: "Support" }, { v: "programme", label: "Programme" }, { v: "evaluation", label: "Évaluation" }, { v: "autre", label: "Autre" },
 ];
 const CERTIF_LABEL: Record<string, string> = Object.fromEntries(CERTIFS.map((c) => [c.v, c.label]));
 const TYPE_LABEL: Record<string, string> = Object.fromEntries(TYPES.map((t) => [t.v, t.label]));
@@ -41,9 +41,10 @@ export default function PageContenu() {
   // formulaire
   const [certification, setCertification] = useState("tef_irn");
   const [niveau, setNiveau] = useState("tous");
-  const [type, setType] = useState("support");
+  const [type, setType] = useState("cours");
   const [titre, setTitre] = useState("");
   const [description, setDescription] = useState("");
+  const [moduleNom, setModuleNom] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   const charger = useCallback(async () => {
@@ -70,11 +71,11 @@ export default function PageContenu() {
     try {
       const fd = new FormData();
       fd.set("certification", certification); fd.set("niveau", niveau); fd.set("type", type);
-      fd.set("titre", titre); fd.set("description", description); fd.set("fichier", file);
+      fd.set("titre", titre); fd.set("description", description); fd.set("module", moduleNom); fd.set("fichier", file);
       const r = await fetch("/api/contenu-pedagogique", { method: "POST", body: fd });
       const j = await r.json();
       if (!j.ok) { setErr(j.erreur || "Ajout impossible."); return; }
-      setTitre(""); setDescription(""); if (fileRef.current) fileRef.current.value = "";
+      setTitre(""); setDescription(""); setModuleNom(""); if (fileRef.current) fileRef.current.value = "";
       await charger();
     } catch (e: any) { setErr(e?.message || "Ajout impossible."); }
     finally { setBusy(null); }
@@ -92,8 +93,8 @@ export default function PageContenu() {
     <main className="max-w-4xl mx-auto px-4 md:px-6 py-8">
       <header className="page-header">
         <div>
-          <h1 className="page-title">Contenu pédagogique</h1>
-          <p className="page-subtitle">Bibliothèque interne des programmes et supports, classés par certification et niveau.</p>
+          <h1 className="page-title">Espace pédagogique</h1>
+          <p className="page-subtitle">Cours, exercices et corrections organisés par module — accessibles à toute l'équipe. La structure des programmes se gère dans <a href="/programmes" className="text-mystory underline">Séquençage</a>.</p>
         </div>
       </header>
 
@@ -111,7 +112,8 @@ export default function PageContenu() {
             {TYPES.map((t) => <option key={t.v} value={t.v}>{t.label}</option>)}
           </select>
         </div>
-        <input value={titre} onChange={(e) => setTitre(e.target.value)} placeholder="Titre du support" className="w-full input mt-2" />
+        <input value={titre} onChange={(e) => setTitre(e.target.value)} placeholder="Titre (ex. Cours 1 — Se présenter)" className="w-full input mt-2" />
+        <input value={moduleNom} onChange={(e) => setModuleNom(e.target.value)} placeholder="Module / thème (ex. Module 1 — Vie quotidienne)" className="w-full input mt-2" />
         <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description (optionnel)" rows={2} className="w-full input mt-2" />
         <input ref={fileRef} type="file" className="block w-full text-sm text-gray-600 mt-2 file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-mystory-clair file:text-mystory file:text-sm" />
         <p className="text-xs text-gray-400 mt-1">PDF, Word, PowerPoint, Excel, image ou txt — 25 Mo max.</p>
@@ -145,9 +147,21 @@ export default function PageContenu() {
       {charge ? <p className="text-gray-500 text-sm">Chargement…</p> : entrees.length === 0 ? (
         <p className="text-gray-500 text-sm">Aucun support pour ce filtre. Ajoute le premier ci-dessus.</p>
       ) : (
-        <div className="space-y-2">
-          {entrees.map((e) => (
-            <div key={e.id} className="card">
+        <div className="space-y-4">
+          {Array.from(
+            entrees.reduce((acc, e) => {
+              const k = (e.module && e.module.trim()) || "Sans module";
+              if (!acc.has(k)) acc.set(k, []);
+              acc.get(k)!.push(e);
+              return acc;
+            }, new Map<string, Entree[]>())
+          ).map(([mod, items]) => (
+            <div key={mod} className="space-y-2">
+              <h3 className="mt-2 flex items-center gap-2 text-sm font-semibold text-gray-700">
+                📚 {mod} <span className="text-xs font-normal text-gray-400">({items.length})</span>
+              </h3>
+              {items.map((e) => (
+                <div key={e.id} className="card">
               <div className="flex flex-wrap items-center gap-2 mb-1">
                 <span className="text-xs px-2 py-0.5 rounded-full bg-mystory-clair text-mystory">{CERTIF_LABEL[e.certification] ?? e.certification}</span>
                 <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">{e.niveau === "tous" ? "Tous niveaux" : e.niveau}</span>
@@ -165,6 +179,8 @@ export default function PageContenu() {
                 {e.fichier_taille ? <span>· {taille(e.fichier_taille)}</span> : null}
                 <span>· {dateFr(e.cree_le)}{e.auteur ? ` · ${e.auteur}` : ""}</span>
               </div>
+                </div>
+              ))}
             </div>
           ))}
         </div>

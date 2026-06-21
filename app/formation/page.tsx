@@ -65,7 +65,7 @@ const ACCES: { href: string; icone: LucideIcon; titre: string; desc: string; pri
   { href: "/planning", icone: CalendarDays, titre: "Planning des élèves", desc: "Séances à venir, par site." },
   { href: "/suivi-eleves", icone: TrendingUp, titre: "Suivi des élèves", desc: "Heures, absences, prochaine séance." },
   { href: "/positionnements", icone: FileText, titre: "Positionnements", desc: "QCM candidats à traiter et niveaux à noter." },
-  { href: "/contenu-pedagogique", icone: GraduationCap, titre: "Pédagogie", desc: "Bibliothèque de programmes et supports." },
+  { href: "/contenu-pedagogique", icone: GraduationCap, titre: "Espace pédagogique", desc: "Cours, exercices et corrections par module." },
   { href: "/edof", icone: Download, titre: "Import EDOF", desc: "Réconciliation EDOF → CRM." },
 ];
 
