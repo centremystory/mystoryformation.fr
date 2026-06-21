@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
     if (g.interdit) return NextResponse.json({ ok: false, erreur: "Réservé à la Direction." }, { status: 403 });
     const { data, error } = await supabaseAdmin
       .from("utilisateurs")
-      .select("id, nom, prenom, email, role, actif, doit_changer_mdp, cree_le, derniere_connexion")
+      .select("id, nom, prenom, email, role, roles, actif, doit_changer_mdp, cree_le, derniere_connexion")
       .order("actif", { ascending: false })
       .order("nom", { ascending: true });
     if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
@@ -85,25 +85,28 @@ export async function POST(req: NextRequest) {
     const prenom = String(b?.prenom ?? "").trim() || null;
     const email = String(b?.email ?? "").trim();
     const role = String(b?.role ?? "").trim() as Role;
+    const rolesIn: string[] = Array.isArray(b?.roles)
+      ? Array.from(new Set(b.roles.map((r: any) => String(r).trim()).filter(Boolean)))
+      : (role ? [role] : []);
     const motDePasse = String(b?.motDePasse ?? "");
 
     if (!nom) return NextResponse.json({ ok: false, erreur: "Nom requis." }, { status: 400 });
     if (!EMAIL_RE.test(email)) return NextResponse.json({ ok: false, erreur: "Email invalide." }, { status: 400 });
-    if (!ROLES.includes(role)) return NextResponse.json({ ok: false, erreur: "Rôle invalide." }, { status: 400 });
+    if (rolesIn.length === 0 || !rolesIn.every((r) => ROLES.includes(r as Role))) return NextResponse.json({ ok: false, erreur: "Au moins un rôle valide requis." }, { status: 400 });
     if (motDePasse.length < 8) return NextResponse.json({ ok: false, erreur: "Mot de passe : 8 caractères minimum." }, { status: 400 });
 
     const hash = bcrypt.hashSync(motDePasse, 10);
     const { data, error } = await supabaseAdmin
       .from("utilisateurs")
-      .insert({ nom, prenom, email, role, mot_de_passe_hash: hash, doit_changer_mdp: true })
+      .insert({ nom, prenom, email, role: rolesIn[0], roles: rolesIn, mot_de_passe_hash: hash, doit_changer_mdp: true })
       .select("id")
       .single();
     if (error) {
       if ((error as any).code === "23505") return NextResponse.json({ ok: false, erreur: "Un compte existe déjà avec cet email." }, { status: 409 });
       return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
     }
-    await journal("utilisateur", (data as any).id, "compte_cree", { email, role, par: g.u.email ?? g.u.id }, g.u.email ?? null);
-    const emailEnvoye = await envoyerAcces(email, prenom, role, motDePasse, "creation", g.u.email ?? null);
+    await journal("utilisateur", (data as any).id, "compte_cree", { email, roles: rolesIn, par: g.u.email ?? g.u.id }, g.u.email ?? null);
+    const emailEnvoye = await envoyerAcces(email, prenom, rolesIn[0] as Role, motDePasse, "creation", g.u.email ?? null);
     return NextResponse.json({ ok: true, id: (data as any).id, emailEnvoye });
   } catch (e) {
     if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
@@ -123,10 +126,13 @@ export async function PATCH(req: NextRequest) {
 
     if (action === "role") {
       const role = String(b?.role ?? "").trim() as Role;
-      if (!ROLES.includes(role)) return NextResponse.json({ ok: false, erreur: "Rôle invalide." }, { status: 400 });
-      const { error } = await supabaseAdmin.from("utilisateurs").update({ role }).eq("id", id);
+      const rolesIn: string[] = Array.isArray(b?.roles)
+        ? Array.from(new Set(b.roles.map((r: any) => String(r).trim()).filter(Boolean)))
+        : (role ? [role] : []);
+      if (rolesIn.length === 0 || !rolesIn.every((r) => ROLES.includes(r as Role))) return NextResponse.json({ ok: false, erreur: "Au moins un rôle valide requis." }, { status: 400 });
+      const { error } = await supabaseAdmin.from("utilisateurs").update({ role: rolesIn[0], roles: rolesIn }).eq("id", id);
       if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
-      await journal("utilisateur", id, "role_modifie", { role, par: g.u.email ?? g.u.id }, g.u.email ?? null);
+      await journal("utilisateur", id, "role_modifie", { roles: rolesIn, par: g.u.email ?? g.u.id }, g.u.email ?? null);
       return NextResponse.json({ ok: true });
     }
 

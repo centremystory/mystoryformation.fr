@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ROLES, ROLE_LABEL, PERMISSIONS, type Role } from "@/lib/roles";
 
 type Compte = {
-  id: string; nom: string; prenom: string | null; email: string; role: Role;
+  id: string; nom: string; prenom: string | null; email: string; role: Role; roles?: string[] | null;
   actif: boolean; doit_changer_mdp: boolean; cree_le: string; derniere_connexion: string | null;
 };
 
@@ -26,7 +26,7 @@ export default function PageComptes() {
 
   // formulaire de création
   const [nom, setNom] = useState(""); const [prenom, setPrenom] = useState("");
-  const [email, setEmail] = useState(""); const [role, setRole] = useState<Role>("commercial");
+  const [email, setEmail] = useState(""); const [roles, setRoles] = useState<string[]>(["commercial"]);
   const [mdp, setMdp] = useState("");
 
   const charger = useCallback(async () => {
@@ -48,12 +48,12 @@ export default function PageComptes() {
     try {
       const r = await fetch("/api/comptes", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nom, prenom, email, role, motDePasse: mdp }),
+        body: JSON.stringify({ nom, prenom, email, roles, motDePasse: mdp }),
       });
       const j = await r.json();
       if (!j.ok) { setErreur(j.erreur || "Création impossible."); return; }
       setInfo(j.emailEnvoye ? "Compte créé — email d'accès envoyé à la personne." : "Compte créé — mais l'email d'accès n'a pas pu partir (vérifie le canal email).");
-      setNom(""); setPrenom(""); setEmail(""); setRole("commercial"); setMdp("");
+      setNom(""); setPrenom(""); setEmail(""); setRoles(["commercial"]); setMdp("");
       await charger();
     } catch (e: any) { setErreur(e?.message || "Création impossible."); }
     finally { setBusy(null); }
@@ -113,9 +113,16 @@ export default function PageComptes() {
           <input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Nom" className="input" />
           <input value={prenom} onChange={(e) => setPrenom(e.target.value)} placeholder="Prénom" className="input" />
           <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" inputMode="email" className="input" />
-          <select value={role} onChange={(e) => setRole(e.target.value as Role)} className="input">
-            {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
-          </select>
+          <div className="input sm:col-span-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+            <span className="text-xs text-gray-500">Rôles :</span>
+            {ROLES.map((r) => (
+              <label key={r} className="flex items-center gap-1 text-sm">
+                <input type="checkbox" checked={roles.includes(r)}
+                  onChange={(e) => setRoles((rs) => e.target.checked ? [...rs, r] : rs.filter((x) => x !== r))} />
+                {ROLE_LABEL[r]}
+              </label>
+            ))}
+          </div>
           <input value={mdp} onChange={(e) => setMdp(e.target.value)} placeholder="Mot de passe temporaire (8 car. min)" className="input sm:col-span-2" />
         </div>
         <button onClick={creer} disabled={busy === "__create__"} className="btn-primary mt-3">
@@ -137,11 +144,23 @@ export default function PageComptes() {
                   <span className="font-medium text-gray-900">{c.prenom ? `${c.prenom} ` : ""}{c.nom}</span>
                   <span className="block text-xs text-gray-400">{c.email} · connexion : {dateFr(c.derniere_connexion)}</span>
                 </span>
-                <select value={c.role} disabled={busy === `role-${c.id}`}
-                  onChange={(e) => patch(c.id, { action: "role", role: e.target.value }, `role-${c.id}`)}
-                  className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm bg-white">
-                  {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
-                </select>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  {ROLES.map((r) => {
+                    const actuels = (c.roles && c.roles.length > 0 ? c.roles : [c.role]);
+                    const coche = actuels.includes(r);
+                    return (
+                      <label key={r} className="flex items-center gap-1 text-xs">
+                        <input type="checkbox" checked={coche} disabled={busy === `role-${c.id}`}
+                          onChange={(e) => {
+                            const nouveaux = e.target.checked ? [...actuels, r] : actuels.filter((x) => x !== r);
+                            if (nouveaux.length === 0) return;
+                            patch(c.id, { action: "role", roles: nouveaux }, `role-${c.id}`);
+                          }} />
+                        {ROLE_LABEL[r]}
+                      </label>
+                    );
+                  })}
+                </div>
                 <button onClick={() => reinitialiser(c)} disabled={busy === `reset-${c.id}`}
                   className="px-2.5 py-1.5 rounded-lg text-xs border border-gray-300 text-gray-600 hover:border-mystory hover:text-mystory">
                   Réinitialiser le mdp
