@@ -52,7 +52,7 @@ const NAV: Entree[] = [
       { href: "/confidentialite", label: "Confidentialité", icon: ShieldCheck },
       { href: "/conges", label: "Congés", icon: Plane },
       { href: "/planning-employes", label: "Planning équipe", icon: CalendarRange },
-      { href: "/pointage", label: "Pointage", icon: Clock },
+      { href: "/rapport-hebdo", label: "Rapport hebdo", icon: Clock },
     ],
   },
   {
