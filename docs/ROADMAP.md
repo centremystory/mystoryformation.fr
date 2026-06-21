@@ -26,6 +26,12 @@
 **P2 — en cours (livré au fur et à mesure) :**
 - ✅ **A6/A7 — accueil complété** : section « Examen — cette semaine » (places libres TEF IRN & civique des sessions de la semaine + liens de paiement en attente) ; widget « Classement du mois » (top vendeurs + top agences, Direction/Manager).
 - ✅ **SE1/SE2 — suivi des élèves cours par cours** : table `suivi_cours` + API `/api/suivi-cours` + section « Suivi pédagogique — cours par cours » dans `/suivi-eleves` (contenu fait, points forts/faibles, satisfaction de fin de cours, archivage).
+- 🟡 **TI — tests évolutifs (initial & final), en cours** :
+  - Banque évolutive : tables `tests` (modèles versionnés par période), `test_questions` (choix unique + réponse libre/mots-clés, audios, images, points, blocs), `evaluations` (résultats initial/final).
+  - Contenu versé : « Test initial – Référence (v3) » (CE /20, CO /10, appariement audio↔image) + « Test final – Juin 2026 » (CE /10, CO /10, audios rattachés).
+  - Moteur de passation `/test/[token]` + API `/api/tests/passation` (correction CE/CO **côté serveur**) + `/api/tests/evaluation` (lien depuis le dossier).
+  - Notation formatrice `/tests/a-noter` + API `/api/tests/notation` (EE/EO → niveau /20 → rattaché au dossier).
+  - **Reste TI** : diffusion (QR + mail + kiosque), rebrancher le QCM initial prospect sur le moteur, éditeur de banque (créer/versionner + upload audios + corriger ex.1 Q1 du final), affichage initial→final + progression dans `/suivi-eleves`.
 
 **Reste P2 :** TI1/TI2/TI3 (test initial à distance + QR + kiosque), SD2/EV2 (analyse de besoin signée + évals complètes), FS1 (contrat confidentialité formateurs), PL1 (planning grille jour×heures), T1/RH1 (tâches + rapport hebdo, dépend des comptes individuels), relation/guide de vente.
 
