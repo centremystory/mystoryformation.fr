@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
   if (ev.statut !== "en_cours") return NextResponse.json({ ok: false, erreur: "Ce test a déjà été envoyé. Merci !", dejaFait: true }, { status: 409 });
 
   const { data: test } = await supabaseAdmin
-    .from("tests").select("titre, phase, consigne_ecrit, consigne_oral").eq("id", ev.test_id).maybeSingle();
+    .from("tests").select("titre, phase, consigne_ecrit, consigne_oral, oral_questions").eq("id", ev.test_id).maybeSingle();
 
   const { data: qs } = await supabaseAdmin
     .from("test_questions")
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     ok: true,
-    test: test ?? { titre: "Test", phase: ev.phase, consigne_ecrit: null, consigne_oral: null },
+    test: test ?? { titre: "Test", phase: ev.phase, consigne_ecrit: null, consigne_oral: null, oral_questions: null },
     candidat: { nom: ev.nom, prenom: ev.prenom },
     questions: qs ?? [],
   });

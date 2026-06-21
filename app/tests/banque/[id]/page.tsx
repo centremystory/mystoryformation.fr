@@ -12,7 +12,7 @@ type Question = {
   contexte: string | null; audio_path: string | null; enonce: string; options: Option[];
   bonne_reponse: string | null; mots_cles: string[] | null; points: number;
 };
-type Test = { id: string; phase: string; certif: string; titre: string; periode: string | null; consigne_ecrit: string | null; consigne_oral: string | null; actif: boolean };
+type Test = { id: string; phase: string; certif: string; titre: string; periode: string | null; consigne_ecrit: string | null; consigne_oral: string | null; oral_questions: string[] | null; actif: boolean };
 
 const LETTRES = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
@@ -44,7 +44,7 @@ export default function EditionTest({ params }: { params: { id: string } }) {
     if (!test) return;
     await fetch("/api/tests/banque", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "maj_test", test_id: test.id, titre: test.titre, periode: test.periode, consigne_ecrit: test.consigne_ecrit, consigne_oral: test.consigne_oral }),
+      body: JSON.stringify({ action: "maj_test", test_id: test.id, titre: test.titre, periode: test.periode, consigne_ecrit: test.consigne_ecrit, consigne_oral: test.consigne_oral, oral_questions: test.oral_questions }),
     });
     setOkMsg("Enregistré ✓"); setTimeout(() => setOkMsg(null), 1500);
   }
@@ -88,6 +88,9 @@ export default function EditionTest({ params }: { params: { id: string } }) {
         </label>
         <label className="block text-sm text-gray-700">Consigne expression orale
           <textarea value={test.consigne_oral ?? ""} onChange={(e) => setTest({ ...test, consigne_oral: e.target.value })} rows={2} className="input mt-1 w-full" />
+        </label>
+        <label className="block text-sm text-gray-700">Questions orales à enregistrer <span className="text-gray-400">(une par ligne)</span>
+          <textarea value={(test.oral_questions ?? []).join("\n")} onChange={(e) => setTest({ ...test, oral_questions: e.target.value.split("\n").map((x) => x.trim()).filter(Boolean) })} rows={3} placeholder="Une question par ligne…" className="input mt-1 w-full" />
         </label>
         <div className="flex items-center gap-3">
           <button onClick={enregistrerTest} className="btn-primary">Enregistrer</button>

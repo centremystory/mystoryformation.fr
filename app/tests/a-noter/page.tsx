@@ -7,10 +7,11 @@
 import { useEffect, useState } from "react";
 
 type Test = { titre: string; phase: string; consigne_ecrit: string | null; consigne_oral: string | null };
+type Oral = { q: number; question: string; url: string | null; duree: number | null };
 type Evaluation = {
   id: string; phase: string; dossier_id: string | null;
   nom: string | null; prenom: string | null; email: string | null;
-  ce_sur10: number | null; co_sur10: number | null; ecrit: string | null; cree_le: string; test: Test | null;
+  ce_sur10: number | null; co_sur10: number | null; ecrit: string | null; cree_le: string; test: Test | null; oral?: Oral[];
 };
 
 export default function ANoter() {
@@ -92,6 +93,18 @@ function CarteNotation({ ev, onFini }: { ev: Evaluation; onFini: () => void }) {
         <div className="mt-3">
           <p className="text-xs font-semibold text-gray-600">Expression orale — sujet</p>
           <p className="text-xs italic text-gray-500">{ev.test.consigne_oral}</p>
+        </div>
+      )}
+
+      {(ev.oral?.length ?? 0) > 0 && (
+        <div className="mt-2 space-y-2">
+          <p className="text-xs font-semibold text-gray-600">Enregistrements oraux du candidat</p>
+          {ev.oral!.map((o, i) => (
+            <div key={i}>
+              <p className="text-[11px] text-gray-500">{o.q + 1}. {o.question}</p>
+              {o.url ? <audio controls preload="none" src={o.url} className="w-full" /> : <p className="text-[11px] text-gray-400">— audio indisponible —</p>}
+            </div>
+          ))}
         </div>
       )}
 

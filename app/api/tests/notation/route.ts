@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
 
   const { data: evs } = await supabaseAdmin
     .from("evaluations")
-    .select("id, phase, test_id, dossier_id, nom, prenom, email, ce_sur10, co_sur10, ecrit, cree_le")
+    .select("id, phase, test_id, dossier_id, nom, prenom, email, ce_sur10, co_sur10, ecrit, oral_audios, cree_le")
     .eq("statut", "en_attente_formateur")
     .order("cree_le", { ascending: true });
 
@@ -35,7 +35,17 @@ export async function GET(req: NextRequest) {
     const { data: ts } = await supabaseAdmin.from("tests").select("id, titre, phase, consigne_ecrit, consigne_oral").in("id", testIds);
     (ts ?? []).forEach((t: any) => testsMap.set(t.id, t));
   }
-  const evaluations = (evs ?? []).map((e: any) => ({ ...e, test: testsMap.get(e.test_id) ?? null }));
+  const evaluations = [];
+  for (const e of (evs ?? []) as any[]) {
+    const oa = Array.isArray(e.oral_audios) ? e.oral_audios : [];
+    const oral: Array<{ q: number; question: string; url: string | null; duree: number | null }> = [];
+    for (const a of oa) {
+      let url: string | null = null;
+      try { const { data: signed } = await supabaseAdmin.storage.from("documents").createSignedUrl(a.chemin, 3600); url = signed?.signedUrl ?? null; } catch { url = null; }
+      oral.push({ q: a.q, question: a.question, url, duree: a.duree ?? null });
+    }
+    evaluations.push({ ...e, test: testsMap.get(e.test_id) ?? null, oral });
+  }
   return NextResponse.json({ ok: true, evaluations });
 }
 

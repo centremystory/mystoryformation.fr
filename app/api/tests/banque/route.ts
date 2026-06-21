@@ -93,6 +93,7 @@ export async function POST(req: NextRequest) {
     const testId = String(body.test_id ?? "");
     const patch: Record<string, any> = {};
     for (const k of ["titre", "periode", "consigne_ecrit", "consigne_oral"]) if (k in body) patch[k] = body[k] ?? null;
+    if ("oral_questions" in body) patch.oral_questions = Array.isArray(body.oral_questions) ? body.oral_questions.map((x: any) => String(x).trim()).filter(Boolean) : null;
     if ("actif" in body) patch.actif = !!body.actif;
     if (!Object.keys(patch).length) return NextResponse.json({ ok: false, erreur: "Rien à modifier." }, { status: 400 });
     const { error } = await supabaseAdmin.from("tests").update(patch).eq("id", testId);
