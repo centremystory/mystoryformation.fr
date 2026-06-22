@@ -18,7 +18,7 @@ import { siteValide, COOKIE_SITE, type SiteFiltre } from "@/lib/sites";
 export const dynamic = "force-dynamic";
 
 async function compter(site: SiteFiltre) {
-  const zero = { enCours: 0, aFinaliser: 0, aRelancer: 0, fleOk: 0, fleTotal: 0 };
+  const zero = { enCours: 0, aFinaliser: 0, aRelancer: 0, finsProches: 0 };
   try {
     const compteDossiers = (statut: string) => {
       let q = supabaseAdmin
@@ -36,19 +36,35 @@ async function compter(site: SiteFiltre) {
       if (site) q = q.eq("stagiaires.agence", site);
       return q;
     };
-    const [incomplets, aFinaliser, relances, formatrices] = await Promise.all([
+    const [incomplets, aFinaliser, relances, planning] = await Promise.all([
       compteDossiers("incomplet"),
       compteAFinaliser(),
       supabaseAdmin.from("v_conventions_a_relancer").select("*", { count: "exact", head: true }),
-      supabaseAdmin.from("formatrices").select("justificatif_fle").eq("actif", true),
+      supabaseAdmin
+        .from("planning")
+        .select(
+          `heures, emarge_le, dossier:dossiers!dossier_id ( id, statut, date_fin, heures_prevues, stagiaire:stagiaires!stagiaire_id ( agence ) )`
+        ),
     ]);
-    const actives = formatrices.data ?? [];
+    // Fins de formation proches : dossier en cours (non clôturé) dont les heures
+    // émargées atteignent >= 80 % des heures prévues -> à finaliser en priorité.
+    // Heures faites calculées en live depuis le planning (dossiers.heures_realisees
+    // n'est figé qu'à la clôture).
+    const acc = new Map<string, { fait: number; prevu: number }>();
+    for (const r of ((planning.data as any[]) ?? [])) {
+      const d = (r as any).dossier;
+      if (!d?.id || d.statut !== "incomplet" || d.date_fin != null) continue;
+      if (site && (d.stagiaire?.agence ?? "") !== site) continue;
+      if (!acc.has(d.id)) acc.set(d.id, { fait: 0, prevu: Number(d.heures_prevues ?? 0) });
+      if (r.emarge_le) acc.get(d.id)!.fait += Number(r.heures ?? 0);
+    }
+    let finsProches = 0;
+    for (const v of acc.values()) if (v.prevu > 0 && v.fait >= 0.8 * v.prevu) finsProches++;
     return {
       enCours: incomplets.count ?? 0,
       aFinaliser: aFinaliser.count ?? 0,
       aRelancer: relances.count ?? 0,
-      fleOk: actives.filter((f) => f.justificatif_fle).length,
-      fleTotal: actives.length,
+      finsProches,
     };
   } catch {
     return zero; // le tableau de bord s'affiche même si la base est indisponible
@@ -275,7 +291,7 @@ export default async function Accueil() {
         <Kpi libelle="Dossiers en cours" valeur={String(c.enCours)} href="/dossiers?vue=incomplet" />
         <Kpi libelle="Dossiers à finaliser" valeur={String(c.aFinaliser)} accent={c.aFinaliser > 0 ? "ambre" : undefined} href="/dossiers?vue=a_finaliser" />
         <Kpi libelle="Conventions à relancer" valeur={String(c.aRelancer)} accent={c.aRelancer > 0 ? "ambre" : undefined} href="/dossiers" />
-        <Kpi libelle="Formatrices en règle" valeur={`${c.fleOk} / ${c.fleTotal}`} accent={c.fleOk === c.fleTotal ? "vert" : "ambre"} href="/formateurs" />
+        <Kpi libelle="Fins de formation proches" valeur={String(c.finsProches)} accent={c.finsProches > 0 ? "ambre" : undefined} href="/suivi-eleves" />
       </div>
 
       {/* Examen — cette semaine */}
