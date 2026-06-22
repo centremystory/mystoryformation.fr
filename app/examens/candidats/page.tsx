@@ -50,6 +50,19 @@ function paye(statut: string | null): boolean {
   return (statut ?? "").toLowerCase().includes("pay");
 }
 
+// Mentions civiques : un badge coloré court pour distinguer les 3 d'un coup d'œil.
+const MENTION_STYLE: Record<string, { court: string; classe: string }> = {
+  "Carte de séjour pluriannuelle": { court: "Pluriannuelle", classe: "bg-blue-100 text-blue-800 border-blue-200" },
+  "Carte de résident": { court: "Résident", classe: "bg-violet-100 text-violet-800 border-violet-200" },
+  "Naturalisation": { court: "Naturalisation", classe: "bg-emerald-100 text-emerald-800 border-emerald-200" },
+};
+function MentionBadge({ sousType, civique }: { sousType: string | null; civique: boolean }) {
+  if (!sousType) return null;
+  const s = civique ? MENTION_STYLE[sousType] : undefined;
+  if (s) return <span className={`ml-1 inline-block rounded-full border px-2 py-0.5 text-xs font-medium ${s.classe}`}>{s.court}</span>;
+  return <span className="ml-1 inline-block rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs text-gray-600">{sousType}</span>;
+}
+
 function SaisieResultat({ c }: { c: Candidat }) {
   const estTef = c.type_norm === "TEF_IRN";
   const [statut, setStatut] = useState<string>(c.resultat?.statut ?? "");
@@ -402,7 +415,7 @@ export default function PageCandidatsExamen() {
                             <td data-label="Date" className="px-4 py-2 whitespace-nowrap text-gray-700">{dateFr(c.date_examen)}{c.a_confirmer && <span className="ml-2 text-xs text-amber-700">⏳</span>}</td>
                             <td data-label="Type" className="px-4 py-2 text-gray-600">
                               {TYPE_LABEL[c.type_norm] ?? c.type_norm}{c.source === "vente" && <span className="ml-1 text-xs text-emerald-700">•</span>}
-                              {c.sous_type && <span className="block text-xs text-gray-500">{c.sous_type}</span>}
+                              <MentionBadge sousType={c.sous_type} civique={c.type_norm === "CIVIQUE"} />
                             </td>
                             <td data-label="État" className="px-4 py-2">
                               {c.statut_examen && (
@@ -473,6 +486,7 @@ export default function PageCandidatsExamen() {
                           <tr key={c.id} className="border-t border-gray-100">
                             <td data-label="Candidat" className="px-4 py-2 font-medium text-gray-900">
                               {c.civilite ? `${c.civilite} ` : ""}{c.prenom ? `${c.prenom} ` : ""}{c.nom}
+                              <MentionBadge sousType={c.sous_type} civique={c.type_norm === "CIVIQUE"} />
                               {c.a_confirmer && <span className="ml-2 text-xs text-amber-700">⏳ à confirmer</span>}
                               {c.source === "vente" && <span className="ml-2 text-xs text-emerald-700">• vente</span>}
                             </td>
