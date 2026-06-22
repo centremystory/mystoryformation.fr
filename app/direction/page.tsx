@@ -4,6 +4,7 @@
 // finances), alimenté automatiquement depuis la base. Lecture seule. Réservé Direction/Manager.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 
 type Donnees = {
   periode: { debut: string; fin: string; agence: string | null };
@@ -33,14 +34,22 @@ function periodes() {
   };
 }
 
-function Stat({ libelle, valeur, note }: { libelle: string; valeur: string; note?: string }) {
-  return (
-    <div className="card !px-4 !py-3">
+function Stat({ libelle, valeur, note, href }: { libelle: string; valeur: string; note?: string; href?: string }) {
+  const contenu = (
+    <>
       <div className="text-xs text-gray-500">{libelle}</div>
       <div className="mt-1 text-2xl font-semibold tabular-nums">{valeur}</div>
       {note && <div className="mt-0.5 text-[11px] text-gray-400">{note}</div>}
-    </div>
+    </>
   );
+  if (href) {
+    return (
+      <Link href={href} className="card !px-4 !py-3 block transition-colors hover:border-mystory hover:bg-gray-50">
+        {contenu}
+      </Link>
+    );
+  }
+  return <div className="card !px-4 !py-3">{contenu}</div>;
 }
 
 function Bloc({ titre, children }: { titre: string; children: React.ReactNode }) {
@@ -121,16 +130,16 @@ export default function DirectionPage() {
           </p>
 
           <Bloc titre="Activité">
-            <Stat libelle="Inscriptions formation" valeur={String(data.activite.inscriptions)} note="dossiers créés sur la période" />
-            <Stat libelle="Dossiers clôturés" valeur={String(data.activite.clotures)} />
-            <Stat libelle="Heures dispensées" valeur={`${data.activite.heuresDispensees} h`} note="séances émargées (durée réelle)" />
-            <Stat libelle="Élèves en formation" valeur={String(data.activite.elevesEnFormation)} note="en cours, instantané" />
+            <Stat libelle="Inscriptions formation" valeur={String(data.activite.inscriptions)} note="dossiers créés sur la période" href="/dossiers" />
+            <Stat libelle="Dossiers clôturés" valeur={String(data.activite.clotures)} href="/dossiers?vue=complet" />
+            <Stat libelle="Heures dispensées" valeur={`${data.activite.heuresDispensees} h`} note="séances émargées (durée réelle)" href="/suivi-eleves" />
+            <Stat libelle="Élèves en formation" valeur={String(data.activite.elevesEnFormation)} note="en cours, instantané" href="/suivi-eleves" />
           </Bloc>
 
           <Bloc titre="Acquisition">
-            <Stat libelle="Nouveaux prospects" valeur={String(data.acquisition.prospects)} note="messages reçus" />
-            <Stat libelle="Inscriptions formation" valeur={String(data.acquisition.inscriptions)} />
-            <Stat libelle="Ventes examen" valeur={String(data.acquisition.ventesExamen)} />
+            <Stat libelle="Nouveaux prospects" valeur={String(data.acquisition.prospects)} note="messages reçus" href="/messages" />
+            <Stat libelle="Inscriptions formation" valeur={String(data.acquisition.inscriptions)} href="/dossiers" />
+            <Stat libelle="Ventes examen" valeur={String(data.acquisition.ventesExamen)} href="/examen" />
             <Stat
               libelle="Taux (indicatif)"
               valeur={data.acquisition.tauxConversion == null ? "—" : `${data.acquisition.tauxConversion} %`}
@@ -139,10 +148,10 @@ export default function DirectionPage() {
           </Bloc>
 
           <Bloc titre="Finances">
-            <Stat libelle="Facturé (période)" valeur={eur(data.finances.facture)} note="hors annulations" />
-            <Stat libelle="Encaissé (période)" valeur={eur(data.finances.encaisse)} note="d'après date de paiement" />
-            <Stat libelle="À encaisser" valeur={eur(data.finances.aEncaisser)} note="encours total non réglé" />
-            <Stat libelle="CA examens (période)" valeur={eur(data.finances.caExamens)} note="ventes TEF / civique" />
+            <Stat libelle="Facturé (période)" valeur={eur(data.finances.facture)} note="hors annulations" href="/factures" />
+            <Stat libelle="Encaissé (période)" valeur={eur(data.finances.encaisse)} note="d'après date de paiement" href="/factures" />
+            <Stat libelle="À encaisser" valeur={eur(data.finances.aEncaisser)} note="encours total non réglé" href="/factures" />
+            <Stat libelle="CA examens (période)" valeur={eur(data.finances.caExamens)} note="ventes TEF / civique" href="/examen" />
           </Bloc>
 
           {(data.finances.resteExamens > 0 || Object.keys(data.finances.parTypeExamen).length > 0) && (
