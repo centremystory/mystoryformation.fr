@@ -40,7 +40,9 @@
     - ✅ **B3 — kiosque enrichi** : civilité, niveau visé, **adresse/cp/ville** (parité dossier avec l'ancien QCM ; pont `mystory_creer_stagiaire_dossier` étendu).
     - ✅ **B4 — bascule activée** : `next.config` redirige `/qcm` et `/qcm.html` → `/test/kiosque` (temporaire, **réversible** : retirer les redirects + restaurer le rewrite). `qcm.html` conservé physiquement ; ancien système `positionnements` consultable. **Unification B terminée.**
 
-**Reste P2 :** guide techniques de vente (contenu, pas du code).
+**P2 : terminé.** Reste hors-dev : activer les workflows n8n (côté Arudhan) ; P3 bloqué par le levier E (comptes individuels).
+
+**Guide techniques de vente : FAIT.** Page `/techniques-vente` (nav Relation), table `techniques_vente` éditable (Direction/Manager), 10 fiches socle conformes anti-démarchage CPF. À enrichir au fil du temps.
 
 **Bilan de satisfaction agrégé : FAIT.** Page `/bilan-satisfaction` (nav Formation) : moyenne par critère, % de satisfaits, NPS (recommandation), nombre de répondants, verbatims ; filtres type (chaud/froid) + période. Route `/api/satisfaction/bilan` (lecture, agrégation en JS sur la table `satisfactions`). Couvre l'exigence Qualiopi d'exploitation des retours.
 
