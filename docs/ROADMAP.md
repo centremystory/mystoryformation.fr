@@ -40,7 +40,9 @@
     - ✅ **B3 — kiosque enrichi** : civilité, niveau visé, **adresse/cp/ville** (parité dossier avec l'ancien QCM ; pont `mystory_creer_stagiaire_dossier` étendu).
     - ✅ **B4 — bascule activée** : `next.config` redirige `/qcm` et `/qcm.html` → `/test/kiosque` (temporaire, **réversible** : retirer les redirects + restaurer le rewrite). `qcm.html` conservé physiquement ; ancien système `positionnements` consultable. **Unification B terminée.**
 
-**Reste P2 :** guide techniques de vente ; bilan agrégé de la satisfaction (option, exploitation des retours Qualiopi).
+**Reste P2 :** guide techniques de vente (contenu, pas du code).
+
+**Bilan de satisfaction agrégé : FAIT.** Page `/bilan-satisfaction` (nav Formation) : moyenne par critère, % de satisfaits, NPS (recommandation), nombre de répondants, verbatims ; filtres type (chaud/froid) + période. Route `/api/satisfaction/bilan` (lecture, agrégation en JS sur la table `satisfactions`). Couvre l'exigence Qualiopi d'exploitation des retours.
 
 **EV2 / satisfaction de fin par le stagiaire : DÉJÀ EN PLACE + envoi e-mail ajouté.** Le questionnaire de satisfaction à chaud multi-critères (recommandation/NPS, information avant, conditions & accueil, qualité pédagogique, rythme, réponse au projet + commentaire) est rempli par le stagiaire via lien (`/satisfaction?token=&type=chaud|froid`), immuable, anti-antidate, archivé en PDF. Idem satisfaction à froid (J+3 mois, auto n8n). NOUVEAU : bouton « Envoyer au stagiaire » (`/api/dossiers/satisfaction-envoyer`) qui envoie le lien par e-mail (au lieu du copier-coller). L'évaluation finale couvre déjà les 4 compétences CECRL + niveau global + commentaires + axes.
 
