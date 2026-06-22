@@ -11,26 +11,27 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { ROLES, ROLE_LABEL, peut, type Role } from "@/lib/roles";
 import { journal } from "@/lib/examens";
 import { envoyerEmail, gabaritEmail, EMAIL_ACTIF } from "@/lib/email";
+import { urlDeBase } from "@/lib/appUrl";
 import bcrypt from "bcryptjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const APP_URL = process.env.APP_URL ?? "https://mystoryformation.fr";
 
 /** Email d'accès envoyé à la personne (création) ou de réinitialisation. Non bloquant. */
 async function envoyerAcces(
   email: string, prenom: string | null, role: Role, motDePasse: string,
-  type: "creation" | "reset", auteur?: string | null,
+  type: "creation" | "reset", auteur?: string | null, baseUrl?: string,
 ): Promise<boolean> {
   if (!EMAIL_ACTIF) return false;
   const reset = type === "reset";
+  const url = (baseUrl ?? "https://mystoryformation.fr").replace(/\/+$/, "");
   const corps = `
     <p>Bonjour ${prenom ?? ""},</p>
     <p>${reset ? "Le mot de passe de votre accès" : "Un accès"} à l'espace équipe <strong>MYSTORY</strong> a été ${reset ? "réinitialisé" : "créé pour vous"}.</p>
     <p>
-      <strong>Connexion :</strong> <a href="${APP_URL}/connexion">${APP_URL}/connexion</a><br/>
+      <strong>Connexion :</strong> <a href="${url}/connexion">${url}/connexion</a><br/>
       <strong>Identifiant :</strong> ${email}<br/>
       <strong>Mot de passe ${reset ? "" : "temporaire"} :</strong> ${motDePasse}<br/>
       <strong>Rôle :</strong> ${ROLE_LABEL[role]}
@@ -106,7 +107,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
     }
     await journal("utilisateur", (data as any).id, "compte_cree", { email, roles: rolesIn, par: g.u.email ?? g.u.id }, g.u.email ?? null);
-    const emailEnvoye = await envoyerAcces(email, prenom, rolesIn[0] as Role, motDePasse, "creation", g.u.email ?? null);
+    const emailEnvoye = await envoyerAcces(email, prenom, rolesIn[0] as Role, motDePasse, "creation", g.u.email ?? null, urlDeBase(req));
     return NextResponse.json({ ok: true, id: (data as any).id, emailEnvoye });
   } catch (e) {
     if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
@@ -157,7 +158,7 @@ export async function PATCH(req: NextRequest) {
       if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
       await journal("utilisateur", id, "mot_de_passe_reinitialise", { par: g.u.email ?? g.u.id }, g.u.email ?? null);
       const emailEnvoye = cible
-        ? await envoyerAcces((cible as any).email, (cible as any).prenom, (cible as any).role, motDePasse, "reset", g.u.email ?? null)
+        ? await envoyerAcces((cible as any).email, (cible as any).prenom, (cible as any).role, motDePasse, "reset", g.u.email ?? null, urlDeBase(req))
         : false;
       return NextResponse.json({ ok: true, emailEnvoye });
     }

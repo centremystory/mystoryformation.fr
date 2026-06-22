@@ -8,12 +8,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { envoyerEmail, gabaritEmail } from "@/lib/email";
 import { ipDe, limiteDepassee } from "@/lib/rateLimit";
+import { urlDeBase } from "@/lib/appUrl";
 import { randomUUID } from "crypto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const APP_URL = process.env.APP_URL ?? "https://mystoryformation.fr";
 
 export async function POST(req: NextRequest) {
   // Réponse identique quoi qu'il arrive (anti-énumération).
@@ -37,7 +36,7 @@ export async function POST(req: NextRequest) {
   const expire = new Date(Date.now() + 3600_000).toISOString(); // 1 h
   await supabaseAdmin.from("utilisateurs").update({ reset_token: token, reset_token_expire: expire }).eq("id", (u as any).id);
 
-  const lien = `${APP_URL}/reinitialiser?token=${token}`;
+  const lien = `${urlDeBase(req)}/reinitialiser?token=${token}`;
   const corps = `
     <p>Bonjour ${(u as any).prenom ?? ""},</p>
     <p>Vous avez demandé à réinitialiser le mot de passe de votre accès à l'espace MYSTORY.</p>
