@@ -732,6 +732,23 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
               Copier le lien du questionnaire
             </button>
           )}
+          {!consultable && (
+            <button
+              onClick={async () => {
+                setErreurs([]);
+                const r = await fetch("/api/dossiers/satisfaction-envoyer", {
+                  method: "POST", headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ dossierId: d.id, type: variante }),
+                });
+                const j = await r.json();
+                if (j.ok) window.alert(`Questionnaire envoyé par e-mail à ${j.email}.`);
+                else setErreurs([j.erreur || "Envoi impossible."]);
+              }}
+              className="px-3 py-1 rounded-lg text-xs border border-mystory text-mystory bg-white"
+            >
+              Envoyer au stagiaire
+            </button>
+          )}
           {consultable && (
             <button onClick={() => voir(p)} disabled={occupé}
                     className="px-3 py-1 rounded-lg text-xs border border-gray-300 text-gray-700 bg-white disabled:opacity-50">
