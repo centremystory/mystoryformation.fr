@@ -8,7 +8,7 @@ const CERTIF: Record<string, string> = { TEF_IRN: "TEF IRN", LEVELTEL: "LEVELTEL
 const JOURS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
 
 type Seance = {
-  id: string; date_seance: string; demi_journee: string; heures: number;
+  id: string; date_seance: string; demi_journee: string; heures: number; heures_realisees: number | null;
   emarge_le: string | null; absence: boolean; stagiaire: string; certif: string | null;
   agence: string | null; formatrice: string | null;
 };
@@ -30,6 +30,78 @@ function addJours(d: Date, n: number): Date { const x = new Date(d); x.setDate(x
 function jourMois(d: Date): string { return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" }); }
 function hhmm(s: string | null): string { return s ? s.slice(0, 5) : ""; }
 
+const JOURS_COURT = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+const H_DEBUT = 8, H_FIN = 19, PX_H = 46;
+const HEURES = Array.from({ length: H_FIN - H_DEBUT }, (_, i) => H_DEBUT + i);
+const HAUTEUR = (H_FIN - H_DEBUT) * PX_H;
+function topPx(dec: number): number { return (dec - H_DEBUT) * PX_H; }
+function hhmmToDec(s: string | null): number | null { if (!s) return null; const [h, m] = s.split(":").map(Number); return h + (m || 0) / 60; }
+
+function GrilleSemaine({ jours, jourStrings, seances, creneaux, aujourdHui }: {
+  jours: Date[]; jourStrings: string[]; seances: Seance[]; creneaux: Creneau[]; aujourdHui: string;
+}) {
+  return (
+    <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
+      <div style={{ minWidth: 820 }}>
+        <div className="grid border-b border-gray-200" style={{ gridTemplateColumns: "44px repeat(7, 1fr)" }}>
+          <div />
+          {jours.map((d, i) => (
+            <div key={i} className={`border-l border-gray-100 px-1 py-1.5 text-center text-xs ${jourStrings[i] === aujourdHui ? "bg-mystory-clair/40 font-semibold text-mystory" : "font-medium text-gray-600"}`}>
+              {JOURS_COURT[i]} <span className="font-normal text-gray-400">{jourMois(d)}</span>
+            </div>
+          ))}
+        </div>
+        <div className="grid" style={{ gridTemplateColumns: "44px repeat(7, 1fr)" }}>
+          <div className="relative" style={{ height: HAUTEUR }}>
+            {HEURES.map((h) => (
+              <div key={h} className="absolute right-1 text-[10px] text-gray-400" style={{ top: topPx(h) - 5 }}>{h}h</div>
+            ))}
+          </div>
+          {jours.map((d, i) => {
+            const ds = jourStrings[i];
+            const sj = seances.filter((s) => s.date_seance === ds);
+            const matin = sj.filter((s) => s.demi_journee === "matin");
+            const aprem = sj.filter((s) => s.demi_journee !== "matin");
+            const cj = creneaux.filter((c) => c.date_jour === ds);
+            return (
+              <div key={i} className={`relative border-l border-gray-100 ${ds === aujourdHui ? "bg-mystory-clair/10" : ""}`} style={{ height: HAUTEUR }}>
+                {HEURES.map((h) => <div key={h} className="absolute inset-x-0 border-t border-gray-100" style={{ top: topPx(h) }} />)}
+                {([["Matin", matin, 9.5], ["Apres-midi", aprem, 14]] as [string, Seance[], number][]).map(([lbl, arr, deb]) => {
+                  if (arr.length === 0) return null;
+                  const duree = Math.max(...arr.map((s) => Number(s.heures_realisees ?? s.heures) || 3));
+                  const tousEmarges = arr.every((s) => s.emarge_le);
+                  return (
+                    <div key={lbl}
+                      className={`absolute overflow-hidden rounded-md border px-1 py-0.5 text-[10px] leading-tight ${tousEmarges ? "border-success-200 bg-success-50" : "border-mystory/30 bg-mystory-clair"}`}
+                      style={{ top: topPx(deb) + 1, height: duree * PX_H - 2, left: 2, width: "56%" }}>
+                      <div className="font-semibold text-gray-700">{lbl === "Apres-midi" ? "Apr\u00e8s-midi" : lbl}</div>
+                      {arr.slice(0, 4).map((s) => <div key={s.id} className="truncate text-gray-600">{s.stagiaire}</div>)}
+                      {arr.length > 4 && <div className="text-gray-400">+{arr.length - 4}</div>}
+                    </div>
+                  );
+                })}
+                {cj.map((c) => {
+                  const deb = hhmmToDec(c.heure_debut) ?? 9;
+                  const fin = hhmmToDec(c.heure_fin) ?? deb + 1;
+                  const nom = c.utilisateurs ? `${c.utilisateurs.prenom ?? ""} ${c.utilisateurs.nom ?? ""}`.trim() : "Equipe";
+                  return (
+                    <div key={c.id}
+                      className="absolute overflow-hidden rounded-md border border-amber-200 bg-amber-50 px-1 py-0.5 text-[10px] leading-tight"
+                      style={{ top: topPx(deb) + 1, height: Math.max(18, (fin - deb) * PX_H - 2), left: "60%", width: "38%" }}>
+                      <div className="truncate font-medium text-amber-800">{nom || "\u00c9quipe"}</div>
+                      {c.note && <div className="truncate text-amber-600">{c.note}</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function PageCalendrier() {
   const [lundi, setLundi] = useState<Date>(() => lundiDeSemaine(new Date()));
   const [seances, setSeances] = useState<Seance[]>([]);
@@ -37,6 +109,7 @@ export default function PageCalendrier() {
   const [fAgence, setFAgence] = useState("toutes");
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [vue, setVue] = useState<"grille" | "liste">("grille");
 
   const jours = useMemo(() => Array.from({ length: 7 }, (_, i) => addJours(lundi, i)), [lundi]);
   const jourStrings = useMemo(() => jours.map(isoDate), [jours]);
@@ -89,7 +162,11 @@ export default function PageCalendrier() {
         <button onClick={() => setLundi(addJours(lundi, 7))} className="px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-sm hover:border-mystory">Semaine ▶</button>
         <span className="ml-1 text-sm font-medium text-gray-700">{rangeLabel}</span>
         <span className="flex-1" />
-        <select value={fAgence} onChange={(e) => setFAgence(e.target.value)} className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm bg-white">
+        <div className="inline-flex rounded-lg border border-gray-300 bg-white p-0.5 text-sm">
+          <button onClick={() => setVue("grille")} className={`rounded px-2 py-1 ${vue === "grille" ? "bg-mystory text-white" : "text-gray-600"}`}>Grille</button>
+          <button onClick={() => setVue("liste")} className={`rounded px-2 py-1 ${vue === "liste" ? "bg-mystory text-white" : "text-gray-600"}`}>Liste</button>
+        </div>
+                <select value={fAgence} onChange={(e) => setFAgence(e.target.value)} className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm bg-white">
           <option value="toutes">Toutes agences</option>
           <option value="Gagny">Gagny</option><option value="Sarcelles">Sarcelles</option><option value="Rosny">Rosny</option>
         </select>
@@ -97,6 +174,11 @@ export default function PageCalendrier() {
 
       {erreur && <div className="mb-4 rounded-xl border border-danger-200 bg-danger-50 p-3 text-sm text-danger-700">{erreur}</div>}
 
+      {vue === "grille" && (
+        <GrilleSemaine jours={jours} jourStrings={jourStrings} seances={seancesSemaine} creneaux={creneaux} aujourdHui={aujourdHui} />
+      )}
+
+      {vue === "liste" && (
       <div className="space-y-2">
         {jours.map((d, i) => {
           const ds = jourStrings[i];
@@ -159,6 +241,7 @@ export default function PageCalendrier() {
           );
         })}
       </div>
+      )}
 
       {chargement && <p className="text-xs text-gray-400 mt-4">Mise à jour du planning équipe…</p>}
       <p className="text-xs text-gray-400 mt-4">

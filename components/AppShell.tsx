@@ -29,6 +29,7 @@ const NAV: Entree[] = [
       { href: "/inscriptions/nouvelle", label: "Inscrire", icon: Plus },
       { href: "/dossiers", label: "Dossiers", icon: FolderOpen },
       { href: "/emargement", label: "Suivi des cours", icon: ClipboardCheck },
+      { href: "/calendrier", label: "Planning", icon: CalendarDays },
       { href: "/contenu-pedagogique", label: "Pédagogie", icon: BookOpen },
       { href: "/satisfaction-cours", label: "Satisfaction", icon: Star },
       { href: "/tests/a-noter", label: "Tests à noter", icon: ClipboardList },
@@ -102,8 +103,7 @@ const ALIAS_EXAMEN: Record<string, string> = {
   "/positionnements": "/inscriptions/nouvelle",
   "/edof": "/dossiers",
   "/suivi-eleves": "/emargement",
-  "/planning": "/emargement",
-  "/calendrier": "/emargement",
+  "/planning": "/calendrier",
   "/programmes": "/contenu-pedagogique",
 };
 

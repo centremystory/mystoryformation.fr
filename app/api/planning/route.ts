@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   const { data, error } = await supabaseAdmin
     .from("planning")
     .select(`
-      id, date_seance, demi_journee, heures, emarge_le, formatrice_id,
+      id, date_seance, demi_journee, heures, heures_realisees, emarge_le, formatrice_id,
       absence, absence_motif, absence_le,
       dossier:dossiers!dossier_id ( id, certif, statut, stagiaire:stagiaires!stagiaire_id ( prenom, nom, agence ) ),
       formatrice:formatrices!formatrice_id ( nom, prenom )
@@ -39,6 +39,7 @@ export async function GET(req: NextRequest) {
     date_seance: r.date_seance,
     demi_journee: r.demi_journee,
     heures: Number(r.heures),
+    heures_realisees: r.heures_realisees != null ? Number(r.heures_realisees) : null,
     emarge_le: r.emarge_le,
     formatrice_id: r.formatrice_id ?? null,
     absence: r.absence === true,
