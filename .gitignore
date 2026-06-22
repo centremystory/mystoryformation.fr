@@ -9,3 +9,4 @@
 # variables d'environnement
 .env*.local
 /tsconfig.tsbuildinfo
+crm/
