@@ -288,7 +288,7 @@ export default async function Accueil() {
         </div>
       </div>
 
-      {(role === "direction" || role === "manager") && (
+      {(role === "direction" || role === "manager" || role === "staff" || !role) && (
         <div className="mb-8">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-gray-700">Classement du mois</h2>
