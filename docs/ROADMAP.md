@@ -40,7 +40,9 @@
     - ✅ **B3 — kiosque enrichi** : civilité, niveau visé, **adresse/cp/ville** (parité dossier avec l'ancien QCM ; pont `mystory_creer_stagiaire_dossier` étendu).
     - ✅ **B4 — bascule activée** : `next.config` redirige `/qcm` et `/qcm.html` → `/test/kiosque` (temporaire, **réversible** : retirer les redirects + restaurer le rewrite). `qcm.html` conservé physiquement ; ancien système `positionnements` consultable. **Unification B terminée.**
 
-**Reste P2 :** guide techniques de vente, EV2 (satisfaction à chaud + évals plus complètes), satisfaction par fin de cours.
+**Reste P2 :** guide techniques de vente ; bilan agrégé de la satisfaction (option, exploitation des retours Qualiopi).
+
+**EV2 / satisfaction de fin par le stagiaire : DÉJÀ EN PLACE + envoi e-mail ajouté.** Le questionnaire de satisfaction à chaud multi-critères (recommandation/NPS, information avant, conditions & accueil, qualité pédagogique, rythme, réponse au projet + commentaire) est rempli par le stagiaire via lien (`/satisfaction?token=&type=chaud|froid`), immuable, anti-antidate, archivé en PDF. Idem satisfaction à froid (J+3 mois, auto n8n). NOUVEAU : bouton « Envoyer au stagiaire » (`/api/dossiers/satisfaction-envoyer`) qui envoie le lien par e-mail (au lieu du copier-coller). L'évaluation finale couvre déjà les 4 compétences CECRL + niveau global + commentaires + axes.
 
 **PL1 — Planning grille jour × heures : FAIT.** Vue `/calendrier` en grille hebdomadaire (8h–19h) : séances placées par créneau (matin 9h30 / après-midi 14h) selon la durée réelle (B1), créneaux équipe à l'heure exacte ; toggle Grille/Liste (grille par défaut), lecture seule. Entrée nav Formation « Planning ». Gestion reste sur `/planning` (élèves) et `/planning-employes` (équipe).
 
