@@ -193,9 +193,32 @@ async function classementAccueil() {
   } catch { return vide; }
 }
 
+/** Tâches à faire (non clôturées), pour le widget d'accueil — filtrées par site si sélectionné. */
+async function tachesAccueil(site: SiteFiltre) {
+  try {
+    let q = supabaseAdmin
+      .from("taches")
+      .select("id, titre, agence, echeance")
+      .eq("actif", true).eq("fait", false)
+      .order("echeance", { ascending: true, nullsFirst: false })
+      .limit(40);
+    if (site) q = q.eq("agence", site);
+    const { data } = await q;
+    return (data ?? []) as { id: string; titre: string; agence: string | null; echeance: string | null }[];
+  } catch { return []; }
+}
+
+const AGENCES_ACCUEIL = ["Gagny", "Sarcelles", "Rosny"];
+function aujourdhuiParis(): string {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Paris" });
+}
+function frJour(d: string): string {
+  return new Date(d + "T12:00:00").toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
+}
+
 export default async function Accueil() {
   const site = siteValide(cookies().get(COOKIE_SITE)?.value);
-  const [c, t, cf, ex, cl] = await Promise.all([compter(site), aTraiter(site), conformiteFormateurs(), examenSemaine(site), classementAccueil()]);
+  const [c, t, cf, ex, cl, tk] = await Promise.all([compter(site), aTraiter(site), conformiteFormateurs(), examenSemaine(site), classementAccueil(), tachesAccueil(site)]);
 
   // Rôle de la session (filtrage du périmètre — défense en profondeur, en plus du middleware).
   const h = headers();
@@ -315,6 +338,40 @@ export default async function Accueil() {
           ))}
         </div>
       )}
+
+      {/* Tâches à faire par agence */}
+      {tk.length > 0 && (() => {
+        const auj = aujourdhuiParis();
+        const cles = Array.from(new Set(tk.map((x) => x.agence ?? "—")));
+        cles.sort((a, b) => ((AGENCES_ACCUEIL.indexOf(a) + 1) || 99) - ((AGENCES_ACCUEIL.indexOf(b) + 1) || 99));
+        return (
+          <>
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Tâches à faire</p>
+              <Link href="/taches" className="text-xs text-mystory underline">Gérer</Link>
+            </div>
+            <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {cles.map((ag) => {
+                const items = tk.filter((x) => (x.agence ?? "—") === ag);
+                return (
+                  <div key={ag} className="card">
+                    <p className="mb-2 text-xs font-semibold text-gray-500">{ag}</p>
+                    {items.slice(0, 5).map((it) => (
+                      <div key={it.id} className="flex items-center justify-between gap-2 py-0.5 text-sm">
+                        <span className="truncate text-gray-700">{it.titre}</span>
+                        {it.echeance && (
+                          <span className={`shrink-0 text-xs ${it.echeance < auj ? "font-medium text-red-600" : "text-gray-400"}`}>{frJour(it.echeance)}</span>
+                        )}
+                      </div>
+                    ))}
+                    {items.length > 5 && <p className="mt-1 text-xs text-gray-400">+{items.length - 5} autre(s)</p>}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        );
+      })()}
 
       {/* Deux grandes portes */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
