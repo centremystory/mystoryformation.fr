@@ -79,13 +79,15 @@ export default function PageVenteGroupe() {
 
   async function valider() {
     const manque: string[] = [];
-    if (panier.length === 0) manque.push("Ajoute au moins un examen ou une vente de plateforme.");
+    // On ignore une ligne « examen » laissée totalement vide (ex. vente de plateforme seule).
+    const panierEffectif = panier.filter((e) => !(e.categorie === "examen" && !e.type && !e.sousType && e.montant === "" && !e.tefExterne));
+    if (panierEffectif.length === 0) manque.push("Ajoute au moins un examen ou une vente de plateforme.");
     if (!candidat.nom.trim()) manque.push("Nom du candidat obligatoire.");
     if (!candidat.prenom.trim()) manque.push("Prénom du candidat obligatoire.");
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(candidat.email.trim())) manque.push("Email valide obligatoire (envoi des documents).");
     if (!vendeur.vendu_par.trim()) manque.push("« Vendu par » obligatoire.");
     let nEx = 0;
-    panier.forEach((e) => {
+    panierEffectif.forEach((e) => {
       const lbl = e.categorie === "plateforme" ? "Vente plateforme" : `Examen ${++nEx}`;
       if (e.categorie === "examen" && !e.type) manque.push(`${lbl} : choisis le type.`);
       if (e.categorie === "examen" && e.type && !e.sessionId) manque.push(`${lbl} : choisis la session.`);
@@ -102,7 +104,7 @@ export default function PageVenteGroupe() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           candidat: { ...candidat, agence: vendeur.agence },
-          examens: panier.map((e) => ({
+          examens: panierEffectif.map((e) => ({
             type_examen: e.type,
             session_id: e.type === "Vente_plateforme" ? null : e.sessionId,
             sous_type: e.sousType || null,
