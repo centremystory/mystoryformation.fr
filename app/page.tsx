@@ -294,7 +294,7 @@ export default async function Accueil() {
         <Kpi libelle="Dossiers en cours" valeur={String(c.enCours)} href="/dossiers?vue=incomplet" />
         <Kpi libelle="Dossiers à finaliser" valeur={String(c.aFinaliser)} accent={c.aFinaliser > 0 ? "ambre" : undefined} href="/dossiers?vue=a_finaliser" />
         <Kpi libelle="Conventions à relancer" valeur={String(c.aRelancer)} accent={c.aRelancer > 0 ? "ambre" : undefined} href="/dossiers" />
-        <Kpi libelle="Fins de formation proches" valeur={String(c.finsProches)} accent={c.finsProches > 0 ? "ambre" : undefined} href="/suivi-eleves" />
+        <Kpi libelle="Fins de formation proches" valeur={String(c.finsProches)} accent={c.finsProches > 0 ? "ambre" : undefined} href="/suivi-eleves?filtre=fins_proches" />
       </div>
 
       {/* Examen — cette semaine */}

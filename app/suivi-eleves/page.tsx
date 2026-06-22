@@ -10,6 +10,7 @@ type Eleve = {
   certif: string | null;
   statut: string | null;
   heures_prevues: number;
+  date_fin: string | null;
   stagiaire: string;
   agence: string | null;
   heures_faites: number;
@@ -53,6 +54,9 @@ export default function PageSuiviEleves() {
   const [erreur, setErreur] = useState<string | null>(null);
   const [recherche, setRecherche] = useState("");
   const [fAgence, setFAgence] = useState<string>("toutes");
+  const [finsProches, setFinsProches] = useState<boolean>(
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("filtre") === "fins_proches"
+  );
   const [detail, setDetail] = useState<Record<string, Jour[]>>({});
   const [ouvert, setOuvert] = useState<Set<string>>(new Set());
   const [chargeJours, setChargeJours] = useState<Set<string>>(new Set());
@@ -149,9 +153,10 @@ export default function PageSuiviEleves() {
     () => eleves.filter((e) => {
       if (fAgence !== "toutes" && (e.agence ?? "") !== fAgence) return false;
       if (q && !e.stagiaire.toLowerCase().includes(q)) return false;
+      if (finsProches && !(e.statut === "incomplet" && !e.date_fin && e.heures_prevues > 0 && e.heures_faites >= 0.8 * e.heures_prevues)) return false;
       return true;
     }),
-    [eleves, fAgence, q]
+    [eleves, fAgence, q, finsProches]
   );
 
   return (
@@ -174,6 +179,12 @@ export default function PageSuiviEleves() {
               }`}>{l}</button>
           ))}
         </div>
+        <button
+          onClick={() => setFinsProches((v) => !v)}
+          title="Élèves dont les heures réalisées atteignent au moins 80 % des heures prévues (formation non clôturée) — à finaliser en priorité."
+          className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
+            finsProches ? "bg-amber-500 text-white border-amber-500" : "bg-white text-gray-600 border-gray-300 hover:border-amber-500 hover:text-amber-600"
+          }`}>Fins proches ≥ 80 %</button>
       </div>
 
       {erreur && <div className="mb-4 rounded-xl border border-danger-200 bg-danger-50 p-3 text-sm text-danger-700">{erreur}</div>}

@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
     .from("planning")
     .select(`
       id, date_seance, heures, emarge_le, absence,
-      dossier:dossiers!dossier_id ( id, certif, statut, heures_prevues,
+      dossier:dossiers!dossier_id ( id, certif, statut, heures_prevues, date_fin,
         stagiaire:stagiaires!stagiaire_id ( prenom, nom, agence ) )
     `);
   if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
@@ -62,6 +62,7 @@ export async function GET(req: NextRequest) {
         certif: d.certif ?? null,
         statut: d.statut ?? null,
         heures_prevues: Number(d.heures_prevues ?? 0),
+        date_fin: d.date_fin ?? null,
         stagiaire: d.stagiaire ? `${d.stagiaire.prenom ?? ""} ${d.stagiaire.nom ?? ""}`.trim() : "—",
         agence: d.stagiaire?.agence ?? null,
         heures_faites: 0, heures_a_venir: 0, nb_absences: 0, nb_seances: 0,
