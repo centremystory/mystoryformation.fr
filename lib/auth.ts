@@ -20,6 +20,7 @@ const AUTH_COOKIE = process.env.AUTH_COOKIE ?? "mystory_session";
 export interface SessionUser {
   id: string;
   email?: string;
+  nom?: string;        // nom affiché (présent sur les comptes individuels ; absent pour le filet équipe)
   role?: string;       // rôle principal (= roles[0]) — conservé pour rétro-compat
   roles?: string[];    // multi-rôles (polyvalence) — union des droits
 }
@@ -58,7 +59,8 @@ export async function verifySession(req: Request): Promise<SessionUser | null> {
     const rolesArr = Array.isArray(payload.roles)
       ? (payload.roles as string[]).filter(Boolean)
       : (payload.role ? [payload.role as string] : []);
-    return { id, email: payload.email as string | undefined, role: rolesArr[0] ?? (payload.role as string | undefined), roles: rolesArr };
+    const nom = typeof payload.nom === "string" ? payload.nom.trim() || undefined : undefined;
+    return { id, email: payload.email as string | undefined, nom, role: rolesArr[0] ?? (payload.role as string | undefined), roles: rolesArr };
   } catch {
     return null; // signature/exp invalide
   }

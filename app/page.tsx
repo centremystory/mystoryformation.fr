@@ -72,7 +72,7 @@ async function compter(site: SiteFiltre) {
 }
 
 async function aTraiter(site: SiteFiltre) {
-  const zero = { participation: 0, identite: 0, conges: 0, messages: 0, formateurDocs: 0, incidents: 0, validations: 0 };
+  const zero = { participation: 0, identite: 0, conges: 0, messages: 0, formateurDocs: 0, incidents: 0, validations: 0, questionsInternes: 0 };
   try {
     const estCpf = (d: any) => d.financement === "CPF" || d.origine_fonds === "CPF_CDC";
     let dq = supabaseAdmin
@@ -81,12 +81,13 @@ async function aTraiter(site: SiteFiltre) {
         ? "financement, origine_fonds, participation_forfaitaire_reglee, participation_forfaitaire_exemptee, cpf_identite_ok, stagiaires!inner(agence)"
         : "financement, origine_fonds, participation_forfaitaire_reglee, participation_forfaitaire_exemptee, cpf_identite_ok");
     if (site) dq = dq.eq("stagiaires.agence", site);
-    const [dossiers, conges, messages, fdocs, validations] = await Promise.all([
+    const [dossiers, conges, messages, fdocs, validations, qInternes] = await Promise.all([
       dq,
       supabaseAdmin.from("conges").select("id", { count: "exact", head: true }).eq("statut", "en_attente"),
       supabaseAdmin.from("messages_prospects").select("id", { count: "exact", head: true }).eq("statut", "nouveau"),
       supabaseAdmin.from("formateur_documents").select("id", { count: "exact", head: true }).eq("statut", "envoye_a_signer"),
       supabaseAdmin.from("validations_direction").select("id", { count: "exact", head: true }).eq("statut", "en_attente"),
+      supabaseAdmin.from("questions_internes").select("id", { count: "exact", head: true }).is("parent_id", null).eq("statut", "ouverte").eq("archive", false),
     ]);
     const incidents = await supabaseAdmin.from("incidents_techniques").select("id", { count: "exact", head: true }).eq("resolu", false);
     const cpf = (dossiers.data ?? []).filter(estCpf);
@@ -98,6 +99,7 @@ async function aTraiter(site: SiteFiltre) {
       formateurDocs: fdocs.count ?? 0,
       incidents: incidents.count ?? 0,
       validations: validations.count ?? 0,
+      questionsInternes: qInternes.count ?? 0,
     };
   } catch { return zero; }
 }
@@ -252,6 +254,7 @@ export default async function Accueil() {
     { label: "Congés en attente", n: t.conges, href: "/conges" },
     { label: "Validations Direction en attente", n: t.validations, href: "/validations" },
     { label: "Messages prospects", n: t.messages, href: "/messages" },
+    { label: "Questions internes ouvertes", n: t.questionsInternes, href: "/interne" },
     { label: "Documents formateur à signer", n: t.formateurDocs, href: "/formateurs" },
     { label: "Formatrices sans justificatif FLE (séance à venir)", n: cf.fleManquant.length, href: "/equipe" },
     { label: "Charte/contrat formateur à signer (séance à venir)", n: cf.docsManquant.length, href: "/formateurs" },

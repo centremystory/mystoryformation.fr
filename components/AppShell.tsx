@@ -9,7 +9,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   Home, Search, GraduationCap, LayoutGrid, CalendarDays, Star, BookOpen, FolderOpen, ClipboardCheck,
   ClipboardList, Users, Plane, CalendarRange, Clock, Settings, Receipt, CheckCircle2,
-  FileSpreadsheet, UserCog, MessageSquare, Eye, HelpCircle, KeyRound, AlertTriangle,
+  FileSpreadsheet, UserCog, MessageSquare, MessageCircle, Eye, HelpCircle, KeyRound, AlertTriangle,
   Workflow, ScrollText, LogOut, Menu, X, ChevronDown,
   Plus, FileCheck, RotateCcw, Trophy, UserPlus, Phone, ShieldCheck, BarChart3, TrendingUp, } from "lucide-react";
 import { peutVoirPage, ROLE_LABEL } from "@/lib/roles";
@@ -68,6 +68,7 @@ const NAV: Entree[] = [
   {
     type: "menu", label: "Relation", icon: MessageSquare, items: [
       { href: "/messages", label: "Messages", icon: MessageSquare },
+      { href: "/interne", label: "Questions internes", icon: MessageCircle },
       { href: "/techniques-vente", label: "Techniques de vente", icon: TrendingUp },
       { href: "/faq", label: "FAQ", icon: HelpCircle },
       { href: "/veille", label: "Veille", icon: Eye },
