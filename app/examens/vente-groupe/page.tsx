@@ -20,7 +20,7 @@ const TYPE_LABEL: Record<string, string> = { TEF_IRN: "TEF IRN", Examen_civique:
 
 interface Session { id: string; type: string; date_examen: string; horaire: string; capacite: number; inscrits: number; restantes: number; note: string | null; }
 type Examen = {
-  uid: number; type: string; sessionId: string; sousType: string; montant: string;
+  uid: number; categorie: "examen" | "plateforme"; type: string; sessionId: string; sousType: string; montant: string;
   dontCb: string; reste: string; tefExterne: boolean; tefExterneDate: string;
 };
 
@@ -28,14 +28,14 @@ function dateFR(iso: string): string {
   const [a, m, j] = iso.split("-").map(Number);
   return new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric", month: "long" }).format(new Date(a, m - 1, j));
 }
-const examenVide = (): Examen => ({ uid: Date.now() + Math.random(), type: "", sessionId: "", sousType: "", montant: "", dontCb: "", reste: "", tefExterne: false, tefExterneDate: "" });
+const itemVide = (categorie: "examen" | "plateforme"): Examen => ({ uid: Date.now() + Math.random(), categorie, type: categorie === "plateforme" ? "Vente_plateforme" : "", sessionId: "", sousType: "", montant: "", dontCb: "", reste: "", tefExterne: false, tefExterneDate: "" });
 
 export default function PageVenteGroupe() {
   const [candidat, setCandidat] = useState({
     civilite: "", nom: "", prenom: "", date_naissance: "", email: "", telephone: "",
     adresse: "", cp: "", ville: "", num_piece_identite: "",
   });
-  const [panier, setPanier] = useState<Examen[]>([examenVide()]);
+  const [panier, setPanier] = useState<Examen[]>([itemVide("examen")]);
   const [paiement, setPaiement] = useState({ mode_paiement: "CB", statut_paiement: "Payé" });
   const [vendeur, setVendeur] = useState({ vendu_par: "", agence: "Gagny", commentaire: "" });
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -69,25 +69,30 @@ export default function PageVenteGroupe() {
       return next;
     }));
   }
-  const ajouter = () => setPanier((p) => [...p, examenVide()]);
-  const retirer = (uid: number) => setPanier((p) => (p.length <= 1 ? p : p.filter((e) => e.uid !== uid)));
+  const ajouterExamen = () => setPanier((p) => [...p, itemVide("examen")]);
+  const ajouterPlateforme = () => setPanier((p) => [...p, itemVide("plateforme")]);
+  const retirer = (uid: number) => setPanier((p) => p.filter((e) => e.uid !== uid));
+  const examens = panier.filter((e) => e.categorie === "examen");
+  const plateformes = panier.filter((e) => e.categorie === "plateforme");
 
   const carenceVisible = erreurs.some((e) => /carence|mention civique/i.test(e));
 
   async function valider() {
     const manque: string[] = [];
+    if (panier.length === 0) manque.push("Ajoute au moins un examen ou une vente de plateforme.");
     if (!candidat.nom.trim()) manque.push("Nom du candidat obligatoire.");
     if (!candidat.prenom.trim()) manque.push("Prénom du candidat obligatoire.");
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(candidat.email.trim())) manque.push("Email valide obligatoire (envoi des documents).");
     if (!vendeur.vendu_par.trim()) manque.push("« Vendu par » obligatoire.");
-    panier.forEach((e, i) => {
-      const n = i + 1;
-      if (!e.type) manque.push(`Examen ${n} : choisis le type.`);
-      if (e.type && e.type !== "Vente_plateforme" && !e.sessionId) manque.push(`Examen ${n} : choisis la session.`);
-      if (e.type === "Examen_civique" && !e.sousType) manque.push(`Examen ${n} : la mention est obligatoire.`);
-      if (e.type === "Vente_plateforme" && !e.sousType) manque.push(`Examen ${n} : choisis l'application.`);
-      if (e.montant === "" || Number(e.montant) < 0) manque.push(`Examen ${n} : montant invalide.`);
-      if (e.type === "TEF_IRN" && e.tefExterne && !e.tefExterneDate) manque.push(`Examen ${n} : date du TEF déjà passé requise.`);
+    let nEx = 0;
+    panier.forEach((e) => {
+      const lbl = e.categorie === "plateforme" ? "Vente plateforme" : `Examen ${++nEx}`;
+      if (e.categorie === "examen" && !e.type) manque.push(`${lbl} : choisis le type.`);
+      if (e.categorie === "examen" && e.type && !e.sessionId) manque.push(`${lbl} : choisis la session.`);
+      if (e.type === "Examen_civique" && !e.sousType) manque.push(`${lbl} : la mention est obligatoire.`);
+      if (e.categorie === "plateforme" && !e.sousType) manque.push(`${lbl} : choisis l'application.`);
+      if (e.montant === "" || Number(e.montant) < 0) manque.push(`${lbl} : montant invalide.`);
+      if (e.type === "TEF_IRN" && e.tefExterne && !e.tefExterneDate) manque.push(`${lbl} : date du TEF déjà passé requise.`);
     });
     if (manque.length) { setErreurs(manque); return; }
 
@@ -123,6 +128,89 @@ export default function PageVenteGroupe() {
     } catch (e: any) {
       setErreurs([e?.message ?? "Échec de l'inscription."]);
     } finally { setEnvoi(false); }
+  }
+
+  function carte(e: Examen, numero: number) {
+    const plat = e.categorie === "plateforme";
+    const champsValeur = plat || !!e.type;
+    return (
+      <section key={e.uid} className="card">
+        <div className="mb-3 flex items-center justify-between">
+          <span className={`badge ${plat ? "badge-info" : "badge-neutral"}`}>
+            {plat ? "Accès plateforme" : `Examen ${numero}`}
+          </span>
+          <button onClick={() => retirer(e.uid)} className="rounded-lg p-1.5 text-gray-400 transition hover:bg-danger-50 hover:text-danger-600" aria-label="Retirer">
+            <Trash2 size={16} />
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          {!plat && (
+            <label className="col-span-2 text-sm">Type *
+              <select value={e.type} onChange={(ev) => majExamen(e.uid, { type: ev.target.value })} className="input mt-1">
+                <option value="">—</option>
+                <option value="TEF_IRN">TEF IRN</option>
+                <option value="Examen_civique">Examen civique</option>
+              </select>
+            </label>
+          )}
+
+          {!plat && e.type && (
+            <label className="col-span-2 text-sm">Session * <span className="text-gray-400">(places en direct)</span>
+              <select value={e.sessionId} onChange={(ev) => majExamen(e.uid, { sessionId: ev.target.value })} className="input mt-1">
+                <option value="">—</option>
+                {sessionsDe(e.type).map((s) => (
+                  <option key={s.id} value={s.id} disabled={s.restantes <= 0}>
+                    {dateFR(s.date_examen)} · {s.horaire} · {s.restantes <= 0 ? "COMPLET" : `${s.restantes} place(s)`}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          {champsValeur && (
+            <label className="col-span-2 text-sm">
+              {plat ? "Application *" : e.type === "Examen_civique" ? "Mention * (conditionne l'épreuve)" : "Motivation (facultatif)"}
+              <select value={e.sousType} onChange={(ev) => majExamen(e.uid, { sousType: ev.target.value })} className="input mt-1">
+                <option value="">—</option>
+                {(plat ? PLATEFORMES : e.type === "Examen_civique" ? SOUS_TYPES_CIVIQUE : MOTIVATIONS_TEF).map((o) => (
+                  <option key={o} value={o}>{o}</option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          {!plat && e.type === "TEF_IRN" && (
+            <div className="col-span-2 rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm">
+              <label className="flex cursor-pointer items-start gap-2">
+                <input type="checkbox" checked={e.tefExterne} onChange={(ev) => majExamen(e.uid, { tefExterne: ev.target.checked })} className="mt-0.5" />
+                <span>Déjà passé un <strong>TEF IRN dans un autre centre</strong> récemment (carence 20 jours).</span>
+              </label>
+              {e.tefExterne && (
+                <label className="mt-2 block text-sm">Date de ce passage *
+                  <input type="date" value={e.tefExterneDate} onChange={(ev) => majExamen(e.uid, { tefExterneDate: ev.target.value })} className="input mt-1" />
+                </label>
+              )}
+            </div>
+          )}
+
+          {champsValeur && (
+            <label className="text-sm">Montant (€) *
+              <input type="number" min={0} step="0.01" value={e.montant} onChange={(ev) => majExamen(e.uid, { montant: ev.target.value })} className="input mt-1" />
+            </label>
+          )}
+          {champsValeur && paiement.mode_paiement === "Mixte" && (
+            <label className="text-sm">Dont CB (€)
+              <input type="number" min={0} step="0.01" value={e.dontCb} onChange={(ev) => majExamen(e.uid, { dontCb: ev.target.value })} className="input mt-1" />
+            </label>
+          )}
+          {champsValeur && paiement.statut_paiement === "Acompte" && (
+            <label className="text-sm">Reste à payer (€) *
+              <input type="number" min={0} step="0.01" value={e.reste} onChange={(ev) => majExamen(e.uid, { reste: ev.target.value })} className="input mt-1" />
+            </label>
+          )}
+        </div>
+      </section>
+    );
   }
 
   // ----- Écran de résultat -----
@@ -243,10 +331,10 @@ export default function PageVenteGroupe() {
         </div>
       </section>
 
-      {/* 2. Examens (panier) */}
+      {/* 2a. Examens (TEF IRN / civique) */}
       <div className="mb-2 flex items-center justify-between">
-        <p className="font-medium text-gray-800">Examens ({panier.length})</p>
-        <button onClick={ajouter} className="btn-ghost !py-1.5"><Plus size={16} /> Ajouter un examen</button>
+        <p className="font-medium text-gray-800">Examens ({examens.length})</p>
+        <button onClick={ajouterExamen} className="btn-ghost !py-1.5"><Plus size={16} /> Ajouter un examen</button>
       </div>
 
       {aPack && (
@@ -256,89 +344,24 @@ export default function PageVenteGroupe() {
       )}
 
       <div className="space-y-3">
-        {panier.map((e, idx) => (
-          <section key={e.uid} className="card">
-            <div className="mb-3 flex items-center justify-between">
-              <span className={`badge ${e.type === "Vente_plateforme" ? "badge-info" : "badge-neutral"}`}>
-                {e.type === "Vente_plateforme" ? "Accès plateforme" : `Examen ${idx + 1}`}
-              </span>
-              {panier.length > 1 && (
-                <button onClick={() => retirer(e.uid)} className="rounded-lg p-1.5 text-gray-400 transition hover:bg-danger-50 hover:text-danger-600" aria-label="Retirer">
-                  <Trash2 size={16} />
-                </button>
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="col-span-2 text-sm">Type *
-                <select value={e.type} onChange={(ev) => majExamen(e.uid, { type: ev.target.value })} className="input mt-1">
-                  <option value="">—</option>
-                  <optgroup label="Examens">
-                    <option value="TEF_IRN">TEF IRN</option>
-                    <option value="Examen_civique">Examen civique</option>
-                  </optgroup>
-                  <optgroup label="Vente d'accès (hors examen)">
-                    <option value="Vente_plateforme">Vente plateforme</option>
-                  </optgroup>
-                </select>
-              </label>
+        {examens.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-gray-200 px-4 py-3 text-sm text-gray-400">Aucun examen. Ajoute-en un, ou passe directement à la vente de plateforme ci-dessous.</p>
+        ) : examens.map((e, idx) => carte(e, idx + 1))}
+      </div>
 
-              {e.type && e.type !== "Vente_plateforme" && (
-                <label className="col-span-2 text-sm">Session * <span className="text-gray-400">(places en direct)</span>
-                  <select value={e.sessionId} onChange={(ev) => majExamen(e.uid, { sessionId: ev.target.value })} className="input mt-1">
-                    <option value="">—</option>
-                    {sessionsDe(e.type).map((s) => (
-                      <option key={s.id} value={s.id} disabled={s.restantes <= 0}>
-                        {dateFR(s.date_examen)} · {s.horaire} · {s.restantes <= 0 ? "COMPLET" : `${s.restantes} place(s)`}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
+      {/* 2b. Vente de plateforme (hors examen) */}
+      <div className="mb-2 mt-6 flex items-center justify-between">
+        <div>
+          <p className="font-medium text-gray-800">Vente de plateforme ({plateformes.length})</p>
+          <p className="text-xs text-gray-400">Accès à une application, hors examen — sans session ni convocation.</p>
+        </div>
+        <button onClick={ajouterPlateforme} className="btn-ghost !py-1.5"><Plus size={16} /> Ajouter une plateforme</button>
+      </div>
 
-              {e.type && (
-                <label className="col-span-2 text-sm">
-                  {e.type === "Examen_civique" ? "Mention * (conditionne l'épreuve)" : e.type === "TEF_IRN" ? "Motivation (facultatif)" : "Application *"}
-                  <select value={e.sousType} onChange={(ev) => majExamen(e.uid, { sousType: ev.target.value })} className="input mt-1">
-                    <option value="">—</option>
-                    {(e.type === "Examen_civique" ? SOUS_TYPES_CIVIQUE : e.type === "TEF_IRN" ? MOTIVATIONS_TEF : PLATEFORMES).map((o) => (
-                      <option key={o} value={o}>{o}</option>
-                    ))}
-                  </select>
-                </label>
-              )}
-
-              {e.type === "TEF_IRN" && (
-                <div className="col-span-2 rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm">
-                  <label className="flex cursor-pointer items-start gap-2">
-                    <input type="checkbox" checked={e.tefExterne} onChange={(ev) => majExamen(e.uid, { tefExterne: ev.target.checked })} className="mt-0.5" />
-                    <span>Déjà passé un <strong>TEF IRN dans un autre centre</strong> récemment (carence 20 jours).</span>
-                  </label>
-                  {e.tefExterne && (
-                    <label className="mt-2 block text-sm">Date de ce passage *
-                      <input type="date" value={e.tefExterneDate} onChange={(ev) => majExamen(e.uid, { tefExterneDate: ev.target.value })} className="input mt-1" />
-                    </label>
-                  )}
-                </div>
-              )}
-
-              {e.type && (
-                <label className="text-sm">Montant (€) *
-                  <input type="number" min={0} step="0.01" value={e.montant} onChange={(ev) => majExamen(e.uid, { montant: ev.target.value })} className="input mt-1" />
-                </label>
-              )}
-              {e.type && paiement.mode_paiement === "Mixte" && (
-                <label className="text-sm">Dont CB (€)
-                  <input type="number" min={0} step="0.01" value={e.dontCb} onChange={(ev) => majExamen(e.uid, { dontCb: ev.target.value })} className="input mt-1" />
-                </label>
-              )}
-              {e.type && paiement.statut_paiement === "Acompte" && (
-                <label className="text-sm">Reste à payer (€) *
-                  <input type="number" min={0} step="0.01" value={e.reste} onChange={(ev) => majExamen(e.uid, { reste: ev.target.value })} className="input mt-1" />
-                </label>
-              )}
-            </div>
-          </section>
-        ))}
+      <div className="space-y-3">
+        {plateformes.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-gray-200 px-4 py-3 text-sm text-gray-400">Aucune vente de plateforme.</p>
+        ) : plateformes.map((e) => carte(e, 0))}
       </div>
 
       {/* 3. Paiement & vendeur (commun) */}
