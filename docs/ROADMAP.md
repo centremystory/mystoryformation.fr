@@ -40,7 +40,9 @@
     - ✅ **B3 — kiosque enrichi** : civilité, niveau visé, **adresse/cp/ville** (parité dossier avec l'ancien QCM ; pont `mystory_creer_stagiaire_dossier` étendu).
     - ✅ **B4 — bascule activée** : `next.config` redirige `/qcm` et `/qcm.html` → `/test/kiosque` (temporaire, **réversible** : retirer les redirects + restaurer le rewrite). `qcm.html` conservé physiquement ; ancien système `positionnements` consultable. **Unification B terminée.**
 
-**Reste P2 :** A8 (tâches par agence sur l'accueil), PL1 (planning grille jour×heures), guide techniques de vente, EV2 (satisfaction à chaud + évals plus complètes), satisfaction par fin de cours.
+**Reste P2 :** PL1 (planning grille jour×heures), guide techniques de vente, EV2 (satisfaction à chaud + évals plus complètes), satisfaction par fin de cours.
+
+**A8 — Tâches par agence sur l'accueil : FAIT.** Widget « Tâches à faire » groupé par agence (filtré par le site sélectionné), échéances en retard en rouge, aperçu 5 max + lien Gérer.
 
 **B1 — Émargement heures réelles : FAIT.** Le trigger `planning_emargement_complete` ne fige plus `heures_realisees` à 3h (`coalesce(saisie, heures)`). Durée réelle ajustable sur les séances émargées (`/api/emargement/duree`, bouton ✎ dans `/emargement`, 0<h≤12, anti-antidate). Créneau standard 3h = défaut ; feuille d'émargement et total dossier suivent la durée réelle ; horaire recalculé (9h30 + 4h → 9h30–13h30).
 
@@ -73,7 +75,7 @@
 - **A5 — « Conventions à relancer »** 🟡 **P2** : personnes ayant payé la participation forfaitaire mais pas le reste à charge (à préciser : quelle relance exacte).
 - **A6 — Indicateurs examen** 🟡 **P2** : suivi des **liens de paiement** envoyés (inscriptions à distance) ; **places disponibles TEF IRN cette semaine** ; **places disponibles examen civique**.
 - **A7 — Classement vendeurs & agences sur l'accueil** 🟢 **P2** : reprendre `/classement` en widget d'accueil.
-- **A8 — Tâches par agence sur l'accueil** 🟡 **P2** : voir les tâches du jour par agence (lié à T-TÂCHES).
+- **A8 — Tâches par agence sur l'accueil** ✅ **FAIT** : voir les tâches du jour par agence (lié à T-TÂCHES).
 
 ## ✅ TÂCHES (nouveau module)
 
