@@ -6,7 +6,7 @@ import Link from "next/link";
 import { cookies, headers } from "next/headers";
 import {
   GraduationCap, ClipboardList, Users, Receipt, FileSpreadsheet, ListChecks,
-  Plus, ArrowRight, CheckCircle2, AlertTriangle, Send, FileSignature, ChevronRight,
+  Plus, ArrowRight, CheckCircle2, AlertTriangle, Send, FileSignature, ChevronRight, MessageSquareWarning,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
@@ -72,7 +72,7 @@ async function compter(site: SiteFiltre) {
 }
 
 async function aTraiter(site: SiteFiltre) {
-  const zero = { participation: 0, identite: 0, conges: 0, messages: 0, formateurDocs: 0, incidents: 0, validations: 0, questionsInternes: 0 };
+  const zero = { participation: 0, identite: 0, conges: 0, messages: 0, formateurDocs: 0, incidents: 0, validations: 0, questionsInternes: 0, reclamations: 0 };
   try {
     const estCpf = (d: any) => d.financement === "CPF" || d.origine_fonds === "CPF_CDC";
     let dq = supabaseAdmin
@@ -90,6 +90,9 @@ async function aTraiter(site: SiteFiltre) {
       supabaseAdmin.from("questions_internes").select("id", { count: "exact", head: true }).is("parent_id", null).eq("statut", "ouverte").eq("archive", false),
     ]);
     const incidents = await supabaseAdmin.from("incidents_techniques").select("id", { count: "exact", head: true }).eq("resolu", false);
+    let rq = supabaseAdmin.from("reclamations").select("id", { count: "exact", head: true }).eq("actif", true).neq("statut", "resolue");
+    if (site) rq = rq.eq("agence", site);
+    const reclamations = await rq;
     const cpf = (dossiers.data ?? []).filter(estCpf);
     return {
       participation: cpf.filter((d: any) => !d.participation_forfaitaire_reglee && !d.participation_forfaitaire_exemptee).length,
@@ -100,6 +103,7 @@ async function aTraiter(site: SiteFiltre) {
       incidents: incidents.count ?? 0,
       validations: validations.count ?? 0,
       questionsInternes: qInternes.count ?? 0,
+      reclamations: reclamations.count ?? 0,
     };
   } catch { return zero; }
 }
@@ -318,6 +322,7 @@ export default async function Accueil() {
 
   const actions = [
     { label: "Liens de paiement à traiter", n: ex.liens, href: "/examens/preinscriptions" },
+    { label: "Réclamations à traiter", n: t.reclamations, href: "/reclamations" },
     { label: "Participations 150 € à régler", n: t.participation, href: "/formation" },
     { label: "Identités CPF à confirmer", n: t.identite, href: "/formation" },
     { label: "Congés en attente", n: t.conges, href: "/conges" },
@@ -333,6 +338,7 @@ export default async function Accueil() {
   // Tuiles transverses, filtrées selon le rôle.
   const tuiles: { href: string; icone: LucideIcon; titre: string; desc: string }[] = [
     { href: "/equipe", icone: Users, titre: "Équipe", desc: "Formateurs (justificatifs FLE) et commerciaux." },
+    { href: "/reclamations", icone: MessageSquareWarning, titre: "Réclamations", desc: "Candidats examen & stagiaires formation." },
     { href: "/factures", icone: Receipt, titre: "Factures", desc: "Facturation et relances." },
     { href: "/bpf", icone: FileSpreadsheet, titre: "BPF", desc: "Bilan pédagogique et financier." },
     { href: "/taches", icone: ListChecks, titre: "Tâches par agence", desc: "Le pense-bête opérationnel de chaque site." },

@@ -36,6 +36,8 @@ const NAV: Entree[] = [
   {
     type: "menu", label: "Gestion", items: [
       { href: "/factures", label: "Factures" },
+      { href: "/reclamations", label: "Réclamations" },
+      { href: "/anomalies", label: "Anomalies" },
       { href: "/validations", label: "Validations" },
       { href: "/bpf", label: "BPF" },
       { href: "/equipe", label: "Équipe" },
