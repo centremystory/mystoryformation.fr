@@ -339,7 +339,7 @@ export default async function Accueil() {
   const tuiles: { href: string; icone: LucideIcon; titre: string; desc: string }[] = [
     { href: "/equipe", icone: Users, titre: "Équipe", desc: "Formateurs (justificatifs FLE) et commerciaux." },
     { href: "/reclamations", icone: MessageSquareWarning, titre: "Réclamations", desc: "Candidats examen & stagiaires formation." },
-    { href: "/factures", icone: Receipt, titre: "Factures", desc: "Facturation et relances." },
+    { href: "/attestations-paiement", icone: Receipt, titre: "Attestation de paiement", desc: "Retrouver un candidat : paiement, attestation, report, réclamation." },
     { href: "/bpf", icone: FileSpreadsheet, titre: "BPF", desc: "Bilan pédagogique et financier." },
     { href: "/taches", icone: ListChecks, titre: "Tâches par agence", desc: "Le pense-bête opérationnel de chaque site." },
   ].filter((tu) => voir(tu.href));
