@@ -1,0 +1,178 @@
+// app/anomalies/page.tsx — Anomalies opérationnelles (examen).
+// Trois registres dérivés de ventes_examen (aucune nouvelle table) :
+//  · Convocations manquantes : payé, examen à venir, convocation jamais envoyée
+//  · Paiements en attente     : examen à venir avec un reste à payer
+//  · Doublons                 : même candidat + même session + même type, ≥ 2 ventes actives
+// Lecture seule + actions rapides (appeler, ouvrir l'espace Examen).
+import type { ReactNode } from "react";
+import Link from "next/link";
+import { cookies } from "next/headers";
+import { AlertTriangle, FileWarning, CreditCard, Copy, Phone, ArrowRight, CheckCircle2 } from "lucide-react";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { siteValide, COOKIE_SITE, type SiteFiltre } from "@/lib/sites";
+
+export const dynamic = "force-dynamic";
+
+type Vente = {
+  id: string;
+  numero_attestation: string | null;
+  type_examen: string | null;
+  statut_paiement: string | null;
+  convocation_envoyee_le: string | null;
+  reste_a_payer: number | null;
+  montant: number | null;
+  session_id: string | null;
+  agence: string | null;
+  stagiaires: { nom: string | null; prenom: string | null; telephone: string | null; email: string | null } | null;
+  sessions_examen: { date_examen: string | null; horaire: string | null; type: string | null } | null;
+};
+
+function frDate(iso: string | null): string {
+  if (!iso) return "—";
+  return new Date(iso + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "short" });
+}
+const eur = (n: number | null | undefined) => `${Math.round(Number(n ?? 0))} €`;
+function nomComplet(v: Vente): string {
+  return `${v.stagiaires?.prenom ?? ""} ${v.stagiaires?.nom ?? ""}`.trim() || "Candidat inconnu";
+}
+
+async function charger(site: SiteFiltre) {
+  const auj = new Intl.DateTimeFormat("fr-CA", { timeZone: "Europe/Paris" }).format(new Date());
+  let q = supabaseAdmin
+    .from("ventes_examen")
+    .select(
+      "id, numero_attestation, type_examen, statut_paiement, convocation_envoyee_le, reste_a_payer, montant, session_id, agence, stagiaires:candidat_id(nom, prenom, telephone, email), sessions_examen:session_id(date_examen, horaire, type)",
+    )
+    .neq("type_examen", "Vente_plateforme")
+    .not("statut_paiement", "in", '("Remboursé","Annulé")');
+  if (site) q = q.eq("agence", site);
+  const { data } = await q;
+  const rows = (data ?? []) as unknown as Vente[];
+  const aVenir = rows.filter((v) => v.sessions_examen?.date_examen && v.sessions_examen.date_examen >= auj);
+
+  const convocations = aVenir
+    .filter((v) => (v.statut_paiement === "Payé" || v.statut_paiement === "Inclus CPF") && !v.convocation_envoyee_le)
+    .sort((a, b) => String(a.sessions_examen?.date_examen).localeCompare(String(b.sessions_examen?.date_examen)));
+
+  const paiements = aVenir
+    .filter((v) => Number(v.reste_a_payer ?? 0) > 0)
+    .sort((a, b) => String(a.sessions_examen?.date_examen).localeCompare(String(b.sessions_examen?.date_examen)));
+
+  // Doublons : regroupement par candidat + session + type
+  const groupes = new Map<string, Vente[]>();
+  for (const v of rows) {
+    const k = `${(v.stagiaires?.nom ?? "").trim().toLowerCase()}|${(v.stagiaires?.prenom ?? "").trim().toLowerCase()}|${v.session_id ?? ""}|${v.type_examen ?? ""}`;
+    if (!k.replace(/\|/g, "").length) continue;
+    if (!groupes.has(k)) groupes.set(k, []);
+    groupes.get(k)!.push(v);
+  }
+  const doublons = [...groupes.values()].filter((g) => g.length > 1);
+
+  return { convocations, paiements, doublons };
+}
+
+function LigneCandidat({ v, children }: { v: Vente; children?: ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-3 px-4 py-3">
+      <div className="min-w-0">
+        <p className="truncate text-sm font-medium text-gray-900">{nomComplet(v)}</p>
+        <p className="truncate text-xs text-gray-500">
+          {v.sessions_examen?.type === "Examen_civique" ? "Civique" : "TEF IRN"} · {frDate(v.sessions_examen?.date_examen ?? null)}
+          {v.sessions_examen?.horaire ? ` · ${v.sessions_examen.horaire}` : ""}
+          {v.agence ? ` · ${v.agence}` : ""}
+        </p>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        {children}
+        {v.stagiaires?.telephone && (
+          <a href={`tel:${v.stagiaires.telephone}`} className="btn-ghost !px-2 !py-1" title="Appeler">
+            <Phone size={15} />
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Bloc({ titre, icone: Icone, n, children }: { titre: string; icone: typeof FileWarning; n: number; children: ReactNode }) {
+  return (
+    <section className="mb-8">
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+          <Icone size={16} strokeWidth={1.9} className="text-amber-600" />
+          {titre}
+        </h2>
+        <span className={`badge ${n > 0 ? "badge-warning" : "badge-success"}`}>{n}</span>
+      </div>
+      {n === 0 ? (
+        <div className="card"><div className="empty-state"><CheckCircle2 size={24} className="text-success-600" /><p className="text-sm text-gray-500">Rien à signaler.</p></div></div>
+      ) : (
+        <div className="card !p-0 divide-y divide-gray-100">{children}</div>
+      )}
+    </section>
+  );
+}
+
+export default async function AnomaliesPage() {
+  const site = siteValide(cookies().get(COOKIE_SITE)?.value);
+  const { convocations, paiements, doublons } = await charger(site);
+  const total = convocations.length + paiements.length + doublons.length;
+
+  return (
+    <main className="mx-auto max-w-5xl px-4 py-8 md:px-6">
+      <header className="page-header">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+            <AlertTriangle size={22} strokeWidth={1.75} />
+          </div>
+          <div>
+            <h1 className="page-title text-2xl">Anomalies</h1>
+            <p className="page-subtitle">
+              Problèmes de convocation, de paiement et doublons à traiter.
+              <span className="badge badge-info ml-2 align-middle">{site ? `Site : ${site}` : "Tous les sites"}</span>
+            </p>
+          </div>
+        </div>
+        <Link href="/examen" className="btn-ghost">Espace Examen <ArrowRight size={16} /></Link>
+      </header>
+
+      {total === 0 && (
+        <div className="card mb-8">
+          <div className="empty-state">
+            <CheckCircle2 size={28} strokeWidth={1.75} className="text-success-600" />
+            <p className="text-sm font-medium text-gray-700">Aucune anomalie</p>
+            <p className="text-xs text-gray-400">Convocations, paiements et doublons sont en ordre sur votre périmètre.</p>
+          </div>
+        </div>
+      )}
+
+      <Bloc titre="Convocations manquantes" icone={FileWarning} n={convocations.length}>
+        {convocations.map((v) => (
+          <LigneCandidat key={v.id} v={v}>
+            <span className="badge badge-warning">à envoyer</span>
+          </LigneCandidat>
+        ))}
+      </Bloc>
+
+      <Bloc titre="Paiements en attente" icone={CreditCard} n={paiements.length}>
+        {paiements.map((v) => (
+          <LigneCandidat key={v.id} v={v}>
+            <span className="text-xs font-medium text-red-600">reste {eur(v.reste_a_payer)}</span>
+          </LigneCandidat>
+        ))}
+      </Bloc>
+
+      <Bloc titre="Doublons" icone={Copy} n={doublons.length}>
+        {doublons.map((g, i) => (
+          <div key={i} className="px-4 py-3">
+            <p className="text-sm font-medium text-gray-900">{nomComplet(g[0])}</p>
+            <p className="text-xs text-gray-500">
+              {g.length} ventes sur la même session ({g[0].sessions_examen?.type === "Examen_civique" ? "Civique" : "TEF IRN"} · {frDate(g[0].sessions_examen?.date_examen ?? null)})
+              {" — "}attestations {g.map((x) => x.numero_attestation ?? "?").join(", ")}
+            </p>
+          </div>
+        ))}
+      </Bloc>
+    </main>
+  );
+}

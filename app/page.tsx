@@ -6,7 +6,7 @@ import Link from "next/link";
 import { cookies, headers } from "next/headers";
 import {
   GraduationCap, ClipboardList, Users, Receipt, FileSpreadsheet, ListChecks,
-  Plus, ArrowRight, CheckCircle2,
+  Plus, ArrowRight, CheckCircle2, AlertTriangle, Send, FileSignature, ChevronRight,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
@@ -234,9 +234,78 @@ function frJour(d: string): string {
   return new Date(d + "T12:00:00").toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
 }
 
+/**
+ * Anomalies opérationnelles (examen) — pour l'indicateur d'accueil et la page /anomalies.
+ * Trois registres dérivés de ventes_examen (pas de nouvelle table) :
+ *  · convocations : payé, examen à venir, convocation jamais envoyée
+ *  · paiements    : examen à venir avec un reste à payer (acompte non soldé)
+ *  · doublons     : même candidat + même session + même type, ≥ 2 ventes actives
+ */
+async function anomaliesAccueil(site: SiteFiltre) {
+  const zero = { convocations: 0, paiements: 0, doublons: 0, total: 0 };
+  try {
+    const auj = new Intl.DateTimeFormat("fr-CA", { timeZone: "Europe/Paris" }).format(new Date());
+    let q = supabaseAdmin
+      .from("ventes_examen")
+      .select("id, session_id, type_examen, statut_paiement, convocation_envoyee_le, reste_a_payer, agence, stagiaires:candidat_id(nom, prenom), sessions_examen:session_id(date_examen)")
+      .neq("type_examen", "Vente_plateforme")
+      .not("statut_paiement", "in", '("Remboursé","Annulé")');
+    if (site) q = q.eq("agence", site);
+    const { data } = await q;
+    const rows = (data ?? []) as any[];
+    const aVenir = rows.filter((v) => v.sessions_examen?.date_examen && v.sessions_examen.date_examen >= auj);
+    const convocations = aVenir.filter(
+      (v) => (v.statut_paiement === "Payé" || v.statut_paiement === "Inclus CPF") && !v.convocation_envoyee_le,
+    ).length;
+    const paiements = aVenir.filter((v) => Number(v.reste_a_payer ?? 0) > 0).length;
+    const comptes = new Map<string, number>();
+    for (const v of rows) {
+      const k = `${(v.stagiaires?.nom ?? "").trim().toLowerCase()}|${(v.stagiaires?.prenom ?? "").trim().toLowerCase()}|${v.session_id ?? ""}|${v.type_examen ?? ""}`;
+      if (k.replace(/\|/g, "").length) comptes.set(k, (comptes.get(k) ?? 0) + 1);
+    }
+    let doublons = 0;
+    for (const n of comptes.values()) if (n > 1) doublons += n - 1;
+    return { convocations, paiements, doublons, total: convocations + paiements + doublons };
+  } catch { return zero; }
+}
+
+/** Tests initiaux envoyés à distance, en attente de passation (lien e-mail envoyé, pas encore passé). */
+async function testsADistanceCount() {
+  try {
+    const { count } = await supabaseAdmin
+      .from("evaluations")
+      .select("id", { count: "exact", head: true })
+      .neq("phase", "final")
+      .eq("statut", "en_cours")
+      .not("email", "is", null);
+    return count ?? 0;
+  } catch { return 0; }
+}
+
+/** Liste (courte) des conventions de formation envoyées à signer et non encore signées. */
+async function conventionsListe() {
+  try {
+    const { data } = await supabaseAdmin
+      .from("v_conventions_a_relancer")
+      .select("dossier_id, envoyee_le, stagiaire_nom, stagiaire_prenom, stagiaire_email")
+      .order("envoyee_le", { ascending: true })
+      .limit(8);
+    return (data ?? []) as { dossier_id: string; envoyee_le: string | null; stagiaire_nom: string; stagiaire_prenom: string; stagiaire_email: string | null }[];
+  } catch { return []; }
+}
+
+/** Ancienneté en jours d'un envoi (pour l'affichage « il y a N j »). */
+function joursDepuis(iso: string | null): number | null {
+  if (!iso) return null;
+  return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86400000));
+}
+
 export default async function Accueil() {
   const site = siteValide(cookies().get(COOKIE_SITE)?.value);
-  const [c, t, cf, ex, cl, tk] = await Promise.all([compter(site), aTraiter(site), conformiteFormateurs(), examenSemaine(site), classementAccueil(), tachesAccueil(site)]);
+  const [c, t, cf, ex, cl, tk, an, testsDist, convListe] = await Promise.all([
+    compter(site), aTraiter(site), conformiteFormateurs(), examenSemaine(site), classementAccueil(), tachesAccueil(site),
+    anomaliesAccueil(site), testsADistanceCount(), conventionsListe(),
+  ]);
 
   // Rôle de la session (filtrage du périmètre — défense en profondeur, en plus du middleware).
   const h = headers();
@@ -248,7 +317,7 @@ export default async function Accueil() {
   const voir = (href: string) => peutVoirPage(role, href);
 
   const actions = [
-    { label: "Conventions à relancer", n: c.aRelancer, href: "/formation" },
+    { label: "Liens de paiement à traiter", n: ex.liens, href: "/examens/preinscriptions" },
     { label: "Participations 150 € à régler", n: t.participation, href: "/formation" },
     { label: "Identités CPF à confirmer", n: t.identite, href: "/formation" },
     { label: "Congés en attente", n: t.conges, href: "/conges" },
@@ -289,12 +358,32 @@ export default async function Accueil() {
         </div>
       </header>
 
-      {/* Compteurs */}
+      {/* Notifications — alertes prioritaires */}
+      {(t.participation > 0 || testsDist > 0) && (
+        <div className="mb-6 space-y-2">
+          {t.participation > 0 && (
+            <Link href="/formation" className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 hover:bg-amber-100">
+              <AlertTriangle size={18} strokeWidth={1.9} className="shrink-0 text-amber-600" />
+              <span><strong>{t.participation}</strong> participation{t.participation > 1 ? "s" : ""} forfaitaire{t.participation > 1 ? "s" : ""} manquante{t.participation > 1 ? "s" : ""} — à régler avant l&apos;entrée en formation.</span>
+              <ChevronRight size={16} className="ml-auto shrink-0 text-amber-400" />
+            </Link>
+          )}
+          {testsDist > 0 && (
+            <Link href="/formation" className="flex items-center gap-3 rounded-xl border border-mystory/20 bg-mystory-clair px-4 py-3 text-sm text-mystory-fonce hover:brightness-95">
+              <Send size={18} strokeWidth={1.9} className="shrink-0 text-mystory" />
+              <span><strong>{testsDist}</strong> test{testsDist > 1 ? "s" : ""} initial envoyé{testsDist > 1 ? "s" : ""} à distance — en attente de passation.</span>
+              <ChevronRight size={16} className="ml-auto shrink-0 text-mystory/60" />
+            </Link>
+          )}
+        </div>
+      )}
+
+      {/* Compteurs — formation */}
       <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Kpi libelle="Dossiers en cours" valeur={String(c.enCours)} href="/dossiers?vue=incomplet" />
-        <Kpi libelle="Dossiers à finaliser" valeur={String(c.aFinaliser)} accent={c.aFinaliser > 0 ? "ambre" : undefined} href="/dossiers?vue=a_finaliser" />
-        <Kpi libelle="Conventions à relancer" valeur={String(c.aRelancer)} accent={c.aRelancer > 0 ? "ambre" : undefined} href="/dossiers" />
+        <Kpi libelle="Dossiers de formation en cours" valeur={String(c.enCours)} href="/dossiers?vue=incomplet" />
+        <Kpi libelle="Dossiers de formation à finaliser" valeur={String(c.aFinaliser)} accent={c.aFinaliser > 0 ? "ambre" : undefined} href="/dossiers?vue=a_finaliser" />
         <Kpi libelle="Fins de formation proches" valeur={String(c.finsProches)} accent={c.finsProches > 0 ? "ambre" : undefined} href="/suivi-eleves?filtre=fins_proches" />
+        <Kpi libelle="Anomalies" valeur={String(an.total)} accent={an.total > 0 ? "ambre" : "vert"} href="/anomalies" />
       </div>
 
       {/* Examen — cette semaine */}
@@ -332,6 +421,39 @@ export default async function Accueil() {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Conventions de formation à relancer — mini-liste */}
+      {convListe.length > 0 && (
+        <div className="mb-8">
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+              <FileSignature size={16} strokeWidth={1.9} className="text-mystory" />
+              Conventions de formation à relancer
+            </h2>
+            <Link href="/dossiers" className="text-xs text-mystory underline">Voir tout</Link>
+          </div>
+          <div className="card !p-0 divide-y divide-gray-100">
+            {convListe.map((cv) => {
+              const j = joursDepuis(cv.envoyee_le);
+              return (
+                <Link key={cv.dossier_id} href="/dossiers"
+                  className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-gray-50">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-gray-900">{cv.stagiaire_prenom} {cv.stagiaire_nom}</p>
+                    <p className="truncate text-xs text-gray-500">{cv.stagiaire_email ?? "—"}</p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className={`text-xs ${j != null && j >= 7 ? "font-medium text-red-600" : "text-gray-400"}`}>
+                      {j == null ? "—" : j === 0 ? "envoyée aujourd'hui" : `envoyée il y a ${j} j`}
+                    </span>
+                    <ChevronRight size={16} className="text-gray-300" />
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         </div>
       )}
