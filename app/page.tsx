@@ -246,30 +246,59 @@ function frJour(d: string): string {
  *  · doublons     : même candidat + même session + même type, ≥ 2 ventes actives
  */
 async function anomaliesAccueil(site: SiteFiltre) {
-  const zero = { convocations: 0, paiements: 0, doublons: 0, total: 0 };
+  const zero = { examen: 0, formation: 0, total: 0 };
   try {
     const auj = new Intl.DateTimeFormat("fr-CA", { timeZone: "Europe/Paris" }).format(new Date());
+
+    // — Examen —
     let q = supabaseAdmin
       .from("ventes_examen")
-      .select("id, session_id, type_examen, statut_paiement, convocation_envoyee_le, reste_a_payer, agence, stagiaires:candidat_id(nom, prenom), sessions_examen:session_id(date_examen)")
+      .select("id, session_id, type_examen, statut_paiement, convocation_envoyee_le, reste_a_payer, reinscription_de, agence, stagiaires:candidat_id(nom, prenom), sessions_examen:session_id(date_examen)")
       .neq("type_examen", "Vente_plateforme")
       .not("statut_paiement", "in", '("Remboursé","Annulé")');
     if (site) q = q.eq("agence", site);
     const { data } = await q;
     const rows = (data ?? []) as any[];
     const aVenir = rows.filter((v) => v.sessions_examen?.date_examen && v.sessions_examen.date_examen >= auj);
-    const convocations = aVenir.filter(
-      (v) => (v.statut_paiement === "Payé" || v.statut_paiement === "Inclus CPF") && !v.convocation_envoyee_le,
-    ).length;
+    const convocations = aVenir.filter((v) => (v.statut_paiement === "Payé" || v.statut_paiement === "Inclus CPF") && !v.convocation_envoyee_le).length;
     const paiements = aVenir.filter((v) => Number(v.reste_a_payer ?? 0) > 0).length;
     const comptes = new Map<string, number>();
     for (const v of rows) {
+      if (v.reinscription_de) continue; // réinscription légitime, pas un doublon
       const k = `${(v.stagiaires?.nom ?? "").trim().toLowerCase()}|${(v.stagiaires?.prenom ?? "").trim().toLowerCase()}|${v.session_id ?? ""}|${v.type_examen ?? ""}`;
       if (k.replace(/\|/g, "").length) comptes.set(k, (comptes.get(k) ?? 0) + 1);
     }
-    let doublons = 0;
-    for (const n of comptes.values()) if (n > 1) doublons += n - 1;
-    return { convocations, paiements, doublons, total: convocations + paiements + doublons };
+    let doublonsEx = 0;
+    for (const n of comptes.values()) if (n > 1) doublonsEx += n - 1;
+    const examen = convocations + paiements + doublonsEx;
+
+    // — Formation —
+    const il14 = new Date(Date.now() - 14 * 86400000).toISOString();
+    let pq = supabaseAdmin
+      .from("planning")
+      .select("id, date_seance, emarge_le, absence, dossier:dossiers!dossier_id ( statut, date_fin, stagiaire:stagiaires!stagiaire_id ( agence ) )");
+    const [planning, convOld, doss] = await Promise.all([
+      pq,
+      supabaseAdmin.from("v_conventions_a_relancer").select("dossier_id", { count: "exact", head: true }).lt("envoyee_le", il14),
+      supabaseAdmin.from("dossiers").select("stagiaire_id, statut, date_fin, stagiaires:stagiaire_id(agence)").eq("statut", "incomplet").is("date_fin", null),
+    ]);
+    const emargManquants = ((planning.data as any[]) ?? []).filter((r) => {
+      const d = r.dossier;
+      if (!d || d.statut !== "incomplet" || d.date_fin != null) return false;
+      if (site && (d.stagiaire?.agence ?? "") !== site) return false;
+      return r.date_seance && r.date_seance < auj && !r.emarge_le && r.absence !== true;
+    }).length;
+    const dmap = new Map<string, number>();
+    for (const d of ((doss.data as any[]) ?? [])) {
+      const ag = Array.isArray(d.stagiaires) ? d.stagiaires[0]?.agence : d.stagiaires?.agence;
+      if (site && (ag ?? "") !== site) continue;
+      if (d.stagiaire_id) dmap.set(d.stagiaire_id, (dmap.get(d.stagiaire_id) ?? 0) + 1);
+    }
+    let doublonsForm = 0;
+    for (const n of dmap.values()) if (n > 1) doublonsForm += n - 1;
+    const formation = emargManquants + (convOld.count ?? 0) + doublonsForm;
+
+    return { examen, formation, total: examen + formation };
   } catch { return zero; }
 }
 
@@ -323,6 +352,7 @@ export default async function Accueil() {
   const actions = [
     { label: "Liens de paiement à traiter", n: ex.liens, href: "/examens/preinscriptions" },
     { label: "Réclamations à traiter", n: t.reclamations, href: "/reclamations" },
+    { label: "Tâches d'agence à faire", n: tk.length, href: "/taches" },
     { label: "Participations 150 € à régler", n: t.participation, href: "/formation" },
     { label: "Identités CPF à confirmer", n: t.identite, href: "/formation" },
     { label: "Congés en attente", n: t.conges, href: "/conges" },
