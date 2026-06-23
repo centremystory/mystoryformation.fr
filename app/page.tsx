@@ -5,8 +5,8 @@
 import Link from "next/link";
 import { cookies, headers } from "next/headers";
 import {
-  GraduationCap, ClipboardList, Users, Receipt, FileSpreadsheet, ListChecks,
-  Plus, ArrowRight, CheckCircle2, AlertTriangle, Send, FileSignature, ChevronRight, MessageSquareWarning,
+  GraduationCap, ClipboardList, Users, Receipt, ListChecks,
+  Plus, ArrowRight, CheckCircle2, AlertTriangle, Send, FileSignature, ChevronRight, MessageSquareWarning, BookOpen,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
@@ -340,7 +340,7 @@ export default async function Accueil() {
     { href: "/equipe", icone: Users, titre: "Équipe", desc: "Formateurs (justificatifs FLE) et commerciaux." },
     { href: "/reclamations", icone: MessageSquareWarning, titre: "Réclamations", desc: "Candidats examen & stagiaires formation." },
     { href: "/attestations-paiement", icone: Receipt, titre: "Attestation de paiement", desc: "Retrouver un candidat : paiement, attestation, report, réclamation." },
-    { href: "/bpf", icone: FileSpreadsheet, titre: "BPF", desc: "Bilan pédagogique et financier." },
+    { href: "/faq", icone: BookOpen, titre: "FAQ & Guides", desc: "FAQ, Guide Vendeurs, Guide Formatrices." },
     { href: "/taches", icone: ListChecks, titre: "Tâches par agence", desc: "Le pense-bête opérationnel de chaque site." },
   ].filter((tu) => voir(tu.href));
 

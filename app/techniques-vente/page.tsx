@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import GuidesSousNav from "@/components/GuidesSousNav";
 
 type Fiche = { id: string; categorie: string; titre: string; contenu: string; ordre: number };
 
@@ -90,6 +91,8 @@ export default function TechniquesVentePage() {
   }
 
   return (
+    <>
+      <GuidesSousNav />
     <div className="mx-auto max-w-3xl px-4 py-6">
       <div className="page-header">
         <h1 className="page-title">Techniques de vente</h1>
@@ -154,5 +157,6 @@ export default function TechniquesVentePage() {
         </section>
       ))}
     </div>
+    </>
   );
 }

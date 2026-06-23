@@ -2,6 +2,7 @@
 // app/faq/page.tsx — FAQ interne équipe (réponses homogènes aux prospects + modèles de mails).
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Copy, Check, Pencil, Archive, Mail } from "lucide-react";
+import GuidesSousNav from "@/components/GuidesSousNav";
 
 type Entree = { id: string; categorie: string; question: string; reponse: string; auteur: string | null; cree_le: string; maj_le: string };
 
@@ -187,6 +188,8 @@ export default function PageFaq() {
   }
 
   return (
+    <>
+      <GuidesSousNav />
     <main className="mx-auto max-w-4xl px-4 py-8 md:px-6">
       <header className="page-header">
         <div>
@@ -273,5 +276,6 @@ export default function PageFaq() {
         </div>
       )}
     </main>
+    </>
   );
 }
