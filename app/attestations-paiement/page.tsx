@@ -6,7 +6,7 @@
 //  · ouvrir une réclamation (pré-remplie).
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, FileText, CalendarClock, MessageSquareWarning, Phone, Mail, Send, X } from "lucide-react";
+import { Search, FileText, CalendarClock, MessageSquareWarning, Phone, Mail, Send, X, Download } from "lucide-react";
 
 type Candidat = {
   id: string;
@@ -51,6 +51,7 @@ export default function PageAttestationsPaiement() {
   const [chargement, setChargement] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [renvoi, setRenvoi] = useState<string | null>(null);
+  const [recu, setRecu] = useState<string | null>(null);
   const [okMsg, setOkMsg] = useState<string | null>(null);
   const [recOuverte, setRecOuverte] = useState<string | null>(null);
 
@@ -84,6 +85,20 @@ export default function PageAttestationsPaiement() {
       setOkMsg(`Attestation renvoyée à ${c.prenom ?? ""} ${c.nom ?? ""}.`);
     } catch (e: any) { setErreur(e.message); }
     finally { setRenvoi(null); }
+  }
+
+  async function envoyerRecu(c: Candidat) {
+    setRecu(c.id); setOkMsg(null); setErreur(null);
+    try {
+      const r = await fetch("/api/recu-paiement", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: c.id, source: c.source }),
+      });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.erreur);
+      setOkMsg(`Reçu de paiement envoyé à ${c.prenom ?? ""} ${c.nom ?? ""}.`);
+    } catch (e: any) { setErreur(e.message); }
+    finally { setRecu(null); }
   }
 
   return (
@@ -147,6 +162,15 @@ export default function PageAttestationsPaiement() {
               <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3">
                 {c.telephone && <a href={`tel:${c.telephone}`} className="btn-ghost !px-2.5 !py-1 text-xs"><Phone size={14} /> {c.telephone}</a>}
                 {c.email && <a href={`mailto:${c.email}`} className="btn-ghost !px-2.5 !py-1 text-xs"><Mail size={14} /> Écrire</a>}
+
+                <a href={`/api/recu-paiement?id=${c.id}&source=${c.source}`} target="_blank" rel="noopener noreferrer" className="btn-ghost !px-2.5 !py-1 text-xs" title="Reçu de paiement (PDF, sans numéro comptable)">
+                  <Download size={14} /> Reçu (PDF)
+                </a>
+                {c.email && (
+                  <button onClick={() => envoyerRecu(c)} disabled={recu === c.id} className="btn-ghost !px-2.5 !py-1 text-xs disabled:opacity-50" title="Envoyer le reçu par email">
+                    <Send size={14} /> {recu === c.id ? "Envoi…" : "Envoyer le reçu"}
+                  </button>
+                )}
 
                 {c.attestation_depose_le && c.email && (
                   <button onClick={() => renvoyer(c)} disabled={renvoi === c.id} className="btn-ghost !px-2.5 !py-1 text-xs disabled:opacity-50" title="Renvoyer l'attestation déjà émise (aucun nouveau numéro)">
