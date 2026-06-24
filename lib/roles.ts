@@ -106,6 +106,10 @@ export const PAGE_PERMISSIONS: Record<string, Role[]> = {
   // — Commercial / prospects —
   "/inscriptions": ["direction", "manager", "commercial", "back_office"],
   "/messages": ["direction", "manager", "commercial"],
+  // — Outils suivi candidat / qualité (commercial + encadrement, pas formatrice) —
+  "/attestations-paiement": ["direction", "manager", "commercial", "back_office"],
+  "/reclamations": ["direction", "manager", "commercial", "back_office"],
+  "/anomalies": ["direction", "manager", "commercial", "back_office"],
   // — Dossiers / conformité / EDOF (back-office) —
   "/dossiers/conformite": ["direction", "manager", "back_office"],
   "/dossiers/edof": ["direction", "manager", "back_office"],
