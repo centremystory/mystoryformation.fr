@@ -1,6 +1,6 @@
 "use client";
 // components/NavBar.tsx — Navigation regroupée du CRM MYSTORY.
-// 5 entrées de haut niveau ; les groupes ouvrent une sous-barre (robuste mobile, pas de menu coupé).
+// Entrées de haut niveau (Accueil · Rechercher · Formation · Examen · RH · Finance · Conformité · Admin) ; les groupes ouvrent une sous-barre (robuste mobile, pas de menu coupé).
 // Masquée sur la connexion et les pages publiques (QCM candidat, pages stagiaires par jeton).
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -34,22 +34,30 @@ const NAV: Entree[] = [
     ],
   },
   {
-    type: "menu", label: "Gestion", items: [
+    type: "menu", label: "Finance", items: [
       { href: "/factures", label: "Factures" },
       { href: "/attestations-paiement", label: "Attestation de paiement" },
-      { href: "/reclamations", label: "Réclamations" },
-      { href: "/anomalies", label: "Anomalies" },
       { href: "/validations", label: "Validations" },
       { href: "/bpf", label: "BPF" },
+    ],
+  },
+  {
+    type: "menu", label: "Conformité", items: [
+      { href: "/reclamations", label: "Réclamations" },
+      { href: "/anomalies", label: "Anomalies" },
+      { href: "/incidents", label: "Incidents" },
+      { href: "/veille", label: "Veille" },
+      { href: "/journal", label: "Journal" },
+    ],
+  },
+  {
+    type: "menu", label: "Admin", items: [
       { href: "/equipe", label: "Équipe" },
       { href: "/formateurs", label: "Formateurs" },
-      { href: "/messages", label: "Messages" },
-      { href: "/veille", label: "Veille" },
-      { href: "/faq", label: "FAQ & Guides" },
       { href: "/comptes", label: "Comptes" },
-      { href: "/incidents", label: "Incidents" },
       { href: "/automatisations", label: "Automatisations" },
-      { href: "/journal", label: "Journal" },
+      { href: "/messages", label: "Messages" },
+      { href: "/faq", label: "FAQ & Guides" },
     ],
   },
 ];
