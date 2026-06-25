@@ -31,6 +31,13 @@
 
 **Voie continue — Dette technique** : montée Next.js · hardening API (Réclamations / Anomalies / Attestation de paiement) · perf accueil · recherche unifiée · resync compteur P1.
 
+### Compléments (analyse onglet-par-onglet, 23/06)
+Items repérés page par page, rattachés aux phases ci-dessus :
+- **Suivi-élèves — alertes décrochage** (absences répétées → relance auto) — *Axe C, Phase 3*.
+- **Examen — blocage doublon à la saisie** (empêcher la création plutôt que signaler après coup) — *Axe A, Phase 2*.
+- **Examen — tableau de réussite** par session / formatrice (pilotage) — *Axe C, Phase 3*.
+- **Reçu de paiement — trace** (qui / quand pour chaque reçu émis) — *Axe A, rapide*.
+
 > Méthode inchangée : une brique à la fois, options + reco, Arudhan tranche, build vérifié. Les demandes « page par page » du directeur se branchent dans la phase correspondante.
 
 ---
