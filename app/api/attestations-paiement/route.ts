@@ -27,5 +27,21 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await sel;
   if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true, candidats: data ?? [] });
+
+  const candidats = (data ?? []) as any[];
+  if (candidats.length) {
+    const ids = candidats.map((c) => c.id);
+    const { data: recus } = await supabaseAdmin
+      .from("recus_paiement")
+      .select("source, reference_id, canal, emis_le, emis_par")
+      .in("reference_id", ids).eq("actif", true)
+      .order("emis_le", { ascending: false });
+    const dernier = new Map<string, any>();
+    for (const r of ((recus as any[]) ?? [])) {
+      const k = `${r.source}:${r.reference_id}`;
+      if (!dernier.has(k)) dernier.set(k, r); // le premier rencontré = le plus récent
+    }
+    for (const c of candidats) c.dernier_recu = dernier.get(`${c.source}:${c.id}`) ?? null;
+  }
+  return NextResponse.json({ ok: true, candidats });
 }

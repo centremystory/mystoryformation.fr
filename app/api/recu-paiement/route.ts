@@ -51,8 +51,13 @@ export async function GET(req: NextRequest) {
   const data = await construire(id, source);
   if (!data) return NextResponse.json({ ok: false, erreur: "Candidat introuvable." }, { status: 404 });
 
+  const u = await verifySession(req);
   try {
     const pdf = await genererRecuPaiementPdf(data);
+    supabaseAdmin.from("recus_paiement").insert({
+      source, reference_id: id, candidat: `${data.prenom ?? ""} ${data.nom ?? ""}`.trim(),
+      montant: data.montant, canal: "telechargement", emis_par: u?.email ?? null,
+    }).then(() => {}, () => {}); // trace best-effort, ne bloque pas le téléchargement
     return new NextResponse(new Uint8Array(pdf), {
       headers: {
         "Content-Type": "application/pdf",
@@ -92,6 +97,10 @@ export async function POST(req: NextRequest) {
       auteur: u?.email ?? null,
     });
     if (!res.ok) throw new Error(res.erreur ?? "Envoi impossible.");
+    supabaseAdmin.from("recus_paiement").insert({
+      source, reference_id: id, candidat: `${data.prenom ?? ""} ${data.nom ?? ""}`.trim(),
+      montant: data.montant, canal: "email", destinataire: data.email, emis_par: u?.email ?? null,
+    }).then(() => {}, () => {});
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     return NextResponse.json({ ok: false, erreur: e.message ?? "Envoi impossible." }, { status: 500 });

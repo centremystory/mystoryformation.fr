@@ -30,6 +30,7 @@ type Candidat = {
   session_id: string | null;
   attestation_nom: string | null;
   attestation_depose_le: string | null;
+  dernier_recu: { canal: "telechargement" | "email"; emis_le: string; emis_par: string | null } | null;
 };
 
 const eur = (n: number | null | undefined) => `${Math.round(Number(n ?? 0))} €`;
@@ -170,6 +171,12 @@ export default function PageAttestationsPaiement() {
                   <button onClick={() => envoyerRecu(c)} disabled={recu === c.id} className="btn-ghost !px-2.5 !py-1 text-xs disabled:opacity-50" title="Envoyer le reçu par email">
                     <Send size={14} /> {recu === c.id ? "Envoi…" : "Envoyer le reçu"}
                   </button>
+                )}
+
+                {c.dernier_recu && (
+                  <span className="self-center text-[11px] text-gray-400">
+                    Reçu {c.dernier_recu.canal === "email" ? "envoyé" : "téléchargé"} le {new Date(c.dernier_recu.emis_le).toLocaleDateString("fr-FR")}{c.dernier_recu.emis_par ? ` · ${c.dernier_recu.emis_par}` : ""}
+                  </span>
                 )}
 
                 {c.attestation_depose_le && c.email && (
