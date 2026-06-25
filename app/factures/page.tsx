@@ -42,6 +42,8 @@ function dateFR(iso: string | null): string {
   return new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", year: "numeric" }).format(new Date(a, m - 1, j));
 }
 
+type AvoirLigne = { id: string; numero: string; facture_id: string; montant: number; motif: string; cree_le: string; pdf_url: string | null };
+
 export default function PageFactures() {
   const [factures, setFactures] = useState<Facture[]>([]);
   const [aFacturer, setAFacturer] = useState<DossierAFacturer[]>([]);
@@ -52,6 +54,8 @@ export default function PageFactures() {
   const [busy, setBusy] = useState<string | null>(null);
   const [selection, setSelection] = useState<Set<string>>(new Set());
   const [vue, setVue] = useState<"tous" | "formation" | "examen">("tous");
+  const [avoirs, setAvoirs] = useState<Record<string, AvoirLigne[]>>({});
+  const [avoirForm, setAvoirForm] = useState<{ factureId: string; numero: string; net: number; montant: string; motif: string } | null>(null);
 
   const recharger = useCallback(async () => {
     setErreur(null);
@@ -60,6 +64,12 @@ export default function PageFactures() {
       const j = await r.json();
       if (!j.ok) throw new Error(j.erreur);
       setFactures(j.factures); setAFacturer(j.aFacturer ?? []); setVentes(j.ventesAFacturer ?? []);
+      const ra = await fetch("/api/avoirs", { cache: "no-store" }).then((x) => x.json()).catch(() => ({ ok: false }));
+      if (ra.ok) {
+        const grp: Record<string, AvoirLigne[]> = {};
+        for (const a of (ra.avoirs as AvoirLigne[])) (grp[a.facture_id] ??= []).push(a);
+        setAvoirs(grp);
+      }
     } catch (e: any) {
       setErreur(e?.message ?? "Erreur de chargement.");
     } finally {
@@ -95,6 +105,34 @@ export default function PageFactures() {
     } finally {
       setBusy(null);
     }
+  }
+
+  function netDe(f: Facture): number {
+    const liste = avoirs[f.id] ?? [];
+    return Number(f.montant || 0) - liste.reduce((s, a) => s + Number(a.montant || 0), 0);
+  }
+
+  function ouvrirAvoir(f: Facture) {
+    const net = netDe(f);
+    setAvoirForm({ factureId: f.id, numero: f.numero, net, montant: net.toFixed(2), motif: "" });
+    setErreur(null); setInfo(null);
+  }
+
+  async function creerAvoir() {
+    if (!avoirForm) return;
+    const montant = Number(avoirForm.montant);
+    if (!(montant > 0)) { setErreur("Montant de l'avoir requis (> 0)."); return; }
+    if (!avoirForm.motif.trim()) { setErreur("Motif de l'avoir obligatoire."); return; }
+    setBusy("avoir"); setErreur(null); setInfo(null);
+    try {
+      const r = await fetch("/api/avoirs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ facture_id: avoirForm.factureId, montant, motif: avoirForm.motif.trim() }) });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.erreur);
+      setInfo(`Avoir ${j.numero} émis (− ${montant.toFixed(2)} €)${j.pdf_ok ? "" : " — PDF à régénérer"}.`);
+      setAvoirForm(null);
+      await recharger();
+    } catch (e: any) { setErreur(e?.message ?? "Erreur."); }
+    finally { setBusy(null); }
   }
 
   async function lancerRelances() {
@@ -224,6 +262,23 @@ export default function PageFactures() {
 
       <section className="mt-6">
         <h2 className="text-lg font-semibold">Registre</h2>
+
+        {avoirForm && (
+          <div className="card mt-3 border border-rose-200 bg-rose-50/40">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-gray-800">Établir un avoir — facture {avoirForm.numero}</h3>
+              <button onClick={() => setAvoirForm(null)} className="text-sm text-gray-400 hover:text-gray-600">Fermer</button>
+            </div>
+            <p className="mt-1 text-xs text-gray-500">Net restant : <strong>{avoirForm.net.toFixed(2)} €</strong>. L&apos;avoir ne modifie pas la facture (immuable) ; il vient en déduction (note de crédit numérotée AV-).</p>
+            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <input type="number" step="0.01" min="0" max={avoirForm.net} value={avoirForm.montant} onChange={(e) => setAvoirForm({ ...avoirForm, montant: e.target.value })} className="input" placeholder="Montant (€)" />
+              <input value={avoirForm.motif} onChange={(e) => setAvoirForm({ ...avoirForm, motif: e.target.value })} className="input sm:col-span-2" placeholder="Motif (ex. : annulation partielle, erreur de saisie…)" />
+            </div>
+            <div className="mt-3 flex justify-end">
+              <button onClick={creerAvoir} disabled={busy === "avoir"} className="btn-primary disabled:opacity-50">{busy === "avoir" ? "Émission…" : "Émettre l'avoir"}</button>
+            </div>
+          </div>
+        )}
         {chargement ? (
           <p className="text-sm text-gray-500 mt-2">Chargement…</p>
         ) : facturesVue.length === 0 ? (
@@ -265,7 +320,21 @@ export default function PageFactures() {
                         </ul>
                       ) : f.designation}
                     </td>
-                    <td data-label="Montant" className="px-3 py-2 whitespace-nowrap font-medium">{Number(f.montant).toLocaleString("fr-FR")} €</td>
+                    <td data-label="Montant" className="px-3 py-2 whitespace-nowrap font-medium">
+                      {(avoirs[f.id]?.length ?? 0) > 0 ? (
+                        <>
+                          <span className="text-gray-400 line-through">{Number(f.montant).toLocaleString("fr-FR")} €</span>
+                          <div className="text-gray-900">net {netDe(f).toLocaleString("fr-FR")} €</div>
+                          {avoirs[f.id].map((a) => (
+                            <div key={a.id} className="text-[10px] font-normal text-rose-600">
+                              − {Number(a.montant).toLocaleString("fr-FR")} € · {a.pdf_url ? <a href={a.pdf_url} target="_blank" rel="noopener noreferrer" className="underline">{a.numero}</a> : a.numero}
+                            </div>
+                          ))}
+                        </>
+                      ) : (
+                        <>{Number(f.montant).toLocaleString("fr-FR")} €</>
+                      )}
+                    </td>
                     <td data-label="Émise le" className="px-3 py-2 whitespace-nowrap">{dateFR(f.date_emission)}</td>
                     <td data-label="Statut" className="px-3 py-2 whitespace-nowrap">
                       <span className={`text-xs px-2 py-0.5 rounded border ${BADGE[f.statut] ?? "bg-gray-50 border-gray-200 text-gray-700"}`}>
@@ -281,6 +350,15 @@ export default function PageFactures() {
                           className="px-2 py-1 rounded-md text-xs border border-green-300 text-green-700 hover:bg-green-50 disabled:opacity-40 mr-1"
                         >
                           {busy === `p-${f.id}` ? "…" : "Marquer payée"}
+                        </button>
+                      )}
+                      {netDe(f) > 0 && (
+                        <button
+                          onClick={() => ouvrirAvoir(f)}
+                          disabled={busy !== null}
+                          className="px-2 py-1 rounded-md text-xs border border-rose-300 text-rose-700 hover:bg-rose-50 disabled:opacity-40 mr-1"
+                        >
+                          Avoir
                         </button>
                       )}
                       <button
