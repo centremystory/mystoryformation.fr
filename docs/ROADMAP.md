@@ -6,6 +6,35 @@
 
 ---
 
+## 🧭 Ligne directrice stratégique (directeur + développeur)
+
+> Ajoutée le 23/06/2026. **Filtre de toute décision** : une amélioration doit **Protéger** MYSTORY (conformité Qualiopi/CPF, juridique, comptable) **ou Démultiplier** (temps gagné, scaler sans perdre le contrôle). Le confort/esthétique passe après.
+
+- **Axe A — Blindage conformité & comptable** *(protéger)* : avoirs · registre réclamations Qualiopi (ind. 31) · analyse de besoin signée · décision émargement · resync compteur (P1) au jour de bascule.
+- **Axe B — Scaler l'équipe & le pilotage** *(démultiplier le contrôle)* : **Levier E** (comptes individuels = racine) · journal nominatif · cockpit par rôle · rapport hebdo · module Tâches.
+- **Axe C — Efficacité quotidienne** *(démultiplier le temps)* : anomalies → relances n8n · convocations en masse · BPF pré-rempli · recherche unifiée.
+
+### Séquence (dépendances + ROI)
+
+**Phase 1 — Débloquer & sécuriser**
+1. **Levier E** *(action direction)* — racine de l'Axe B, débloque journal/cockpit/rapport/gating déjà posés.
+2. **Avoirs** — seul trou comptable encore ouvert ; indépendant de Levier E, faisable tout de suite.
+3. **Export registre réclamations** — preuve Qualiopi (indicateur 31), petit effort.
+
+**Phase 2 — Proactif & lisible**
+4. **Anomalies → relances n8n** — le CRM agit au lieu d'attendre.
+5. **Réorg menu Gestion** (Finance / Qualité-Conformité / Admin-Équipe).
+6. **Cockpit par rôle** *(post-Levier E)*.
+
+**Phase 3 — Conformité & RH approfondies**
+7. Analyse de besoin signée · module Tâches → rapport hebdo · contrat confidentialité formateurs (DocuSeal) · BPF pré-rempli · décision émargement.
+
+**Voie continue — Dette technique** : montée Next.js · hardening API (Réclamations / Anomalies / Attestation de paiement) · perf accueil · recherche unifiée · resync compteur P1.
+
+> Méthode inchangée : une brique à la fois, options + reco, Arudhan tranche, build vérifié. Les demandes « page par page » du directeur se branchent dans la phase correspondante.
+
+---
+
 ## ✅ Avancement
 
 **P1 — TERMINÉ (20/06).** Tous les chantiers P1 sont livrés et en ligne :
