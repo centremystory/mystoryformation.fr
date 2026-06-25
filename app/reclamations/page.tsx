@@ -3,7 +3,7 @@
 // Liste filtrable + création + cycle de statut (ouverte → en cours → résolue) + archivage.
 // Aucune suppression : archivage seulement. Horodatages posés serveur.
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { MessageSquareWarning, Plus, Phone, Mail, Check, RotateCcw, Archive, X } from "lucide-react";
+import { MessageSquareWarning, Plus, Phone, Mail, Check, RotateCcw, Archive, X, Download } from "lucide-react";
 
 type Reclamation = {
   id: string;
@@ -114,9 +114,13 @@ export default function PageReclamations() {
             <p className="page-subtitle">Candidats à l&apos;examen et stagiaires en formation.</p>
           </div>
         </div>
-        <button onClick={() => setOuvertForm((v) => !v)} className="btn-primary">
-          {ouvertForm ? <X size={16} /> : <Plus size={16} />} {ouvertForm ? "Fermer" : "Nouvelle réclamation"}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <a href="/api/reclamations/export?format=csv" className="btn-ghost text-xs"><Download size={14} /> Registre (CSV)</a>
+          <a href="/api/reclamations/export?format=pdf" className="btn-ghost text-xs"><Download size={14} /> Registre (PDF)</a>
+          <button onClick={() => setOuvertForm((v) => !v)} className="btn-primary">
+            {ouvertForm ? <X size={16} /> : <Plus size={16} />} {ouvertForm ? "Fermer" : "Nouvelle réclamation"}
+          </button>
+        </div>
       </header>
 
       {erreur && <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">{erreur}</div>}
