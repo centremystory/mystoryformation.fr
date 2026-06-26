@@ -42,6 +42,8 @@ export default function PageVenteGroupe() {
   const [erreurs, setErreurs] = useState<string[]>([]);
   const [forcer, setForcer] = useState(false);
   const [motifForcage, setMotifForcage] = useState("");
+  const [forcerDoublon, setForcerDoublon] = useState(false);
+  const [motifDoublon, setMotifDoublon] = useState("");
   const [envoi, setEnvoi] = useState(false);
   const [resultat, setResultat] = useState<any>(null);
 
@@ -76,6 +78,7 @@ export default function PageVenteGroupe() {
   const plateformes = panier.filter((e) => e.categorie === "plateforme");
 
   const carenceVisible = erreurs.some((e) => /carence|mention civique/i.test(e));
+  const doublonVisible = erreurs.some((e) => /doublon/i.test(e));
 
   async function valider() {
     const manque: string[] = [];
@@ -121,6 +124,8 @@ export default function PageVenteGroupe() {
           agence: vendeur.agence,
           carence_forcer: forcer,
           carence_motif: forcer ? motifForcage.trim() : "",
+          doublon_forcer: forcerDoublon,
+          doublon_motif: forcerDoublon ? motifDoublon.trim() : "",
         }),
       });
       const j = await r.json();
@@ -288,6 +293,24 @@ export default function PageVenteGroupe() {
           )}
           {forcer && (
             <button onClick={valider} disabled={envoi || !motifForcage.trim()} className="btn-danger !bg-warning-600 hover:!bg-warning-700">
+              {envoi ? "Envoi…" : "Forcer et valider"}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Forçage doublon — réinscription légitime (retard, examen raté/absent, raison précise) */}
+      {doublonVisible && (
+        <div className="mb-4 space-y-2 rounded-xl border border-warning-200 bg-warning-50 px-4 py-3 text-sm text-warning-700">
+          <label className="flex cursor-pointer items-start gap-2">
+            <input type="checkbox" checked={forcerDoublon} onChange={(e) => setForcerDoublon(e.target.checked)} className="mt-0.5" />
+            <span className="inline-flex items-center gap-1"><AlertTriangle size={14} /> <strong>Valider malgré le doublon</strong> — réinscription légitime (retard, examen raté/absent, raison précise). Journalisé.</span>
+          </label>
+          {forcerDoublon && (
+            <input value={motifDoublon} onChange={(e) => setMotifDoublon(e.target.value)} placeholder="Motif obligatoire (ex. : arrivé en retard, examen raté, absent…)" className="input" />
+          )}
+          {forcerDoublon && (
+            <button onClick={valider} disabled={envoi || !motifDoublon.trim()} className="btn-danger !bg-warning-600 hover:!bg-warning-700">
               {envoi ? "Envoi…" : "Forcer et valider"}
             </button>
           )}

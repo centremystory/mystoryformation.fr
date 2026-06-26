@@ -17,6 +17,7 @@ export type Vente = {
   montant: number | null;
   session_id: string | null;
   reinscription_de: string | null;
+  doublon_force: boolean | null;
   agence: string | null;
   stagiaires: { nom: string | null; prenom: string | null; telephone: string | null; email: string | null } | null;
   sessions_examen: { date_examen: string | null; horaire: string | null; type: string | null } | null;
@@ -35,7 +36,7 @@ export async function chargerAnomaliesExamen(site: SiteFiltre): Promise<{ convoc
   let q = supabaseAdmin
     .from("ventes_examen")
     .select(
-      "id, numero_attestation, type_examen, statut_paiement, convocation_envoyee_le, reste_a_payer, montant, session_id, reinscription_de, agence, stagiaires:candidat_id(nom, prenom, telephone, email), sessions_examen:session_id(date_examen, horaire, type)",
+      "id, numero_attestation, type_examen, statut_paiement, convocation_envoyee_le, reste_a_payer, montant, session_id, reinscription_de, doublon_force, agence, stagiaires:candidat_id(nom, prenom, telephone, email), sessions_examen:session_id(date_examen, horaire, type)",
     )
     .neq("type_examen", "Vente_plateforme")
     .not("statut_paiement", "in", '("Remboursé","Annulé")');
@@ -55,7 +56,7 @@ export async function chargerAnomaliesExamen(site: SiteFiltre): Promise<{ convoc
   // Doublons : même candidat + session + type, ≥ 2 ventes actives (réinscriptions exclues).
   const groupes = new Map<string, Vente[]>();
   for (const v of rows) {
-    if (v.reinscription_de) continue;
+    if (v.reinscription_de || v.doublon_force) continue; // réinscription ou doublon déjà validé avec motif = légitime
     const k = `${(v.stagiaires?.nom ?? "").trim().toLowerCase()}|${(v.stagiaires?.prenom ?? "").trim().toLowerCase()}|${v.session_id ?? ""}|${v.type_examen ?? ""}`;
     if (!k.replace(/\|/g, "").length) continue;
     if (!groupes.has(k)) groupes.set(k, []);

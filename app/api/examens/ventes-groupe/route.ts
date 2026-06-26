@@ -21,7 +21,7 @@ import {
 } from "@/lib/examens";
 import { fusionnerPdfs } from "@/lib/pdfMerge";
 import { facturerVente, facturerGroupe, envoyerFacture } from "@/lib/factures";
-import { checkInscriptionExamen } from "@/lib/examenCarence";
+import { checkInscriptionExamen, checkDoublonExamen } from "@/lib/examenCarence";
 import { estDirection } from "@/lib/roles";
 
 export const runtime = "nodejs";
@@ -77,6 +77,8 @@ export async function POST(req: NextRequest) {
   const agence = String(body?.agence ?? "").trim();
   const carenceForcer = body?.carence_forcer === true || body?.carence_forcer === "true" || body?.carence_forcer === 1;
   const carenceMotif = String(body?.carence_motif ?? "").trim();
+  const doublonForcer = body?.doublon_forcer === true || body?.doublon_forcer === "true" || body?.doublon_forcer === 1;
+  const doublonMotif = String(body?.doublon_motif ?? "").trim();
 
   const recap: string[] = [];
   const nom = String(c?.nom ?? "").trim();
@@ -174,6 +176,32 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // ----- Anti-doublon à la saisie : même candidat + session + type déjà inscrit (réinscription exclue) -----
+  // Bloque par défaut ; validation forcée possible avec MOTIF (retard, examen raté/absent, raison précise), journalisée.
+  // Ouvert au vendeur (réalité terrain), contrairement à la carence (Direction).
+  const doublonsRecap: string[] = [];
+  for (let i = 0; i < prepare.length; i++) {
+    const { e } = prepare[i];
+    const dbl = await checkDoublonExamen({
+      candidatId,
+      type: e.type_examen,
+      sousType: e.sous_type || null,
+      sessionId: e.type_examen === "Vente_plateforme" ? null : (String(e.session_id ?? "").trim() || null),
+    });
+    if (!dbl.ok) doublonsRecap.push(...dbl.recap.map((r) => `Examen ${i + 1} : ${r}`));
+  }
+  let doublonAppliquee = false;
+  if (doublonsRecap.length > 0) {
+    if (doublonForcer && doublonMotif) {
+      doublonAppliquee = true;
+      await journal("ventes_examen", candidatId, "doublon_force_groupe", { motif: doublonMotif, recap: doublonsRecap }, u.email ?? venduPar);
+    } else if (doublonForcer && !doublonMotif) {
+      return NextResponse.json({ ok: false, status: "doublon", recap: [...doublonsRecap, "Motif obligatoire pour valider malgré le doublon."] }, { status: 409 });
+    } else {
+      return NextResponse.json({ ok: false, status: "doublon", recap: doublonsRecap }, { status: 409 });
+    }
+  }
+
   // ----- PHASE 2a : création de chaque inscription (documents générés, PAS encore envoyés) -----
   type Ligne = {
     e: any; insertOk: boolean; venteId: string; numero: string; statut: string; mode: string;
@@ -206,6 +234,8 @@ export async function POST(req: NextRequest) {
         tef_passage_externe_date: e.type_examen === "TEF_IRN" && e.tef_passage_externe ? (e.tef_passage_externe_date || null) : null,
         carence_forcee: carenceAppliquee,
         carence_forcee_motif: carenceAppliquee ? carenceMotif : null,
+        doublon_force: doublonAppliquee,
+        doublon_force_motif: doublonAppliquee ? doublonMotif : null,
         numero_attestation: "ATTRIBUE_PAR_LE_SERVEUR",
       })
       .select("id, numero_attestation")
