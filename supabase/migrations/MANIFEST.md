@@ -1,7 +1,7 @@
 # Manifeste des migrations — base MYSTORY (ordre chronologique)
 
 > Historique reflété depuis `supabase_migrations.schema_migrations`.
-> 60 migrations au 14/06/2026.
+> 66 migrations au 26/06/2026.
 
 | # | Version (timestamp) | Nom |
 |---|---------------------|-----|
@@ -69,3 +69,5 @@
 | 62 | 20260618224517 | partenaire_depots |
 | 63 | 20260618230909 | trg_ventes_capacite_anti_surbooking |
 | 64 | 20260619134500 | examen_carence_declaratif_et_override |
+| 65 | 20260626001544 | ventes_examen_blocage_doublon |
+| 66 | 20260626094513 | ventes_examen_doublon_align_session |
