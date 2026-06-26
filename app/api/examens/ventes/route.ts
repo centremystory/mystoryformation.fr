@@ -16,7 +16,7 @@ import {
   SOUS_TYPES_CIVIQUE, MOTIVATIONS_TEF, PLATEFORMES,
 } from "@/lib/examens";
 import { facturerVente, envoyerFacture } from "@/lib/factures";
-import { checkInscriptionExamen } from "@/lib/examenCarence";
+import { checkInscriptionExamen, checkDoublonExamen } from "@/lib/examenCarence";
 import { estDirection } from "@/lib/roles";
 
 export const runtime = "nodejs";
@@ -166,6 +166,23 @@ export async function POST(req: NextRequest) {
   }
   const carenceAppliquee = !carence.ok; // true ⇒ forçage Direction validé ci-dessus
 
+  // ----- Anti-doublon à la saisie : même candidat + session + type déjà inscrit (réinscription exclue) -----
+  // Bloque par défaut ; validation forcée possible avec MOTIF (retard, examen raté, raison précise), journalisée.
+  const doublonForcer = v.doublon_forcer === true || v.doublon_forcer === "true" || v.doublon_forcer === 1;
+  const doublonMotif = String(v.doublon_motif ?? "").trim();
+  const doublon = await checkDoublonExamen({ candidatId, type, sousType: sousType || null, sessionId });
+  let doublonAppliquee = false;
+  if (!doublon.ok) {
+    if (doublonForcer && doublonMotif) {
+      doublonAppliquee = true;
+      await journal("ventes_examen", candidatId, "doublon_force", { motif: doublonMotif, recap: doublon.recap }, u.email ?? venduPar);
+    } else if (doublonForcer && !doublonMotif) {
+      return NextResponse.json({ ok: false, status: "doublon", recap: [...doublon.recap, "Motif obligatoire pour valider malgré le doublon."] }, { status: 409 });
+    } else {
+      return NextResponse.json({ ok: false, status: "doublon", recap: doublon.recap }, { status: 409 });
+    }
+  }
+
   // ----- Vente : le trigger SQL attribue le numéro et applique les verrous -----
   const { data: vente, error: venteErr } = await supabaseAdmin
     .from("ventes_examen")
@@ -182,6 +199,8 @@ export async function POST(req: NextRequest) {
       tef_passage_externe_date: tefExterneDeclare ? tefExterneDate : null,
       carence_forcee: carenceAppliquee,
       carence_forcee_motif: carenceAppliquee ? carenceMotif : null,
+      doublon_force: doublonAppliquee,
+      doublon_force_motif: doublonAppliquee ? doublonMotif : null,
       numero_attestation: "ATTRIBUE_PAR_LE_SERVEUR", // remplacé par le trigger (séquence)
     })
     .select("id, numero_attestation")

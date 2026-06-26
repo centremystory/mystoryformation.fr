@@ -114,3 +114,41 @@ export async function checkInscriptionExamen(p: {
 
   return { ok: recap.length === 0, recap };
 }
+
+/**
+ * Anti-doublon à la saisie : le candidat a-t-il DÉJÀ une inscription active sur la
+ * MÊME session + MÊME type (et même mention pour le civique) ? Une réinscription
+ * (reinscription_de renseigné) n'est jamais un doublon. Plateforme : pas de doublon.
+ */
+export async function checkDoublonExamen(p: {
+  candidatId: string;
+  type: string;
+  sousType: string | null;
+  sessionId: string | null;
+}): Promise<GateResult> {
+  const recap: string[] = [];
+  if (!p.sessionId || p.type === "Vente_plateforme") return { ok: true, recap };
+
+  const { data } = await supabaseAdmin
+    .from("ventes_examen")
+    .select("numero_attestation, sous_type, statut_paiement, reinscription_de")
+    .eq("candidat_id", p.candidatId)
+    .eq("session_id", p.sessionId)
+    .eq("type_examen", p.type)
+    .not("statut_paiement", "in", '("Remboursé","Annulé")');
+
+  const doublons = (data ?? []).filter((v: any) => {
+    if (v.reinscription_de) return false; // réinscription = légitime, pas un doublon
+    if (p.type === "Examen_civique") return (v.sous_type ?? "") === (p.sousType ?? ""); // même mention seulement
+    return true;
+  });
+
+  if (doublons.length > 0) {
+    const nums = doublons.map((v: any) => v.numero_attestation ?? "?").join(", ");
+    recap.push(
+      `Doublon probable : ce candidat a déjà une inscription active sur cette session ` +
+        `(${p.type === "Examen_civique" ? "même mention" : "même examen"}) — attestation(s) ${nums}.`,
+    );
+  }
+  return { ok: recap.length === 0, recap };
+}
