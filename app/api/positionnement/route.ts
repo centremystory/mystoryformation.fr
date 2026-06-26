@@ -6,6 +6,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { ipDe, limiteDepassee } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,6 +28,10 @@ function num(v: unknown, max: number): number | null {
 }
 
 export async function POST(req: NextRequest) {
+  // Anti-spam : formulaire de positionnement public (crée une fiche + jeton).
+  if (await limiteDepassee(`positionnement:${ipDe(req)}`, 40, 3600)) {
+    return NextResponse.json({ ok: false, erreur: "Trop de demandes. Réessayez plus tard." }, { status: 429 });
+  }
   let b: Record<string, unknown>;
   try { b = await req.json(); } catch { return NextResponse.json({ ok: false, erreur: "JSON invalide." }, { status: 400 }); }
 

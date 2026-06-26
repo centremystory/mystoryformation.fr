@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { journal } from "@/lib/examens";
+import { ipDe, limiteDepassee } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,6 +33,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  // Anti-spam : dépôt public du questionnaire formateur (jeton).
+  if (await limiteDepassee(`formateur-quest:${ipDe(req)}`, 20, 3600)) {
+    return NextResponse.json({ ok: false, erreur: "Trop d'envois. Réessayez plus tard." }, { status: 429 });
+  }
   let b: any;
   try { b = await req.json(); } catch { return NextResponse.json({ ok: false, erreur: "JSON invalide." }, { status: 400 }); }
   const token = String(b?.token ?? "");

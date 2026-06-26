@@ -7,11 +7,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { journal } from "@/lib/examens";
 import bcrypt from "bcryptjs";
+import { ipDe, limiteDepassee } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
+  // Anti-bruteforce du jeton de réinitialisation.
+  if (await limiteDepassee(`reset-pose:${ipDe(req)}`, 10, 900)) {
+    return NextResponse.json({ ok: false, erreur: "Trop de tentatives. Réessayez plus tard." }, { status: 429 });
+  }
   const b = await req.json().catch(() => ({} as any));
   const token = String(b?.token ?? "").trim();
   const nouveau = String(b?.nouveau_mdp ?? "");
