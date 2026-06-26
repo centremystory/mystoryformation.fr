@@ -5,6 +5,7 @@
 // Protégé par le middleware global (mot de passe d'équipe). Pas de DELETE (traçabilité).
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { requireUser } from "@/lib/auth";
 
 const BUCKET = "documents";
 const MAX_SIZE = 10 * 1024 * 1024; // 10 Mo
@@ -18,6 +19,8 @@ function tableSource(source: string): "examens" | "ventes_examen" | null {
 
 /** GET : URL signée 1 h vers la dernière attestation active d'un candidat. */
 export async function GET(req: NextRequest) {
+  const auth = await requireUser(req).catch(() => null);
+  if (!auth) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
   const url = new URL(req.url);
   const examenRef = String(url.searchParams.get("examen_ref") ?? "").trim();
   const source = String(url.searchParams.get("source") ?? "").trim();
@@ -46,6 +49,8 @@ export async function GET(req: NextRequest) {
 
 /** POST : dépôt d'une attestation pour un candidat (examen_ref + source). */
 export async function POST(req: NextRequest) {
+  const auth = await requireUser(req).catch(() => null);
+  if (!auth) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
   try {
     const form = await req.formData();
     const examenRef = String(form.get("examen_ref") ?? "").trim();

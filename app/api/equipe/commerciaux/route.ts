@@ -6,6 +6,8 @@
 // → on DÉSACTIVE (champ actif), on ne supprime jamais.
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { requireUser } from "@/lib/auth";
+import { peut } from "@/lib/roles";
 
 type Commercial = {
   id: string;
@@ -16,7 +18,9 @@ type Commercial = {
 };
 
 /** Liste complète des commerciaux (actifs + inactifs). */
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
+  const auth = await requireUser(req).catch(() => null);
+  if (!auth) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
   const { data, error } = await supabaseAdmin
     .from("commerciaux")
     .select("id, nom, prenom, actif, created_at")
@@ -30,6 +34,9 @@ export async function GET(_req: NextRequest) {
 
 /** Ajout d'un commercial — nom + prénom. Actif par défaut (côté base). */
 export async function POST(req: NextRequest) {
+  const auth = await requireUser(req).catch(() => null);
+  if (!auth) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
+  if (!peut(auth.roles ?? auth.role, "comptes_gerer")) return NextResponse.json({ ok: false, erreur: "Réservé à la Direction." }, { status: 403 });
   let body: any;
   try { body = await req.json(); }
   catch { return NextResponse.json({ ok: false, erreur: "JSON invalide." }, { status: 400 }); }
@@ -69,6 +76,9 @@ export async function POST(req: NextRequest) {
 
 /** Activation / désactivation — la seule "sortie" possible (jamais de suppression). */
 export async function PATCH(req: NextRequest) {
+  const auth = await requireUser(req).catch(() => null);
+  if (!auth) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
+  if (!peut(auth.roles ?? auth.role, "comptes_gerer")) return NextResponse.json({ ok: false, erreur: "Réservé à la Direction." }, { status: 403 });
   let body: any;
   try { body = await req.json(); }
   catch { return NextResponse.json({ ok: false, erreur: "JSON invalide." }, { status: 400 }); }

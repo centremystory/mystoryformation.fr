@@ -6,6 +6,8 @@
 // La suppression casserait la traçabilité des anciens dossiers → on DÉSACTIVE, on ne supprime jamais.
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { requireUser } from "@/lib/auth";
+import { peut } from "@/lib/roles";
 
 const BUCKET = "documents";
 
@@ -21,7 +23,9 @@ type Formatrice = {
 };
 
 /** Liste complète de l'équipe (actifs + inactifs), avec URL signée 1 h vers la pièce FLE. */
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
+  const auth = await requireUser(req).catch(() => null);
+  if (!auth) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
   const { data, error } = await supabaseAdmin
     .from("formatrices")
     .select("id, nom, prenom, justificatif_fle, justificatif_url, justificatif_date, actif, created_at")
@@ -50,6 +54,9 @@ export async function GET(_req: NextRequest) {
 
 /** Ajout d'un formateur — nom + prénom. Arrive en ⏳ (justificatif manquant) et actif. */
 export async function POST(req: NextRequest) {
+  const auth = await requireUser(req).catch(() => null);
+  if (!auth) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
+  if (!peut(auth.roles ?? auth.role, "comptes_gerer")) return NextResponse.json({ ok: false, erreur: "Réservé à la Direction." }, { status: 403 });
   let body: any;
   try { body = await req.json(); }
   catch { return NextResponse.json({ ok: false, erreur: "JSON invalide." }, { status: 400 }); }
@@ -89,6 +96,9 @@ export async function POST(req: NextRequest) {
 
 /** Activation / désactivation — la seule "sortie" possible (jamais de suppression). */
 export async function PATCH(req: NextRequest) {
+  const auth = await requireUser(req).catch(() => null);
+  if (!auth) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
+  if (!peut(auth.roles ?? auth.role, "comptes_gerer")) return NextResponse.json({ ok: false, erreur: "Réservé à la Direction." }, { status: 403 });
   let body: any;
   try { body = await req.json(); }
   catch { return NextResponse.json({ ok: false, erreur: "JSON invalide." }, { status: 400 }); }

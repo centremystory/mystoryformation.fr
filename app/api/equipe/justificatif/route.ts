@@ -5,6 +5,8 @@
 // Protégé par le middleware global (mot de passe d'équipe).
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { requireUser } from "@/lib/auth";
+import { peut } from "@/lib/roles";
 
 const BUCKET = "documents";
 const MAX_SIZE = 10 * 1024 * 1024; // 10 Mo
@@ -16,6 +18,9 @@ function aujourdHuiParis(): string {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireUser(req).catch(() => null);
+  if (!auth) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
+  if (!peut(auth.roles ?? auth.role, "comptes_gerer")) return NextResponse.json({ ok: false, erreur: "Réservé à la Direction." }, { status: 403 });
   try {
     const form = await req.formData();
     const id = String(form.get("id") ?? "").trim();
