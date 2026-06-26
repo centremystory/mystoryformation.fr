@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { corrigerAuto, type QuestionCorrige } from "@/lib/tests";
 import { journal } from "@/lib/examens";
+import { ipDe, limiteDepassee } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -44,6 +45,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  // Anti-spam / anti-bruteforce de jeton : dépôt public d'un test par jeton.
+  if (await limiteDepassee(`passation:${ipDe(req)}`, 60, 3600)) {
+    return NextResponse.json({ ok: false, erreur: "Trop d'envois. Réessayez plus tard." }, { status: 429 });
+  }
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return NextResponse.json({ ok: false, erreur: "Requête invalide." }, { status: 400 }); }
 
