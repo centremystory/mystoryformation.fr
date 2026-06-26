@@ -4,11 +4,14 @@
 // Protégé par le middleware global. Données personnelles → service_role uniquement.
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { requireUser } from "@/lib/auth";
 import { statutExamen } from "@/lib/statutExamen";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
+  const auth = await requireUser(req).catch(() => null);
+  if (!auth) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
   const sessionId = new URL(req.url).searchParams.get("session");
   if (!sessionId) return NextResponse.json({ ok: false, erreur: "Session manquante." }, { status: 400 });
 

@@ -6,10 +6,13 @@
 // Protégé par le middleware global (mot de passe d'équipe).
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { requireUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
+  const auth = await requireUser(req).catch(() => null);
+  if (!auth) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
   const dossierId = req.nextUrl.searchParams.get("dossier")?.trim();
   if (!dossierId) {
     return NextResponse.json({ ok: false, erreur: "Paramètre requis : dossier (uuid)." }, { status: 400 });
@@ -26,6 +29,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireUser(req).catch(() => null);
+  if (!auth) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
   let body: any;
   try { body = await req.json(); }
   catch { return NextResponse.json({ ok: false, erreur: "JSON invalide." }, { status: 400 }); }

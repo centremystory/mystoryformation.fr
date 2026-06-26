@@ -6,6 +6,7 @@
 // Aucune mutation ici : la création/modification de compte se fait via /api/comptes (action sensible).
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { requireUser } from "@/lib/auth";
 
 // Ordre d'affichage des fonctions (encadrement d'abord, puis terrain).
 const ORDRE: Record<string, number> = {
@@ -17,7 +18,9 @@ const ORDRE: Record<string, number> = {
   commercial: 5,
 };
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
+  const auth = await requireUser(req).catch(() => null);
+  if (!auth) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
   const { data, error } = await supabaseAdmin
     .from("utilisateurs")
     .select("id, prenom, nom, role, actif") // pas d'email, pas de hash

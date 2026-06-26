@@ -3,11 +3,14 @@
 // Protégé par le middleware global (mot de passe d'équipe).
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { requireUser } from "@/lib/auth";
 import { siteValide, COOKIE_SITE } from "@/lib/sites";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
+  const auth = await requireUser(req).catch(() => null);
+  if (!auth) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
   const site = siteValide(req.cookies.get(COOKIE_SITE)?.value);
   // Jointure interne sur stagiaires seulement quand on filtre par site (sinon on garde tous les dossiers).
   const jointureStagiaire = site ? "stagiaires!inner ( nom, prenom, agence )" : "stagiaires ( nom, prenom, agence )";

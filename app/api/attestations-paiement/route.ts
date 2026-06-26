@@ -3,11 +3,14 @@
 // Lecture seule, filtrée par site. Les actions (report, renvoi, réclamation) passent par leurs flux dédiés.
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { requireUser } from "@/lib/auth";
 import { siteValide, COOKIE_SITE } from "@/lib/sites";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
+  const auth = await requireUser(req).catch(() => null);
+  if (!auth) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
   const url = new URL(req.url);
   const brut = String(url.searchParams.get("q") ?? "").trim();
   // Neutralise les caractères qui casseraient la syntaxe du filtre .or() de PostgREST.
