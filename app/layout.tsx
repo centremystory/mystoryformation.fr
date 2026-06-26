@@ -1,8 +1,14 @@
 import "./globals.css";
-import { Inter } from "next/font/google";
+import localFont from "next/font/local";
 import AppShell from "@/components/AppShell";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
+// Inter auto-hébergé (next/font/local) : aucun fetch Google Fonts au build → build déterministe.
+const inter = localFont({
+  src: "./fonts/inter-latin-wght-normal.woff2",
+  variable: "--font-inter",
+  display: "swap",
+  weight: "100 900",
+});
 
 export const metadata = {
   title: "MYSTORY — CRM",
