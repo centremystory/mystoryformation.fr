@@ -3,6 +3,7 @@ import { CLASSES_TON } from "@/lib/statutExamen";
 // app/examens/candidats/page.tsx — Candidats d'examen, groupés par session.
 // Lit la vue unifiée (historique import + ventes vivantes). Filtres : type, agence, recherche.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 
 const BLEU = "#2F72DE";
 
@@ -11,6 +12,7 @@ type Candidat = {
   source: string;
   nom: string;
   prenom: string | null;
+  candidat_id: string | null;
   civilite: string | null;
   email: string | null;
   telephone: string | null;
@@ -206,11 +208,13 @@ export default function PageCandidatsExamen() {
       const e = (c.email ?? "").trim().toLowerCase();
       return e || `${(c.nom ?? "").trim().toLowerCase()}|${(c.prenom ?? "").trim().toLowerCase()}`;
     };
-    const m = new Map<string, { cle: string; nom: string; prenom: string; email: string | null; items: Candidat[] }>();
+    const m = new Map<string, { cle: string; nom: string; prenom: string; email: string | null; candidatId: string | null; items: Candidat[] }>();
     for (const c of filtres) {
       const k = cleDe(c);
-      if (!m.has(k)) m.set(k, { cle: `cand:${k}`, nom: c.nom, prenom: c.prenom ?? "", email: c.email ?? null, items: [] });
-      m.get(k)!.items.push(c);
+      if (!m.has(k)) m.set(k, { cle: `cand:${k}`, nom: c.nom, prenom: c.prenom ?? "", email: c.email ?? null, candidatId: c.candidat_id ?? null, items: [] });
+      const g = m.get(k)!;
+      if (!g.candidatId && c.candidat_id) g.candidatId = c.candidat_id;
+      g.items.push(c);
     }
     for (const g of m.values()) {
       g.items.sort((a, b) => ((a.date_examen ?? "") < (b.date_examen ?? "") ? 1 : (a.date_examen ?? "") > (b.date_examen ?? "") ? -1 : 0));
@@ -382,19 +386,25 @@ export default function PageCandidatsExamen() {
             const reussites = g.items.filter((c) => c.resultat?.statut === "Réussi").length;
             return (
               <div key={g.cle} className="border border-gray-200 rounded-xl bg-white overflow-hidden">
-                <button onClick={() => basculer(g.cle)}
-                  className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50">
-                  <span className="font-medium text-gray-900">
-                    👤 {g.prenom ? `${g.prenom} ` : ""}{g.nom}
+                <div className="w-full flex items-center justify-between px-4 py-3">
+                  <span className="font-medium text-gray-900 min-w-0 truncate">
+                    {g.candidatId ? (
+                      <Link href={`/fiche/${g.candidatId}`} className="hover:underline" style={{ color: BLEU }}>
+                        👤 {g.prenom ? `${g.prenom} ` : ""}{g.nom}
+                      </Link>
+                    ) : (
+                      <>👤 {g.prenom ? `${g.prenom} ` : ""}{g.nom}</>
+                    )}
                     {g.email && <span className="ml-2 text-xs text-gray-400">{g.email}</span>}
                   </span>
-                  <span className="flex items-center gap-2 text-sm">
+                  <button onClick={() => basculer(g.cle)}
+                    className="flex items-center gap-2 text-sm hover:bg-gray-50 rounded-lg px-2 py-1 -mr-1">
                     {aConf > 0 && <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">⏳ {aConf}</span>}
                     {reussites > 0 && <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">✓ {reussites}</span>}
                     <span className="px-2 py-0.5 rounded-full bg-mystory-clair text-mystory">{g.items.length} examen{g.items.length > 1 ? "s" : ""}</span>
                     <span className="text-gray-400">{ouvert ? "▴" : "▾"}</span>
-                  </span>
-                </button>
+                  </button>
+                </div>
                 {ouvert && (
                   <div className="overflow-x-auto border-t border-gray-100">
                     <table className="w-full text-sm table-cards">

@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   let q = supabaseAdmin
     .from("dossiers")
     .select(
-      `id, certif, financement, statut, statut_tunnel, date_debut, date_fin, token, created_at,
+      `id, certif, financement, statut, statut_tunnel, date_debut, date_fin, token, created_at, stagiaire_id,
        heures_prevues, service_fait_valide, formatrice_libre, satisfaction_froid_envoyee_le,
        niveau_initial, niveau_vise, niveau_atteint,
        ${jointureStagiaire},

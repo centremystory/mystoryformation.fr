@@ -6,6 +6,7 @@
 // Toute génération passe par le moteur existant (fusion lieu=Gagny, portes de conformité 2B) :
 // cette page n'invente AUCUNE règle, elle appuie sur les routes déjà validées.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 
 const LIBELLE_PIECE: Record<string, string> = {
   fiche_analyse_besoin: "Fiche d'analyse du besoin",
@@ -56,6 +57,7 @@ const COMPLETABLES = new Set(["fiche_analyse_besoin", "evaluation_finale"]);
 type Piece = { type: string; statut: string; optionnelle: boolean; exige_signature: boolean; ordre: number; sign_url_integre?: string | null };
 type Dossier = {
   id: string;
+  stagiaire_id: string | null;
   certif: string;
   financement: string;
   statut: string;
@@ -384,7 +386,14 @@ function LigneDossier({
     <>
       <tr onClick={onToggle} className="border-t border-gray-100 cursor-pointer hover:bg-gray-50">
         <td data-label="Stagiaire" className="px-4 py-3 font-medium text-gray-900">
-          {nomStagiaire}
+          {d.stagiaire_id ? (
+            <Link href={`/fiche/${d.stagiaire_id}`} onClick={(e) => e.stopPropagation()}
+              className="hover:underline" style={{ color: "#2F72DE" }}>
+              {nomStagiaire}
+            </Link>
+          ) : (
+            nomStagiaire
+          )}
           {d.stagiaires?.agence && (
             <span className="block text-xs font-normal text-gray-400">{d.stagiaires.agence}</span>
           )}
