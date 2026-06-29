@@ -11,6 +11,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { conformiteFormateurs } from "@/lib/conformiteFormateurs";
+import { scannerConformiteEdof } from "@/lib/conformiteEdof";
 import { verifySession } from "@/lib/auth";
 import { peutVoirPage } from "@/lib/roles";
 import { siteValide, COOKIE_SITE, type SiteFiltre } from "@/lib/sites";
@@ -333,12 +334,74 @@ function joursDepuis(iso: string | null): number | null {
   return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86400000));
 }
 
+const eurosCourt = (n: number) =>
+  new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n || 0);
+
+/**
+ * Cockpit Direction — cash & conformité. Indicateurs directeur non couverts ailleurs sur l'accueil :
+ *  - service fait / certificat à émettre (= déclenche le paiement CDC),
+ *  - résultats d'examen à saisir (examen passé sans résultat),
+ *  - satisfaction à froid à envoyer (fin depuis ≥ 3 mois, pas encore invitée),
+ *  - dossiers non conformes EDOF (scan complet),
+ *  - reste à charge non encaissé : reste_a_charge_accepte = true ET montant_encaisse < montant
+ *    (somme restant à encaisser = Σ(montant − encaissé)). Pour basculer vers « montant − 1 500 € »,
+ *    remplacer le filtre/somme de `restants` ci-dessous.
+ */
+async function cockpitDirection(site: SiteFiltre) {
+  const zero = { serviceFait: 0, resultatsASaisir: 0, satisfactionFroid: 0, nonConformes: 0, resteCharge: 0, resteChargeSomme: 0 };
+  try {
+    const jour = (decalage = 0) => {
+      const d = new Date();
+      if (decalage) d.setDate(d.getDate() - decalage);
+      return new Intl.DateTimeFormat("fr-CA", { timeZone: "Europe/Paris" }).format(d);
+    };
+    const auj = jour();
+
+    // — Dossiers (avec filtre site éventuel via la jointure stagiaire) —
+    const cols = "service_fait_valide, date_fin, satisfaction_froid_envoyee_le, montant, montant_encaisse, reste_a_charge_accepte";
+    let qd = supabaseAdmin.from("dossiers").select(site ? `${cols}, stagiaires!inner(agence)` : cols);
+    if (site) qd = qd.eq("stagiaires.agence", site);
+    const { data: dos } = await qd;
+    const dossiers = (dos ?? []) as any[];
+
+    const serviceFait = dossiers.filter((d) => d.date_fin && !d.service_fait_valide).length;
+
+    const haut = jour(90); // fin depuis ≥ 3 mois
+    const bas = jour(365); // borne basse pour ne pas remonter les très anciens
+    const satisfactionFroid = dossiers.filter(
+      (d) => d.date_fin && !d.satisfaction_froid_envoyee_le && d.date_fin <= haut && d.date_fin >= bas
+    ).length;
+
+    const restants = dossiers.filter((d) => d.reste_a_charge_accepte && Number(d.montant_encaisse ?? 0) < Number(d.montant ?? 0));
+    const resteCharge = restants.length;
+    const resteChargeSomme = restants.reduce((s, d) => s + Math.max(0, Number(d.montant ?? 0) - Number(d.montant_encaisse ?? 0)), 0);
+
+    // — Résultats d'examen à saisir : examen passé, sans résultat enregistré —
+    let qv = supabaseAdmin
+      .from("ventes_examen")
+      .select("id, sessions_examen:session_id(date_examen), resultats_examen(vente_id)")
+      .not("statut_paiement", "in", '("Remboursé","Annulé")');
+    if (site) qv = qv.eq("agence", site);
+    const { data: ven } = await qv;
+    const resultatsASaisir = ((ven ?? []) as any[]).filter((v) => {
+      const dx = v.sessions_examen?.date_examen;
+      const res = v.resultats_examen;
+      const sansResultat = !res || (Array.isArray(res) ? res.length === 0 : false);
+      return dx && dx < auj && sansResultat;
+    }).length;
+
+    // — Dossiers non conformes EDOF (scan complet, pas de filtre site) —
+    let nonConformes = 0;
+    try { nonConformes = (await scannerConformiteEdof()).length; } catch { nonConformes = 0; }
+
+    return { serviceFait, resultatsASaisir, satisfactionFroid, nonConformes, resteCharge, resteChargeSomme };
+  } catch {
+    return zero;
+  }
+}
+
 export default async function Accueil() {
   const site = siteValide(cookies().get(COOKIE_SITE)?.value);
-  const [c, t, cf, ex, cl, tk, an, testsDist, convListe] = await Promise.all([
-    compter(site), aTraiter(site), conformiteFormateurs(), examenSemaine(site), classementAccueil(), tachesAccueil(site),
-    anomaliesAccueil(site), testsADistanceCount(), conventionsListe(),
-  ]);
 
   // Rôle de la session (filtrage du périmètre — défense en profondeur, en plus du middleware).
   const h = headers();
@@ -348,6 +411,13 @@ export default async function Accueil() {
   const user = await verifySession(sessionReq);
   const role = user?.role ?? null;
   const voir = (href: string) => peutVoirPage(role, href);
+  const estDirection = role === "direction" || role === "manager" || role === "staff" || !role;
+
+  const [c, t, cf, ex, cl, tk, an, testsDist, convListe, dir] = await Promise.all([
+    compter(site), aTraiter(site), conformiteFormateurs(), examenSemaine(site), classementAccueil(), tachesAccueil(site),
+    anomaliesAccueil(site), testsADistanceCount(), conventionsListe(),
+    estDirection ? cockpitDirection(site) : Promise.resolve(null),
+  ]);
 
   const actions = [
     { label: "Liens de paiement à traiter", n: ex.liens, href: "/examens/preinscriptions" },
@@ -431,6 +501,22 @@ export default async function Accueil() {
           <Kpi libelle="Liens de paiement en attente" valeur={String(ex.liens)} accent={ex.liens > 0 ? "ambre" : undefined} href="/examens/preinscriptions" />
         </div>
       </div>
+
+      {dir && (
+        <div className="mb-8">
+          <div className="mb-2 flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-gray-700">Cockpit Direction — cash &amp; conformité</h2>
+            <span className="badge badge-info">Direction</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
+            <Kpi libelle="Service fait / certificat à émettre" valeur={String(dir.serviceFait)} accent={dir.serviceFait > 0 ? "ambre" : "vert"} href="/dossiers?vue=a_finaliser" />
+            <Kpi libelle="Résultats d'examen à saisir" valeur={String(dir.resultatsASaisir)} accent={dir.resultatsASaisir > 0 ? "ambre" : "vert"} href="/examens/candidats" />
+            <Kpi libelle="Satisfaction à froid à envoyer" valeur={String(dir.satisfactionFroid)} accent={dir.satisfactionFroid > 0 ? "ambre" : "vert"} href="/dossiers" />
+            <Kpi libelle="Dossiers non conformes EDOF" valeur={String(dir.nonConformes)} accent={dir.nonConformes > 0 ? "ambre" : "vert"} href="/dossiers/conformite" />
+            <Kpi libelle={`Reste à charge non encaissé (${dir.resteCharge})`} valeur={eurosCourt(dir.resteChargeSomme)} accent={dir.resteCharge > 0 ? "ambre" : "vert"} href="/factures" />
+          </div>
+        </div>
+      )}
 
       {(role === "direction" || role === "manager" || role === "staff" || !role) && (
         <div className="mb-8">
