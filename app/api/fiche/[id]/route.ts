@@ -29,7 +29,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   const { data: dossiers } = await supabaseAdmin
     .from("dossiers")
     .select(
-      `id, certif, financement, montant, statut, statut_tunnel,
+      `id, certif, financement, montant, montant_encaisse, reste_a_charge_accepte, statut, statut_tunnel,
        niveau_initial, niveau_vise, niveau_atteint,
        heures_prevues, heures_realisees, date_debut, date_fin,
        service_fait_valide, numero_edof,
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   // 3) Examens : ventes + session + résultat (requêtes séparées, robustes)
   const { data: ventes } = await supabaseAdmin
     .from("ventes_examen")
-    .select("id, type_examen, sous_type, statut_paiement, montant, numero_attestation, date_inscription, session_id")
+    .select("id, type_examen, sous_type, statut_paiement, montant, reste_a_payer, numero_attestation, date_inscription, session_id")
     .eq("candidat_id", id)
     .order("date_inscription", { ascending: false });
   const vIds = (ventes ?? []).map((v: any) => v.id);
@@ -75,5 +75,30 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     remarques = rem ?? [];
   }
 
-  return NextResponse.json({ ok: true, stagiaire, dossiers: dossiers ?? [], examens, remarques });
+  // 5) Test initial / final (moteur d'évaluations, rattaché aux dossiers du client)
+  let evaluations: any[] = [];
+  if (dossierIds.length) {
+    const { data: ev } = await supabaseAdmin
+      .from("evaluations")
+      .select("id, phase, dossier_id, statut, niveau_vise, ce_sur10, co_sur10, ee_sur10, eo_sur10, total_sur20, niveau_global, complete_le")
+      .in("dossier_id", dossierIds)
+      .order("complete_le", { ascending: false, nullsFirst: false });
+    evaluations = ev ?? [];
+  }
+
+  // 6) Facturation : factures rattachées aux dossiers OU aux ventes d'examen du client
+  let factures: any[] = [];
+  if (dossierIds.length || vIds.length) {
+    const cond: string[] = [];
+    if (dossierIds.length) cond.push(`dossier_id.in.(${dossierIds.join(",")})`);
+    if (vIds.length) cond.push(`vente_id.in.(${vIds.join(",")})`);
+    const { data: fac } = await supabaseAdmin
+      .from("factures")
+      .select("numero, montant, statut, date_emission, type, designation")
+      .or(cond.join(","))
+      .order("date_emission", { ascending: false });
+    factures = fac ?? [];
+  }
+
+  return NextResponse.json({ ok: true, stagiaire, dossiers: dossiers ?? [], examens, remarques, evaluations, factures });
 }

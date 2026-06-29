@@ -13,6 +13,7 @@ type Stagiaire = {
 };
 type Dossier = {
   id: string; certif: string | null; financement: string | null; montant: number | null;
+  montant_encaisse: number | null; reste_a_charge_accepte: boolean | null;
   statut: string | null; statut_tunnel: string | null;
   niveau_initial: string | null; niveau_vise: string | null; niveau_atteint: string | null;
   heures_prevues: number | null; heures_realisees: number | null;
@@ -23,12 +24,21 @@ type Dossier = {
 };
 type Examen = {
   id: string; type_examen: string | null; sous_type: string | null; statut_paiement: string | null;
-  montant: number | null; numero_attestation: string | null; date_inscription: string | null;
+  montant: number | null; reste_a_payer: number | null; numero_attestation: string | null; date_inscription: string | null;
   session: { date_examen: string | null; horaire: string | null; type: string | null } | null;
   resultat: { statut: string | null; present: boolean | null; niveau_obtenu: string | null } | null;
 };
+type Evaluation = {
+  id: string; phase: string | null; statut: string | null; niveau_vise: string | null;
+  ce_sur10: number | null; co_sur10: number | null; ee_sur10: number | null; eo_sur10: number | null;
+  total_sur20: number | null; niveau_global: string | null; complete_le: string | null;
+};
+type Facture = {
+  numero: string | null; montant: number | null; statut: string | null;
+  date_emission: string | null; type: string | null; designation: string | null;
+};
 type Remarque = { id: string; texte: string | null; auteur: string | null; horodatage: string | null };
-type Fiche = { stagiaire: Stagiaire; dossiers: Dossier[]; examens: Examen[]; remarques: Remarque[] };
+type Fiche = { stagiaire: Stagiaire; dossiers: Dossier[]; examens: Examen[]; remarques: Remarque[]; evaluations: Evaluation[]; factures: Facture[] };
 
 function dateFr(iso: string | null): string {
   if (!iso) return "—";
@@ -38,6 +48,14 @@ function dateFr(iso: string | null): string {
 function euro(n: number | null): string {
   return n == null ? "—" : `${Number(n).toLocaleString("fr-FR")} €`;
 }
+
+const LIBELLE_PHASE: Record<string, string> = { initial: "Test initial", final: "Test final" };
+const STATUT_EVAL: Record<string, { label: string; cls: string }> = {
+  en_cours: { label: "En cours", cls: "bg-gray-100 text-gray-600" },
+  en_attente_formateur: { label: "Écrit/oral à noter", cls: "bg-amber-50 text-amber-700" },
+  complet: { label: "Corrigé", cls: "bg-emerald-50 text-emerald-700" },
+  annule: { label: "Annulé", cls: "bg-gray-100 text-gray-400" },
+};
 
 export default function PageFiche() {
   const params = useParams<{ id: string }>();
@@ -62,6 +80,11 @@ export default function PageFiche() {
   const s = fiche.stagiaire;
   const nomComplet = `${s.prenom ?? ""} ${s.nom}`.trim();
   const rechercheDossiers = `/dossiers?q=${encodeURIComponent(nomComplet)}`;
+
+  const totalFormation = fiche.dossiers.reduce((acc, d) => acc + (Number(d.montant) || 0), 0);
+  const encaisse = fiche.dossiers.reduce((acc, d) => acc + (Number(d.montant_encaisse) || 0), 0);
+  const totalExamens = fiche.examens.reduce((acc, e) => acc + (Number(e.montant) || 0), 0);
+  const resteExamens = fiche.examens.reduce((acc, e) => acc + (Number(e.reste_a_payer) || 0), 0);
 
   return (
     <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-6">
@@ -122,6 +145,41 @@ export default function PageFiche() {
         )}
       </section>
 
+      {/* Tests de niveau (test initial / final) */}
+      {fiche.evaluations.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Tests de niveau ({fiche.evaluations.length})</h2>
+            <Link href="/suivi-eleves" className="text-sm hover:underline" style={{ color: BLEU }}>Ouvrir dans Suivi élèves ↗</Link>
+          </div>
+          {fiche.evaluations.map((ev) => {
+            const st = STATUT_EVAL[ev.statut ?? ""] ?? { label: ev.statut ?? "—", cls: "bg-gray-100 text-gray-600" };
+            return (
+              <div key={ev.id} className="card p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="font-medium text-gray-900">
+                    {LIBELLE_PHASE[ev.phase ?? ""] ?? "Test"}
+                    {ev.complete_le && <span className="text-gray-400"> · {dateFr(ev.complete_le)}</span>}
+                    {ev.niveau_vise && <span className="text-gray-400"> · visé {ev.niveau_vise}</span>}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {ev.niveau_global && <span className="badge" style={{ background: "#EAF1FC", color: BLEU }}>Niveau estimé {ev.niveau_global}</span>}
+                    <span className={`badge ${st.cls}`}>{st.label}</span>
+                  </div>
+                </div>
+                <div className="mt-2 grid grid-cols-2 md:grid-cols-5 gap-x-6 gap-y-2 text-sm">
+                  <Info label="CE · compréhension écrite" valeur={ev.ce_sur10 == null ? "—" : `${ev.ce_sur10}/10`} />
+                  <Info label="CO · compréhension orale" valeur={ev.co_sur10 == null ? "—" : `${ev.co_sur10}/10`} />
+                  <Info label="EE · expression écrite" valeur={ev.ee_sur10 == null ? "—" : `${ev.ee_sur10}/10`} />
+                  <Info label="EO · expression orale" valeur={ev.eo_sur10 == null ? "—" : `${ev.eo_sur10}/10`} />
+                  <Info label="Total" valeur={ev.total_sur20 == null ? "—" : `${ev.total_sur20}/20`} />
+                </div>
+              </div>
+            );
+          })}
+        </section>
+      )}
+
       {/* Examens */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
@@ -160,6 +218,51 @@ export default function PageFiche() {
         )}
       </section>
 
+      {/* Facturation (synthèse) */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Facturation</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Stat label="Formation" valeur={euro(totalFormation)} />
+          <Stat label="Encaissé" valeur={euro(encaisse)} />
+          <Stat label="Examens" valeur={euro(totalExamens)} />
+          <Stat label="Reste examens" valeur={euro(resteExamens)} accent={resteExamens > 0} />
+        </div>
+        {fiche.factures.length > 0 && (
+          <div className="card overflow-hidden">
+            <table className="table w-full text-sm">
+              <thead>
+                <tr className="text-left text-gray-500">
+                  <th className="px-3 py-2">N°</th>
+                  <th className="px-3 py-2">Désignation</th>
+                  <th className="px-3 py-2">Montant</th>
+                  <th className="px-3 py-2">Statut</th>
+                  <th className="px-3 py-2">Émise</th>
+                </tr>
+              </thead>
+              <tbody>
+                {fiche.factures.map((f, i) => (
+                  <tr key={(f.numero ?? "") + i} className="border-t border-gray-100">
+                    <td className="px-3 py-2 font-medium text-gray-800">{f.numero ?? "—"}</td>
+                    <td className="px-3 py-2 text-gray-600">{f.designation ?? "—"}</td>
+                    <td className="px-3 py-2 text-gray-700">{euro(f.montant)}</td>
+                    <td className="px-3 py-2">
+                      {(f.statut ?? "").toLowerCase().includes("pay")
+                        ? <span className="badge bg-emerald-50 text-emerald-700">{f.statut}</span>
+                        : <span className="badge bg-amber-50 text-amber-700">{f.statut ?? "—"}</span>}
+                    </td>
+                    <td className="px-3 py-2 text-gray-600">{dateFr(f.date_emission)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="text-xs text-gray-400">
+          Synthèse. Le détail et les actions (émettre, encaisser) restent dans{" "}
+          <Link href="/factures" className="hover:underline" style={{ color: BLEU }}>Factures</Link>.
+        </p>
+      </section>
+
       {/* Remarques */}
       {fiche.remarques.length > 0 && (
         <section className="space-y-2">
@@ -181,6 +284,15 @@ function Info({ label, valeur }: { label: string; valeur: string }) {
     <div>
       <dt className="text-xs text-gray-400">{label}</dt>
       <dd className="text-gray-800">{valeur}</dd>
+    </div>
+  );
+}
+
+function Stat({ label, valeur, accent }: { label: string; valeur: string; accent?: boolean }) {
+  return (
+    <div className="card p-3">
+      <p className="text-xs text-gray-400">{label}</p>
+      <p className={`mt-1 text-lg font-semibold ${accent ? "text-amber-700" : "text-gray-900"}`}>{valeur}</p>
     </div>
   );
 }
