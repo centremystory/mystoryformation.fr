@@ -100,5 +100,16 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     factures = fac ?? [];
   }
 
-  return NextResponse.json({ ok: true, stagiaire, dossiers: dossiers ?? [], examens, remarques, evaluations, factures });
+  // 7) Séances d'accueil HORS FINANCEMENT (suivi interne, jamais lié au CPF/émargement/conformité)
+  const { data: accueil } = await supabaseAdmin
+    .from("seances_accueil")
+    .select("present")
+    .eq("stagiaire_id", id)
+    .eq("actif", true);
+  const seancesAccueil = {
+    total: accueil?.length ?? 0,
+    presents: (accueil ?? []).filter((s) => s.present).length,
+  };
+
+  return NextResponse.json({ ok: true, stagiaire, dossiers: dossiers ?? [], examens, remarques, evaluations, factures, seancesAccueil });
 }

@@ -280,6 +280,99 @@ export default function PageDossiers() {
   );
 }
 
+function SeancesAccueil({ dossierId, stagiaireId }: { dossierId: string; stagiaireId: string | null }) {
+  const [liste, setListe] = useState<{ id: string; date_seance: string; present: boolean; note: string | null }[]>([]);
+  const [presents, setPresents] = useState(0);
+  const [chargement, setChargement] = useState(true);
+  const [date, setDate] = useState("");
+  const [present, setPresent] = useState(true);
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const charger = useCallback(async () => {
+    setChargement(true);
+    try {
+      const r = await fetch(`/api/seances-accueil?dossier=${dossierId}`, { cache: "no-store" });
+      const j = await r.json();
+      if (j.ok) { setListe(j.seances ?? []); setPresents(j.presents ?? 0); }
+    } finally { setChargement(false); }
+  }, [dossierId]);
+
+  useEffect(() => { charger(); }, [charger]);
+
+  async function ajouter() {
+    setBusy(true); setErr(null);
+    try {
+      const r = await fetch("/api/seances-accueil", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dossierId, stagiaireId, dateSeance: date || undefined, present, note: note || undefined }),
+      });
+      const j = await r.json();
+      if (!j.ok) { setErr(j.erreur || "Ajout impossible."); return; }
+      setDate(""); setPresent(true); setNote("");
+      await charger();
+    } catch (e: any) { setErr(e?.message || "Erreur réseau."); }
+    finally { setBusy(false); }
+  }
+
+  async function archiver(id: string) {
+    setBusy(true); setErr(null);
+    try {
+      await fetch("/api/seances-accueil", {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, action: "archiver" }),
+      });
+      await charger();
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <div className="mt-3 rounded-xl border border-gray-200 bg-white p-3 text-sm">
+      <div className="mb-1 flex items-center justify-between">
+        <p className="font-semibold text-gray-800">Séances d&apos;accueil — <span className="text-amber-700">hors financement</span></p>
+        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600">{presents} présence{presents > 1 ? "s" : ""}</span>
+      </div>
+      <p className="mb-2 text-[11px] text-gray-400">Suivi interne (gratuit, avant le début de la formation). N&apos;entre pas dans le dossier CPF, ni dans l&apos;émargement, ni dans les heures financées.</p>
+
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="text-xs text-gray-500">Date
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+                 className="block rounded-lg border border-gray-300 px-2 py-1 text-sm" />
+        </label>
+        <label className="flex items-center gap-1 text-xs text-gray-600">
+          <input type="checkbox" checked={present} onChange={(e) => setPresent(e.target.checked)} /> Présent
+        </label>
+        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (facultatif)"
+               className="min-w-[160px] flex-1 rounded-lg border border-gray-300 px-2 py-1 text-sm" />
+        <button onClick={ajouter} disabled={busy}
+                className="rounded-lg bg-mystory px-3 py-1 text-xs text-white disabled:opacity-50">
+          {busy ? "…" : "Ajouter"}
+        </button>
+      </div>
+      {err && <p className="mt-1 text-xs text-red-600">{err}</p>}
+
+      {!chargement && liste.length > 0 && (
+        <ul className="mt-2 divide-y divide-gray-100">
+          {liste.map((s) => (
+            <li key={s.id} className="flex items-center justify-between py-1.5">
+              <span className="text-gray-700">
+                {new Date(s.date_seance).toLocaleDateString("fr-FR")}
+                <span className={`ml-2 rounded px-1.5 py-0.5 text-[11px] ${s.present ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                  {s.present ? "présent" : "absent"}
+                </span>
+                {s.note && <span className="ml-2 text-gray-400">— {s.note}</span>}
+              </span>
+              <button onClick={() => archiver(s.id)} disabled={busy} className="text-xs text-gray-400 hover:text-red-600">Retirer</button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {!chargement && liste.length === 0 && <p className="mt-2 text-xs text-gray-400">Aucune séance d&apos;accueil enregistrée.</p>}
+    </div>
+  );
+}
+
 function ClotureFormation({ dossierId, recharger }: { dossierId: string; recharger: () => Promise<void> }) {
   const [apercu, setApercu] = useState<any | null>(null);
   const [charge, setCharge] = useState(true);
@@ -440,6 +533,7 @@ function LigneDossier({
             <TunnelControl d={d} recharger={recharger} />
             <PiecesActions d={d} recharger={recharger} />
             <ClotureFormation dossierId={d.id} recharger={recharger} />
+            <SeancesAccueil dossierId={d.id} stagiaireId={d.stagiaire_id} />
             <div className="mt-3 rounded-xl border border-gray-200 bg-white p-3 text-sm">
               <p className="mb-2 font-semibold text-gray-800">Tests &amp; évaluations</p>
               <div className="grid gap-1 sm:grid-cols-2">

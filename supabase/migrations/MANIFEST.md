@@ -73,3 +73,4 @@
 | 66 | 20260626094513 | ventes_examen_doublon_align_session |
 | 67 | 20260626095956 | ventes_examen_carence_bloquante |
 | 68 | 20260627224915 | v_candidats_examen_ajout_candidat_id |
+| 69 | 20260629000000 | seances_accueil_hors_financement |

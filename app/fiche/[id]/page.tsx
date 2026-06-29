@@ -38,7 +38,7 @@ type Facture = {
   date_emission: string | null; type: string | null; designation: string | null;
 };
 type Remarque = { id: string; texte: string | null; auteur: string | null; horodatage: string | null };
-type Fiche = { stagiaire: Stagiaire; dossiers: Dossier[]; examens: Examen[]; remarques: Remarque[]; evaluations: Evaluation[]; factures: Facture[] };
+type Fiche = { stagiaire: Stagiaire; dossiers: Dossier[]; examens: Examen[]; remarques: Remarque[]; evaluations: Evaluation[]; factures: Facture[]; seancesAccueil?: { total: number; presents: number } };
 
 function dateFr(iso: string | null): string {
   if (!iso) return "—";
@@ -99,6 +99,11 @@ export default function PageFiche() {
             {s.email && <span>✉️ {s.email}</span>}
             {s.telephone && <span>📞 {s.telephone}</span>}
             {s.agence && <span className="badge" style={{ background: "#EAF1FC", color: BLEU }}>{s.agence}</span>}
+            {(fiche.seancesAccueil?.total ?? 0) > 0 && (
+              <span className="badge bg-amber-50 text-amber-700" title="Séances d'accueil hors financement (suivi interne, hors CPF)">
+                {fiche.seancesAccueil!.presents} séance{fiche.seancesAccueil!.presents > 1 ? "s" : ""} d&apos;accueil (hors financement)
+              </span>
+            )}
           </div>
         </div>
       </div>
