@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireRole, UnauthorizedError } from "@/lib/auth";
 import { niveauFromSur20 } from "@/lib/tests";
+import { genererDocEvaluation } from "@/lib/evaluationDoc";
 import { journal } from "@/lib/examens";
 
 export const runtime = "nodejs";
@@ -83,6 +84,11 @@ export async function POST(req: NextRequest) {
   if (ev.dossier_id) {
     const champ = ev.phase === "final" ? "niveau_atteint" : "niveau_initial";
     await supabaseAdmin.from("dossiers").update({ [champ]: niveau }).eq("id", ev.dossier_id);
+
+    // Auto : la pièce de conformité « Évaluation » du dossier est générée depuis le test (best-effort).
+    if (ev.phase === "initial" || ev.phase === "final") {
+      try { await genererDocEvaluation(ev.dossier_id, ev.phase, u.email ?? null); } catch { /* non bloquant */ }
+    }
   }
 
   await journal("evaluation", id, "test_note", { total_sur20: total, niveau }, u.email ?? null);

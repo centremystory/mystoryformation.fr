@@ -10,14 +10,14 @@ import Link from "next/link";
 
 const LIBELLE_PIECE: Record<string, string> = {
   fiche_analyse_besoin: "Fiche d'analyse du besoin",
-  evaluation_initiale: "Évaluation initiale",
+  evaluation_initiale: "Évaluation initiale (test de positionnement)",
   convention: "Convention (+ annexes)",
   programme: "Programme (annexe 1)",
   reglement_interieur: "Règlement intérieur (annexe 2)",
   planning: "Planning (annexe 3)",
   convocation: "Convocation",
   feuille_emargement: "Feuille d'émargement",
-  evaluation_finale: "Évaluation finale",
+  evaluation_finale: "Évaluation finale (test final)",
   satisfaction_chaud: "Satisfaction à chaud",
   attestation_fin: "Attestation de fin",
   certificat_realisation: "Certificat de réalisation",
@@ -53,6 +53,9 @@ const GENERABLES: Record<string, string> = {
 
 // Pièces complétées via un petit formulaire CRM → PDF archivé (route /api/documents/completer).
 const COMPLETABLES = new Set(["fiche_analyse_besoin", "evaluation_finale"]);
+
+// Pièces remplies AUTOMATIQUEMENT depuis le moteur de tests (route /api/documents/evaluation).
+const EVAL_DEPUIS_TEST = new Set(["evaluation_initiale"]);
 
 type Piece = { type: string; statut: string; optionnelle: boolean; exige_signature: boolean; ordre: number; sign_url_integre?: string | null };
 type Dossier = {
@@ -600,6 +603,28 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
     }
   }
 
+  async function genererDepuisTest(piece: Piece) {
+    setBusy(piece.type); setErreurs([]);
+    try {
+      const phase = piece.type === "evaluation_finale" ? "final" : "initial";
+      const r = await fetch("/api/documents/evaluation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dossierId: d.id, phase }),
+      });
+      const j = await r.json();
+      if (!j.ok) {
+        setErreurs([j.erreur || "Aucun test exploitable pour ce dossier (le bénéficiaire doit l'avoir passé)."]);
+        return;
+      }
+      await recharger();
+    } catch (e: any) {
+      setErreurs([e?.message || "Erreur lors de la génération."]);
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function genererTout() {
     // Génère en une fois toutes les pièces auto-générables encore à faire.
     // On exclut la feuille d'émargement (produite à partir des signatures réelles, jamais anticipée).
@@ -774,6 +799,24 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
           <button onClick={() => setFormOuvert(formOuvert === p.type ? null : p.type)} disabled={occupé}
                   className="px-3 py-1 rounded-lg text-xs text-white bg-mystory disabled:opacity-50">
             {p.statut === "manquant" || p.statut === "erreur_envoi" ? "Compléter et générer" : "Recompléter"}
+          </button>
+          {consultable && (
+            <button onClick={() => voir(p)} disabled={occupé}
+                    className="px-3 py-1 rounded-lg text-xs border border-gray-300 text-gray-700 bg-white disabled:opacity-50">
+              {occupé ? "…" : "Voir le PDF"}
+            </button>
+          )}
+        </>
+      );
+    }
+
+    if (EVAL_DEPUIS_TEST.has(p.type)) {
+      return (
+        <>
+          <button onClick={() => genererDepuisTest(p)} disabled={occupé}
+                  title="Génère l'évaluation à partir du test réellement passé par le bénéficiaire"
+                  className="px-3 py-1 rounded-lg text-xs text-white bg-mystory disabled:opacity-50">
+            {occupé ? "Génération…" : (p.statut === "manquant" || p.statut === "erreur_envoi" ? "Générer depuis le test" : "Regénérer depuis le test")}
           </button>
           {consultable && (
             <button onClick={() => voir(p)} disabled={occupé}
