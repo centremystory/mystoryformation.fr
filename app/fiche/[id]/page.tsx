@@ -29,7 +29,7 @@ type Examen = {
   resultat: { statut: string | null; present: boolean | null; niveau_obtenu: string | null } | null;
 };
 type Evaluation = {
-  id: string; phase: string | null; statut: string | null; niveau_vise: string | null;
+  id: string; phase: string | null; statut: string | null; niveau_vise: string | null; dossier_id: string | null;
   ce_sur10: number | null; co_sur10: number | null; ee_sur10: number | null; eo_sur10: number | null;
   total_sur20: number | null; niveau_global: string | null; complete_le: string | null;
 };
@@ -56,6 +56,38 @@ const STATUT_EVAL: Record<string, { label: string; cls: string }> = {
   complet: { label: "Corrigé", cls: "bg-emerald-50 text-emerald-700" },
   annule: { label: "Annulé", cls: "bg-gray-100 text-gray-400" },
 };
+
+function PdfEvalButton({ dossierId, phase }: { dossierId: string; phase: string }) {
+  const [busy, setBusy] = useState(false);
+  const [url, setUrl] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function ouvrir() {
+    if (url) { window.open(url, "_blank", "noreferrer"); return; }
+    setBusy(true); setErr(null);
+    try {
+      const r = await fetch("/api/documents/evaluation", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dossierId, phase: phase === "final" ? "final" : "initial" }),
+      });
+      const j = await r.json();
+      if (!j.ok || !j.pdfUrl) { setErr(j.erreur || "Génération impossible."); return; }
+      setUrl(j.pdfUrl);
+      window.open(j.pdfUrl, "_blank", "noreferrer");
+    } catch (e: any) { setErr(e?.message || "Erreur réseau."); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <div className="mt-3 flex items-center gap-2">
+      <button onClick={ouvrir} disabled={busy}
+              className="rounded-lg border border-gray-300 bg-white px-3 py-1 text-xs text-gray-700 hover:border-gray-400 disabled:opacity-50">
+        {busy ? "Génération…" : url ? "Voir le PDF" : "📄 Générer / ouvrir le PDF"}
+      </button>
+      {err && <span className="text-xs text-red-600">{err}</span>}
+    </div>
+  );
+}
 
 export default function PageFiche() {
   const params = useParams<{ id: string }>();
@@ -179,6 +211,9 @@ export default function PageFiche() {
                   <Info label="EO · expression orale" valeur={ev.eo_sur10 == null ? "—" : `${ev.eo_sur10}/10`} />
                   <Info label="Total" valeur={ev.total_sur20 == null ? "—" : `${ev.total_sur20}/20`} />
                 </div>
+                {ev.statut === "complet" && ev.dossier_id && (
+                  <PdfEvalButton dossierId={ev.dossier_id} phase={ev.phase ?? "initial"} />
+                )}
               </div>
             );
           })}
