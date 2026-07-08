@@ -77,3 +77,4 @@
 | 70 | 20260708000001 | dossiers_statut_annule_archive |
 | 71 | 20260708000002 | factures_statut_annulee |
 | 72 | 20260708000003 | verrouillage_api_rest_rgpd |
+| 73 | 20260708000004 | rgpd_purge_anonymisation |

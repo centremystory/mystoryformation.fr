@@ -81,6 +81,7 @@ const NAV: Entree[] = [
       { href: "/incidents", label: "Incidents", icon: AlertTriangle },
       { href: "/automatisations", label: "Automatisations", icon: Workflow },
       { href: "/journal", label: "Journal", icon: ScrollText },
+      { href: "/rgpd", label: "RGPD", icon: ShieldCheck },
     ],
   },
 ];
