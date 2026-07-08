@@ -44,7 +44,7 @@ function page(titre: string, corps: string): Response {
   .foot{margin-top:24px;color:#9aa1ad;font-size:11px;text-align:center;}
 </style></head><body><div class="wrap">${corps}
 <div class="foot">MYSTORY — SASU · NDA 11756521775 (ne vaut pas agrément de l'État) · contact@mystoryformation.fr<br>
-Données traitées pour le suivi de la formation (RGPD, conservation 5 ans) — droits : contact@mystoryformation.fr · CNIL (www.cnil.fr)</div>
+Données traitées pour le suivi de la formation (RGPD, conservation 5 ans) — droits : contact@mystoryformation.fr · CNIL (www.cnil.fr) · <a href="/politique-confidentialite" target="_blank" style="color:inherit;">politique de confidentialité</a></div>
 </div></body></html>`;
   return new Response(html, { status: 200, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
 }

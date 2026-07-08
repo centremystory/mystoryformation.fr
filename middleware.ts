@@ -34,6 +34,7 @@ const CHEMINS_PUBLICS = [
   "/api/pre-inscription",         // dépôt de la demande de pré-inscription (public, honeypot + rate-limit)
   "/partenaire",                  // portail partenaire par jeton (capability)
   "/api/partenaire",              // données + dépôts partenaire (jeton vérifié côté serveur)
+  "/politique-confidentialite",   // politique de confidentialité publique (RGPD art. 13)
 ];
 
 export async function middleware(req: NextRequest) {
