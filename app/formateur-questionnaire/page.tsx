@@ -104,6 +104,12 @@ export default function PageQuestionnaireFormateur() {
           <button onClick={envoyer} disabled={busy} className="mt-5 px-5 py-2.5 rounded-lg bg-mystory text-white text-sm font-semibold disabled:opacity-50">
             {busy ? "Envoi…" : "Envoyer mes réponses"}
           </button>
+          <p className="mt-3 text-[11px] leading-snug text-gray-400">
+            🔒 Ces informations sont traitées par MYSTORY pour la gestion administrative et la conformité
+            de votre dossier formateur (RGPD, conservation 5 ans après la fin de la collaboration).
+            Droits : contact@mystoryformation.fr ·{" "}
+            <a href="/politique-confidentialite" target="_blank" className="underline">politique de confidentialité</a>
+          </p>
         </>
       )}
     </main>

@@ -71,6 +71,11 @@ export default function Kiosque() {
         </label>
         {err && <p className="text-sm text-red-600">{err}</p>}
         <button onClick={demarrer} disabled={envoi} className="btn-primary w-full">{envoi ? "Démarrage…" : "Commencer le test"}</button>
+        <p className="mt-3 text-[11px] leading-snug text-gray-400 text-center">
+          🔒 Vos réponses et coordonnées servent uniquement à votre positionnement et au suivi de votre
+          parcours (RGPD, conservation 5 ans). Droits : contact@mystoryformation.fr ·{" "}
+          <a href="/politique-confidentialite" target="_blank" className="underline">politique de confidentialité</a>
+        </p>
       </div>
       <p className="mt-4 text-center text-xs text-gray-400">MYSTORY Formation — Gagny</p>
     </div>
