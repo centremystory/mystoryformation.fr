@@ -74,3 +74,5 @@
 | 67 | 20260626095956 | ventes_examen_carence_bloquante |
 | 68 | 20260627224915 | v_candidats_examen_ajout_candidat_id |
 | 69 | 20260629000000 | seances_accueil_hors_financement |
+| 70 | 20260708000001 | dossiers_statut_annule_archive |
+| 71 | 20260708000002 | factures_statut_annulee |
