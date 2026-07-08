@@ -17,6 +17,7 @@ import { recomputeDossierStatus } from "@/lib/crm";
 import { journal } from "@/lib/examens";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 const BUCKET = "documents";

@@ -24,6 +24,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { journal } from "@/lib/examens";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 const COMPLETABLES = new Set(["fiche_analyse_besoin", "evaluation_finale"]);

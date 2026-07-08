@@ -7,6 +7,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireUser } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
 const BUCKET = "documents";
 const MAX_SIZE = 10 * 1024 * 1024; // 10 Mo
 const TYPES_ACCEPTES = ["application/pdf", "image/jpeg", "image/png"];

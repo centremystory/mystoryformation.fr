@@ -9,6 +9,8 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireUser } from "@/lib/auth";
 import { peut } from "@/lib/roles";
 
+export const dynamic = "force-dynamic";
+
 type Commercial = {
   id: string;
   nom: string;

@@ -18,6 +18,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { journal } from "@/lib/examens";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 async function auth(req: NextRequest) {
   try { return await requireUser(req); }

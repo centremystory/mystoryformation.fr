@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireUser } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
 // Ordre d'affichage des fonctions (encadrement d'abord, puis terrain).
 const ORDRE: Record<string, number> = {
   direction: 0,

@@ -8,6 +8,8 @@ import {
 } from "@/lib/inscriptions/regles";
 import { requireUser, UnauthorizedError } from "@/lib/auth";
 import { estDirection } from "@/lib/roles";
+
+export const dynamic = "force-dynamic";
 import { demanderValidation } from "@/lib/validations";
 import { journal } from "@/lib/examens";
 import { envoyerEmail, gabaritEmail } from "@/lib/email";
