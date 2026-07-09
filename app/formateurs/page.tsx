@@ -186,7 +186,7 @@ export default function PageFormateurs() {
             <div key={f.id} className="card">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs px-2 py-0.5 rounded-full bg-mystory-clair text-mystory">{f.type === "interne" ? "Interne" : "Sous-traitant"}</span>
-                <span className="font-medium text-gray-900">{nomComplet(f)}</span>
+                <a href={`/formateurs/${f.id}`} className="font-medium text-gray-900 hover:text-blue-700 hover:underline">{nomComplet(f)}</a>
                 {f.raison_sociale && <span className="text-sm text-gray-500">· {f.raison_sociale}</span>}
                 <span className="flex-1" />
                 <button onClick={() => archiver(f.id)} disabled={busy === `arch-${f.id}`} className="text-xs text-gray-400 hover:text-red-600 disabled:opacity-50">Archiver</button>
