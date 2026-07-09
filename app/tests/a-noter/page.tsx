@@ -65,7 +65,11 @@ function CarteNotation({ ev, onFini }: { ev: Evaluation; onFini: () => void }) {
         body: JSON.stringify({ id: ev.id, ee_sur10: e, eo_sur10: o, remarques: rem }),
       });
       const j = await r.json();
-      if (j.ok) onFini(); else setErr(j.erreur || "Erreur.");
+      if (j.ok) {
+        onFini();
+        // Enchaînement : ouvrir le récap avec les prochaines étapes (analyse de besoin / satisfaction…)
+        window.location.href = `/tests/${ev.id}`;
+      } else setErr(j.erreur || "Erreur.");
     } catch { setErr("Erreur réseau."); }
     finally { setEnvoi(false); }
   }

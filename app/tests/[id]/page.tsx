@@ -99,19 +99,39 @@ export default function RecapTestPage() {
       <section className="card border-2 p-4" style={{ borderColor: BLEU }}>
         <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide" style={{ color: BLEU }}>Comment traiter ce dossier</h2>
         {ev.statut === "en_attente_formateur" && (
-          <p className="text-sm text-gray-700">L'expression écrite et orale reste à noter — <Link href="/tests/a-noter" className="underline" style={{ color: BLEU }}>ouvrir la notation</Link>. Le récap complet et l'email de conseils partiront automatiquement à la notation.</p>
+          <p className="text-sm text-gray-700">L'expression écrite et orale reste à noter — <Link href="/tests/a-noter" className="underline" style={{ color: BLEU }}>ouvrir la notation</Link>. Le récap complet et les envois automatiques partiront à la notation.</p>
         )}
-        {ev.statut === "complet" && d.conseil && (
+        {ev.statut === "complet" && ev.phase !== "final" && (
           <div className="space-y-2 text-sm text-gray-700">
-            <p>{d.conseil.message}</p>
+            {d.conseil && <p>{d.conseil.message}</p>}
             <p>
-              👉 Proposer la formule <strong>{d.conseil.formule} ({d.conseil.heures}&nbsp;h)</strong>
-              {d.dossier ? <> — dossier {d.dossier.certif ?? ""} <span className="text-gray-500">({d.dossier.statut ?? "sans statut"}{d.dossier.financement ? ` · ${d.dossier.financement}` : ""})</span></> : " — aucun dossier de formation rattaché pour l'instant"}
+              👉 Proposer la formule <strong>{d.conseil ? `${d.conseil.formule} (${d.conseil.heures} h)` : "adaptée"}</strong>
               . L'email de résultats + conseils a été envoyé automatiquement au candidat{ev.email ? ` (${ev.email})` : ""}.
             </p>
+            <div className="rounded-lg bg-blue-50 p-3">
+              <p className="font-semibold" style={{ color: BLEU }}>Prochaines étapes (enchaînement)</p>
+              <ol className="mt-1 list-decimal space-y-0.5 pl-5">
+                <li>Évaluation initiale : <strong>générée automatiquement</strong> depuis le test ✓</li>
+                <li><strong>Fiche d'analyse de besoin</strong> à remplir avec le candidat{d.dossier ? <> — <Link href={`/dossiers?q=${encodeURIComponent(`${d.stagiaire?.prenom ?? ev.prenom ?? ""} ${d.stagiaire?.nom ?? ev.nom ?? ""}`.trim())}`} className="underline" style={{ color: BLEU }}>ouvrir son dossier ↗</Link></> : " (dès la création du dossier)"}</li>
+                <li>Puis convention + convocation selon le financement choisi.</li>
+              </ol>
+            </div>
           </div>
         )}
-        {ev.statut === "complet" && !d.conseil && <p className="text-sm text-gray-700">Test complet — niveau {ev.niveau_global ?? "—"}.</p>}
+        {ev.statut === "complet" && ev.phase === "final" && (
+          <div className="space-y-2 text-sm text-gray-700">
+            <p>Niveau atteint : <strong>{ev.niveau_global}</strong> ({ev.total_sur20}/20) — reporté sur le dossier.</p>
+            <div className="rounded-lg bg-blue-50 p-3">
+              <p className="font-semibold" style={{ color: BLEU }}>Fin de parcours (enchaînement)</p>
+              <ol className="mt-1 list-decimal space-y-0.5 pl-5">
+                <li>Évaluation finale : <strong>générée automatiquement</strong> depuis le test ✓</li>
+                <li>Questionnaire de <strong>satisfaction à chaud</strong> : <strong>envoyé automatiquement</strong> au stagiaire ✓ (relance à froid automatique à J+90)</li>
+                <li><strong>Attestation de fin</strong> puis <strong>certificat de réalisation</strong>{d.dossier ? <> — <Link href={`/dossiers?q=${encodeURIComponent(`${d.stagiaire?.prenom ?? ev.prenom ?? ""} ${d.stagiaire?.nom ?? ev.nom ?? ""}`.trim())}`} className="underline" style={{ color: BLEU }}>ouvrir le dossier ↗</Link></> : ""} (le certificat déclenche le paiement CDC).</li>
+              </ol>
+            </div>
+          </div>
+        )}
+        {ev.statut === "complet" && ev.phase !== "final" && !d.conseil && <p className="text-sm text-gray-700">Test complet — niveau {ev.niveau_global ?? "—"}.</p>}
         {ev.statut === "en_cours" && <p className="text-sm text-gray-700">Le candidat n'a pas terminé sa passation.</p>}
       </section>
 

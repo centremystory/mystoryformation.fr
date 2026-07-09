@@ -12,6 +12,7 @@ import { genererDocEvaluation } from "@/lib/evaluationDoc";
 import { journal } from "@/lib/examens";
 import { envoyerEmail, gabaritEmail } from "@/lib/email";
 import { conseilTest } from "@/lib/conseilsTest";
+import { urlDeBase } from "@/lib/appUrl";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -131,6 +132,37 @@ ${ligne("Expression orale", eo)}
     } catch { /* non bloquant */ }
   }
 
-  await journal("evaluation", id, "test_note", { total_sur20: total, niveau, email_recap_envoye: emailEnvoye }, u.email ?? null);
-  return NextResponse.json({ ok: true, niveau, total_sur20: total, email_recap_envoye: emailEnvoye });
+  // Enchaînement TEST FINAL (décision Direction 09/07) : la satisfaction à chaud part
+  // AUTOMATIQUEMENT au stagiaire dès la notation. Best-effort ; la relance à froid (J+90)
+  // est déjà orchestrée par ailleurs. Ne se déclenche qu'une fois (notation verrouillée).
+  let satisfactionEnvoyee = false;
+  if (ev.phase === "final" && ev.dossier_id) {
+    try {
+      const { data: d } = await supabaseAdmin
+        .from("dossiers").select("id, token, stagiaires ( civilite, prenom, email )")
+        .eq("id", ev.dossier_id).maybeSingle();
+      const st: any = (d as any)?.stagiaires;
+      if (d && st?.email) {
+        const lien = `${urlDeBase(req)}/satisfaction?token=${(d as any).token}&type=chaud`;
+        const corpsSat = `
+<p>Bonjour ${st.prenom ?? ""},</p>
+<p>Votre formation chez MYSTORY touche à sa fin — bravo pour votre parcours ! Votre avis nous aide à progresser et fait partie de notre démarche qualité. Merci de prendre deux minutes :</p>
+<p style="text-align:center;margin:24px 0">
+  <a href="${lien}" style="background:#2F72DE;color:#fff;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:600;display:inline-block">Répondre au questionnaire</a>
+</p>
+<p style="font-size:13px;color:#667">Si le bouton ne fonctionne pas, copiez ce lien : <br>${lien}</p>
+<p>Merci, et belle réussite !<br>L'équipe MYSTORY Formation</p>`;
+        const env2 = await envoyerEmail({
+          a: st.email, objet: "Votre avis sur la formation",
+          html: gabaritEmail("Votre avis sur la formation", corpsSat),
+          entite: "dossiers", entiteId: ev.dossier_id, auteur: u.email ?? undefined,
+        });
+        satisfactionEnvoyee = !!env2.ok;
+        if (env2.ok) await journal("dossier", ev.dossier_id, "satisfaction_chaud_envoyee", { auto: true, email: st.email }, u.email ?? null);
+      }
+    } catch { /* non bloquant */ }
+  }
+
+  await journal("evaluation", id, "test_note", { total_sur20: total, niveau, email_recap_envoye: emailEnvoye, satisfaction_chaud_envoyee: satisfactionEnvoyee }, u.email ?? null);
+  return NextResponse.json({ ok: true, niveau, total_sur20: total, email_recap_envoye: emailEnvoye, satisfaction_chaud_envoyee: satisfactionEnvoyee });
 }

@@ -45,6 +45,21 @@ const CHEMINS_PUBLICS = [
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
+  // 0) Sous-domaines publics (testinitiale. / testfinale.mystoryformation.fr) :
+  //    la racine du sous-domaine mène directement au bon parcours. Les chemins profonds
+  //    (/test/[token], API…) passent ensuite par les règles habituelles.
+  const host = (req.headers.get("x-forwarded-host") || req.headers.get("host") || "").toLowerCase();
+  if (pathname === "/") {
+    if (host.startsWith("testinitiale.") || host.startsWith("testinitial.")) {
+      const url = req.nextUrl.clone(); url.pathname = "/test";
+      return NextResponse.rewrite(url);
+    }
+    if (host.startsWith("testfinale.") || host.startsWith("testfinal.")) {
+      const url = req.nextUrl.clone(); url.pathname = "/test/finale";
+      return NextResponse.rewrite(url);
+    }
+  }
+
   // 1) Chemins publics → on laisse passer
   if (
     CHEMINS_PUBLICS.some((p) => pathname === p || pathname.startsWith(p + "/"))
