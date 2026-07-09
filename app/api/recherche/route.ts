@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
   const nomComplet = (p?: string | null, n?: string | null) => [p, n].filter(Boolean).join(" ");
 
   const [st, fo, fm] = await Promise.all([
-    supabaseAdmin.from("stagiaires").select("id, nom, prenom, email, agence")
+    supabaseAdmin.from("stagiaires").select("id, nom, prenom, email, agence").eq("actif", true)
       .or(`nom.ilike.${pat},prenom.ilike.${pat},email.ilike.${pat}`).limit(12),
     supabaseAdmin.from("formateurs").select("id, nom, prenom, email, type").eq("actif", true)
       .or(`nom.ilike.${pat},prenom.ilike.${pat},email.ilike.${pat}`).limit(12),

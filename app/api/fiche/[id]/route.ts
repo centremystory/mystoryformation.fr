@@ -5,7 +5,8 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { requireUser } from "@/lib/auth";
+import { requireUser, requireRole, UnauthorizedError } from "@/lib/auth";
+import { journal } from "@/lib/examens";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,7 +20,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   // 1) Identité du stagiaire (= le client)
   const { data: stagiaire, error: eS } = await supabaseAdmin
     .from("stagiaires")
-    .select("id, civilite, nom, prenom, email, telephone, date_naissance, ville_naissance, adresse, cp, ville, agence")
+    .select("id, civilite, nom, prenom, email, telephone, date_naissance, ville_naissance, adresse, cp, ville, agence, actif")
     .eq("id", id)
     .maybeSingle();
   if (eS) return NextResponse.json({ ok: false, erreur: eS.message }, { status: 500 });
@@ -112,4 +113,31 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   };
 
   return NextResponse.json({ ok: true, stagiaire, dossiers: dossiers ?? [], examens, remarques, evaluations, factures, seancesAccueil });
+}
+
+/**
+ * PATCH — Archiver / réactiver le stagiaire (Direction & Manager).
+ * Jamais de DELETE : actif=false le sort de la recherche, la fiche reste accessible.
+ * Body : { actif: boolean } · journalisé.
+ */
+export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+  let u;
+  try { u = await requireRole(req, ["direction", "manager"]); }
+  catch (e) {
+    if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Réservé à la Direction et aux managers." }, { status: 403 });
+    throw e;
+  }
+
+  let body: Record<string, unknown>;
+  try { body = await req.json(); } catch { return NextResponse.json({ ok: false, erreur: "Requête invalide." }, { status: 400 }); }
+  if (typeof body.actif !== "boolean") return NextResponse.json({ ok: false, erreur: "Champ actif (booléen) requis." }, { status: 422 });
+
+  const { data: s } = await supabaseAdmin.from("stagiaires").select("id, actif").eq("id", params.id).maybeSingle();
+  if (!s) return NextResponse.json({ ok: false, erreur: "Stagiaire introuvable." }, { status: 404 });
+
+  const { error } = await supabaseAdmin.from("stagiaires").update({ actif: body.actif }).eq("id", params.id);
+  if (error) return NextResponse.json({ ok: false, erreur: "Enregistrement impossible." }, { status: 502 });
+
+  await journal("stagiaire", params.id, body.actif ? "stagiaire_reactive" : "stagiaire_archive", {}, u.email ?? null);
+  return NextResponse.json({ ok: true, actif: body.actif });
 }

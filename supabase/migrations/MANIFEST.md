@@ -78,3 +78,4 @@
 | 71 | 20260708000002 | factures_statut_annulee |
 | 72 | 20260708000003 | verrouillage_api_rest_rgpd |
 | 73 | 20260708000004 | rgpd_purge_anonymisation |
+| 74 | 20260709102749 | stagiaires_colonne_actif |

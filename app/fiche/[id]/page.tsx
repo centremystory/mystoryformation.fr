@@ -10,6 +10,7 @@ type Stagiaire = {
   id: string; civilite: string | null; nom: string; prenom: string | null;
   email: string | null; telephone: string | null; date_naissance: string | null;
   ville_naissance: string | null; adresse: string | null; cp: string | null; ville: string | null; agence: string | null;
+  actif?: boolean;
 };
 type Dossier = {
   id: string; certif: string | null; financement: string | null; montant: number | null;
@@ -95,6 +96,32 @@ export default function PageFiche() {
   const [fiche, setFiche] = useState<Fiche | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [chargement, setChargement] = useState(true);
+  const [peutArchiver, setPeutArchiver] = useState(false);
+  const [archivage, setArchivage] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/me", { cache: "no-store" }).then((r) => r.json()).then((j) => {
+      const rs: string[] = j?.roles ?? (j?.role ? [j.role] : []);
+      setPeutArchiver(rs.length === 0 || rs.some((r) => ["direction", "manager", "staff"].includes(r)));
+    }).catch(() => {});
+  }, []);
+
+  async function basculerActif() {
+    if (!fiche) return;
+    const versActif = fiche.stagiaire.actif === false;
+    if (!versActif && !confirm("Archiver ce stagiaire ? Il disparaîtra de la recherche (la fiche reste accessible, aucune donnée n'est supprimée).")) return;
+    setArchivage(true);
+    try {
+      const r = await fetch(`/api/fiche/${id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ actif: versActif }),
+      });
+      const j = await r.json();
+      if (j.ok) setFiche({ ...fiche, stagiaire: { ...fiche.stagiaire, actif: j.actif } });
+      else alert(j.erreur ?? "Action impossible.");
+    } catch { alert("Erreur réseau."); }
+    finally { setArchivage(false); }
+  }
 
   useEffect(() => {
     if (!id) return;
@@ -128,6 +155,7 @@ export default function PageFiche() {
             {s.civilite ? `${s.civilite} ` : ""}{nomComplet}
           </h1>
           <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600">
+            {s.actif === false && <span className="badge bg-gray-200 text-gray-600" title="Ce stagiaire est archivé : il n'apparaît plus dans la recherche.">📦 Archivé</span>}
             {s.email && <span>✉️ {s.email}</span>}
             {s.telephone && <span>📞 {s.telephone}</span>}
             {s.agence && <span className="badge" style={{ background: "#EAF1FC", color: BLEU }}>{s.agence}</span>}
@@ -138,6 +166,12 @@ export default function PageFiche() {
             )}
           </div>
         </div>
+        {peutArchiver && (
+          <button onClick={basculerActif} disabled={archivage}
+            className={`rounded-lg border px-3 py-1.5 text-sm ${s.actif === false ? "border-green-300 bg-green-50 text-green-700 hover:bg-green-100" : "border-gray-300 bg-white text-gray-600 hover:bg-gray-50"}`}>
+            {archivage ? "…" : s.actif === false ? "↩ Réactiver" : "📦 Archiver"}
+          </button>
+        )}
       </div>
 
       {/* Identité */}
