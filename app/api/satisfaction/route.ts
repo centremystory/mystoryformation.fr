@@ -12,6 +12,7 @@ import { mergeTemplate, FicheStagiaire } from "@/lib/mergeEngine";
 import { renderHtmlToPdf } from "@/lib/docuseal";
 import { getFiche, archiveDocument, setPieceStatus } from "@/lib/crm";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { ipDe, limiteDepassee } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -37,6 +38,10 @@ function note(v: unknown, min: number, max: number): number | null {
 }
 
 export async function POST(req: NextRequest) {
+  // Route publique (capability par jeton) : rate-limit IP en plus, comme les autres routes publiques.
+  if (await limiteDepassee(`satisfaction:${ipDe(req)}`, 10, 3600)) {
+    return NextResponse.json({ ok: false, erreur: "Trop de tentatives, réessayez plus tard." }, { status: 429 });
+  }
   let body: any;
   try { body = await req.json(); }
   catch { return NextResponse.json({ ok: false, erreur: "JSON invalide." }, { status: 400 }); }
