@@ -5,6 +5,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { niveauFromSur20 } from "@/lib/tests";
 import { corrigerAuto, type QuestionCorrige } from "@/lib/tests";
 import { journal } from "@/lib/examens";
 import { ipDe, limiteDepassee } from "@/lib/rateLimit";
@@ -81,5 +82,5 @@ export async function POST(req: NextRequest) {
   if (e2) return NextResponse.json({ ok: false, erreur: "Enregistrement impossible." }, { status: 502 });
 
   await journal("evaluation", ev.id, "test_soumis", { ce_sur10: ceSur10, co_sur10: coSur10 }, "candidat");
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, niveau_provisoire: niveauFromSur20(Number(ceSur10 ?? 0) + Number(coSur10 ?? 0)) });
 }

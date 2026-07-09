@@ -35,6 +35,11 @@ const CHEMINS_PUBLICS = [
   "/partenaire",                  // portail partenaire par jeton (capability)
   "/api/partenaire",              // données + dépôts partenaire (jeton vérifié côté serveur)
   "/politique-confidentialite",   // politique de confidentialité publique (RGPD art. 13)
+  "/test",                        // test initial : accueil, inscription candidat, passation par jeton
+  "/api/tests/kiosque",           // auto-enregistrement candidat (rate-limité)
+  "/api/tests/passation",         // passation par jeton (capability)
+  "/api/tests/oral",              // dépôt des audios (jeton)
+  "/api/tests/audio",             // upload audio (jeton)
 ];
 
 export async function middleware(req: NextRequest) {

@@ -35,6 +35,7 @@ export default function Passation({ params }: { params: { token: string } }) {
   const [erreur, setErreur] = useState<string | null>(null);
   const [envoi, setEnvoi] = useState(false);
   const [fini, setFini] = useState(false);
+  const [provisoire, setProvisoire] = useState<string | null>(null);
   const [deja, setDeja] = useState(false);
   const [kiosque, setKiosque] = useState(false);
   const [oralBlobs, setOralBlobs] = useState<Record<number, Blob>>({});
@@ -65,12 +66,12 @@ export default function Passation({ params }: { params: { token: string } }) {
         body: JSON.stringify({ token: params.token, reponses: rep, ecrit }),
       });
       const j = await r.json();
-      if (j.ok) setFini(true); else setErreur(j.erreur || "Envoi impossible.");
+      if (j.ok) { setProvisoire(j.niveau_provisoire ?? null); setFini(true); } else setErreur(j.erreur || "Envoi impossible.");
     } catch { setErreur("Envoi impossible. Vérifiez votre connexion."); }
     finally { setEnvoi(false); }
   }
 
-  if (fini) return <Centre><h1 className="mb-2 text-2xl font-bold text-mystory">✓ Test envoyé</h1><p>Merci ! Une formatrice évaluera votre expression écrite et orale, puis votre niveau vous sera communiqué.</p>{kiosque && <a href="/test/kiosque" className="btn-primary mt-5">Candidat suivant →</a>}</Centre>;
+  if (fini) return <Centre><h1 className="mb-2 text-2xl font-bold text-mystory">✓ Test envoyé</h1>{provisoire && <div className="my-3 rounded-xl border-2 border-mystory bg-blue-50 px-6 py-4"><div className="text-xs uppercase tracking-wide text-gray-500">Niveau provisoire (compréhension écrite &amp; orale)</div><div className="text-4xl font-extrabold text-mystory">{provisoire}</div></div>}<p>Merci ! Une formatrice évaluera votre expression écrite et orale sous 48&nbsp;h — vous recevrez votre <strong>niveau complet et nos conseils par email</strong>.</p>{kiosque && <a href="/test/kiosque" className="btn-primary mt-5">Candidat suivant →</a>}</Centre>;
   if (deja) return <Centre><h1 className="mb-2 text-2xl font-bold text-mystory">Test déjà envoyé</h1><p>Ce test a déjà été complété. Merci !</p></Centre>;
   if (erreur && !data) return <Centre><p className="text-red-700">{erreur}</p></Centre>;
   if (!data) return <Centre><p>Chargement…</p></Centre>;

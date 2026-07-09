@@ -12,6 +12,10 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
+  // Route publique (candidats) : limitation de débit par IP — FAIL-OPEN.
+  if (await limiteDepassee(`test-inscription:${ipDe(req)}`, 10, 3600)) {
+    return NextResponse.json({ ok: false, erreur: "Trop de tentatives — réessayez dans une heure." }, { status: 429 });
+  }
   const ip = ipDe(req);
   try {
     if (await limiteDepassee(`kiosque:${ip}`, 40, 3600)) {
@@ -37,9 +41,12 @@ export async function POST(req: NextRequest) {
     .order("cree_le", { ascending: false }).limit(1).maybeSingle();
   if (!t) return NextResponse.json({ ok: false, erreur: "Aucun test de positionnement disponible." }, { status: 409 });
 
+  const source = String(body?.source ?? "") === "sur_place" ? "sur_place" : "distance";
+  const accompagnant = body?.accompagnant ? String(body.accompagnant).trim().slice(0, 80) : null;
+  const auteurEval = source === "sur_place" ? `sur_place:${accompagnant ?? "conseiller"}` : "distance";
   const { data: ev, error } = await supabaseAdmin.from("evaluations").insert({
     test_id: t.id, phase: "initial", dossier_id: null,
-    nom, prenom, email, telephone, civilite, niveau_vise, adresse, cp, ville, statut: "en_cours", auteur: "kiosque",
+    nom, prenom, email, telephone, civilite, niveau_vise, adresse, cp, ville, statut: "en_cours", auteur: auteurEval,
   }).select("id, token").maybeSingle();
   if (error || !ev) return NextResponse.json({ ok: false, erreur: "Création impossible." }, { status: 502 });
 
