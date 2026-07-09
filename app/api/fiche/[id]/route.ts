@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireUser, requireRole, UnauthorizedError } from "@/lib/auth";
 import { journal } from "@/lib/examens";
+import { IDENTITE_STATUTS, type IdentiteStatut } from "@/lib/identite";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,7 +21,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   // 1) Identité du stagiaire (= le client)
   const { data: stagiaire, error: eS } = await supabaseAdmin
     .from("stagiaires")
-    .select("id, civilite, nom, prenom, email, telephone, date_naissance, ville_naissance, adresse, cp, ville, agence, actif")
+    .select("id, civilite, nom, prenom, email, telephone, date_naissance, ville_naissance, adresse, cp, ville, agence, actif, verification_identite, verification_identite_note, verification_identite_maj_le, verification_identite_auteur")
     .eq("id", id)
     .maybeSingle();
   if (eS) return NextResponse.json({ ok: false, erreur: eS.message }, { status: 500 });
@@ -116,24 +117,53 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 }
 
 /**
- * PATCH — Archiver / réactiver le stagiaire (Direction & Manager).
- * Jamais de DELETE : actif=false le sort de la recherche, la fiche reste accessible.
- * Body : { actif: boolean } · journalisé.
+ * PATCH — Deux usages, deux niveaux de droits :
+ * · { actif: boolean } — archiver/réactiver (Direction & Manager uniquement)
+ * · { verification_identite, verification_identite_note } — suivi identité (toute l'équipe,
+ *   ce sont les commerciales à l'accueil qui le tiennent). Horodatage par trigger DB.
+ * Jamais de DELETE. Tout est journalisé.
  */
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+  let body: Record<string, unknown>;
+  try { body = await req.json(); } catch { return NextResponse.json({ ok: false, erreur: "Requête invalide." }, { status: 400 }); }
+
+  const { data: s } = await supabaseAdmin.from("stagiaires").select("id, actif, verification_identite").eq("id", params.id).maybeSingle();
+  if (!s) return NextResponse.json({ ok: false, erreur: "Stagiaire introuvable." }, { status: 404 });
+
+  // ── Suivi identité (toute l'équipe) ─────────────────────────────────────
+  if ("verification_identite" in body || "verification_identite_note" in body) {
+    let u;
+    try { u = await requireUser(req); }
+    catch (e) {
+      if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
+      throw e;
+    }
+    const maj: Record<string, unknown> = {};
+    if ("verification_identite" in body) {
+      const v = body.verification_identite;
+      if (v !== null && !IDENTITE_STATUTS.includes(v as IdentiteStatut)) {
+        return NextResponse.json({ ok: false, erreur: "Statut d'identité inconnu." }, { status: 422 });
+      }
+      maj.verification_identite = v;
+    }
+    if ("verification_identite_note" in body) {
+      maj.verification_identite_note = body.verification_identite_note == null ? null : String(body.verification_identite_note).trim().slice(0, 2000) || null;
+    }
+    maj.verification_identite_auteur = u.email ?? null;
+    const { error } = await supabaseAdmin.from("stagiaires").update(maj).eq("id", params.id);
+    if (error) return NextResponse.json({ ok: false, erreur: "Enregistrement impossible." }, { status: 502 });
+    await journal("stagiaire", params.id, "identite_maj", { de: s.verification_identite ?? null, vers: maj.verification_identite ?? s.verification_identite ?? null }, u.email ?? null);
+    return NextResponse.json({ ok: true });
+  }
+
+  // ── Archiver / réactiver (Direction & Manager) ──────────────────────────
   let u;
   try { u = await requireRole(req, ["direction", "manager"]); }
   catch (e) {
     if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Réservé à la Direction et aux managers." }, { status: 403 });
     throw e;
   }
-
-  let body: Record<string, unknown>;
-  try { body = await req.json(); } catch { return NextResponse.json({ ok: false, erreur: "Requête invalide." }, { status: 400 }); }
   if (typeof body.actif !== "boolean") return NextResponse.json({ ok: false, erreur: "Champ actif (booléen) requis." }, { status: 422 });
-
-  const { data: s } = await supabaseAdmin.from("stagiaires").select("id, actif").eq("id", params.id).maybeSingle();
-  if (!s) return NextResponse.json({ ok: false, erreur: "Stagiaire introuvable." }, { status: 404 });
 
   const { error } = await supabaseAdmin.from("stagiaires").update({ actif: body.actif }).eq("id", params.id);
   if (error) return NextResponse.json({ ok: false, erreur: "Enregistrement impossible." }, { status: 502 });

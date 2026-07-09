@@ -15,6 +15,7 @@ import { scannerConformiteEdof } from "@/lib/conformiteEdof";
 import { verifySession } from "@/lib/auth";
 import { peutVoirPage } from "@/lib/roles";
 import { siteValide, COOKIE_SITE, type SiteFiltre } from "@/lib/sites";
+import { IDENTITE_A_SUIVRE } from "@/lib/identite";
 
 export const dynamic = "force-dynamic";
 
@@ -73,7 +74,7 @@ async function compter(site: SiteFiltre) {
 }
 
 async function aTraiter(site: SiteFiltre) {
-  const zero = { participation: 0, identite: 0, conges: 0, messages: 0, formateurDocs: 0, incidents: 0, validations: 0, questionsInternes: 0, reclamations: 0 };
+  const zero = { participation: 0, identite: 0, identiteSuivi: 0, conges: 0, messages: 0, formateurDocs: 0, incidents: 0, validations: 0, questionsInternes: 0, reclamations: 0 };
   try {
     const estCpf = (d: any) => d.financement === "CPF" || d.origine_fonds === "CPF_CDC";
     let dq = supabaseAdmin
@@ -94,10 +95,15 @@ async function aTraiter(site: SiteFiltre) {
     let rq = supabaseAdmin.from("reclamations").select("id", { count: "exact", head: true }).eq("actif", true).neq("statut", "resolue");
     if (site) rq = rq.eq("agence", site);
     const reclamations = await rq;
+    let iq = supabaseAdmin.from("stagiaires").select("id", { count: "exact", head: true })
+      .eq("actif", true).in("verification_identite", IDENTITE_A_SUIVRE);
+    if (site) iq = iq.eq("agence", site);
+    const identitesSuivi = await iq;
     const cpf = (dossiers.data ?? []).filter(estCpf);
     return {
       participation: cpf.filter((d: any) => !d.participation_forfaitaire_reglee && !d.participation_forfaitaire_exemptee).length,
       identite: cpf.filter((d: any) => !d.cpf_identite_ok).length,
+      identiteSuivi: identitesSuivi.count ?? 0,
       conges: conges.count ?? 0,
       messages: messages.count ?? 0,
       formateurDocs: fdocs.count ?? 0,
@@ -425,6 +431,7 @@ export default async function Accueil() {
     { label: "Tâches d'agence à faire", n: tk.length, href: "/taches" },
     { label: "Participations 150 € à régler", n: t.participation, href: "/formation" },
     { label: "Identités CPF à confirmer", n: t.identite, href: "/formation" },
+    { label: "Identités à suivre (accueil)", n: t.identiteSuivi, href: "/identites" },
     { label: "Congés en attente", n: t.conges, href: "/conges" },
     { label: "Validations Direction en attente", n: t.validations, href: "/validations" },
     { label: "Messages prospects", n: t.messages, href: "/messages" },

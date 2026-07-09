@@ -79,3 +79,4 @@
 | 72 | 20260708000003 | verrouillage_api_rest_rgpd |
 | 73 | 20260708000004 | rgpd_purge_anonymisation |
 | 74 | 20260709102749 | stagiaires_colonne_actif |
+| 75 | 20260709121732 | stagiaires_verification_identite |

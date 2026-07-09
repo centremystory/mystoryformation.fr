@@ -19,6 +19,7 @@ const NAV: Entree[] = [
   {
     type: "menu", label: "🎓 Formation", items: [
       { href: "/formation", label: "Espace Formation" },
+      { href: "/identites", label: "Identités" },
       { href: "/calendrier", label: "Calendrier" },
       { href: "/satisfaction-cours", label: "Satisfaction" },
       { href: "/contenu-pedagogique", label: "Pédagogie" },

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { IDENTITE_STATUTS, IDENTITE_LABEL, identiteBadge } from "@/lib/identite";
 
 const BLEU = "#2F72DE";
 
@@ -11,6 +12,10 @@ type Stagiaire = {
   email: string | null; telephone: string | null; date_naissance: string | null;
   ville_naissance: string | null; adresse: string | null; cp: string | null; ville: string | null; agence: string | null;
   actif?: boolean;
+  verification_identite?: string | null;
+  verification_identite_note?: string | null;
+  verification_identite_maj_le?: string | null;
+  verification_identite_auteur?: string | null;
 };
 type Dossier = {
   id: string; certif: string | null; financement: string | null; montant: number | null;
@@ -182,6 +187,7 @@ export default function PageFiche() {
           <Info label="Adresse" valeur={[s.adresse, [s.cp, s.ville].filter(Boolean).join(" ")].filter(Boolean).join(", ") || "—"} />
           <Info label="Agence d'inscription" valeur={s.agence ?? "—"} />
         </dl>
+        <SuiviIdentite stagiaire={s} onMaj={(patch) => setFiche({ ...fiche, stagiaire: { ...fiche.stagiaire, ...patch } })} />
       </section>
 
       {/* Formation */}
@@ -368,6 +374,60 @@ function Stat({ label, valeur, accent }: { label: string; valeur: string; accent
     <div className="card p-3">
       <p className="text-xs text-gray-400">{label}</p>
       <p className={`mt-1 text-lg font-semibold ${accent ? "text-amber-700" : "text-gray-900"}`}>{valeur}</p>
+    </div>
+  );
+}
+
+/** Suivi de la vérification d'identité : pipeline d'étapes + note, éditable par toute l'équipe. */
+function SuiviIdentite({ stagiaire, onMaj }: { stagiaire: Stagiaire; onMaj: (patch: Partial<Stagiaire>) => void }) {
+  const [statut, setStatut] = useState<string>(stagiaire.verification_identite ?? "");
+  const [note, setNote] = useState<string>(stagiaire.verification_identite_note ?? "");
+  const [envoi, setEnvoi] = useState(false);
+  const [ok, setOk] = useState(false);
+  const badge = identiteBadge(stagiaire.verification_identite);
+  const modif = statut !== (stagiaire.verification_identite ?? "") || note !== (stagiaire.verification_identite_note ?? "");
+
+  async function enregistrer() {
+    setEnvoi(true); setOk(false);
+    try {
+      const r = await fetch(`/api/fiche/${stagiaire.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ verification_identite: statut || null, verification_identite_note: note || null }),
+      });
+      const j = await r.json();
+      if (j.ok) {
+        onMaj({ verification_identite: statut || null, verification_identite_note: note || null, verification_identite_maj_le: new Date().toISOString() });
+        setOk(true); setTimeout(() => setOk(false), 2500);
+      } else alert(j.erreur ?? "Enregistrement impossible.");
+    } catch { alert("Erreur réseau."); }
+    finally { setEnvoi(false); }
+  }
+
+  return (
+    <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50/60 p-3">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Vérification d&apos;identité</span>
+        <span className={`badge ${badge.cls}`}>{badge.label}</span>
+        {stagiaire.verification_identite_maj_le && (
+          <span className="text-xs text-gray-400">
+            maj {new Date(stagiaire.verification_identite_maj_le).toLocaleDateString("fr-FR")}{stagiaire.verification_identite_auteur ? ` · ${stagiaire.verification_identite_auteur}` : ""}
+          </span>
+        )}
+      </div>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <select value={statut} onChange={(e) => setStatut(e.target.value)}
+          className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm sm:w-72">
+          <option value="">— Non renseigné —</option>
+          {IDENTITE_STATUTS.map((s) => <option key={s} value={s}>{IDENTITE_LABEL[s]}</option>)}
+        </select>
+        <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={2000}
+          placeholder="Note de suivi (ex. RDV La Poste vendredi, courrier posté le 12/07…)"
+          className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm" />
+        <button onClick={enregistrer} disabled={envoi || !modif}
+          className={`rounded-lg px-4 py-2 text-sm font-medium text-white ${modif ? "bg-mystory hover:opacity-90" : "bg-gray-300"}`}>
+          {envoi ? "…" : ok ? "✓ Enregistré" : "Enregistrer"}
+        </button>
+      </div>
     </div>
   );
 }
