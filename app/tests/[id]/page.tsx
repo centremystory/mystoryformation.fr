@@ -139,7 +139,7 @@ export default function RecapTestPage() {
       {ev.ecrit != null && (
         <section className="card p-4">
           <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-500">Expression écrite</h2>
-          {d.test?.consigne_ecrit && <p className="mb-1 text-xs italic text-gray-500">{d.test.consigne_ecrit}</p>}
+          {d.test?.consigne_ecrit && <p className="mb-1 whitespace-pre-line text-xs italic text-gray-500">{d.test.consigne_ecrit}</p>}
           <div className="whitespace-pre-wrap rounded-lg bg-gray-50 p-3 text-sm text-gray-800">
             {ev.ecrit || <span className="text-gray-400">— pas de rédaction —</span>}
           </div>

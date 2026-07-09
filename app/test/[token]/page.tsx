@@ -155,7 +155,7 @@ export default function Passation({ params }: { params: { token: string } }) {
       {data.test.consigne_ecrit && (
         <section className="mb-8">
           <h2 className="mb-3 border-b border-gray-200 pb-1 text-lg font-semibold text-gray-800">Expression écrite</h2>
-          <div className="mb-3 rounded-lg bg-gray-50 p-3 text-sm italic text-gray-700">{data.test.consigne_ecrit}</div>
+          <div className="mb-3 whitespace-pre-line rounded-lg bg-gray-50 p-3 text-sm italic text-gray-700">{data.test.consigne_ecrit}</div>
           <textarea value={ecrit} onChange={(e) => setEcrit(e.target.value)} rows={10} placeholder="Rédigez votre réponse ici…" className="input w-full" />
         </section>
       )}

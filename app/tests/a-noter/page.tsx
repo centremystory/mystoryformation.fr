@@ -88,7 +88,7 @@ function CarteNotation({ ev, onFini }: { ev: Evaluation; onFini: () => void }) {
       {ev.test?.consigne_ecrit && (
         <div className="mt-3">
           <p className="text-xs font-semibold text-gray-600">Expression écrite — sujet</p>
-          <p className="mb-1 text-xs italic text-gray-500">{ev.test.consigne_ecrit}</p>
+          <p className="mb-1 whitespace-pre-line text-xs italic text-gray-500">{ev.test.consigne_ecrit}</p>
           <div className="whitespace-pre-wrap rounded-lg bg-gray-50 p-2 text-sm text-gray-800">
             {ev.ecrit || <span className="text-gray-400">— pas de rédaction —</span>}
           </div>
