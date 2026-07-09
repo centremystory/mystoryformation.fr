@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
   if (ev.statut !== "en_cours") return NextResponse.json({ ok: false, erreur: "Ce test a déjà été envoyé. Merci !", dejaFait: true }, { status: 409 });
 
   const { data: test } = await supabaseAdmin
-    .from("tests").select("titre, phase, consigne_ecrit, consigne_oral, oral_questions").eq("id", ev.test_id).maybeSingle();
+    .from("tests").select("titre, phase, consigne_ecrit, consigne_oral, oral_questions, sujets_ecrit").eq("id", ev.test_id).maybeSingle();
 
   const { data: qs } = await supabaseAdmin
     .from("test_questions")
@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     ok: true,
-    test: test ?? { titre: "Test", phase: ev.phase, consigne_ecrit: null, consigne_oral: null, oral_questions: null },
+    test: test ?? { titre: "Test", phase: ev.phase, consigne_ecrit: null, consigne_oral: null, oral_questions: null, sujets_ecrit: null },
     candidat: { nom: ev.nom, prenom: ev.prenom },
     questions: qs ?? [],
   });
@@ -57,6 +57,7 @@ export async function POST(req: NextRequest) {
   if (!token) return NextResponse.json({ ok: false, erreur: "Lien invalide." }, { status: 400 });
   const reponses = (body.reponses && typeof body.reponses === "object") ? body.reponses as Record<string, string> : {};
   const ecrit = body.ecrit == null ? null : String(body.ecrit).trim().slice(0, 8000) || null;
+  const sujetEcrit = ["A1", "A2", "B1", "B2"].includes(String(body.sujet_ecrit)) ? String(body.sujet_ecrit) : null;
 
   const { data: ev, error } = await supabaseAdmin
     .from("evaluations").select("id, test_id, statut").eq("token", token).maybeSingle();
@@ -76,7 +77,7 @@ export async function POST(req: NextRequest) {
   const { ceSur10, coSur10 } = corrigerAuto(questions, reponses);
 
   const { error: e2 } = await supabaseAdmin.from("evaluations").update({
-    reponses, ce_sur10: ceSur10, co_sur10: coSur10, ecrit,
+    reponses, ce_sur10: ceSur10, co_sur10: coSur10, ecrit, sujet_ecrit: sujetEcrit,
     statut: "en_attente_formateur",
   }).eq("id", ev.id);
   if (e2) return NextResponse.json({ ok: false, erreur: "Enregistrement impossible." }, { status: 502 });

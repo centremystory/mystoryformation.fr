@@ -23,7 +23,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   const { data: ev } = await supabaseAdmin
     .from("evaluations")
-    .select("id, test_id, phase, dossier_id, civilite, nom, prenom, email, telephone, adresse, cp, ville, niveau_vise, ce_sur10, co_sur10, ee_sur10, eo_sur10, ecrit, oral_audios, total_sur20, niveau_global, statut, auteur, notateur, remarques, cree_le, complete_le")
+    .select("id, test_id, phase, dossier_id, civilite, nom, prenom, email, telephone, adresse, cp, ville, niveau_vise, ce_sur10, co_sur10, ee_sur10, eo_sur10, ecrit, sujet_ecrit, oral_audios, total_sur20, niveau_global, statut, auteur, notateur, remarques, cree_le, complete_le")
     .eq("id", id).maybeSingle();
   if (!ev) return NextResponse.json({ ok: false, erreur: "Test introuvable." }, { status: 404 });
 

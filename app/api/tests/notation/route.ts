@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
 
   const { data: evs } = await supabaseAdmin
     .from("evaluations")
-    .select("id, phase, test_id, dossier_id, nom, prenom, email, ce_sur10, co_sur10, ecrit, oral_audios, cree_le")
+    .select("id, phase, test_id, dossier_id, nom, prenom, email, ce_sur10, co_sur10, ecrit, sujet_ecrit, oral_audios, cree_le")
     .eq("statut", "en_attente_formateur")
     .order("cree_le", { ascending: true });
 

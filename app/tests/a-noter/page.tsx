@@ -11,7 +11,7 @@ type Oral = { q: number; question: string; url: string | null; duree: number | n
 type Evaluation = {
   id: string; phase: string; dossier_id: string | null;
   nom: string | null; prenom: string | null; email: string | null;
-  ce_sur10: number | null; co_sur10: number | null; ecrit: string | null; cree_le: string; test: Test | null; oral?: Oral[];
+  ce_sur10: number | null; co_sur10: number | null; ecrit: string | null; sujet_ecrit?: string | null; cree_le: string; test: Test | null; oral?: Oral[];
 };
 
 export default function ANoter() {
@@ -89,6 +89,7 @@ function CarteNotation({ ev, onFini }: { ev: Evaluation; onFini: () => void }) {
         <div className="mt-3">
           <p className="text-xs font-semibold text-gray-600">Expression écrite — sujet</p>
           <p className="mb-1 whitespace-pre-line text-xs italic text-gray-500">{ev.test.consigne_ecrit}</p>
+          {ev.sujet_ecrit && <span className="badge badge-info mb-1">Sujet choisi : {ev.sujet_ecrit}</span>}
           <div className="whitespace-pre-wrap rounded-lg bg-gray-50 p-2 text-sm text-gray-800">
             {ev.ecrit || <span className="text-gray-400">— pas de rédaction —</span>}
           </div>

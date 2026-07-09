@@ -12,7 +12,7 @@ type Question = {
   contexte: string | null; audio_path: string | null; enonce: string; options: Option[]; points: number;
 };
 type Data = {
-  test: { titre: string; phase: string; consigne_ecrit: string | null; consigne_oral: string | null; oral_questions: string[] | null };
+  test: { titre: string; phase: string; consigne_ecrit: string | null; consigne_oral: string | null; oral_questions: string[] | null; sujets_ecrit?: Array<{ niveau: string; sujet: string; mots_min: number }> | null };
   candidat: { nom: string | null; prenom: string | null };
   questions: Question[];
 };
@@ -32,6 +32,7 @@ export default function Passation({ params }: { params: { token: string } }) {
   const [data, setData] = useState<Data | null>(null);
   const [rep, setRep] = useState<Record<string, string>>({});
   const [ecrit, setEcrit] = useState("");
+  const [sujetEcrit, setSujetEcrit] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [envoi, setEnvoi] = useState(false);
   const [fini, setFini] = useState(false);
@@ -63,7 +64,7 @@ export default function Passation({ params }: { params: { token: string } }) {
       }
       const r = await fetch("/api/tests/passation", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: params.token, reponses: rep, ecrit }),
+        body: JSON.stringify({ token: params.token, reponses: rep, ecrit, sujet_ecrit: sujetEcrit }),
       });
       const j = await r.json();
       if (j.ok) { setProvisoire(j.niveau_provisoire ?? null); setFini(true); } else setErreur(j.erreur || "Envoi impossible.");
@@ -152,11 +153,47 @@ export default function Passation({ params }: { params: { token: string } }) {
         );
       })}
 
-      {data.test.consigne_ecrit && (
+      {(data.test.consigne_ecrit || (data.test.sujets_ecrit?.length ?? 0) > 0) && (
         <section className="mb-8">
-          <h2 className="mb-3 border-b border-gray-200 pb-1 text-lg font-semibold text-gray-800">Expression écrite</h2>
-          <div className="mb-3 whitespace-pre-line rounded-lg bg-gray-50 p-3 text-sm italic text-gray-700">{data.test.consigne_ecrit}</div>
-          <textarea value={ecrit} onChange={(e) => setEcrit(e.target.value)} rows={10} placeholder="Rédigez votre réponse ici…" className="input w-full" />
+          <h2 className="mb-3 border-b border-gray-200 pb-1 text-lg font-semibold text-gray-800">Expression écrite <span className="text-sm font-normal text-gray-400">· /10</span></h2>
+          {data.test.consigne_ecrit && <p className="mb-3 whitespace-pre-line text-sm italic text-gray-600">{data.test.consigne_ecrit}</p>}
+          {(data.test.sujets_ecrit?.length ?? 0) > 0 && (
+            <div className="mb-4 grid gap-2 sm:grid-cols-2">
+              {data.test.sujets_ecrit!.map((s) => {
+                const actif = sujetEcrit === s.niveau;
+                return (
+                  <button key={s.niveau} type="button" onClick={() => setSujetEcrit(s.niveau)}
+                    className={`rounded-xl border-2 p-3 text-left transition ${actif ? "border-mystory bg-blue-50 shadow-sm" : "border-gray-200 bg-white hover:border-gray-300"}`}>
+                    <div className="mb-1 flex items-center justify-between">
+                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${actif ? "bg-mystory text-white" : "bg-gray-100 text-gray-600"}`}>{s.niveau}</span>
+                      <span className="text-xs text-gray-400">min. {s.mots_min} mots</span>
+                    </div>
+                    <p className="text-sm text-gray-700">{s.sujet}</p>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {(() => {
+            const s = (data.test.sujets_ecrit ?? []).find((x) => x.niveau === sujetEcrit) ?? null;
+            const nbMots = ecrit.trim() ? ecrit.trim().split(/\s+/).length : 0;
+            const okMots = s ? nbMots >= s.mots_min : true;
+            return (
+              <div>
+                <textarea value={ecrit} onChange={(e) => setEcrit(e.target.value)} rows={10}
+                  placeholder={s ? `Sujet ${s.niveau} — rédigez votre texte ici (minimum ${s.mots_min} mots)…` : "Choisissez d'abord votre sujet ci-dessus, puis rédigez ici…"}
+                  className="input w-full" />
+                {(data.test.sujets_ecrit?.length ?? 0) > 0 && (
+                  <div className="mt-1 flex items-center justify-between text-xs">
+                    <span className="text-gray-400">{sujetEcrit ? `Sujet choisi : ${sujetEcrit}` : "Aucun sujet choisi"}</span>
+                    <span className={ecrit.trim() ? (okMots ? "font-medium text-green-600" : "text-amber-600") : "text-gray-400"}>
+                      {nbMots} mot{nbMots > 1 ? "s" : ""}{s ? ` / ${s.mots_min} minimum` : ""}
+                    </span>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </section>
       )}
 
