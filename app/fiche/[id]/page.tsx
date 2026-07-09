@@ -202,6 +202,7 @@ export default function PageFiche() {
                   <div className="flex items-center gap-2">
                     {ev.niveau_global && <span className="badge" style={{ background: "#EAF1FC", color: BLEU }}>Niveau estimé {ev.niveau_global}</span>}
                     <span className={`badge ${st.cls}`}>{st.label}</span>
+                    <Link href={`/tests/${ev.id}`} className="text-sm hover:underline" style={{ color: BLEU }}>Récap complet ↗</Link>
                   </div>
                 </div>
                 <div className="mt-2 grid grid-cols-2 md:grid-cols-5 gap-x-6 gap-y-2 text-sm">

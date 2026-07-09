@@ -78,6 +78,7 @@ function CarteNotation({ ev, onFini }: { ev: Evaluation; onFini: () => void }) {
           <p className="text-xs text-gray-500">{ev.test?.titre ?? "Test"} · {ev.phase === "final" ? "Test final" : "Test initial"}</p>
         </div>
         <span className="badge badge-info">CE {ev.ce_sur10 ?? "—"}/10 · CO {ev.co_sur10 ?? "—"}/10</span>
+        <a href={`/tests/${ev.id}`} className="text-sm text-mystory hover:underline">Récap ↗</a>
       </div>
 
       {ev.test?.consigne_ecrit && (

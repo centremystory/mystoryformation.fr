@@ -4,8 +4,8 @@ const nextConfig = {
     return [
       // Bascule B4 : l'ancien QCM prospect pointe désormais vers le kiosque (nouveau moteur de tests).
       // Réversible : retirer ces redirections et restaurer le rewrite /qcm -> /qcm.html pour revenir en arrière.
-      { source: "/qcm", destination: "/test/kiosque", permanent: false },
-      { source: "/qcm.html", destination: "/test/kiosque", permanent: false },
+      { source: "/qcm", destination: "/test", permanent: false },
+      { source: "/qcm.html", destination: "/test", permanent: false },
     ];
   },
   experimental: {
