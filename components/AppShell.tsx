@@ -11,7 +11,7 @@ import {
   ClipboardList, Users, Plane, CalendarRange, Clock, Settings, Receipt, CheckCircle2,
   FileSpreadsheet, UserCog, MessageSquare, MessageCircle, Eye, HelpCircle, KeyRound, AlertTriangle,
   Workflow, ScrollText, LogOut, Menu, X, ChevronDown,
-  Plus, FileCheck, RotateCcw, Trophy, UserPlus, Phone, ShieldCheck, BarChart3, TrendingUp, } from "lucide-react";
+  Plus, FileCheck, RotateCcw, Trophy, UserPlus, Phone, ShieldCheck, BarChart3, TrendingUp, QrCode, } from "lucide-react";
 import { peutVoirPage, ROLE_LABEL } from "@/lib/roles";
 import { SITES, COOKIE_SITE, siteValide } from "@/lib/sites";
 
@@ -90,6 +90,7 @@ const TOUS_HREFS: string[] = NAV.flatMap((e) => (e.type === "link" ? [e.href] : 
 
 /** Sous-pages regroupées sous une entrée de menu (pour le surlignage du menu). */
 const ACTIONS_RAPIDES: { href: string; label: string; icone: LucideIcon }[] = [
+  { href: "/test-qr", label: "Test initial (QR + lien)", icone: QrCode },
   { href: "/examens/vente-groupe", label: "Inscrire un candidat", icone: UserPlus },
   { href: "/inscriptions/nouvelle", label: "Inscrire un stagiaire", icone: GraduationCap },
   { href: "/examens/preinscriptions", label: "Pré-inscription (téléphone)", icone: Phone },
