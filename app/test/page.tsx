@@ -112,7 +112,8 @@ export default function AccueilTestPage() {
         )}
 
         <footer className="mt-8 text-center text-xs text-blue-100/60">
-          MYSTORY — Centre de formation FLE · Centre d'examen TEF IRN · Gagny (93) · 06 81 43 16 54
+          <a href="/test/finale" className="underline hover:text-white">Vous venez pour votre test final de formation ? C&apos;est ici →</a>
+          <div className="mt-2">MYSTORY — Centre de formation FLE · Centre d&apos;examen TEF IRN · Gagny (93) · 06 81 43 16 54</div>
         </footer>
       </div>
     </main>

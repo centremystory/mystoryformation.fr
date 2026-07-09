@@ -50,7 +50,7 @@ export async function middleware(req: NextRequest) {
   //    (/test/[token], API…) passent ensuite par les règles habituelles.
   const host = (req.headers.get("x-forwarded-host") || req.headers.get("host") || "").toLowerCase();
   if (pathname === "/") {
-    if (host.startsWith("testinitiale.") || host.startsWith("testinitial.")) {
+    if (host.startsWith("test.") || host.startsWith("testinitiale.") || host.startsWith("testinitial.")) {
       const url = req.nextUrl.clone(); url.pathname = "/test";
       return NextResponse.rewrite(url);
     }
