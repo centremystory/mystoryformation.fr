@@ -1,0 +1,28 @@
+# MYSTORY — CI : vérifie types + build AVANT le déploiement Vercel.
+# Un push qui casse le build est signalé ici même si on oublie de surveiller Vercel.
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      # Valeurs factices : le build ne touche jamais la vraie base (force-dynamic partout).
+      SUPABASE_URL: https://exemple.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: dummy
+      JWT_SECRET: dummy-secret-ci-0123456789
+      AUTH_SECRET: dummy-secret-ci-0123456789
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Types (tsc)
+        run: npx tsc --noEmit
+      - name: Build Next.js
+        run: npx next build
