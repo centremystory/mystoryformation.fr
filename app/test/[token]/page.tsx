@@ -40,6 +40,12 @@ export default function Passation({ params }: { params: { token: string } }) {
   const [deja, setDeja] = useState(false);
   const [kiosque, setKiosque] = useState(false);
   const [oralBlobs, setOralBlobs] = useState<Record<number, Blob>>({});
+  // Épreuve chronométrée (décision Direction 10/07) : CE 20 min → CO 20 min (écoute unique)
+  // → EE 15 min → EO 10 min. Pas de retour en arrière ; fin du temps = étape suivante.
+  const [phase, setPhase] = useState<"intro" | "CE" | "CO" | "EE" | "EO">("intro");
+  const [finPhase, setFinPhase] = useState<number | null>(null);
+  const [resteSec, setResteSec] = useState<number>(0);
+  const envoyeRef = useRef(false);
 
   useEffect(() => {
     if (typeof window !== "undefined" && window.location.search.includes("k=1")) setKiosque(true);
@@ -50,6 +56,35 @@ export default function Passation({ params }: { params: { token: string } }) {
   }, [params.token]);
 
   const sections = useMemo<("CE" | "CO")[]>(() => ["CE", "CO"], []);
+  const DUREES_MIN: Record<"CE" | "CO" | "EE" | "EO", number> = { CE: 20, CO: 20, EE: 15, EO: 10 };
+  const ORDRE_PHASES: ("CE" | "CO" | "EE" | "EO")[] = ["CE", "CO", "EE", "EO"];
+
+  function demarrerPhase(ph: "CE" | "CO" | "EE" | "EO") {
+    setPhase(ph);
+    setFinPhase(Date.now() + DUREES_MIN[ph] * 60_000);
+    if (typeof window !== "undefined") window.scrollTo({ top: 0 });
+  }
+
+  function phaseSuivante() {
+    const i = ORDRE_PHASES.indexOf(phase as any);
+    const proch = ORDRE_PHASES[i + 1];
+    if (proch) demarrerPhase(proch);
+    else if (!envoyeRef.current) { envoyeRef.current = true; envoyer(); }
+  }
+
+  // Tic du chrono : à 0, on passe automatiquement à l'étape suivante.
+  useEffect(() => {
+    if (!finPhase || fini) return;
+    const t = setInterval(() => {
+      const reste = Math.max(0, Math.ceil((finPhase - Date.now()) / 1000));
+      setResteSec(reste);
+      if (reste <= 0) { clearInterval(t); phaseSuivante(); }
+    }, 500);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [finPhase, fini]);
+
+  const mmss = `${String(Math.floor(resteSec / 60)).padStart(2, "0")}:${String(resteSec % 60).padStart(2, "0")}`;
 
   async function envoyer() {
     setEnvoi(true); setErreur(null);
@@ -81,15 +116,38 @@ export default function Passation({ params }: { params: { token: string } }) {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6">
-      <header className="mb-6">
+      <header className="mb-4">
         <h1 className="text-xl font-bold text-mystory">{data.test.titre}</h1>
         <p className="text-sm text-gray-500">
-          {data.candidat.prenom || data.candidat.nom ? `${data.candidat.prenom ?? ""} ${data.candidat.nom ?? ""}`.trim() + " · " : ""}
-          Cochez la bonne réponse. Les questions à écrire se corrigent sur les mots-clés attendus.
+          {data.candidat.prenom || data.candidat.nom ? `${data.candidat.prenom ?? ""} ${data.candidat.nom ?? ""}`.trim() : ""}
         </p>
       </header>
 
-      {sections.map((sec) => {
+      {phase === "intro" && (
+        <section className="card p-5">
+          <h2 className="mb-2 text-lg font-semibold text-gray-800">Avant de commencer</h2>
+          <p className="mb-3 text-sm text-gray-600">Le test dure <b>65 minutes</b>, en 4 étapes chronométrées. Quand le temps d&apos;une étape est écoulé (ou que vous la validez), vous passez à la suivante — <b>impossible de revenir en arrière</b>.</p>
+          <ul className="mb-4 space-y-1.5 text-sm text-gray-700">
+            <li>📖 <b>Compréhension écrite</b> — 20 min</li>
+            <li>🎧 <b>Compréhension orale</b> — 20 min · <b>chaque audio ne peut être écouté qu&apos;UNE seule fois</b></li>
+            <li>✍️ <b>Expression écrite</b> — 15 min</li>
+            <li>🎤 <b>Expression orale</b> — 10 min (micro requis)</li>
+          </ul>
+          <p className="mb-4 text-xs text-gray-400">Installez-vous au calme, avec de quoi écouter le son. Le chrono démarre au clic.</p>
+          <button onClick={() => demarrerPhase("CE")} className="btn-primary w-full">🚀 Commencer le test (le chrono démarre)</button>
+        </section>
+      )}
+
+      {phase !== "intro" && !fini && (
+        <div className="sticky top-0 z-20 mb-4 flex items-center justify-between rounded-xl border border-gray-200 bg-white/95 px-4 py-2 shadow-sm backdrop-blur">
+          <div className="text-sm font-semibold text-gray-800">
+            Étape {ORDRE_PHASES.indexOf(phase as any) + 1}/4 · {phase === "CE" ? "Compréhension écrite" : phase === "CO" ? "Compréhension orale" : phase === "EE" ? "Expression écrite" : "Expression orale"}
+          </div>
+          <div className={`rounded-lg px-3 py-1 font-mono text-sm font-bold ${resteSec <= 120 ? "bg-red-100 text-red-700" : "bg-blue-50 text-mystory"}`}>⏱ {mmss}</div>
+        </div>
+      )}
+
+      {sections.filter((s) => s === phase).map((sec) => {
         const qs = data.questions.filter((q) => q.section === sec);
         if (!qs.length) return null;
         let lastCtx: string | null = null, lastAudio: string | null = null, lastBloc: string | null = null;
@@ -108,9 +166,7 @@ export default function Passation({ params }: { params: { token: string } }) {
                   {showCtx && <div className="mb-3 rounded-lg bg-gray-50 p-3 text-sm italic text-gray-700">{q.contexte}</div>}
                   {showAudio && (
                     jouable(q.audio_path) ? (
-                      <audio controls preload="none" className="mb-3 w-full">
-                        <source src={q.audio_path!} />
-                      </audio>
+                      <AudioUneEcoute src={q.audio_path!} />
                     ) : (
                       <p className="mb-3 text-xs text-amber-700">🎧 Audio fourni par la formatrice le jour du test.</p>
                     )
@@ -153,7 +209,7 @@ export default function Passation({ params }: { params: { token: string } }) {
         );
       })}
 
-      {(data.test.consigne_ecrit || (data.test.sujets_ecrit?.length ?? 0) > 0) && (
+      {phase === "EE" && (data.test.consigne_ecrit || (data.test.sujets_ecrit?.length ?? 0) > 0) && (
         <section className="mb-8">
           <h2 className="mb-3 border-b border-gray-200 pb-1 text-lg font-semibold text-gray-800">Expression écrite <span className="text-sm font-normal text-gray-400">· /10</span></h2>
           {data.test.consigne_ecrit && <p className="mb-3 whitespace-pre-line text-sm italic text-gray-600">{data.test.consigne_ecrit}</p>}
@@ -215,7 +271,13 @@ export default function Passation({ params }: { params: { token: string } }) {
       )}
 
       {erreur && <p className="mb-3 text-sm text-red-700">{erreur}</p>}
-      <button onClick={envoyer} disabled={envoi} className="btn-primary w-full">{envoi ? "Envoi…" : "Envoyer mes réponses"}</button>
+      {phase !== "intro" && !fini && (
+        phase === "EO" ? (
+          <button onClick={() => { if (!envoyeRef.current) { envoyeRef.current = true; envoyer(); } }} disabled={envoi} className="btn-primary w-full">{envoi ? "Envoi…" : "✅ Terminer et envoyer mes réponses"}</button>
+        ) : (
+          <button onClick={() => { if (confirm("Passer à l'étape suivante ? Vous ne pourrez pas revenir en arrière.")) phaseSuivante(); }} className="btn-primary w-full">Étape suivante →</button>
+        )
+      )}
       <p className="mt-3 text-center text-xs text-gray-400">MYSTORY Formation — vos réponses sont corrigées automatiquement, l'oral et l'écrit par une formatrice.</p>
     </div>
   );
@@ -267,6 +329,31 @@ function EnregistreurOral({ index, question, onBlob }: { index: number; question
       </div>
       {url && <audio controls src={url} className="mt-2 w-full" />}
       {err && <p className="mt-1 text-xs text-red-600">{err}</p>}
+    </div>
+  );
+}
+
+/** Compréhension orale : chaque audio ne peut être écouté qu'UNE seule fois (règle Direction 10/07). */
+function AudioUneEcoute({ src }: { src: string }) {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [etat, setEtat] = useState<"pret" | "lecture" | "fini">("pret");
+
+  function lancer() {
+    if (etat !== "pret") return;
+    const a = new Audio(src);
+    audioRef.current = a;
+    a.onended = () => setEtat("fini");
+    a.onerror = () => setEtat("fini");
+    a.play().then(() => setEtat("lecture")).catch(() => setEtat("pret"));
+  }
+
+  return (
+    <div className="mb-3 flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+      {etat === "pret" && (
+        <button type="button" onClick={lancer} className="btn-primary !py-1.5 !text-sm">▶ Écouter l&apos;audio (1 seule fois)</button>
+      )}
+      {etat === "lecture" && <span className="text-sm font-medium text-mystory">🔊 Écoute en cours… répondez aux questions ci-dessous.</span>}
+      {etat === "fini" && <span className="text-sm text-gray-500">✓ Écoute terminée — répondez de mémoire.</span>}
     </div>
   );
 }
