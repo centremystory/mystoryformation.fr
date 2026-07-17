@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
 
   const { data: ev, error } = await supabaseAdmin
     .from("evaluations")
-    .select("id, test_id, phase, statut, nom, prenom")
+    .select("id, test_id, phase, statut, nom, prenom, auteur")
     .eq("token", token)
     .maybeSingle();
   if (error) return NextResponse.json({ ok: false, erreur: "Lecture impossible." }, { status: 502 });
@@ -41,6 +41,7 @@ export async function GET(req: NextRequest) {
     ok: true,
     test: test ?? { titre: "Test", phase: ev.phase, consigne_ecrit: null, consigne_oral: null, oral_questions: null, sujets_ecrit: null },
     candidat: { nom: ev.nom, prenom: ev.prenom },
+    mode: String(ev.auteur ?? "").startsWith("sur_place") ? "sur_place" : "distance",
     questions: qs ?? [],
   });
 }

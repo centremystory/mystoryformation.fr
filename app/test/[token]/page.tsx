@@ -12,6 +12,7 @@ type Question = {
   contexte: string | null; audio_path: string | null; enonce: string; options: Option[]; points: number;
 };
 type Data = {
+  mode?: "sur_place" | "distance";
   test: { titre: string; phase: string; consigne_ecrit: string | null; consigne_oral: string | null; oral_questions: string[] | null; sujets_ecrit?: Array<{ niveau: string; sujet: string; mots_min: number }> | null };
   candidat: { nom: string | null; prenom: string | null };
   questions: Question[];
@@ -57,7 +58,9 @@ export default function Passation({ params }: { params: { token: string } }) {
 
   const sections = useMemo<("CE" | "CO")[]>(() => ["CE", "CO"], []);
   const DUREES_MIN: Record<"CE" | "CO" | "EE" | "EO", number> = { CE: 20, CO: 20, EE: 15, EO: 10 };
-  const ORDRE_PHASES: ("CE" | "CO" | "EE" | "EO")[] = ["CE", "CO", "EE", "EO"];
+  // Sur place : l'expression orale se fait EN DIRECT avec l'examinateur (qui la note ensuite) —
+  // pas d'enregistrement en ligne. À distance : enregistrement micro (étape EO 10 min).
+  const ORDRE_PHASES: ("CE" | "CO" | "EE" | "EO")[] = data?.mode === "sur_place" ? ["CE", "CO", "EE"] : ["CE", "CO", "EE", "EO"];
 
   function demarrerPhase(ph: "CE" | "CO" | "EE" | "EO") {
     setPhase(ph);
@@ -107,7 +110,33 @@ export default function Passation({ params }: { params: { token: string } }) {
     finally { setEnvoi(false); }
   }
 
-  if (fini) return <Centre><h1 className="mb-2 text-2xl font-bold text-mystory">✓ Test envoyé</h1>{provisoire && <div className="my-3 rounded-xl border-2 border-mystory bg-blue-50 px-6 py-4"><div className="text-xs uppercase tracking-wide text-gray-500">Niveau provisoire (compréhension écrite &amp; orale)</div><div className="text-4xl font-extrabold text-mystory">{provisoire}</div></div>}<p>Merci ! Une formatrice évaluera votre expression écrite et orale sous 48&nbsp;h — vous recevrez votre <strong>niveau complet et nos conseils par email</strong>.</p>{kiosque && <a href="/test/kiosque" className="btn-primary mt-5">Candidat suivant →</a>}</Centre>;
+  if (fini) {
+    const nbMotsFin = ecrit.trim() ? ecrit.trim().split(/\s+/).length : 0;
+    const surPlace = data?.mode === "sur_place";
+    return (
+      <Centre>
+        <h1 className="mb-1 text-2xl font-bold text-mystory">✓ Test terminé — merci{data?.candidat.prenom ? ` ${data.candidat.prenom}` : ""} !</h1>
+        <p className="mb-3 text-sm text-gray-500">Voici le résumé de votre passation.</p>
+        {provisoire && (
+          <div className="my-2 rounded-xl border-2 border-mystory bg-blue-50 px-6 py-4">
+            <div className="text-xs uppercase tracking-wide text-gray-500">Niveau provisoire (compréhension écrite &amp; orale)</div>
+            <div className="text-4xl font-extrabold text-mystory">{provisoire}</div>
+          </div>
+        )}
+        <div className="mx-auto mb-3 max-w-sm space-y-1.5 text-left text-sm text-gray-700">
+          <div className="flex justify-between"><span>📖 Compréhension écrite</span><span className="font-medium text-green-700">✓ envoyée</span></div>
+          <div className="flex justify-between"><span>🎧 Compréhension orale</span><span className="font-medium text-green-700">✓ envoyée</span></div>
+          <div className="flex justify-between"><span>✍️ Expression écrite{sujetEcrit ? ` (sujet ${sujetEcrit})` : ""}</span><span className="font-medium text-amber-600">{nbMotsFin > 0 ? `${nbMotsFin} mots · en correction` : "non rédigée"}</span></div>
+          <div className="flex justify-between"><span>🎤 Expression orale</span><span className="font-medium text-amber-600">{surPlace ? "avec votre examinateur" : Object.keys(oralBlobs).length > 0 ? `${Object.keys(oralBlobs).length} audio(s) · en correction` : "non enregistrée"}</span></div>
+        </div>
+        <div className="mx-auto max-w-sm rounded-xl bg-gray-50 p-4 text-left text-sm text-gray-600">
+          <p className="mb-1 font-semibold text-gray-900">Et maintenant ?</p>
+          <p>{surPlace ? "Votre examinateur va évaluer votre expression orale avec vous, puis une formatrice corrige votre rédaction." : "Une formatrice corrige votre rédaction et vos réponses orales sous 24-48 h."} Vous recevrez ensuite votre <strong>niveau complet, le détail des 4 épreuves et nos conseils par email</strong>{surPlace ? " — et un conseiller vous accompagne tout de suite pour la suite." : ", avec une invitation à échanger avec un conseiller (06 81 43 16 54)."}</p>
+        </div>
+        {kiosque && <a href="/test/kiosque" className="btn-primary mt-5">Candidat suivant →</a>}
+      </Centre>
+    );
+  }
   if (deja) return <Centre><h1 className="mb-2 text-2xl font-bold text-mystory">Test déjà envoyé</h1><p>Ce test a déjà été complété. Merci !</p></Centre>;
   if (erreur && !data) return <Centre><p className="text-red-700">{erreur}</p></Centre>;
   if (!data) return <Centre><p>Chargement…</p></Centre>;
@@ -126,12 +155,14 @@ export default function Passation({ params }: { params: { token: string } }) {
       {phase === "intro" && (
         <section className="card p-5">
           <h2 className="mb-2 text-lg font-semibold text-gray-800">Avant de commencer</h2>
-          <p className="mb-3 text-sm text-gray-600">Le test dure <b>65 minutes</b>, en 4 étapes chronométrées. Quand le temps d&apos;une étape est écoulé (ou que vous la validez), vous passez à la suivante — <b>impossible de revenir en arrière</b>.</p>
+          <p className="mb-3 text-sm text-gray-600">Le test dure <b>{data.mode === "sur_place" ? "55" : "65"} minutes</b>, en {ORDRE_PHASES.length} étapes chronométrées. Quand le temps d&apos;une étape est écoulé (ou que vous la validez), vous passez à la suivante — <b>impossible de revenir en arrière</b>.</p>
           <ul className="mb-4 space-y-1.5 text-sm text-gray-700">
             <li>📖 <b>Compréhension écrite</b> — 20 min</li>
             <li>🎧 <b>Compréhension orale</b> — 20 min · <b>chaque audio ne peut être écouté qu&apos;UNE seule fois</b></li>
             <li>✍️ <b>Expression écrite</b> — 15 min</li>
-            <li>🎤 <b>Expression orale</b> — 10 min (micro requis)</li>
+            {data.mode === "sur_place"
+              ? <li>🎤 <b>Expression orale</b> — en direct avec votre examinateur, après le test écrit</li>
+              : <li>🎤 <b>Expression orale</b> — 10 min (micro requis)</li>}
           </ul>
           <p className="mb-4 text-xs text-gray-400">Installez-vous au calme, avec de quoi écouter le son. Le chrono démarre au clic.</p>
           <button onClick={() => demarrerPhase("CE")} className="btn-primary w-full">🚀 Commencer le test (le chrono démarre)</button>
@@ -141,7 +172,7 @@ export default function Passation({ params }: { params: { token: string } }) {
       {phase !== "intro" && !fini && (
         <div className="sticky top-0 z-20 mb-4 flex items-center justify-between rounded-xl border border-gray-200 bg-white/95 px-4 py-2 shadow-sm backdrop-blur">
           <div className="text-sm font-semibold text-gray-800">
-            Étape {ORDRE_PHASES.indexOf(phase as any) + 1}/4 · {phase === "CE" ? "Compréhension écrite" : phase === "CO" ? "Compréhension orale" : phase === "EE" ? "Expression écrite" : "Expression orale"}
+            Étape {ORDRE_PHASES.indexOf(phase as any) + 1}/{ORDRE_PHASES.length} · {phase === "CE" ? "Compréhension écrite" : phase === "CO" ? "Compréhension orale" : phase === "EE" ? "Expression écrite" : "Expression orale"}
           </div>
           <div className={`rounded-lg px-3 py-1 font-mono text-sm font-bold ${resteSec <= 120 ? "bg-red-100 text-red-700" : "bg-blue-50 text-mystory"}`}>⏱ {mmss}</div>
         </div>
@@ -253,7 +284,7 @@ export default function Passation({ params }: { params: { token: string } }) {
         </section>
       )}
 
-      {(data.test.consigne_oral || (data.test.oral_questions?.length ?? 0) > 0) && (
+      {phase === "EO" && data.mode !== "sur_place" && (data.test.consigne_oral || (data.test.oral_questions?.length ?? 0) > 0) && (
         <section className="mb-8">
           <h2 className="mb-2 border-b border-gray-200 pb-1 text-lg font-semibold text-gray-800">Expression orale</h2>
           {data.test.consigne_oral && <div className="mb-3 rounded-lg bg-gray-50 p-3 text-sm italic text-gray-700">{data.test.consigne_oral}</div>}
@@ -272,7 +303,7 @@ export default function Passation({ params }: { params: { token: string } }) {
 
       {erreur && <p className="mb-3 text-sm text-red-700">{erreur}</p>}
       {phase !== "intro" && !fini && (
-        phase === "EO" ? (
+        phase === ORDRE_PHASES[ORDRE_PHASES.length - 1] ? (
           <button onClick={() => { if (!envoyeRef.current) { envoyeRef.current = true; envoyer(); } }} disabled={envoi} className="btn-primary w-full">{envoi ? "Envoi…" : "✅ Terminer et envoyer mes réponses"}</button>
         ) : (
           <button onClick={() => { if (confirm("Passer à l'étape suivante ? Vous ne pourrez pas revenir en arrière.")) phaseSuivante(); }} className="btn-primary w-full">Étape suivante →</button>
