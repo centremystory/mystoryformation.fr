@@ -1,0 +1,7 @@
+# Audit du test initial — 17/07/2026
+## Flux en production (v2, décisions Direction 09-10/07)
+Entrée `/test` (sur place avec conseiller tracé / à distance) → **étapes chronométrées verrouillées** : CE 20 min → CO 20 min (**écoute unique par audio**) → EE 15 min (cartes de sujets A1/A2/B1/B2 + compteur de mots) → EO 10 min **uniquement à distance** (3 enregistrements micro). **Sur place : 3 étapes / 55 min**, l'oral se fait en direct avec l'examinateur qui note ensuite. Résumé de fin : niveau provisoire CE/CO, état des 4 épreuves, prochaines étapes selon modalité. Notation formatrice (`/tests/à-noter`) → évaluation initiale PDF auto → email résultats + conseils (formule recommandée par écart de niveau) → récap à vie `/tests/[id]` + correction détaillée PDF interne.
+## Bugs corrigés aujourd'hui
+1. **EO affichée sous chaque étape** (condition non accrochée) → corrigé `e670336`. 2. Absence de résumé final → ajouté. 3. Absence de logique distance/sur place → implémentée (mode dérivé de `evaluations.auteur`, exposé par l'API passation).
+## Écarts restants vs cible (P2)
+Champs structurés examinateur (points forts / axes / recommandation distincts — aujourd'hui : note EO + remarques libres) · correction pédagogique détaillée de l'EE par la formatrice (aujourd'hui : remarques) · le « niveau global estimé » n'est jamais affiché au candidat avant notation humaine (choix conforme : pas d'invention).

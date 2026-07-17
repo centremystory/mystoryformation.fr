@@ -1,0 +1,2 @@
+# Matrice de conformité documentaire — 17/07/2026
+Voir `reports/conformite-documentaire-qualiopi-cdc.md` (matrice complète). Synthèse colonne par colonne pour les 12 pièces du dossier : toutes **générées ou complétables dans le CRM** · PDF ✅ · éditables avant génération (complétables) ✅ · signables quand requis (convention, fiche besoin, émargement — DocuSeal/signature tactile) ✅ · versionnées par ré-archivage + journal ✅ · statut visible dans le suivi dossier ✅ · risque conformité résiduel : néant côté logiciel ; organisationnel : référent handicap, DPA, test live.
