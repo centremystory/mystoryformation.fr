@@ -69,9 +69,18 @@ export default function RecapTestPage() {
             <div className="text-gray-500">{[ev.email, ev.telephone].filter(Boolean).join(" · ") || "Pas de coordonnées"}</div>
             {(ev.adresse || ev.ville) && <div className="text-gray-500">{[ev.adresse, [ev.cp, ev.ville].filter(Boolean).join(" ")].filter(Boolean).join(", ")}</div>}
           </div>
-          {d.stagiaire && (
-            <Link href={`/fiche/${d.stagiaire.id}`} className="btn-primary text-sm">Ouvrir la fiche client →</Link>
-          )}
+          <div className="flex flex-wrap gap-2">
+            {ev.statut === "complet" && (
+              <a href={`/api/tests/${ev.id}/correction-pdf`} target="_blank" rel="noreferrer"
+                 className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                 title="Document interne avec les corrigés — à remettre en main propre, ne pas diffuser.">
+                🖨 Correction détaillée (PDF)
+              </a>
+            )}
+            {d.stagiaire && (
+              <Link href={`/fiche/${d.stagiaire.id}`} className="btn-primary text-sm">Ouvrir la fiche client →</Link>
+            )}
+          </div>
         </div>
       </section>
 
