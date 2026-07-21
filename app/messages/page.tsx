@@ -1,6 +1,8 @@
 "use client";
 // app/messages/page.tsx — Messages prospects (équipe) : liste + traiter / archiver.
 import { useCallback, useEffect, useState } from "react";
+import { apiFetch } from "@/lib/apiFetch";
+import { useToast } from "@/components/ui/Toast";
 
 type Msg = { id: string; nom: string | null; email: string | null; message: string; statut: string; source?: string | null; cree_le: string; assignee?: string | null; assignee_nom?: string | null; assignee_email?: string | null };
 type Personne = { id: string; nom: string; prenom: string | null; email: string | null };
@@ -16,6 +18,7 @@ const BADGE: Record<string, string> = {
 };
 
 export default function PageMessages() {
+  const toast = useToast();
   const [filtre, setFiltre] = useState("nouveau");
   const [messages, setMessages] = useState<Msg[]>([]);
   const [charge, setCharge] = useState(true);
@@ -43,19 +46,31 @@ export default function PageMessages() {
   }, [filtre]);
   useEffect(() => { charger(); }, [charger]);
 
+  const STATUT_MSG: Record<string, string> = {
+    traite: "Message marqué traité.",
+    archive: "Message archivé.",
+    nouveau: "Message rouvert.",
+  };
+
   async function setStatut(id: string, statut: string) {
     setBusy(id);
     try {
-      await fetch("/api/contact", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, statut }) });
+      await apiFetch("/api/contact", { method: "PATCH", body: JSON.stringify({ id, statut }) });
+      toast.success(STATUT_MSG[statut] ?? "Message mis à jour.");
       await charger();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Action impossible — réessayez.");
     } finally { setBusy(null); }
   }
 
   async function assigner(id: string, assignee: string) {
     setBusy(id);
     try {
-      await fetch("/api/contact", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, assignee: assignee || null }) });
+      await apiFetch("/api/contact", { method: "PATCH", body: JSON.stringify({ id, assignee: assignee || null }) });
+      toast.success(assignee ? "Message assigné." : "Assignation retirée.");
       await charger();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Assignation impossible — réessayez.");
     } finally { setBusy(null); }
   }
 

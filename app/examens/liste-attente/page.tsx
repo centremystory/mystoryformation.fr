@@ -1,6 +1,8 @@
 "use client";
 // app/examens/liste-attente/page.tsx — Liste d'attente par session (CDC §4).
 import { useCallback, useEffect, useState } from "react";
+import { apiFetch } from "@/lib/apiFetch";
+import { useToast } from "@/components/ui/Toast";
 
 type Session = { id: string; type: string; date_examen: string | null; horaire: string | null; capacite: number; inscrits: number; restantes: number };
 type Entree = { id: string; session_id: string; nom: string; prenom: string | null; email: string | null; telephone: string | null; note: string | null; statut: string; cree_le: string; sessions_examen?: any };
@@ -10,6 +12,7 @@ const BADGE: Record<string, string> = {
 };
 
 export default function PageListeAttente() {
+  const toast = useToast();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [entrees, setEntrees] = useState<Entree[]>([]);
   const [charge, setCharge] = useState(true);
@@ -36,19 +39,25 @@ export default function PageListeAttente() {
     if (!sessionId || !nom.trim()) return;
     setBusy("add");
     try {
-      await fetch("/api/examens/liste-attente", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+      await apiFetch("/api/examens/liste-attente", {
+        method: "POST",
         body: JSON.stringify({ sessionId, nom, prenom, email, telephone, note }),
       });
       setNom(""); setPrenom(""); setEmail(""); setTelephone(""); setNote("");
+      toast.success("Ajouté à la liste d'attente.");
       await charger();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Ajout impossible — réessayez.");
     } finally { setBusy(null); }
   }
   async function agir(id: string, action: string) {
     setBusy(id);
     try {
-      await fetch("/api/examens/liste-attente", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, action }) });
+      await apiFetch("/api/examens/liste-attente", { method: "PATCH", body: JSON.stringify({ id, action }) });
+      toast.success("Liste d'attente mise à jour.");
       await charger();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Action impossible — réessayez.");
     } finally { setBusy(null); }
   }
 

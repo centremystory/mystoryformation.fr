@@ -1,6 +1,8 @@
 "use client";
 // app/contenu-pedagogique/page.tsx — Bibliothèque de supports pédagogiques (upload).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { apiFetch } from "@/lib/apiFetch";
+import { useToast } from "@/components/ui/Toast";
 
 type Entree = {
   id: string; certification: string; niveau: string; type: string; module: string | null; titre: string; description: string | null;
@@ -28,6 +30,7 @@ function dateFr(iso: string): string {
 }
 
 export default function PageContenu() {
+  const toast = useToast();
   const [entrees, setEntrees] = useState<Entree[]>([]);
   const [charge, setCharge] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -84,8 +87,11 @@ export default function PageContenu() {
   async function archiver(id: string) {
     setBusy(`arch-${id}`);
     try {
-      await fetch("/api/contenu-pedagogique", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, action: "archiver" }) });
+      await apiFetch("/api/contenu-pedagogique", { method: "PATCH", body: JSON.stringify({ id, action: "archiver" }) });
+      toast.success("Support archivé.");
       await charger();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Archivage impossible — réessayez.");
     } finally { setBusy(null); }
   }
 
