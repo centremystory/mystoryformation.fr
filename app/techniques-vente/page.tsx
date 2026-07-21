@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import GuidesSousNav from "@/components/GuidesSousNav";
+import { apiFetch } from "@/lib/apiFetch";
+import { useToast } from "@/components/ui/Toast";
 
 type Fiche = { id: string; categorie: string; titre: string; contenu: string; ordre: number };
 
@@ -40,6 +42,7 @@ function Rendu({ texte }: { texte: string }) {
 }
 
 export default function TechniquesVentePage() {
+  const toast = useToast();
   const [fiches, setFiches] = useState<Fiche[]>([]);
   const [recherche, setRecherche] = useState("");
   const [peutEditer, setPeutEditer] = useState(false);
@@ -75,19 +78,34 @@ export default function TechniquesVentePage() {
 
   async function sauverEdit(id: string) {
     const e = edit[id]; if (!e) return;
-    await fetch("/api/techniques-vente", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, ...e }) });
-    setEdit((p) => { const n = { ...p }; delete n[id]; return n; });
-    await charger();
+    try {
+      await apiFetch("/api/techniques-vente", { method: "PATCH", body: JSON.stringify({ id, ...e }) });
+      toast.success("Fiche enregistrée.");
+      setEdit((p) => { const n = { ...p }; delete n[id]; return n; });
+      await charger();
+    } catch (err: any) {
+      toast.error(err?.message ?? "Enregistrement impossible — réessayez.");
+    }
   }
   async function archiver(id: string) {
     if (!window.confirm("Archiver cette fiche ?")) return;
-    await fetch("/api/techniques-vente", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, action: "archiver" }) });
-    await charger();
+    try {
+      await apiFetch("/api/techniques-vente", { method: "PATCH", body: JSON.stringify({ id, action: "archiver" }) });
+      toast.success("Fiche archivée.");
+      await charger();
+    } catch (err: any) {
+      toast.error(err?.message ?? "Archivage impossible — réessayez.");
+    }
   }
   async function ajouter() {
     if (!nouv || !nouv.titre.trim() || !nouv.contenu.trim()) return;
-    await fetch("/api/techniques-vente", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(nouv) });
-    setNouv(null); await charger();
+    try {
+      await apiFetch("/api/techniques-vente", { method: "POST", body: JSON.stringify(nouv) });
+      toast.success("Fiche ajoutée.");
+      setNouv(null); await charger();
+    } catch (err: any) {
+      toast.error(err?.message ?? "Ajout impossible — réessayez.");
+    }
   }
 
   return (

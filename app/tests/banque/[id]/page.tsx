@@ -5,6 +5,8 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { apiFetch } from "@/lib/apiFetch";
+import { useToast } from "@/components/ui/Toast";
 
 type Option = { cle: string; texte: string; image?: string };
 type Question = {
@@ -23,6 +25,7 @@ async function uploadFichier(file: File): Promise<string | null> {
 }
 
 export default function EditionTest({ params }: { params: { id: string } }) {
+  const toast = useToast();
   const [test, setTest] = useState<Test | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [chargement, setChargement] = useState(true);
@@ -42,19 +45,29 @@ export default function EditionTest({ params }: { params: { id: string } }) {
 
   async function enregistrerTest() {
     if (!test) return;
-    await fetch("/api/tests/banque", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "maj_test", test_id: test.id, titre: test.titre, periode: test.periode, consigne_ecrit: test.consigne_ecrit, consigne_oral: test.consigne_oral, oral_questions: test.oral_questions }),
-    });
-    setOkMsg("Enregistré ✓"); setTimeout(() => setOkMsg(null), 1500);
+    try {
+      await apiFetch("/api/tests/banque", {
+        method: "POST",
+        body: JSON.stringify({ action: "maj_test", test_id: test.id, titre: test.titre, periode: test.periode, consigne_ecrit: test.consigne_ecrit, consigne_oral: test.consigne_oral, oral_questions: test.oral_questions }),
+      });
+      toast.success("Test enregistré.");
+      setOkMsg("Enregistré ✓"); setTimeout(() => setOkMsg(null), 1500);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Enregistrement impossible — réessayez.");
+    }
   }
 
   async function archiverQuestion(qid: string) {
-    await fetch("/api/tests/banque", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "archiver_question", question_id: qid, test_id: params.id }),
-    });
-    charger();
+    try {
+      await apiFetch("/api/tests/banque", {
+        method: "POST",
+        body: JSON.stringify({ action: "archiver_question", question_id: qid, test_id: params.id }),
+      });
+      toast.success("Question archivée.");
+      charger();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Archivage impossible — réessayez.");
+    }
   }
 
   function nouvelleQuestion(section: "CE" | "CO") {

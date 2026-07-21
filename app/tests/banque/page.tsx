@@ -5,10 +5,13 @@
  */
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { apiFetch } from "@/lib/apiFetch";
+import { useToast } from "@/components/ui/Toast";
 
 type T = { id: string; phase: string; certif: string; titre: string; periode: string | null; actif: boolean; nb_questions: number; cree_le: string };
 
 export default function Banque() {
+  const toast = useToast();
   const [tests, setTests] = useState<T[]>([]);
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -32,23 +35,35 @@ export default function Banque() {
 
   async function creerTest() {
     if (!titre.trim()) return;
-    setEnvoi(true);
+    setEnvoi(true); setErreur(null);
     try {
-      const r = await fetch("/api/tests/banque", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+      await apiFetch("/api/tests/banque", {
+        method: "POST",
         body: JSON.stringify({ action: "creer", phase, titre, periode }),
       });
-      const j = await r.json();
-      if (j.ok) { setTitre(""); setPeriode(""); setCreer(false); charger(); } else setErreur(j.erreur || "Erreur.");
+      toast.success("Test créé.");
+      setTitre(""); setPeriode(""); setCreer(false); charger();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Création impossible — réessayez.");
     } finally { setEnvoi(false); }
   }
 
   async function action(a: string, test_id: string, extra: Record<string, unknown> = {}) {
-    await fetch("/api/tests/banque", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: a, test_id, ...extra }),
-    });
-    charger();
+    const LIBELLE: Record<string, string> = {
+      dupliquer: "Test dupliqué.",
+      archiver_test: "Test archivé.",
+      activer_test: "Test réactivé.",
+    };
+    try {
+      await apiFetch("/api/tests/banque", {
+        method: "POST",
+        body: JSON.stringify({ action: a, test_id, ...extra }),
+      });
+      toast.success(LIBELLE[a] ?? "Action effectuée.");
+      charger();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Action impossible — réessayez.");
+    }
   }
 
   return (

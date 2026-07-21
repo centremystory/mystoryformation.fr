@@ -2,12 +2,15 @@
 // app/formation/AlertesFormation.tsx — Panneau d'alertes du hub Formation.
 // (15) Participation forfaitaire 150€ non réglée · (16) Identité CPF (rappel J+14).
 import { useCallback, useEffect, useState } from "react";
+import { apiFetch } from "@/lib/apiFetch";
+import { useToast } from "@/components/ui/Toast";
 
 type Participation = { dossierId: string; stagiaire: string; agence: string | null; montant: number; dateValidation: string | null };
 type Identite = { dossierId: string; stagiaire: string; agence: string | null; envoyeLe: string | null; jours: number | null; statut: "a_envoyer" | "en_attente" | "rappel" };
 type Data = { participation: Participation[]; identite: Identite[]; rappelsIdentite: number; montantParticipation: number; delaiRappelJours: number };
 
 export default function AlertesFormation() {
+  const toast = useToast();
   const [data, setData] = useState<Data | null>(null);
   const [charge, setCharge] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -25,11 +28,14 @@ export default function AlertesFormation() {
   async function agir(dossierId: string, action: string, marqueur: string, motif?: string) {
     setBusy(marqueur);
     try {
-      const r = await fetch("/api/formation/alertes", {
-        method: "PATCH", headers: { "Content-Type": "application/json" },
+      await apiFetch("/api/formation/alertes", {
+        method: "PATCH",
         body: JSON.stringify({ dossierId, action, motif }),
       });
-      if ((await r.json()).ok) await charger();
+      toast.success("Alerte mise à jour.");
+      await charger();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Action impossible — réessayez.");
     } finally { setBusy(null); }
   }
 
