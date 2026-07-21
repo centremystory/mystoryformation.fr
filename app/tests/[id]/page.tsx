@@ -17,6 +17,13 @@ type Data = {
   conseil: { formule: string; heures: number; message: string; ecart: number | null } | null;
 };
 
+const ORAL_MODE_LABEL: Record<string, string> = {
+  remote_recording: "Enregistrements audio à distance",
+  onsite_examiner: "Entretien oral sur place (examinateur)",
+  not_required: "Épreuve orale non requise",
+  pending: "En attente d'évaluation",
+};
+
 const STATUT: Record<string, { label: string; cls: string }> = {
   en_cours: { label: "Passation en cours", cls: "bg-amber-100 text-amber-700" },
   en_attente_formateur: { label: "À noter (EE/EO)", cls: "bg-blue-100 text-blue-700" },
@@ -101,6 +108,16 @@ export default function RecapTestPage() {
           <Note lbl="Expression orale" n={ev.eo_sur10} />
         </div>
         {ev.niveau_vise && <div className="mt-3 text-sm text-gray-600">Objectif exprimé par le candidat : <strong>{ev.niveau_vise}</strong></div>}
+        {ev.oral_evaluation_mode && (
+          <div className="mt-3 rounded-lg border border-gray-200 p-3 text-sm text-gray-700">
+            <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Évaluation orale</div>
+            <div className="mt-1">Modalité : <strong>{ORAL_MODE_LABEL[ev.oral_evaluation_mode] ?? ev.oral_evaluation_mode}</strong>{ev.oral_level_estimated ? <> · niveau estimé <strong>{ev.oral_level_estimated}</strong></> : null}</div>
+            {ev.oral_strengths && <div className="mt-1"><span className="font-semibold">Points forts :</span> {ev.oral_strengths}</div>}
+            {ev.oral_improvement_areas && <div className="mt-1"><span className="font-semibold">Axes d&apos;amélioration :</span> {ev.oral_improvement_areas}</div>}
+            {ev.oral_recommendation && <div className="mt-1"><span className="font-semibold">Recommandation :</span> {ev.oral_recommendation}</div>}
+            {ev.oral_examiner_comment && <div className="mt-1"><span className="font-semibold">Commentaire :</span> {ev.oral_examiner_comment}</div>}
+          </div>
+        )}
         {ev.remarques && <div className="mt-3 rounded-lg bg-gray-50 p-3 text-sm text-gray-700"><span className="font-semibold">Remarques de la formatrice{ev.notateur ? ` (${ev.notateur})` : ""} :</span> {ev.remarques}</div>}
       </section>
 

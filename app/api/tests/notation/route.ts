@@ -68,6 +68,13 @@ export async function POST(req: NextRequest) {
   }
   const remarques = body.remarques == null ? null : (String(body.remarques).trim().slice(0, 4000) || null);
 
+  // Modalité orale explicite (remplace la déduction implicite depuis `auteur`/`oral_audios`).
+  // Facultatif : un client plus ancien qui n'envoie rien ne modifie pas la modalité existante.
+  const ORAL_MODES = ["remote_recording", "onsite_examiner", "not_required", "pending"];
+  const oralModeRaw = String(body.oral_evaluation_mode ?? "").trim();
+  const oralMode = ORAL_MODES.includes(oralModeRaw) ? oralModeRaw : null;
+  const clip = (v: unknown, n = 2000) => (v == null ? null : String(v).trim().slice(0, n) || null);
+
   const { data: ev } = await supabaseAdmin
     .from("evaluations").select("id, phase, dossier_id, ce_sur10, co_sur10, statut, civilite, nom, prenom, email, niveau_vise").eq("id", id).maybeSingle();
   if (!ev) return NextResponse.json({ ok: false, erreur: "Évaluation introuvable." }, { status: 404 });
@@ -77,9 +84,24 @@ export async function POST(req: NextRequest) {
   const total = Math.round(((Number(ev.ce_sur10) + Number(ev.co_sur10) + ee + eo) / 2) * 10) / 10;
   const niveau = niveauFromSur20(total);
 
+  // Évaluation orale granulaire (trace stable, ne réécrase jamais la modalité si non fournie).
+  const oralPatch: Record<string, unknown> = {
+    oral_score: eo,
+    oral_status: oralMode === "not_required" ? "not_applicable" : "evaluated",
+    oral_level_estimated: clip(body.oral_level_estimated, 16),
+    oral_strengths: clip(body.oral_strengths),
+    oral_improvement_areas: clip(body.oral_improvement_areas),
+    oral_recommendation: clip(body.oral_recommendation),
+    oral_examiner_comment: clip(body.oral_examiner_comment),
+    oral_examiner_id: u.email ?? null,
+    oral_evaluated_at: new Date().toISOString(),
+  };
+  if (oralMode) oralPatch.oral_evaluation_mode = oralMode;
+
   const { error } = await supabaseAdmin.from("evaluations").update({
     ee_sur10: ee, eo_sur10: eo, remarques, total_sur20: total, niveau_global: niveau,
     statut: "complet", complete_le: new Date().toISOString(), notateur: u.email ?? null,
+    ...oralPatch,
   }).eq("id", id);
   if (error) return NextResponse.json({ ok: false, erreur: "Enregistrement impossible." }, { status: 502 });
 

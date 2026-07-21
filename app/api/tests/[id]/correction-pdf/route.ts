@@ -25,7 +25,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   const { data: ev } = await supabaseAdmin
     .from("evaluations")
-    .select("id, test_id, phase, civilite, nom, prenom, niveau_vise, reponses, ecrit, sujet_ecrit, ce_sur10, co_sur10, ee_sur10, eo_sur10, total_sur20, niveau_global, statut, notateur, remarques, cree_le, complete_le")
+    .select("id, test_id, phase, civilite, nom, prenom, niveau_vise, reponses, ecrit, sujet_ecrit, ce_sur10, co_sur10, ee_sur10, eo_sur10, total_sur20, niveau_global, statut, notateur, remarques, cree_le, complete_le, oral_evaluation_mode, oral_status, oral_score, oral_level_estimated, oral_examiner_comment, oral_strengths, oral_improvement_areas, oral_recommendation")
     .eq("id", params.id).maybeSingle();
   if (!ev) return NextResponse.json({ ok: false, erreur: "Test introuvable." }, { status: 404 });
   if (ev.statut !== "complet") return NextResponse.json({ ok: false, erreur: "La correction détaillée est disponible après la notation complète." }, { status: 409 });
@@ -55,6 +55,32 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       <td class="pt">${ok ? `+${q.points}` : "0"}/${q.points} ${ok ? "✓" : "✗"}</td>
     </tr>`;
   }).join("");
+
+  // Section orale — 3 cas (à distance / sur place / non requise), sans JAMAIS inventer.
+  const ORAL_MODE_LABEL: Record<string, string> = {
+    remote_recording: "Enregistrements audio à distance",
+    onsite_examiner: "Entretien oral sur place (examinateur)",
+    not_required: "Épreuve orale non requise",
+    pending: "En attente d'évaluation",
+  };
+  const oralMode = String(ev.oral_evaluation_mode ?? "");
+  const oralDetails: string[] = [];
+  if (ev.oral_level_estimated) oralDetails.push(`<p><b>Niveau estimé à l'oral :</b> ${esc(ev.oral_level_estimated)}</p>`);
+  if (ev.oral_strengths) oralDetails.push(`<p><b>Points forts :</b> ${esc(ev.oral_strengths)}</p>`);
+  if (ev.oral_improvement_areas) oralDetails.push(`<p><b>Axes d'amélioration :</b> ${esc(ev.oral_improvement_areas)}</p>`);
+  if (ev.oral_recommendation) oralDetails.push(`<p><b>Recommandation :</b> ${esc(ev.oral_recommendation)}</p>`);
+  const oralComment = ev.oral_examiner_comment || ev.remarques;
+  if (oralComment) oralDetails.push(`<p><b>Commentaire de l'examinateur :</b> ${esc(oralComment)}</p>`);
+
+  let oralBody: string;
+  if (oralMode === "not_required" || ev.oral_status === "not_applicable") {
+    oralBody = `<p>Épreuve orale non requise pour ce test.</p>`;
+  } else {
+    const entete = `<p style="color:#556;font-size:8pt;margin:0 0 1mm;">Modalité : ${esc(ORAL_MODE_LABEL[oralMode] ?? "—")}</p>`;
+    oralBody = entete + (oralDetails.length
+      ? oralDetails.join("")
+      : `<p><em>Correction détaillée à compléter par le formateur.</em></p>`);
+  }
 
   const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><style>
 @page { size: A4; margin: 14mm 12mm 16mm; }
@@ -95,8 +121,8 @@ th { background:#EAF1FC; text-align:left; }
 <h2>Expression écrite${ev.sujet_ecrit ? ` — sujet ${esc(ev.sujet_ecrit)}` : ""} · ${esc(ev.ee_sur10 ?? "—")}/10</h2>
 <div class="ee">${esc(ev.ecrit ?? "— pas de rédaction —")}</div>
 
-<h2>Expression orale · ${esc(ev.eo_sur10 ?? "—")}/10</h2>
-<p style="font-size:8.5pt;">${ev.remarques ? `Remarques de la formatrice : ${esc(ev.remarques)}` : "Évaluée par la formatrice (enregistrements ou entretien sur place)."}</p>
+<h2>Expression orale · ${esc(ev.eo_sur10 ?? ev.oral_score ?? "—")}/10</h2>
+<div style="font-size:8.5pt;">${oralBody}</div>
 
 <div class="confid">⚠️ Document confidentiel remis en main propre — il contient les corrigés MYSTORY. Merci de ne pas le diffuser.</div>
 <div class="footer">MYSTORY SASU · 3 bis avenue de Gagny, 93220 Gagny · SIRET 913 423 083 00017 · NDA 11756521775 (ne vaut pas agrément de l'État)</div>
