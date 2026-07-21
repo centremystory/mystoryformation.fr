@@ -55,7 +55,8 @@ export default function GuideFormatricesPage() {
     ]);
     const j = await r.json();
     if (j.ok) setFiches(j.fiches);
-    const roles: string[] = me?.roles ?? (me?.role ? [me.role] : []);
+    // /api/me renvoie { ok, user: { role, roles } } → lire sous .user (bug corrigé : avant me?.roles = toujours vide → édition ouverte à tous)
+    const roles: string[] = me?.user?.roles ?? (me?.user?.role ? [me.user.role] : []);
     setPeutEditer(roles.length === 0 || roles.includes("direction") || roles.includes("manager") || roles.includes("staff"));
     setCharge(false);
   }, []);
