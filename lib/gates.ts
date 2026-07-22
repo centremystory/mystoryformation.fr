@@ -114,17 +114,24 @@ export async function checkConformite(dossierId: string): Promise<GateResult> {
 
   // Cohérence FORMULE (source unique : table public.formules) — heures/prix officiels.
   // Garantit l'impossibilité d'un écart prix ↔ EDOF (durée et prix verrouillés ensemble).
-  const { data: formule } = await supabaseAdmin
+  // Financement du dossier -> grille correspondante. CPF = contrôle STRICT (tarif officiel = ce qui
+  // est facturé et déclaré CDC). Fonds propres / OPCO = remises autorisées (prix libre <= référence).
+  const finDossier = String((d as any).financement ?? "").toLowerCase();
+  const isCpf = finDossier === "cpf" || finDossier === "";
+  const { data: formules } = await supabaseAdmin
     .from("formules")
-    .select("prix_eur")
+    .select("prix_eur, financement")
     .eq("certif", (d as any).certif)
     .eq("heures", Number(d.heures_prevues))
-    .eq("actif", true)
-    .maybeSingle();
-  if (!formule) {
-    recap.push(`Aucune formule officielle pour ${d.heures_prevues} h (${(d as any).certif}). Formules valides : 6 h, 16 h, 26 h.`);
-  } else if (Number(formule.prix_eur) !== Number(d.montant)) {
-    recap.push(`Tarif non conforme : la formule ${d.heures_prevues} h doit être facturée ${formule.prix_eur} € (dossier : ${d.montant} €).`);
+    .eq("actif", true);
+  const list = (formules ?? []) as Array<{ prix_eur: number; financement: string }>;
+  const ref = list.find((f) => f.financement === finDossier) ?? list.find((f) => f.financement === "cpf") ?? list[0];
+  if (!ref) {
+    recap.push(`Aucune formule officielle pour ${d.heures_prevues} h (${(d as any).certif}). Formules valides : 6 h, 18 h, 30 h, 42 h.`);
+  } else if (isCpf && Number(ref.prix_eur) !== Number(d.montant)) {
+    recap.push(`Tarif CPF non conforme : la formule ${d.heures_prevues} h doit être facturée ${ref.prix_eur} € (dossier : ${d.montant} €).`);
+  } else if (!isCpf && Number(d.montant) > Number(ref.prix_eur)) {
+    recap.push(`Tarif ${finDossier || "hors CPF"} au-dessus du tarif de référence (${ref.prix_eur} € pour ${d.heures_prevues} h ; dossier : ${d.montant} €).`);
   }
 
   // FLE — formatrice référent
