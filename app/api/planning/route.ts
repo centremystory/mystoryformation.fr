@@ -132,7 +132,7 @@ export async function PATCH(req: NextRequest) {
     seanceInput(p.id === id ? newDate : p.date_seance, p.id === id ? newDemi : p.demi_journee, Number(p.heures))
   );
 
-  const code = ({ 6: "6H", 16: "16H", 26: "26H" } as Record<number, CodeFormule>)[Number(dossier.heures_prevues)];
+  const code = ({ 6: "6H", 18: "18H", 30: "30H", 42: "42H" } as Record<number, CodeFormule>)[Number(dossier.heures_prevues)];
   if (!code) return NextResponse.json({ ok: false, erreur: "Formule du dossier non reconnue." }, { status: 409 });
 
   const v = validerPlanning(code, reconstruit, dossier.date_validation_commande ?? null);

@@ -1,7 +1,7 @@
 // lib/inscriptions/regles.ts — Règles de conformité MYSTORY (inscriptions formation)
 // Source de vérité unique : catalogue, décompositions de séances, délai d'accès, validations.
 
-export type CodeFormule = "6H" | "16H" | "26H";
+export type CodeFormule = "6H" | "18H" | "30H" | "42H";
 
 export interface Formule {
   code: CodeFormule;
@@ -14,16 +14,21 @@ export interface Formule {
   descriptionFinale: string;
 }
 
+// Formules 2026 — durées multiples de 3h (séances de 3h, oral intégré à la dernière séance).
+// Prix alignés sur la grille CPF officielle (table public.formules) → dossiers conformes au gate CDC.
 export const CATALOGUE: Record<CodeFormule, Formule> = {
-  "6H":  { code: "6H",  libelle: "6h – 450 €",   dureeHeures: 6,  prixEuros: 450,
-           seances3h: 2, seanceFinaleHeures: 0,
-           descriptionFinale: "Oral + simulation intégrés à la dernière heure du 2e cours" },
-  "16H": { code: "16H", libelle: "16h – 950 €",  dureeHeures: 16, prixEuros: 950,
-           seances3h: 5, seanceFinaleHeures: 1,
-           descriptionFinale: "Séance finale 1h : oral + simulation d'examen" },
-  "26H": { code: "26H", libelle: "26h – 1450 €", dureeHeures: 26, prixEuros: 1450,
-           seances3h: 8, seanceFinaleHeures: 2,
-           descriptionFinale: "Séance finale 2h : oral + bilan complet" },
+  "6H":  { code: "6H",  libelle: "6 h – 400 €",   dureeHeures: 6,  prixEuros: 400,
+           seances3h: 2,  seanceFinaleHeures: 0,
+           descriptionFinale: "Oral + simulation intégrés à la dernière séance" },
+  "18H": { code: "18H", libelle: "18 h – 805 €",  dureeHeures: 18, prixEuros: 805,
+           seances3h: 6,  seanceFinaleHeures: 0,
+           descriptionFinale: "Oral + simulation intégrés à la dernière séance" },
+  "30H": { code: "30H", libelle: "30 h – 1150 €", dureeHeures: 30, prixEuros: 1150,
+           seances3h: 10, seanceFinaleHeures: 0,
+           descriptionFinale: "Oral + simulation intégrés à la dernière séance" },
+  "42H": { code: "42H", libelle: "42 h – 1435 €", dureeHeures: 42, prixEuros: 1435,
+           seances3h: 14, seanceFinaleHeures: 0,
+           descriptionFinale: "Oral + simulation intégrés à la dernière séance" },
 };
 
 export type Creneau = "MATIN" | "APRES_MIDI" | "FINALE_1H" | "FINALE_2H";
@@ -86,7 +91,7 @@ export interface InscriptionInput {
   financement: "CPF" | "OPCO" | "PoleEmploi" | "Perso"; // valeurs exactes du CHECK Supabase
   numeroEdof?: string | null;
   formule: CodeFormule;
-  agenceInscription: "GAGNY" | "SARCELLES";
+  agenceInscription: "GAGNY" | "SARCELLES" | "ROSNY";
   niveauVise: "A1" | "A2" | "B1" | "B2";
   dateCommandeValidee?: string | null; // ISO — validation commande EDOF (CPF)
 }
