@@ -92,14 +92,12 @@ export async function POST(req: NextRequest) {
   let champsValides: Record<string, unknown> = {};
 
   if (type === "fiche_analyse_besoin") {
-    // Objectif principal PROFESSIONNEL (conformité CPF/CDC : le CPF ne finance que le professionnel).
-    const OBJECTIFS = ["francais_pro", "emploi", "maintien", "mobilite"];
+    // Objectif principal PROFESSIONNEL (v2.1 — obligatoire si CPF : le CPF ne finance que le professionnel).
+    const OBJECTIFS = ["emploi", "maintien", "evolution_mobilite", "creation_entreprise"];
     const objectif = String(champs.objectif ?? "");
-    // Démarche administrative ASSOCIÉE (naturalisation / résidence / titre de séjour) : contexte lié
-    // au projet professionnel, JAMAIS l'objectif principal d'une formation CPF. Multi-choix, facultatif.
-    const DEMARCHES = ["carte_sejour", "carte_resident", "naturalisation", "titre_sejour", "integration"];
-    const demarches = Array.isArray(champs.demarches)
-      ? champs.demarches.map((x: unknown) => String(x)).filter((x: string) => DEMARCHES.includes(x)) : [];
+    // Objectif administratif COMPLÉMENTAIRE (v2.1) — choix unique, niveaux mini 2026 ; jamais l'objectif principal CPF.
+    const OBJ_ADMIN = ["aucun", "carte_sejour", "carte_resident", "naturalisation"];
+    const objectifAdmin = OBJ_ADMIN.includes(String(champs.objectif_admin ?? "")) ? String(champs.objectif_admin) : "aucun";
     const projet = String(champs.projet ?? "").trim();
     const compensation = String(champs.compensation ?? "non");
     const compDetail = String(champs.compensation_detail ?? "").trim();
@@ -151,17 +149,16 @@ export async function POST(req: NextRequest) {
 
     extras = {
       ...extras,
-      // Objectif principal PROFESSIONNEL (exigence CPF/CDC)
-      obj_pro: box(objectif === "francais_pro"),
+      // Objectif principal PROFESSIONNEL (v2.1 — exigence CPF/CDC)
       obj_emploi: box(objectif === "emploi"),
       obj_maintien: box(objectif === "maintien"),
-      obj_mobilite: box(objectif === "mobilite"),
-      // Démarche administrative ASSOCIÉE (contexte lié, jamais l'objectif principal CPF)
-      adm_sejour: box(demarches.includes("carte_sejour")),
-      adm_resident: box(demarches.includes("carte_resident")),
-      adm_naturalisation: box(demarches.includes("naturalisation")),
-      adm_titre_sejour: box(demarches.includes("titre_sejour")),
-      adm_integration: box(demarches.includes("integration")),
+      obj_evolution: box(objectif === "evolution_mobilite"),
+      obj_creation: box(objectif === "creation_entreprise"),
+      // Objectif administratif COMPLÉMENTAIRE (choix unique)
+      adm_aucun: box(objectifAdmin === "aucun"),
+      adm_sejour: box(objectifAdmin === "carte_sejour"),
+      adm_resident: box(objectifAdmin === "carte_resident"),
+      adm_naturalisation: box(objectifAdmin === "naturalisation"),
       projet,
       // Statut
       sit_salarie: box(situation === "salarie"),
@@ -213,7 +210,7 @@ export async function POST(req: NextRequest) {
       vise_c1: box(fiche.niveauVise === "C1"),
     };
     champsValides = {
-      objectif, demarches, projet,
+      objectif, objectif_admin: objectifAdmin, projet,
       situation, situation_detail: situationDetail,
       financement, cpf_informe: cpfInforme,
       positionnement, positionnement_detail: positionnementDetail,
