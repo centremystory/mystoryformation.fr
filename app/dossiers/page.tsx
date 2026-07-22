@@ -1244,7 +1244,7 @@ function FormulaireCompletion({
 }) {
   const [champs, setChamps] = useState<Record<string, any>>(
     type === "fiche_analyse_besoin"
-      ? { objectif: "", objectif_autre: "", projet: "", situation: "", situation_detail: "", financement: "", cpf_informe: false, positionnement: "test", positionnement_detail: "", positionnement_date: "", positionnement_resultat: "", certification: "", examen_prevu: "", duree_justification: "", dispo_rythme: "", dispo_creneaux: [], debut_souhaite: "", commentaires: "", compensation: "non", compensation_detail: "", coherence: false }
+      ? { objectif: "", demarches: [], projet: "", situation: "", situation_detail: "", financement: "", cpf_informe: false, positionnement: "test", positionnement_detail: "", positionnement_date: "", positionnement_resultat: "", certification: "", examen_prevu: "", duree_justification: "", dispo_rythme: "", dispo_creneaux: [], debut_souhaite: "", commentaires: "", compensation: "non", compensation_detail: "", coherence: false }
       : { niveau_co: "", niveau_ce: "", niveau_eo: "", niveau_ee: "", niveau_global: "", commentaires: "", axes: "" }
   );
   const [auteur, setAuteur] = useState("");
@@ -1303,25 +1303,33 @@ function FormulaireCompletion({
 
       {type === "fiche_analyse_besoin" ? (
         <div className="space-y-3">
-          {/* 2. OBJECTIF (niveaux mini réglementaires 2026) */}
+          {/* 2. OBJECTIF — principal PROFESSIONNEL (conformité CPF/CDC) */}
           <label className="block text-sm">
-            <span className="font-medium">Objectif principal </span>
-            <span className="text-xs font-normal text-gray-500">(niveau mini exigé depuis le 01/01/2026)</span>
+            <span className="font-medium">Objectif principal (professionnel)</span>
+            <span className="text-xs font-normal text-gray-500"> — exigé pour un financement CPF</span>
             <select value={champs.objectif} onChange={(e) => set("objectif", e.target.value)}
                     className={`${champClasses} mt-1 block w-full max-w-md`}>
               <option value="">— Choisir —</option>
-              <option value="carte_sejour">Carte de séjour pluriannuelle (A2)</option>
-              <option value="carte_resident">Carte de résident (B1)</option>
-              <option value="naturalisation">Naturalisation (B2)</option>
               <option value="francais_pro">Français professionnel</option>
-              <option value="emploi_mobilite">Recherche d'emploi / mobilité</option>
-              <option value="autre">Autre</option>
+              <option value="emploi">Accès / retour à l'emploi</option>
+              <option value="maintien">Maintien dans l'emploi / adaptation au poste</option>
+              <option value="mobilite">Mobilité / évolution professionnelle</option>
             </select>
           </label>
-          {champs.objectif === "autre" && (
-            <input value={champs.objectif_autre} onChange={(e) => set("objectif_autre", e.target.value)}
-                   placeholder="Préciser l'objectif" className={`${champClasses} block w-full max-w-md`} />
-          )}
+          {/* Démarche administrative ASSOCIÉE — contexte lié, jamais l'objectif principal CPF */}
+          <div className="text-sm">
+            <span className="font-medium">Démarche administrative associée </span>
+            <span className="text-xs font-normal text-gray-500">(le cas échéant — contexte lié au projet professionnel, jamais l'objectif principal d'une formation CPF)</span>
+            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+              {([["carte_sejour", "Carte de séjour pluriannuelle"], ["carte_resident", "Carte de résident"], ["naturalisation", "Naturalisation"], ["titre_sejour", "1re demande de titre de séjour"], ["integration", "Intégration"]] as const).map(([v, l]) => (
+                <label key={v} className="inline-flex items-center gap-1.5">
+                  <input type="checkbox" checked={(champs.demarches ?? []).includes(v)}
+                         onChange={(e) => set("demarches", e.target.checked ? [...(champs.demarches ?? []), v] : (champs.demarches ?? []).filter((x: string) => x !== v))} />
+                  <span>{l}</span>
+                </label>
+              ))}
+            </div>
+          </div>
           <label className="block text-sm">
             <span className="font-medium">Projet du bénéficiaire (avec ses mots) et échéance</span>
             <textarea value={champs.projet} onChange={(e) => set("projet", e.target.value)} rows={2}
