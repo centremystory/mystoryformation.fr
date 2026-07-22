@@ -115,3 +115,34 @@ export async function genererDocEvaluation(
     return { ok: false, raison: e instanceof Error ? e.message : String(e) };
   }
 }
+
+/**
+ * SAISIE MANUELLE (test passé sur papier ou évalué à la main par l'équipe).
+ * Génère le MÊME document d'évaluation à partir de scores saisis, SANS écrire dans la table
+ * `evaluations` (réservée au moteur de test en ligne ; test_id y est obligatoire). Best-effort.
+ */
+export async function genererDocEvaluationManuelle(
+  dossierId: string,
+  phase: Phase,
+  scores: { ce: number; co: number; ee: number; eo: number; niveau_global: string; remarques?: string | null },
+  auteur: string | null,
+): Promise<{ ok: boolean; raison?: string }> {
+  try {
+    const fiche = await getFiche(dossierId);
+    if (!fiche) return { ok: false, raison: "Dossier introuvable." };
+    const total = Math.round(((scores.ce + scores.co + scores.ee + scores.eo) / 2) * 10) / 10;
+    const ev = {
+      ce_sur10: scores.ce, co_sur10: scores.co, ee_sur10: scores.ee, eo_sur10: scores.eo,
+      total_sur20: total, niveau_global: scores.niveau_global,
+      niveau_vise: fiche.niveauVise ?? null, complete_le: new Date().toISOString(),
+    };
+    const html = htmlEvaluation(phase, fiche, ev);
+    const { pdf } = await renderHtmlToPdf({ html, name: `${LIBELLE[phase]} — ${fiche.prenom} ${fiche.nom}` });
+    await archiveDocument({ dossierId, piece: PIECE[phase], variant: "genere", pdf, generatedAt: new Date().toISOString() });
+    await setPieceStatus({ dossierId, piece: PIECE[phase], status: "genere", at: new Date().toISOString() });
+    await journal("dossier", dossierId, "evaluation_saisie_manuelle", { phase, niveau: scores.niveau_global, total }, auteur);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, raison: e instanceof Error ? e.message : String(e) };
+  }
+}

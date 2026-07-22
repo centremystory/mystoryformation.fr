@@ -25,9 +25,11 @@ const TYPES_ACCEPTES: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/png": "png",
 };
-const DEPOSABLES: Record<string, { ordre: number }> = {
+const DEPOSABLES: Record<string, { ordre: number; pdfOnly?: boolean }> = {
   justificatif_participation: { ordre: 14 },
   justificatif_examen: { ordre: 15 },
+  // Évaluation initiale déposée en scan (test de positionnement passé sur papier) — PDF only.
+  evaluation_initiale: { ordre: 6, pdfOnly: true },
 };
 
 export async function POST(req: NextRequest) {
@@ -53,6 +55,7 @@ export async function POST(req: NextRequest) {
   }
   const ext = TYPES_ACCEPTES[fichier.type];
   if (!ext) return NextResponse.json({ ok: false, erreur: "Format non accepté — PDF, JPG ou PNG uniquement." }, { status: 415 });
+  if (DEPOSABLES[piece].pdfOnly && ext !== "pdf") return NextResponse.json({ ok: false, erreur: "Cette pièce n'accepte qu'un PDF (scanne le test papier en PDF)." }, { status: 415 });
   if (fichier.size > MAX_SIZE) return NextResponse.json({ ok: false, erreur: "Fichier trop volumineux (10 Mo maximum)." }, { status: 413 });
 
   const { data: dossier } = await supabaseAdmin.from("dossiers").select("id").eq("id", dossierId).maybeSingle();
