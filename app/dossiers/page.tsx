@@ -67,6 +67,9 @@ type Dossier = {
   statut_tunnel: string | null;
   date_debut: string | null;
   date_fin: string | null;
+  date_validation_commande: string | null;
+  date_acceptee: string | null;
+  date_entree_declaree: string | null;
   token: string;
   heures_prevues: number | null;
   service_fait_valide: boolean;
@@ -591,12 +594,13 @@ function LigneDossier({
 function TunnelControl({ d, recharger }: { d: Dossier; recharger: () => Promise<void> }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  async function maj(v: string) {
+
+  async function patch(payload: Record<string, unknown>, url = "/api/dossiers/dates") {
     setBusy(true); setErr(null);
     try {
-      const r = await fetch("/api/dossiers/tunnel", {
+      const r = await fetch(url, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dossierId: d.id, statut_tunnel: v || null }),
+        body: JSON.stringify({ dossierId: d.id, ...payload }),
       });
       const j = await r.json();
       if (!j.ok) { setErr(j.erreur || "Échec"); return; }
@@ -604,16 +608,41 @@ function TunnelControl({ d, recharger }: { d: Dossier; recharger: () => Promise<
     } catch { setErr("Échec de la mise à jour."); }
     finally { setBusy(false); }
   }
+
+  const DATES: { champ: keyof Dossier; label: string }[] = [
+    { champ: "date_validation_commande", label: "Validation commande EDOF" },
+    { champ: "date_debut", label: "Début de formation" },
+    { champ: "date_fin", label: "Fin de formation" },
+    { champ: "date_entree_declaree", label: "Entrée déclarée (facultatif)" },
+  ];
+
   return (
-    <div className="mb-3 flex items-center gap-2 flex-wrap">
-      <span className="text-sm font-medium text-gray-700">Tunnel d'inscription :</span>
-      <select disabled={busy} value={d.statut_tunnel ?? ""} onChange={(e) => maj(e.target.value)}
-        className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm bg-white">
-        <option value="">— hors tunnel —</option>
-        {TUNNEL.map((t) => <option key={t.v} value={t.v}>{t.long}</option>)}
-      </select>
-      {busy && <span className="text-xs text-gray-400">…</span>}
-      {err && <span className="text-xs text-red-600">{err}</span>}
+    <div className="mb-3 space-y-2">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-sm font-medium text-gray-700">Tunnel d'inscription :</span>
+        <select disabled={busy} value={d.statut_tunnel ?? ""} onChange={(e) => patch({ statut_tunnel: e.target.value || null }, "/api/dossiers/tunnel")}
+          className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm bg-white">
+          <option value="">— hors tunnel —</option>
+          {TUNNEL.map((t) => <option key={t.v} value={t.v}>{t.long}</option>)}
+        </select>
+        {d.date_acceptee ? (
+          <span className="text-xs font-medium text-emerald-700">✓ Devis validé le {dateFr(d.date_acceptee)}</span>
+        ) : (
+          <button disabled={busy} onClick={() => patch({ accepter_maintenant: true })}
+            className="btn-primary text-xs">Accepter tout de suite (valider le devis)</button>
+        )}
+        {busy && <span className="text-xs text-gray-400">…</span>}
+        {err && <span className="text-xs text-red-600">{err}</span>}
+      </div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1">
+        {DATES.map(({ champ, label }) => (
+          <label key={champ} className="text-xs text-gray-500">
+            {label} :
+            <input type="date" disabled={busy} value={(d[champ] as string | null)?.slice(0, 10) ?? ""}
+              onChange={(e) => patch({ [champ]: e.target.value })} className="input ml-1 py-1 text-xs" />
+          </label>
+        ))}
+      </div>
     </div>
   );
 }

@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
     .from("dossiers")
     .select(
       `id, certif, financement, statut, statut_tunnel, date_debut, date_fin, token, created_at, stagiaire_id,
+       date_validation_commande, date_acceptee, date_entree_declaree,
        heures_prevues, service_fait_valide, formatrice_libre, satisfaction_froid_envoyee_le,
        niveau_initial, niveau_vise, niveau_atteint,
        ${jointureStagiaire},
