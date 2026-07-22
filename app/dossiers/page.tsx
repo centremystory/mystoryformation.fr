@@ -626,6 +626,14 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
   const [envoiMsg, setEnvoiMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cibleDepotRef = useRef<string | null>(null);
+  const formRef = useRef<HTMLDivElement>(null);
+
+  // Le formulaire « à compléter » se rend en bas de la carte (après la liste des pièces) :
+  // sur un dossier à plusieurs pièces il s'ouvre hors écran → vécu comme « il ne s'ouvre pas ».
+  // On l'amène à l'écran dès son ouverture.
+  useEffect(() => {
+    if (formOuvert) requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }));
+  }, [formOuvert]);
 
   const reelles = [...(d.pieces ?? [])].sort((a, b) => a.ordre - b.ordre);
   const presentes = new Set(reelles.map((p) => p.type));
@@ -1030,12 +1038,14 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
         })}
       </ul>
       {formOuvert && (
-        <FormulaireCompletion
-          dossierId={d.id}
-          type={formOuvert}
-          onFini={async () => { setFormOuvert(null); await recharger(); }}
-          onErreurs={setErreurs}
-        />
+        <div ref={formRef} className="scroll-mt-24">
+          <FormulaireCompletion
+            dossierId={d.id}
+            type={formOuvert}
+            onFini={async () => { setFormOuvert(null); await recharger(); }}
+            onErreurs={setErreurs}
+          />
+        </div>
       )}
     </div>
   );
