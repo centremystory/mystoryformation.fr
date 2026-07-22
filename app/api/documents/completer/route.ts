@@ -92,10 +92,14 @@ export async function POST(req: NextRequest) {
   let champsValides: Record<string, unknown> = {};
 
   if (type === "fiche_analyse_besoin") {
-    // Objectif principal (v2 : administratif + pro au même niveau ; niveaux mini réglementaires 2026).
-    const OBJECTIFS = ["carte_sejour", "carte_resident", "naturalisation", "francais_pro", "emploi_mobilite", "autre"];
+    // Objectif principal PROFESSIONNEL (conformité CPF/CDC : le CPF ne finance que le professionnel).
+    const OBJECTIFS = ["francais_pro", "emploi", "maintien", "mobilite"];
     const objectif = String(champs.objectif ?? "");
-    const objectifAutre = String(champs.objectif_autre ?? "").trim();
+    // Démarche administrative ASSOCIÉE (naturalisation / résidence / titre de séjour) : contexte lié
+    // au projet professionnel, JAMAIS l'objectif principal d'une formation CPF. Multi-choix, facultatif.
+    const DEMARCHES = ["carte_sejour", "carte_resident", "naturalisation", "titre_sejour", "integration"];
+    const demarches = Array.isArray(champs.demarches)
+      ? champs.demarches.map((x: unknown) => String(x)).filter((x: string) => DEMARCHES.includes(x)) : [];
     const projet = String(champs.projet ?? "").trim();
     const compensation = String(champs.compensation ?? "non");
     const compDetail = String(champs.compensation_detail ?? "").trim();
@@ -131,8 +135,7 @@ export async function POST(req: NextRequest) {
     const dureeJustification = String(champs.duree_justification ?? "").trim();
     const commentaires = String(champs.commentaires ?? "").trim();
 
-    if (!OBJECTIFS.includes(objectif)) recap.push("Objectif principal à choisir.");
-    if (objectif === "autre" && !objectifAutre) recap.push("Objectif « Autre » : précision obligatoire.");
+    if (!OBJECTIFS.includes(objectif)) recap.push("Objectif principal (professionnel) à choisir.");
     if (!projet) recap.push("Projet du bénéficiaire (avec ses mots) et échéance à renseigner.");
     if (!["salarie", "demandeur_emploi", "chef_entreprise", "autre"].includes(situation))
       recap.push("Statut du bénéficiaire à renseigner.");
@@ -148,14 +151,17 @@ export async function POST(req: NextRequest) {
 
     extras = {
       ...extras,
-      // Objectif principal (v2)
-      obj_sejour: box(objectif === "carte_sejour"),
-      obj_resident: box(objectif === "carte_resident"),
-      obj_naturalisation: box(objectif === "naturalisation"),
+      // Objectif principal PROFESSIONNEL (exigence CPF/CDC)
       obj_pro: box(objectif === "francais_pro"),
-      obj_emploi: box(objectif === "emploi_mobilite"),
-      obj_autre: box(objectif === "autre"),
-      objectif_autre: objectif === "autre" ? objectifAutre : null,
+      obj_emploi: box(objectif === "emploi"),
+      obj_maintien: box(objectif === "maintien"),
+      obj_mobilite: box(objectif === "mobilite"),
+      // Démarche administrative ASSOCIÉE (contexte lié, jamais l'objectif principal CPF)
+      adm_sejour: box(demarches.includes("carte_sejour")),
+      adm_resident: box(demarches.includes("carte_resident")),
+      adm_naturalisation: box(demarches.includes("naturalisation")),
+      adm_titre_sejour: box(demarches.includes("titre_sejour")),
+      adm_integration: box(demarches.includes("integration")),
       projet,
       // Statut
       sit_salarie: box(situation === "salarie"),
@@ -207,7 +213,7 @@ export async function POST(req: NextRequest) {
       vise_c1: box(fiche.niveauVise === "C1"),
     };
     champsValides = {
-      objectif, objectif_autre: objectifAutre, projet,
+      objectif, demarches, projet,
       situation, situation_detail: situationDetail,
       financement, cpf_informe: cpfInforme,
       positionnement, positionnement_detail: positionnementDetail,
