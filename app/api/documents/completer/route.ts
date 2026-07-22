@@ -98,8 +98,14 @@ export async function POST(req: NextRequest) {
     const compensation = String(champs.compensation ?? "non");
     const compDetail = String(champs.compensation_detail ?? "").trim();
     const coherence = champs.coherence === true;
-    const disponibilites = String(champs.disponibilites ?? "").trim();
     const envoyerSignature = champs.envoyer_signature === true;
+
+    // Disponibilités en cases (saisie simplifiée) — rythme obligatoire, créneaux facultatifs.
+    const DISPO_RYTHMES = ["1", "2", "3", "4", "5", "6"];
+    const dispoRythme = String(champs.dispo_rythme ?? "");
+    const CRENEAUX = ["matin", "apresmidi", "soir", "samedi"];
+    const dispoCreneaux = Array.isArray(champs.dispo_creneaux)
+      ? champs.dispo_creneaux.map((x: unknown) => String(x)).filter((x: string) => CRENEAUX.includes(x)) : [];
 
     // Démarche administrative ASSOCIÉE (résidence/naturalisation/titre de séjour…) : contexte lié
     // au projet professionnel, JAMAIS l'objectif principal d'une formation CPF. Multi-choix, facultatif.
@@ -114,7 +120,10 @@ export async function POST(req: NextRequest) {
     // Méthode de positionnement (Qualiopi ind. 8) — obligatoire.
     const positionnement = String(champs.positionnement ?? "");
     const positionnementDetail = String(champs.positionnement_detail ?? "").trim();
-    const prerequis = String(champs.prerequis ?? "").trim();
+    // Prérequis en cases (saisie simplifiée) — facultatif, pré-coché côté formulaire.
+    const PREREQUIS = ["aucun_diplome", "lire_ecrire", "positionnement", "informatique"];
+    const prerequisItems = Array.isArray(champs.prerequis_items)
+      ? champs.prerequis_items.map((x: unknown) => String(x)).filter((x: string) => PREREQUIS.includes(x)) : [];
     const commentaires = String(champs.commentaires ?? "").trim();
 
     if (!["emploi", "maintien", "mobilite"].includes(objectif))
@@ -127,7 +136,7 @@ export async function POST(req: NextRequest) {
     if (!["test", "attestation", "autre"].includes(positionnement))
       recap.push("Méthode de positionnement à renseigner (test / attestation / autre).");
     if (positionnement === "autre" && !positionnementDetail) recap.push("Méthode de positionnement « Autre » : précision obligatoire.");
-    if (!disponibilites) recap.push("Disponibilités du stagiaire à renseigner.");
+    if (!DISPO_RYTHMES.includes(dispoRythme)) recap.push("Rythme de disponibilité à indiquer (1 à 6 fois / semaine).");
     if (compensation === "oui" && !compDetail) recap.push("Besoin de compensation coché « Oui » : précision obligatoire.");
     if (!coherence) recap.push("La cohérence durée / écart de niveau doit être vérifiée et cochée avant de générer la fiche.");
     if (recap.length > 0) return NextResponse.json({ ok: false, status: "gate_ko", recap }, { status: 409 });
@@ -153,9 +162,17 @@ export async function POST(req: NextRequest) {
       pos_attest: box(positionnement === "attestation"),
       pos_autre: box(positionnement === "autre"),
       positionnement_detail: positionnement === "autre" ? positionnementDetail : null,
-      prerequis: prerequis || null,
       commentaires: commentaires || null,
-      disponibilites,
+      dispo_1: box(dispoRythme === "1"), dispo_2: box(dispoRythme === "2"), dispo_3: box(dispoRythme === "3"),
+      dispo_4: box(dispoRythme === "4"), dispo_5: box(dispoRythme === "5"), dispo_6: box(dispoRythme === "6"),
+      dispo_matin: box(dispoCreneaux.includes("matin")),
+      dispo_aprem: box(dispoCreneaux.includes("apresmidi")),
+      dispo_soir: box(dispoCreneaux.includes("soir")),
+      dispo_samedi: box(dispoCreneaux.includes("samedi")),
+      pre_aucun: box(prerequisItems.includes("aucun_diplome")),
+      pre_lire: box(prerequisItems.includes("lire_ecrire")),
+      pre_pos: box(prerequisItems.includes("positionnement")),
+      pre_info: box(prerequisItems.includes("informatique")),
       comp_non: box(compensation !== "oui"),
       comp_oui: box(compensation === "oui"),
       compensation_detail: compensation === "oui" ? compDetail : null,
@@ -175,7 +192,7 @@ export async function POST(req: NextRequest) {
       objectif, demarches, projet, apport_francais: apport,
       situation, situation_detail: situationDetail,
       positionnement, positionnement_detail: positionnementDetail,
-      disponibilites, prerequis, commentaires,
+      dispo_rythme: dispoRythme, dispo_creneaux: dispoCreneaux, prerequis_items: prerequisItems, commentaires,
       compensation, compensation_detail: compDetail, coherence,
     };
     envoyerSignatureFiche = envoyerSignature;

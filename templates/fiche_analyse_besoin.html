@@ -100,9 +100,9 @@
   <h3>Situation &amp; positionnement</h3>
   <p class="check"><strong>Situation professionnelle :</strong> {{sit_salarie}} Salarié &nbsp; {{sit_de}} Demandeur d'emploi &nbsp; {{sit_chef}} Chef d'entreprise &nbsp; {{sit_autre}} Autre{{#if situation_detail}} — <strong>{{situation_detail}}</strong>{{/if}}</p>
   <p class="check"><strong>Méthode de positionnement :</strong> {{pos_test}} Test de positionnement &nbsp; {{pos_attest}} Attestation de niveau &nbsp; {{pos_autre}} Autre{{#if positionnement_detail}} — <strong>{{positionnement_detail}}</strong>{{/if}}</p>
-  <p style="font-size:9.2pt; margin:6px 0 2px;"><strong>Disponibilités du stagiaire (jours / créneaux) :</strong></p>
-  <div class="manus">{{disponibilites}}</div>
-  {{#if prerequis}}<p class="check"><strong>Prérequis :</strong> {{prerequis}}</p>{{/if}}
+  <p class="check"><strong>Disponibilités — rythme :</strong> {{dispo_1}} 1×/sem &nbsp; {{dispo_2}} 2×/sem &nbsp; {{dispo_3}} 3×/sem &nbsp; {{dispo_4}} 4×/sem &nbsp; {{dispo_5}} 5×/sem &nbsp; {{dispo_6}} 6×/sem</p>
+  <p class="check"><strong>Créneaux :</strong> {{dispo_matin}} Matin &nbsp; {{dispo_aprem}} Après-midi &nbsp; {{dispo_soir}} Soir &nbsp; {{dispo_samedi}} Samedi</p>
+  <p class="check"><strong>Prérequis :</strong> {{pre_aucun}} Aucun prérequis de diplôme &nbsp; {{pre_lire}} Sait lire / écrire dans sa langue &nbsp; {{pre_pos}} Positionnement à l'entrée &nbsp; {{pre_info}} Bases informatiques (si à distance)</p>
 
   <h3>Niveau et besoins</h3>
   <p class="check"><strong>Niveau estimé (CECRL) :</strong> {{est_a0}} A0 &nbsp; {{est_a1}} A1 &nbsp; {{est_a2}} A2 &nbsp; {{est_b1}} B1 &nbsp; {{est_b2}} B2 &nbsp; {{est_c1}} C1</p>

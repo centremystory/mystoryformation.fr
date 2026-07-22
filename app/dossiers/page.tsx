@@ -1163,7 +1163,7 @@ function FormulaireCompletion({
 }) {
   const [champs, setChamps] = useState<Record<string, any>>(
     type === "fiche_analyse_besoin"
-      ? { objectif: "", demarches: [], projet: "", apport_francais: "", situation: "", situation_detail: "", positionnement: "test", positionnement_detail: "", prerequis: "Aucun prérequis de diplôme. Positionnement réalisé à l'entrée ; le bénéficiaire doit pouvoir suivre la formation dans les conditions prévues.", commentaires: "", disponibilites: "", compensation: "non", compensation_detail: "", coherence: false }
+      ? { objectif: "", demarches: [], projet: "", apport_francais: "", situation: "", situation_detail: "", positionnement: "test", positionnement_detail: "", dispo_rythme: "", dispo_creneaux: [], prerequis_items: ["aucun_diplome", "lire_ecrire", "positionnement"], commentaires: "", compensation: "non", compensation_detail: "", coherence: false }
       : { niveau_co: "", niveau_ce: "", niveau_eo: "", niveau_ee: "", niveau_global: "", commentaires: "", axes: "" }
   );
   const [auteur, setAuteur] = useState("");
@@ -1284,17 +1284,42 @@ function FormulaireCompletion({
                      placeholder="Préciser la méthode" className={`${champClasses} flex-1 min-w-[200px]`} />
             )}
           </div>
-          <label className="block text-sm">
-            <span className="font-medium">Disponibilités du stagiaire (jours / créneaux)</span>
-            <textarea value={champs.disponibilites} onChange={(e) => set("disponibilites", e.target.value)} rows={2}
-                      placeholder="ex : lundi et mercredi après-midi, samedi matin…"
-                      className={`${champClasses} mt-1 block w-full resize-y`} />
-          </label>
-          <label className="block text-sm">
-            <span className="font-medium">Prérequis</span>
-            <textarea value={champs.prerequis} onChange={(e) => set("prerequis", e.target.value)} rows={2}
-                      className={`${champClasses} mt-1 block w-full resize-y`} />
-          </label>
+          {/* Disponibilités en cases (saisie rapide) — rythme obligatoire + créneaux */}
+          <div className="text-sm">
+            <span className="font-medium">Disponibilités — rythme :</span>
+            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+              {[1, 2, 3, 4, 5, 6].map((n) => (
+                <label key={n} className="inline-flex items-center gap-1.5">
+                  <input type="radio" name="dispo_rythme" checked={champs.dispo_rythme === String(n)}
+                         onChange={() => set("dispo_rythme", String(n))} />
+                  <span>{n}×/sem</span>
+                </label>
+              ))}
+            </div>
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
+              <span className="text-gray-500">Créneaux :</span>
+              {([["matin", "Matin"], ["apresmidi", "Après-midi"], ["soir", "Soir"], ["samedi", "Samedi"]] as const).map(([v, l]) => (
+                <label key={v} className="inline-flex items-center gap-1.5">
+                  <input type="checkbox" checked={(champs.dispo_creneaux ?? []).includes(v)}
+                         onChange={(e) => set("dispo_creneaux", e.target.checked ? [...(champs.dispo_creneaux ?? []), v] : (champs.dispo_creneaux ?? []).filter((x: string) => x !== v))} />
+                  <span>{l}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          {/* Prérequis en cases (pré-cochés par défaut) */}
+          <div className="text-sm">
+            <span className="font-medium">Prérequis :</span>
+            <div className="mt-1 flex flex-col gap-1">
+              {([["aucun_diplome", "Aucun prérequis de diplôme"], ["lire_ecrire", "Sait lire et écrire dans sa langue d'origine"], ["positionnement", "Positionnement réalisé à l'entrée"], ["informatique", "Maîtrise de base de l'outil informatique (si formation à distance)"]] as const).map(([v, l]) => (
+                <label key={v} className="inline-flex items-center gap-1.5">
+                  <input type="checkbox" checked={(champs.prerequis_items ?? []).includes(v)}
+                         onChange={(e) => set("prerequis_items", e.target.checked ? [...(champs.prerequis_items ?? []), v] : (champs.prerequis_items ?? []).filter((x: string) => x !== v))} />
+                  <span>{l}</span>
+                </label>
+              ))}
+            </div>
+          </div>
           <div className="flex flex-wrap items-center gap-3 text-sm">
             <span className="font-medium">Besoin de compensation (handicap) :</span>
             <select value={champs.compensation} onChange={(e) => set("compensation", e.target.value)} className={champClasses}>
