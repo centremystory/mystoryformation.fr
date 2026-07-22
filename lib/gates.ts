@@ -4,6 +4,7 @@
  * n8n n'a PAS à refaire ces contrôles : il appelle l'endpoint et lit le 409.
  */
 import { supabaseAdmin } from "./supabaseAdmin";
+import { getParamNumber } from "./parametres";
 
 export interface GateResult {
   ok: boolean;
@@ -142,11 +143,12 @@ export async function checkConformite(dossierId: string): Promise<GateResult> {
   // Délai d'accès ≥ 11 jours ouvrés (validation commande → 1re séance)
   const dates = planning.map((p: any) => p.date_seance).filter(Boolean).sort();
   const premiere = dates[0];
+  const delaiMin = await getParamNumber("delai_acces_jours_ouvres", 11);
   if (!d.date_validation_commande) {
-    recap.push("Date de validation de commande manquante (requise pour le délai de 11 j ouvrés).");
+    recap.push(`Date de validation de commande manquante (requise pour le délai de ${delaiMin} j ouvrés).`);
   } else if (premiere) {
     const jo = joursOuvres(new Date(d.date_validation_commande), new Date(premiere));
-    if (jo < 11) recap.push(`Délai d'accès insuffisant : ${jo} j ouvrés (< 11) avant la 1re séance.`);
+    if (jo < delaiMin) recap.push(`Délai d'accès insuffisant : ${jo} j ouvrés (< ${delaiMin}) avant la 1re séance.`);
   }
 
   // N° dossier EDOF requis pour CPF avant tout document officiel.

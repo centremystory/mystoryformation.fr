@@ -24,6 +24,7 @@ const NAV: Entree[] = [
   { type: "link", href: "/", label: "Accueil", icon: Home },
   { type: "link", href: "/recherche", label: "Rechercher", icon: Search },
   { type: "link", href: "/direction", label: "Direction", icon: LayoutGrid },
+  { type: "link", href: "/reglages", label: "Réglages", icon: Settings },
   {
     type: "menu", label: "Formation", icon: GraduationCap, items: [
       { href: "/formation", label: "Tableau de bord", icon: LayoutGrid },
