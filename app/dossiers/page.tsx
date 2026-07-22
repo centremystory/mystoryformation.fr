@@ -1163,7 +1163,7 @@ function FormulaireCompletion({
 }) {
   const [champs, setChamps] = useState<Record<string, any>>(
     type === "fiche_analyse_besoin"
-      ? { objectif: "", demarches: [], projet: "", apport_francais: "", situation: "", situation_detail: "", positionnement: "test", positionnement_detail: "", dispo_rythme: "", dispo_creneaux: [], prerequis_items: ["aucun_diplome", "lire_ecrire", "positionnement"], commentaires: "", compensation: "non", compensation_detail: "", coherence: false }
+      ? { objectif: "", objectif_autre: "", projet: "", site: "", situation: "", situation_detail: "", financement: "", cpf_informe: false, positionnement: "test", positionnement_detail: "", positionnement_date: "", positionnement_resultat: "", certification: "", examen_prevu: "", duree_justification: "", dispo_rythme: "", dispo_creneaux: [], debut_souhaite: "", commentaires: "", compensation: "non", compensation_detail: "", coherence: false }
       : { niveau_co: "", niveau_ce: "", niveau_eo: "", niveau_ee: "", niveau_global: "", commentaires: "", axes: "" }
   );
   const [auteur, setAuteur] = useState("");
@@ -1222,43 +1222,59 @@ function FormulaireCompletion({
 
       {type === "fiche_analyse_besoin" ? (
         <div className="space-y-3">
+          {/* 2. OBJECTIF (niveaux mini réglementaires 2026) */}
           <label className="block text-sm">
-            <span className="font-medium">Objectif principal (nécessairement professionnel)</span>
+            <span className="font-medium">Objectif principal </span>
+            <span className="text-xs font-normal text-gray-500">(niveau mini exigé depuis le 01/01/2026)</span>
             <select value={champs.objectif} onChange={(e) => set("objectif", e.target.value)}
                     className={`${champClasses} mt-1 block w-full max-w-md`}>
               <option value="">— Choisir —</option>
-              <option value="emploi">Accès / retour à l'emploi</option>
-              <option value="maintien">Maintien dans l'emploi / adaptation au poste</option>
-              <option value="mobilite">Mobilité / évolution professionnelle</option>
+              <option value="carte_sejour">Carte de séjour pluriannuelle (A2)</option>
+              <option value="carte_resident">Carte de résident (B1)</option>
+              <option value="naturalisation">Naturalisation (B2)</option>
+              <option value="francais_pro">Français professionnel</option>
+              <option value="emploi_mobilite">Recherche d'emploi / mobilité</option>
+              <option value="autre">Autre</option>
             </select>
           </label>
+          {champs.objectif === "autre" && (
+            <input value={champs.objectif_autre} onChange={(e) => set("objectif_autre", e.target.value)}
+                   placeholder="Préciser l'objectif" className={`${champClasses} block w-full max-w-md`} />
+          )}
           <label className="block text-sm">
-            <span className="font-medium">Description du projet professionnel</span>
+            <span className="font-medium">Projet du bénéficiaire (avec ses mots) et échéance</span>
             <textarea value={champs.projet} onChange={(e) => set("projet", e.target.value)} rows={2}
                       className={`${champClasses} mt-1 block w-full resize-y`} />
           </label>
-          <label className="block text-sm">
-            <span className="font-medium">En quoi la maîtrise du français sert ce projet</span>
-            <textarea value={champs.apport_francais} onChange={(e) => set("apport_francais", e.target.value)} rows={2}
-                      className={`${champClasses} mt-1 block w-full resize-y`} />
-          </label>
-          {/* Démarche administrative ASSOCIÉE — contexte lié au projet pro, jamais l'objectif principal CPF */}
-          <div className="text-sm">
-            <span className="font-medium">Démarche administrative associée </span>
-            <span className="text-xs font-normal text-gray-500">(le cas échéant — contexte lié au projet professionnel, jamais l'objectif principal d'une formation CPF)</span>
-            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
-              {([["residence", "Carte de résidence longue durée"], ["naturalisation", "Naturalisation"], ["titre_sejour", "1re demande de titre de séjour"], ["maintien", "Maintien de résidence"], ["integration", "Intégration"]] as const).map(([v, l]) => (
-                <label key={v} className="inline-flex items-center gap-1.5">
-                  <input type="checkbox" checked={(champs.demarches ?? []).includes(v)}
-                         onChange={(e) => set("demarches", e.target.checked ? [...(champs.demarches ?? []), v] : (champs.demarches ?? []).filter((x: string) => x !== v))} />
-                  <span>{l}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-          {/* Situation professionnelle — justifie le contexte pro exigé par le CPF */}
+          {/* Site */}
           <div className="flex flex-wrap items-center gap-3 text-sm">
-            <span className="font-medium">Situation professionnelle :</span>
+            <span className="font-medium">Site :</span>
+            {([["gagny", "Gagny"], ["sarcelles", "Sarcelles"], ["rosny", "Rosny"]] as const).map(([v, l]) => (
+              <label key={v} className="inline-flex items-center gap-1.5">
+                <input type="radio" name="site" checked={champs.site === v} onChange={() => set("site", v)} />
+                <span>{l}</span>
+              </label>
+            ))}
+          </div>
+          {/* 3. NIVEAU — positionnement (niveaux estimé/visé repris du dossier) */}
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            <span className="font-medium">Positionnement :</span>
+            <select value={champs.positionnement} onChange={(e) => set("positionnement", e.target.value)} className={champClasses}>
+              <option value="test">Test MYSTORY</option>
+              <option value="attestation">Attestation / diplôme</option>
+              <option value="autre">Autre</option>
+            </select>
+            {champs.positionnement === "autre" && (
+              <input value={champs.positionnement_detail} onChange={(e) => set("positionnement_detail", e.target.value)}
+                     placeholder="Préciser" className={`${champClasses} min-w-[140px]`} />
+            )}
+            <input value={champs.positionnement_resultat} onChange={(e) => set("positionnement_resultat", e.target.value)}
+                   placeholder="Résultat (ex. A2)" className={`${champClasses} w-32`} />
+          </div>
+          <p className="text-xs text-gray-500">Niveau actuel estimé et niveau visé sont repris automatiquement du dossier.</p>
+          {/* 4. STATUT */}
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            <span className="font-medium">Statut :</span>
             <select value={champs.situation} onChange={(e) => set("situation", e.target.value)} className={champClasses}>
               <option value="">— Choisir —</option>
               <option value="salarie">Salarié</option>
@@ -1268,30 +1284,37 @@ function FormulaireCompletion({
             </select>
             {champs.situation === "autre" && (
               <input value={champs.situation_detail} onChange={(e) => set("situation_detail", e.target.value)}
-                     placeholder="Préciser la situation" className={`${champClasses} flex-1 min-w-[200px]`} />
+                     placeholder="Préciser" className={`${champClasses} flex-1 min-w-[160px]`} />
             )}
           </div>
-          {/* Méthode de positionnement — Qualiopi ind. 8 */}
+          {/* Financement + garde-fou CPF (non bloquant) */}
           <div className="flex flex-wrap items-center gap-3 text-sm">
-            <span className="font-medium">Méthode de positionnement :</span>
-            <select value={champs.positionnement} onChange={(e) => set("positionnement", e.target.value)} className={champClasses}>
-              <option value="test">Test de positionnement</option>
-              <option value="attestation">Attestation de niveau</option>
-              <option value="autre">Autre</option>
-            </select>
-            {champs.positionnement === "autre" && (
-              <input value={champs.positionnement_detail} onChange={(e) => set("positionnement_detail", e.target.value)}
-                     placeholder="Préciser la méthode" className={`${champClasses} flex-1 min-w-[200px]`} />
+            <span className="font-medium">Financement :</span>
+            {([["cpf", "CPF"], ["opco", "OPCO"], ["personnel", "Personnel"]] as const).map(([v, l]) => (
+              <label key={v} className="inline-flex items-center gap-1.5">
+                <input type="radio" name="financement" checked={champs.financement === v} onChange={() => set("financement", v)} />
+                <span>{l}</span>
+              </label>
+            ))}
+            {champs.financement === "cpf" && (
+              <label className="inline-flex items-center gap-1.5">
+                <input type="checkbox" checked={!!champs.cpf_informe} onChange={(e) => set("cpf_informe", e.target.checked)} />
+                <span>Informé du reste à charge (150 €)</span>
+              </label>
             )}
           </div>
-          {/* Disponibilités en cases (saisie rapide) — rythme obligatoire + créneaux */}
+          {champs.financement === "cpf" && (
+            <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              ⚠️ <strong>Financement CPF</strong> — vérifie que le projet ci-dessus justifie l'usage, et que le bénéficiaire est informé du reste à charge (anti-démarchage / contrôle CDC). Rappel, non bloquant.
+            </div>
+          )}
+          {/* Disponibilités */}
           <div className="text-sm">
             <span className="font-medium">Disponibilités — rythme :</span>
             <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
               {[1, 2, 3, 4, 5, 6].map((n) => (
                 <label key={n} className="inline-flex items-center gap-1.5">
-                  <input type="radio" name="dispo_rythme" checked={champs.dispo_rythme === String(n)}
-                         onChange={() => set("dispo_rythme", String(n))} />
+                  <input type="radio" name="dispo_rythme" checked={champs.dispo_rythme === String(n)} onChange={() => set("dispo_rythme", String(n))} />
                   <span>{n}×/sem</span>
                 </label>
               ))}
@@ -1305,41 +1328,48 @@ function FormulaireCompletion({
                   <span>{l}</span>
                 </label>
               ))}
+              <span className="inline-flex items-center gap-1.5">
+                <span className="text-gray-500">Début souhaité :</span>
+                <input type="date" value={champs.debut_souhaite} onChange={(e) => set("debut_souhaite", e.target.value)} className={`${champClasses} w-40`} />
+              </span>
             </div>
           </div>
-          {/* Prérequis en cases (pré-cochés par défaut) */}
-          <div className="text-sm">
-            <span className="font-medium">Prérequis :</span>
-            <div className="mt-1 flex flex-col gap-1">
-              {([["aucun_diplome", "Aucun prérequis de diplôme"], ["lire_ecrire", "Sait lire et écrire dans sa langue d'origine"], ["positionnement", "Positionnement réalisé à l'entrée"], ["informatique", "Maîtrise de base de l'outil informatique (si formation à distance)"]] as const).map(([v, l]) => (
-                <label key={v} className="inline-flex items-center gap-1.5">
-                  <input type="checkbox" checked={(champs.prerequis_items ?? []).includes(v)}
-                         onChange={(e) => set("prerequis_items", e.target.checked ? [...(champs.prerequis_items ?? []), v] : (champs.prerequis_items ?? []).filter((x: string) => x !== v))} />
-                  <span>{l}</span>
-                </label>
-              ))}
-            </div>
-          </div>
+          {/* Handicap */}
           <div className="flex flex-wrap items-center gap-3 text-sm">
-            <span className="font-medium">Besoin de compensation (handicap) :</span>
+            <span className="font-medium">Situation de handicap :</span>
             <select value={champs.compensation} onChange={(e) => set("compensation", e.target.value)} className={champClasses}>
               <option value="non">Non</option>
               <option value="oui">Oui</option>
             </select>
             {champs.compensation === "oui" && (
               <input value={champs.compensation_detail} onChange={(e) => set("compensation_detail", e.target.value)}
-                     placeholder="Préciser l'adaptation" className={`${champClasses} flex-1 min-w-[200px]`} />
+                     placeholder="Préciser et orienter vers le référent handicap" className={`${champClasses} flex-1 min-w-[200px]`} />
             )}
           </div>
+          {/* 5. ANALYSE & PRÉCONISATION */}
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            <span className="font-medium">Certification visée :</span>
+            <select value={champs.certification} onChange={(e) => set("certification", e.target.value)} className={champClasses}>
+              <option value="">— (repris du dossier) —</option>
+              <option value="tef_irn">TEF IRN (séjour / naturalisation)</option>
+              <option value="leveltel">LEVELTEL (professionnel)</option>
+            </select>
+            <input value={champs.examen_prevu} onChange={(e) => set("examen_prevu", e.target.value)}
+                   placeholder="Examen prévu (date)" className={`${champClasses} w-40`} />
+          </div>
+          <label className="block text-sm">
+            <span className="font-medium">Durée — justification</span>
+            <input value={champs.duree_justification} onChange={(e) => set("duree_justification", e.target.value)}
+                   placeholder="ex : écart de 2 niveaux → 40 h" className={`${champClasses} mt-1 block w-full`} />
+          </label>
           <label className="block text-sm">
             <span className="font-medium">Commentaires</span>
             <textarea value={champs.commentaires} onChange={(e) => set("commentaires", e.target.value)} rows={2}
                       className={`${champClasses} mt-1 block w-full resize-y`} />
           </label>
           <label className="flex items-start gap-2 text-sm">
-            <input type="checkbox" checked={!!champs.coherence} onChange={(e) => set("coherence", e.target.checked)}
-                   className="mt-0.5" />
-            <span><strong>J'ai vérifié la cohérence durée / écart de niveau</strong> (obligatoire pour générer la fiche). Les niveaux estimé et visé sont repris automatiquement du dossier.</span>
+            <input type="checkbox" checked={!!champs.coherence} onChange={(e) => set("coherence", e.target.checked)} className="mt-0.5" />
+            <span><strong>J'ai vérifié la cohérence</strong> : niveau visé &gt; niveau actuel et cohérent avec l'objectif (obligatoire). Niveaux estimé/visé repris du dossier.</span>
           </label>
         </div>
       ) : (

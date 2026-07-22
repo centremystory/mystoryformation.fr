@@ -92,108 +92,137 @@ export async function POST(req: NextRequest) {
   let champsValides: Record<string, unknown> = {};
 
   if (type === "fiche_analyse_besoin") {
+    // Objectif principal (v2 : administratif + pro au même niveau ; niveaux mini réglementaires 2026).
+    const OBJECTIFS = ["carte_sejour", "carte_resident", "naturalisation", "francais_pro", "emploi_mobilite", "autre"];
     const objectif = String(champs.objectif ?? "");
+    const objectifAutre = String(champs.objectif_autre ?? "").trim();
     const projet = String(champs.projet ?? "").trim();
-    const apport = String(champs.apport_francais ?? "").trim();
     const compensation = String(champs.compensation ?? "non");
     const compDetail = String(champs.compensation_detail ?? "").trim();
     const coherence = champs.coherence === true;
     const envoyerSignature = champs.envoyer_signature === true;
 
-    // Disponibilités en cases (saisie simplifiée) — rythme obligatoire, créneaux facultatifs.
+    const SITE_OPTS = ["gagny", "sarcelles", "rosny"];
+    const site = String(champs.site ?? "");
+
+    // Disponibilités en cases — rythme obligatoire ; créneaux + début souhaité facultatifs.
     const DISPO_RYTHMES = ["1", "2", "3", "4", "5", "6"];
     const dispoRythme = String(champs.dispo_rythme ?? "");
     const CRENEAUX = ["matin", "apresmidi", "soir", "samedi"];
     const dispoCreneaux = Array.isArray(champs.dispo_creneaux)
       ? champs.dispo_creneaux.map((x: unknown) => String(x)).filter((x: string) => CRENEAUX.includes(x)) : [];
+    const debutSouhaite = String(champs.debut_souhaite ?? "").trim();
 
-    // Démarche administrative ASSOCIÉE (résidence/naturalisation/titre de séjour…) : contexte lié
-    // au projet professionnel, JAMAIS l'objectif principal d'une formation CPF. Multi-choix, facultatif.
-    const DEMARCHES = ["residence", "naturalisation", "titre_sejour", "maintien", "integration"];
-    const demarches = Array.isArray(champs.demarches)
-      ? champs.demarches.map((x: unknown) => String(x)).filter((x: string) => DEMARCHES.includes(x))
-      : [];
-
-    // Situation professionnelle (justifie le contexte pro exigé par le CPF) — obligatoire.
+    // Statut du bénéficiaire — obligatoire.
     const situation = String(champs.situation ?? "");
     const situationDetail = String(champs.situation_detail ?? "").trim();
-    // Méthode de positionnement (Qualiopi ind. 8) — obligatoire.
+
+    // Financement (+ information reste à charge CPF). Garde-fou CPF = rappel non bloquant (UI).
+    const FINANCEMENTS = ["cpf", "opco", "personnel"];
+    const financement = String(champs.financement ?? "");
+    const cpfInforme = champs.cpf_informe === true;
+
+    // Positionnement (Qualiopi ind. 8) — obligatoire.
     const positionnement = String(champs.positionnement ?? "");
     const positionnementDetail = String(champs.positionnement_detail ?? "").trim();
-    // Prérequis en cases (saisie simplifiée) — facultatif, pré-coché côté formulaire.
-    const PREREQUIS = ["aucun_diplome", "lire_ecrire", "positionnement", "informatique"];
-    const prerequisItems = Array.isArray(champs.prerequis_items)
-      ? champs.prerequis_items.map((x: unknown) => String(x)).filter((x: string) => PREREQUIS.includes(x)) : [];
+    const positionnementDate = String(champs.positionnement_date ?? "").trim();
+    const positionnementResultat = String(champs.positionnement_resultat ?? "").trim();
+
+    // Certification visée + examen prévu + justification de durée.
+    const certification = String(champs.certification ?? "");
+    const examenPrevu = String(champs.examen_prevu ?? "").trim();
+    const dureeJustification = String(champs.duree_justification ?? "").trim();
     const commentaires = String(champs.commentaires ?? "").trim();
 
-    if (!["emploi", "maintien", "mobilite"].includes(objectif))
-      recap.push("Objectif principal à choisir (nécessairement professionnel — règle CPF).");
-    if (!projet) recap.push("Description du projet professionnel obligatoire.");
-    if (!apport) recap.push("« En quoi la maîtrise du français sert ce projet » est obligatoire.");
+    if (!OBJECTIFS.includes(objectif)) recap.push("Objectif principal à choisir.");
+    if (objectif === "autre" && !objectifAutre) recap.push("Objectif « Autre » : précision obligatoire.");
+    if (!projet) recap.push("Projet du bénéficiaire (avec ses mots) et échéance à renseigner.");
+    if (!SITE_OPTS.includes(site)) recap.push("Site à indiquer (Gagny / Sarcelles / Rosny).");
     if (!["salarie", "demandeur_emploi", "chef_entreprise", "autre"].includes(situation))
-      recap.push("Situation professionnelle du bénéficiaire à renseigner.");
-    if (situation === "autre" && !situationDetail) recap.push("Situation « Autre » : précision obligatoire.");
+      recap.push("Statut du bénéficiaire à renseigner.");
+    if (situation === "autre" && !situationDetail) recap.push("Statut « Autre » : précision obligatoire.");
+    if (!FINANCEMENTS.includes(financement)) recap.push("Financement à indiquer (CPF / OPCO / Personnel).");
     if (!["test", "attestation", "autre"].includes(positionnement))
       recap.push("Méthode de positionnement à renseigner (test / attestation / autre).");
-    if (positionnement === "autre" && !positionnementDetail) recap.push("Méthode de positionnement « Autre » : précision obligatoire.");
+    if (positionnement === "autre" && !positionnementDetail) recap.push("Positionnement « Autre » : précision obligatoire.");
     if (!DISPO_RYTHMES.includes(dispoRythme)) recap.push("Rythme de disponibilité à indiquer (1 à 6 fois / semaine).");
-    if (compensation === "oui" && !compDetail) recap.push("Besoin de compensation coché « Oui » : précision obligatoire.");
-    if (!coherence) recap.push("La cohérence durée / écart de niveau doit être vérifiée et cochée avant de générer la fiche.");
+    if (compensation === "oui" && !compDetail) recap.push("Situation de handicap « Oui » : préciser et orienter vers le référent handicap.");
+    if (!coherence) recap.push("La cohérence (niveau visé > niveau actuel, cohérent avec l'objectif) doit être vérifiée et cochée.");
     if (recap.length > 0) return NextResponse.json({ ok: false, status: "gate_ko", recap }, { status: 409 });
 
     extras = {
       ...extras,
-      obj_emploi: box(objectif === "emploi"),
-      obj_maintien: box(objectif === "maintien"),
-      obj_mobilite: box(objectif === "mobilite"),
-      adm_residence: box(demarches.includes("residence")),
-      adm_naturalisation: box(demarches.includes("naturalisation")),
-      adm_titre_sejour: box(demarches.includes("titre_sejour")),
-      adm_maintien: box(demarches.includes("maintien")),
-      adm_integration: box(demarches.includes("integration")),
+      // Objectif principal (v2)
+      obj_sejour: box(objectif === "carte_sejour"),
+      obj_resident: box(objectif === "carte_resident"),
+      obj_naturalisation: box(objectif === "naturalisation"),
+      obj_pro: box(objectif === "francais_pro"),
+      obj_emploi: box(objectif === "emploi_mobilite"),
+      obj_autre: box(objectif === "autre"),
+      objectif_autre: objectif === "autre" ? objectifAutre : null,
       projet,
-      apport_francais: apport,
+      // Site
+      site_gagny: box(site === "gagny"),
+      site_sarcelles: box(site === "sarcelles"),
+      site_rosny: box(site === "rosny"),
+      // Statut
       sit_salarie: box(situation === "salarie"),
       sit_de: box(situation === "demandeur_emploi"),
       sit_chef: box(situation === "chef_entreprise"),
       sit_autre: box(situation === "autre"),
       situation_detail: situation === "autre" ? situationDetail : null,
+      // Financement
+      fin_cpf: box(financement === "cpf"),
+      fin_opco: box(financement === "opco"),
+      fin_perso: box(financement === "personnel"),
+      cpf_informe: box(financement === "cpf" && cpfInforme),
+      // Positionnement
       pos_test: box(positionnement === "test"),
       pos_attest: box(positionnement === "attestation"),
       pos_autre: box(positionnement === "autre"),
       positionnement_detail: positionnement === "autre" ? positionnementDetail : null,
-      commentaires: commentaires || null,
+      positionnement_date: positionnementDate || null,
+      positionnement_resultat: positionnementResultat || null,
+      // Certification visée
+      cert_tef: box(certification === "tef_irn" || (!certification && fiche.certif === "TEF_IRN")),
+      cert_leveltel: box(certification === "leveltel" || (!certification && fiche.certif === "LEVELTEL")),
+      examen_prevu: examenPrevu || null,
+      duree_justification: dureeJustification || null,
+      // Disponibilités
       dispo_1: box(dispoRythme === "1"), dispo_2: box(dispoRythme === "2"), dispo_3: box(dispoRythme === "3"),
       dispo_4: box(dispoRythme === "4"), dispo_5: box(dispoRythme === "5"), dispo_6: box(dispoRythme === "6"),
       dispo_matin: box(dispoCreneaux.includes("matin")),
       dispo_aprem: box(dispoCreneaux.includes("apresmidi")),
       dispo_soir: box(dispoCreneaux.includes("soir")),
       dispo_samedi: box(dispoCreneaux.includes("samedi")),
-      pre_aucun: box(prerequisItems.includes("aucun_diplome")),
-      pre_lire: box(prerequisItems.includes("lire_ecrire")),
-      pre_pos: box(prerequisItems.includes("positionnement")),
-      pre_info: box(prerequisItems.includes("informatique")),
+      debut_souhaite: debutSouhaite || null,
+      commentaires: commentaires || null,
+      // Handicap
       comp_non: box(compensation !== "oui"),
       comp_oui: box(compensation === "oui"),
       compensation_detail: compensation === "oui" ? compDetail : null,
-      est_a0: box(fiche.niveauInitial === "A0"),
+      // Niveau actuel estimé (Infra-A1 = A0 en base)
+      est_infra: box(fiche.niveauInitial === "A0"),
       est_a1: box(fiche.niveauInitial === "A1"),
       est_a2: box(fiche.niveauInitial === "A2"),
       est_b1: box(fiche.niveauInitial === "B1"),
       est_b2: box(fiche.niveauInitial === "B2"),
       est_c1: box(fiche.niveauInitial === "C1"),
+      // Niveau visé
       vise_a2: box(fiche.niveauVise === "A2"),
       vise_b1: box(fiche.niveauVise === "B1"),
       vise_b2: box(fiche.niveauVise === "B2"),
       vise_c1: box(fiche.niveauVise === "C1"),
-      vise_c2: box(fiche.niveauVise === "C2"),
     };
     champsValides = {
-      objectif, demarches, projet, apport_francais: apport,
+      objectif, objectif_autre: objectifAutre, projet, site,
       situation, situation_detail: situationDetail,
+      financement, cpf_informe: cpfInforme,
       positionnement, positionnement_detail: positionnementDetail,
-      dispo_rythme: dispoRythme, dispo_creneaux: dispoCreneaux, prerequis_items: prerequisItems, commentaires,
-      compensation, compensation_detail: compDetail, coherence,
+      positionnement_date: positionnementDate, positionnement_resultat: positionnementResultat,
+      certification, examen_prevu: examenPrevu, duree_justification: dureeJustification,
+      dispo_rythme: dispoRythme, dispo_creneaux: dispoCreneaux, debut_souhaite: debutSouhaite,
+      commentaires, compensation, compensation_detail: compDetail, coherence,
     };
     envoyerSignatureFiche = envoyerSignature;
   }
