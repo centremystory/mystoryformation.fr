@@ -1239,7 +1239,7 @@ function FormulaireCompletion({
 }) {
   const [champs, setChamps] = useState<Record<string, any>>(
     type === "fiche_analyse_besoin"
-      ? { objectif: "", objectif_autre: "", projet: "", site: "", situation: "", situation_detail: "", financement: "", cpf_informe: false, positionnement: "test", positionnement_detail: "", positionnement_date: "", positionnement_resultat: "", certification: "", examen_prevu: "", duree_justification: "", dispo_rythme: "", dispo_creneaux: [], debut_souhaite: "", commentaires: "", compensation: "non", compensation_detail: "", coherence: false }
+      ? { objectif: "", objectif_autre: "", projet: "", situation: "", situation_detail: "", financement: "", cpf_informe: false, positionnement: "test", positionnement_detail: "", positionnement_date: "", positionnement_resultat: "", certification: "", examen_prevu: "", duree_justification: "", dispo_rythme: "", dispo_creneaux: [], debut_souhaite: "", commentaires: "", compensation: "non", compensation_detail: "", coherence: false }
       : { niveau_co: "", niveau_ce: "", niveau_eo: "", niveau_ee: "", niveau_global: "", commentaires: "", axes: "" }
   );
   const [auteur, setAuteur] = useState("");
@@ -1322,16 +1322,6 @@ function FormulaireCompletion({
             <textarea value={champs.projet} onChange={(e) => set("projet", e.target.value)} rows={2}
                       className={`${champClasses} mt-1 block w-full resize-y`} />
           </label>
-          {/* Site */}
-          <div className="flex flex-wrap items-center gap-3 text-sm">
-            <span className="font-medium">Site :</span>
-            {([["gagny", "Gagny"], ["sarcelles", "Sarcelles"], ["rosny", "Rosny"]] as const).map(([v, l]) => (
-              <label key={v} className="inline-flex items-center gap-1.5">
-                <input type="radio" name="site" checked={champs.site === v} onChange={() => set("site", v)} />
-                <span>{l}</span>
-              </label>
-            ))}
-          </div>
           {/* 3. NIVEAU — positionnement (niveaux estimé/visé repris du dossier) */}
           <div className="flex flex-wrap items-center gap-3 text-sm">
             <span className="font-medium">Positionnement :</span>

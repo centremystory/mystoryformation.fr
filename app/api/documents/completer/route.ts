@@ -102,9 +102,6 @@ export async function POST(req: NextRequest) {
     const coherence = champs.coherence === true;
     const envoyerSignature = champs.envoyer_signature === true;
 
-    const SITE_OPTS = ["gagny", "sarcelles", "rosny"];
-    const site = String(champs.site ?? "");
-
     // Disponibilités en cases — rythme obligatoire ; créneaux + début souhaité facultatifs.
     const DISPO_RYTHMES = ["1", "2", "3", "4", "5", "6"];
     const dispoRythme = String(champs.dispo_rythme ?? "");
@@ -137,7 +134,6 @@ export async function POST(req: NextRequest) {
     if (!OBJECTIFS.includes(objectif)) recap.push("Objectif principal à choisir.");
     if (objectif === "autre" && !objectifAutre) recap.push("Objectif « Autre » : précision obligatoire.");
     if (!projet) recap.push("Projet du bénéficiaire (avec ses mots) et échéance à renseigner.");
-    if (!SITE_OPTS.includes(site)) recap.push("Site à indiquer (Gagny / Sarcelles / Rosny).");
     if (!["salarie", "demandeur_emploi", "chef_entreprise", "autre"].includes(situation))
       recap.push("Statut du bénéficiaire à renseigner.");
     if (situation === "autre" && !situationDetail) recap.push("Statut « Autre » : précision obligatoire.");
@@ -161,10 +157,6 @@ export async function POST(req: NextRequest) {
       obj_autre: box(objectif === "autre"),
       objectif_autre: objectif === "autre" ? objectifAutre : null,
       projet,
-      // Site
-      site_gagny: box(site === "gagny"),
-      site_sarcelles: box(site === "sarcelles"),
-      site_rosny: box(site === "rosny"),
       // Statut
       sit_salarie: box(situation === "salarie"),
       sit_de: box(situation === "demandeur_emploi"),
@@ -215,7 +207,7 @@ export async function POST(req: NextRequest) {
       vise_c1: box(fiche.niveauVise === "C1"),
     };
     champsValides = {
-      objectif, objectif_autre: objectifAutre, projet, site,
+      objectif, objectif_autre: objectifAutre, projet,
       situation, situation_detail: situationDetail,
       financement, cpf_informe: cpfInforme,
       positionnement, positionnement_detail: positionnementDetail,
