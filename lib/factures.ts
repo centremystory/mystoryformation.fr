@@ -16,6 +16,7 @@ import { renderHtmlToPdf } from "@/lib/docuseal";
 import { envoyerEmail, gabaritEmail } from "@/lib/email";
 import { fusionExamen, valeursCachet, dateFR, aujourdHuiFR, journal } from "@/lib/examens";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getParamNumber } from "@/lib/parametres";
 
 const LIBELLE_CERTIF: Record<string, string> = {
   TEF_IRN: "Formation Français — préparation au TEF IRN (certification RS6775)",
@@ -400,6 +401,9 @@ export async function envoyerFacture(
 export async function relancesDues(): Promise<Array<{ factureId: string; numero: string; mode: "relance_1" | "relance_2" }>> {
   const ref = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" }));
   const jMoins = (n: number) => { const d = new Date(ref); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
+  // Délais réglables via /reglages (leviers cash).
+  const j1 = await getParamNumber("relance_facture_jours_1", 7);
+  const j2 = await getParamNumber("relance_facture_jours_2", 15);
 
   const { data } = await supabaseAdmin
     .from("factures")
@@ -408,8 +412,8 @@ export async function relancesDues(): Promise<Array<{ factureId: string; numero:
 
   const dues: Array<{ factureId: string; numero: string; mode: "relance_1" | "relance_2" }> = [];
   for (const f of (data ?? []) as any[]) {
-    if (f.statut === "émise" && f.date_emission <= jMoins(7)) dues.push({ factureId: f.id, numero: f.numero, mode: "relance_1" });
-    else if (f.statut === "relance_1" && f.date_emission <= jMoins(15)) dues.push({ factureId: f.id, numero: f.numero, mode: "relance_2" });
+    if (f.statut === "émise" && f.date_emission <= jMoins(j1)) dues.push({ factureId: f.id, numero: f.numero, mode: "relance_1" });
+    else if (f.statut === "relance_1" && f.date_emission <= jMoins(j2)) dues.push({ factureId: f.id, numero: f.numero, mode: "relance_2" });
   }
   return dues;
 }

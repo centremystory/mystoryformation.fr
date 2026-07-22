@@ -12,12 +12,11 @@ import { requireUser, UnauthorizedError, type SessionUser } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { envoyerEmail, gabaritEmail } from "@/lib/email";
 import { journal } from "@/lib/examens";
+import { getParamNumber } from "@/lib/parametres";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
-
-const DELAI_JOURS = 3; // relance 3 jours après un message resté sans suite
 
 function aujourdHuiParisISO(): string {
   return new Intl.DateTimeFormat("fr-CA", { timeZone: "Europe/Paris" }).format(new Date());
@@ -42,8 +41,9 @@ async function dus() {
     .is("relance_le", null)
     .not("email", "is", null);
   if (error) throw new Error(error.message);
+  const delai = await getParamNumber("prospect_relance_delai_jours", 3); // réglable via /reglages
   return (data ?? [])
-    .filter((m: any) => m.email && joursDepuis(m.cree_le) >= DELAI_JOURS)
+    .filter((m: any) => m.email && joursDepuis(m.cree_le) >= delai)
     .map((m: any) => ({ id: m.id, nom: m.nom ?? "", email: m.email }));
 }
 
