@@ -622,6 +622,7 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
   const [busy, setBusy] = useState<string | null>(null);
   const [erreurs, setErreurs] = useState<string[]>([]);
   const [formOuvert, setFormOuvert] = useState<string | null>(null);
+  const [evalManuel, setEvalManuel] = useState<string | null>(null);
   const [batch, setBatch] = useState<{ done: number; total: number; bloques: { piece: string; raison: string }[] } | null>(null);
   const [envoiMsg, setEnvoiMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -916,9 +917,19 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
       return (
         <>
           <button onClick={() => genererDepuisTest(p)} disabled={occupé}
-                  title="Génère l'évaluation à partir du test réellement passé par le bénéficiaire"
+                  title="Génère l'évaluation à partir du test réellement passé en ligne par le bénéficiaire"
                   className="px-3 py-1 rounded-lg text-xs text-white bg-mystory disabled:opacity-50">
             {occupé ? "Génération…" : (p.statut === "manquant" || p.statut === "erreur_envoi" ? "Générer depuis le test" : "Regénérer depuis le test")}
+          </button>
+          <button onClick={() => setEvalManuel(evalManuel === p.type ? null : p.type)} disabled={occupé}
+                  title="Test passé sur papier ou évaluation à la main : saisir les scores"
+                  className="px-3 py-1 rounded-lg text-xs border border-mystory text-mystory disabled:opacity-50">
+            Saisir manuellement
+          </button>
+          <button onClick={() => ouvrirDepot(p.type)} disabled={occupé}
+                  title="Test passé sur papier : importer le scan (PDF)"
+                  className="px-3 py-1 rounded-lg text-xs border border-gray-300 text-gray-700 bg-white disabled:opacity-50">
+            Importer le scan (PDF)
           </button>
           {consultable && (
             <button onClick={() => voir(p)} disabled={occupé}
@@ -1047,6 +1058,71 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
           />
         </div>
       )}
+      {evalManuel && (
+        <FormulaireEvalManuelle
+          dossierId={d.id}
+          phase={evalManuel === "evaluation_finale" ? "final" : "initial"}
+          onFini={async () => { setEvalManuel(null); await recharger(); }}
+          onErreurs={setErreurs}
+        />
+      )}
+    </div>
+  );
+}
+
+/** Saisie manuelle de l'évaluation (test passé sur papier ou évalué à la main) : 4 scores /10 + niveau global. */
+function FormulaireEvalManuelle({
+  dossierId, phase, onFini, onErreurs,
+}: {
+  dossierId: string; phase: "initial" | "final"; onFini: () => Promise<void>; onErreurs: (e: string[]) => void;
+}) {
+  const [v, setV] = useState({ ce_sur10: "", co_sur10: "", ee_sur10: "", eo_sur10: "", niveau_global: "", remarques: "" });
+  const [envoi, setEnvoi] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const ref = useRef<HTMLDivElement | null>(null);
+  const set = (k: string, val: string) => setV((p) => ({ ...p, [k]: val }));
+
+  useEffect(() => { requestAnimationFrame(() => ref.current?.scrollIntoView({ behavior: "smooth", block: "center" })); }, []);
+
+  async function generer() {
+    setEnvoi(true); setErr(null); onErreurs([]);
+    try {
+      const r = await fetch("/api/documents/evaluation", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dossierId, phase, manuel: { ...v } }),
+      });
+      const j = await r.json();
+      if (!j.ok) { setErr(j.erreur || "Génération impossible."); onErreurs([j.erreur || "Génération impossible."]); return; }
+      await onFini();
+    } catch (e: any) { setErr(e?.message || "Erreur réseau."); }
+    finally { setEnvoi(false); }
+  }
+
+  const SCORES: [string, string][] = [["ce_sur10", "CE /10"], ["co_sur10", "CO /10"], ["ee_sur10", "EE /10"], ["eo_sur10", "EO /10"]];
+  return (
+    <div ref={ref} className="mt-3 scroll-mt-24 border border-mystory/30 bg-mystory-clair/40 rounded-lg p-4">
+      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
+        Évaluation {phase === "final" ? "finale" : "initiale"} — saisie manuelle (test papier)
+      </p>
+      <div className="flex flex-wrap items-end gap-3">
+        {SCORES.map(([k, l]) => (
+          <label key={k} className="text-sm text-gray-700">{l}
+            <input type="number" min={0} max={10} step={0.5} value={(v as any)[k]} onChange={(e) => set(k, e.target.value)} className="input ml-2 w-20" />
+          </label>
+        ))}
+        <label className="text-sm text-gray-700">Niveau global
+          <select value={v.niveau_global} onChange={(e) => set("niveau_global", e.target.value)} className="input ml-2">
+            <option value="">—</option>
+            {NIVEAUX_CECRL.map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </label>
+      </div>
+      <textarea value={v.remarques} onChange={(e) => set("remarques", e.target.value)} placeholder="Remarques (facultatif)…" rows={2} className="input mt-2 w-full" />
+      {err && <p className="mt-2 text-sm text-red-600">{err}</p>}
+      <div className="mt-2 flex gap-2">
+        <button onClick={generer} disabled={envoi} className="btn-primary">{envoi ? "Génération…" : "Générer l'évaluation"}</button>
+        <button onClick={() => onFini()} className="btn-ghost">Annuler</button>
+      </div>
     </div>
   );
 }
