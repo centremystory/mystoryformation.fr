@@ -50,10 +50,23 @@ export default function ANoter() {
   );
 }
 
+const ORAL_MODES: { value: string; label: string }[] = [
+  { value: "remote_recording", label: "Enregistrements audio à distance" },
+  { value: "onsite_examiner", label: "Entretien oral sur place (examinateur)" },
+  { value: "not_required", label: "Épreuve orale non requise" },
+];
+
 function CarteNotation({ ev, onFini }: { ev: Evaluation; onFini: () => void }) {
   const [ee, setEe] = useState(""); const [eo, setEo] = useState(""); const [rem, setRem] = useState("");
+  // Pré-sélection : audios présents → à distance, sinon entretien sur place.
+  const [oralMode, setOralMode] = useState((ev.oral?.length ?? 0) > 0 ? "remote_recording" : "onsite_examiner");
+  const [oralLevel, setOralLevel] = useState("");
+  const [oralStrengths, setOralStrengths] = useState("");
+  const [oralImprovement, setOralImprovement] = useState("");
+  const [oralReco, setOralReco] = useState("");
   const [envoi, setEnvoi] = useState(false); const [err, setErr] = useState<string | null>(null);
   const nom = `${ev.prenom ?? ""} ${ev.nom ?? ""}`.trim() || "Candidat";
+  const oralRequis = oralMode !== "not_required";
 
   async function valider() {
     const e = Number(ee), o = Number(eo);
@@ -62,7 +75,14 @@ function CarteNotation({ ev, onFini }: { ev: Evaluation; onFini: () => void }) {
     try {
       const r = await fetch("/api/tests/notation", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: ev.id, ee_sur10: e, eo_sur10: o, remarques: rem }),
+        body: JSON.stringify({
+          id: ev.id, ee_sur10: e, eo_sur10: o, remarques: rem,
+          oral_evaluation_mode: oralMode,
+          oral_level_estimated: oralRequis ? oralLevel : "",
+          oral_strengths: oralRequis ? oralStrengths : "",
+          oral_improvement_areas: oralRequis ? oralImprovement : "",
+          oral_recommendation: oralRequis ? oralReco : "",
+        }),
       });
       const j = await r.json();
       if (j.ok) {
@@ -122,7 +142,32 @@ function CarteNotation({ ev, onFini }: { ev: Evaluation; onFini: () => void }) {
           <input type="number" min={0} max={10} step={0.5} value={eo} onChange={(e) => setEo(e.target.value)} className="input ml-2 w-20" />
         </label>
       </div>
-      <textarea value={rem} onChange={(e) => setRem(e.target.value)} placeholder="Remarques (facultatif)…" rows={2} className="input mt-2 w-full" />
+
+      {/* Modalité de l'oral — trace explicite (remplace la déduction implicite) */}
+      <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Évaluation orale</p>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="text-sm text-gray-700">Modalité
+            <select value={oralMode} onChange={(e) => setOralMode(e.target.value)} className="input ml-2">
+              {ORAL_MODES.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+            </select>
+          </label>
+          {oralRequis && (
+            <label className="text-sm text-gray-700">Niveau estimé à l&apos;oral
+              <input value={oralLevel} onChange={(e) => setOralLevel(e.target.value)} placeholder="ex. A2, B1…" className="input ml-2 w-24" />
+            </label>
+          )}
+        </div>
+        {oralRequis && (
+          <div className="mt-2 grid gap-2 sm:grid-cols-3">
+            <textarea value={oralStrengths} onChange={(e) => setOralStrengths(e.target.value)} placeholder="Points forts (facultatif)…" rows={2} className="input w-full" />
+            <textarea value={oralImprovement} onChange={(e) => setOralImprovement(e.target.value)} placeholder="Axes d'amélioration (facultatif)…" rows={2} className="input w-full" />
+            <textarea value={oralReco} onChange={(e) => setOralReco(e.target.value)} placeholder="Recommandation (facultatif)…" rows={2} className="input w-full" />
+          </div>
+        )}
+      </div>
+
+      <textarea value={rem} onChange={(e) => setRem(e.target.value)} placeholder="Remarques générales (facultatif)…" rows={2} className="input mt-2 w-full" />
       {err && <p className="mt-2 text-sm text-red-600">{err}</p>}
       <button onClick={valider} disabled={envoi} className="btn-primary mt-2">{envoi ? "Validation…" : "Valider la notation"}</button>
     </div>

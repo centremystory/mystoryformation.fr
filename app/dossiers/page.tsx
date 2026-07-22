@@ -626,6 +626,14 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
   const [envoiMsg, setEnvoiMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cibleDepotRef = useRef<string | null>(null);
+  const formRef = useRef<HTMLDivElement>(null);
+
+  // Le formulaire « à compléter » se rend en bas de la carte (après la liste des pièces) :
+  // sur un dossier à plusieurs pièces il s'ouvre hors écran → vécu comme « il ne s'ouvre pas ».
+  // On l'amène à l'écran dès son ouverture.
+  useEffect(() => {
+    if (formOuvert) requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }));
+  }, [formOuvert]);
 
   const reelles = [...(d.pieces ?? [])].sort((a, b) => a.ordre - b.ordre);
   const presentes = new Set(reelles.map((p) => p.type));
@@ -1030,12 +1038,14 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
         })}
       </ul>
       {formOuvert && (
-        <FormulaireCompletion
-          dossierId={d.id}
-          type={formOuvert}
-          onFini={async () => { setFormOuvert(null); await recharger(); }}
-          onErreurs={setErreurs}
-        />
+        <div ref={formRef} className="scroll-mt-24">
+          <FormulaireCompletion
+            dossierId={d.id}
+            type={formOuvert}
+            onFini={async () => { setFormOuvert(null); await recharger(); }}
+            onErreurs={setErreurs}
+          />
+        </div>
       )}
     </div>
   );
@@ -1158,6 +1168,10 @@ function FormulaireCompletion({
   );
   const [auteur, setAuteur] = useState("");
   const [envoi, setEnvoi] = useState(false);
+  // Blocages affichés DANS le formulaire (au-dessus du bouton) : l'utilisateur voit
+  // immédiatement pourquoi « ça ne se génère pas », sans devoir remonter en haut de la carte.
+  const [erreursLocales, setErreursLocales] = useState<string[]>([]);
+  const blocRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     try { setAuteur(localStorage.getItem("mystory_auteur") ?? ""); } catch {}
@@ -1170,8 +1184,15 @@ function FormulaireCompletion({
   const [signUrl, setSignUrl] = useState<string | null>(null);
   const set = (k: string, v: any) => setChamps((c) => ({ ...c, [k]: v }));
 
+  function signalerErreurs(msgs: string[]) {
+    setErreursLocales(msgs);   // visible dans le formulaire, sous les yeux
+    onErreurs(msgs);           // + bandeau parent (cohérence avec les autres actions)
+    // Amène le bloc à l'écran au cas où le formulaire dépasse la fenêtre.
+    requestAnimationFrame(() => blocRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }));
+  }
+
   async function envoyer(avecSignature = false) {
-    setEnvoi(true); onErreurs([]); setSignUrl(null);
+    setEnvoi(true); onErreurs([]); setErreursLocales([]); setSignUrl(null);
     try {
       const champsEnvoi = avecSignature ? { ...champs, envoyer_signature: true } : champs;
       const r = await fetch("/api/documents/completer", {
@@ -1180,12 +1201,12 @@ function FormulaireCompletion({
         body: JSON.stringify({ dossierId, type, champs: champsEnvoi, auteur: auteur.trim() || null }),
       });
       const j = await r.json();
-      if (!j.ok) { onErreurs(j.recap ?? [j.erreur || "Erreur lors de la génération."]); return; }
+      if (!j.ok) { signalerErreurs(j.recap ?? [j.erreur || "Erreur lors de la génération."]); return; }
       try { if (auteur.trim()) localStorage.setItem("mystory_auteur", auteur.trim()); } catch {}
       if (j.signUrl) setSignUrl(j.signUrl);
       await onFini();
     } catch (e: any) {
-      onErreurs([e?.message || "Erreur lors de la génération."]);
+      signalerErreurs([e?.message || "Erreur lors de la génération."]);
     } finally {
       setEnvoi(false);
     }
@@ -1271,6 +1292,15 @@ function FormulaireCompletion({
             <textarea value={champs.axes} onChange={(e) => set("axes", e.target.value)} rows={2}
                       className={`${champClasses} mt-1 block w-full resize-y`} />
           </label>
+        </div>
+      )}
+
+      {erreursLocales.length > 0 && (
+        <div ref={blocRef} className="mt-4 px-3 py-2 rounded-lg border border-red-300 bg-red-50 text-red-800 text-sm">
+          <p className="font-medium mb-1">Génération bloquée — à corriger avant de générer :</p>
+          <ul className="list-disc pl-5 space-y-0.5">
+            {erreursLocales.map((e, i) => <li key={i}>{e}</li>)}
+          </ul>
         </div>
       )}
 
