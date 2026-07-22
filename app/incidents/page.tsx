@@ -2,11 +2,14 @@
 // app/incidents/page.tsx — Surveillance des échecs (emails, n8n, système).
 import { useCallback, useEffect, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
+import { apiFetch } from "@/lib/apiFetch";
+import { useToast } from "@/components/ui/Toast";
 
 type Incident = { id: string; source: string; titre: string; detail: string | null; resolu: boolean; cree_le: string };
 const BADGE: Record<string, string> = { email: "badge-info", n8n: "bg-purple-100 text-purple-700", systeme: "badge-neutral" };
 
 export default function PageIncidents() {
+  const toast = useToast();
   const [tous, setTous] = useState(false);
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [charge, setCharge] = useState(true);
@@ -25,8 +28,11 @@ export default function PageIncidents() {
   async function basculer(id: string, resolu: boolean) {
     setBusy(id);
     try {
-      await fetch("/api/incidents", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, resolu }) });
+      await apiFetch("/api/incidents", { method: "PATCH", body: JSON.stringify({ id, resolu }) });
+      toast.success(resolu ? "Incident marqué résolu." : "Incident rouvert.");
       await charger();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Action impossible — réessayez.");
     } finally { setBusy(null); }
   }
 

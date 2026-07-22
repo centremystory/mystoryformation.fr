@@ -1,6 +1,8 @@
 "use client";
 // app/planning-employes/page.tsx — Planning de travail des employés (RH).
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { apiFetch } from "@/lib/apiFetch";
+import { useToast } from "@/components/ui/Toast";
 
 type Creneau = {
   id: string; utilisateur_id: string; date_jour: string; heure_debut: string | null; heure_fin: string | null;
@@ -24,6 +26,7 @@ function nomEmploye(c: Creneau, employes: Employe[]): string {
 }
 
 export default function PagePlanningEmployes() {
+  const toast = useToast();
   const [creneaux, setCreneaux] = useState<Creneau[]>([]);
   const [employes, setEmployes] = useState<Employe[]>([]);
   const [peutGerer, setPeutGerer] = useState(false);
@@ -77,9 +80,13 @@ export default function PagePlanningEmployes() {
 
   async function supprimer(id: string) {
     try {
-      await fetch("/api/planning-employes", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, action: "supprimer" }) });
+      await apiFetch("/api/planning-employes", { method: "PATCH", body: JSON.stringify({ id, action: "supprimer" }) });
+      toast.success("Créneau retiré.");
       await charger();
-    } catch (e: any) { setErr(e?.message || "Suppression impossible."); }
+    } catch (e: any) {
+      setErr(e?.message || "Suppression impossible.");
+      toast.error(e?.message ?? "Suppression impossible — réessayez.");
+    }
   }
 
   // Regroupement par jour

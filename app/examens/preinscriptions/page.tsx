@@ -8,6 +8,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Phone, Send, CheckCircle2, RotateCcw, XCircle, AlertTriangle, Link2 } from "lucide-react";
+import { apiFetch } from "@/lib/apiFetch";
+import { useToast } from "@/components/ui/Toast";
 
 const SOUS_TYPES_CIVIQUE = ["Carte de séjour pluriannuelle", "Carte de résident", "Naturalisation"];
 const MOTIVATIONS_TEF = ["04. Intégration française", "05. Carte de séjour pluriannuelle", "06. Carte de résident en France", "10. Naturalisation française"];
@@ -22,6 +24,7 @@ function dateFR(iso: string): string {
 }
 
 export default function PagePreinscriptions() {
+  const toast = useToast();
   const [liste, setListe] = useState<any[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
   const [charge, setCharge] = useState(true);
@@ -99,10 +102,13 @@ export default function PagePreinscriptions() {
   async function actionSimple(id: string, action: "annuler" | "renvoyer") {
     setBusy(`${action}-${id}`);
     try {
-      await fetch("/api/examens/preinscriptions", {
-        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, action }),
+      await apiFetch("/api/examens/preinscriptions", {
+        method: "PATCH", body: JSON.stringify({ id, action }),
       });
+      toast.success(action === "renvoyer" ? "Mail (lien de paiement) renvoyé." : "Pré-inscription annulée.");
       await charger();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Action impossible — réessayez.");
     } finally { setBusy(null); }
   }
 

@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { apiFetch } from "@/lib/apiFetch";
+import { useToast } from "@/components/ui/Toast";
 
 type Reponse = {
   id: string;
@@ -34,6 +36,7 @@ function dateFr(s: string): string {
 }
 
 export default function InternePage() {
+  const toast = useToast();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [chargement, setChargement] = useState(true);
   const [nouvelle, setNouvelle] = useState("");
@@ -105,12 +108,21 @@ export default function InternePage() {
   }
 
   async function agir(id: string, action: "resoudre" | "rouvrir" | "archiver") {
-    await fetch("/api/interne", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, action }),
-    });
-    await charger();
+    const MSG: Record<string, string> = {
+      resoudre: "Question marquée résolue.",
+      rouvrir: "Question rouverte.",
+      archiver: "Question archivée.",
+    };
+    try {
+      await apiFetch("/api/interne", {
+        method: "PATCH",
+        body: JSON.stringify({ id, action }),
+      });
+      toast.success(MSG[action] ?? "Question mise à jour.");
+      await charger();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Action impossible — réessayez.");
+    }
   }
 
   return (

@@ -1,6 +1,8 @@
 "use client";
 // app/formateurs/page.tsx — Registre des formateurs (onboarding). 6a : registre ; 6b/6c ajoutent les actions.
 import { useCallback, useEffect, useState } from "react";
+import { apiFetch } from "@/lib/apiFetch";
+import { useToast } from "@/components/ui/Toast";
 
 type Doc = { id: string; type: string; statut: string; sign_url: string | null; signe_le: string | null; fichier_signe_path: string | null };
 type Formatrice = { id: string; nom: string; prenom: string | null; justificatif_fle: boolean };
@@ -18,6 +20,7 @@ function nomComplet(f: Formateur): string {
 const Q_LABELS: Record<string, string> = { qualification: "Qualification FLE", experience: "Exp\u00e9rience", niveaux: "Niveaux", public_cible: "Public", statut: "Statut", disponibilites: "Disponibilit\u00e9s", methodes: "M\u00e9thodes", certifs: "TEF / LEVELTEL", commentaire: "Commentaire" };
 
 export default function PageFormateurs() {
+  const toast = useToast();
   const [formateurs, setFormateurs] = useState<Formateur[]>([]);
   const [charge, setCharge] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -36,8 +39,11 @@ export default function PageFormateurs() {
   async function lierFormatrice(id: string, formatriceId: string) {
     setBusy(`lien-${id}`);
     try {
-      await fetch("/api/formateurs", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, formatriceId: formatriceId || null }) });
+      await apiFetch("/api/formateurs", { method: "PATCH", body: JSON.stringify({ id, formatriceId: formatriceId || null }) });
+      toast.success(formatriceId ? "Formatrice reliée." : "Lien formatrice retiré.");
       await charger();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Action impossible — réessayez.");
     } finally { setBusy(null); }
   }
 
@@ -89,8 +95,11 @@ export default function PageFormateurs() {
   async function archiver(id: string) {
     setBusy(`arch-${id}`);
     try {
-      await fetch("/api/formateurs", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, action: "archiver" }) });
+      await apiFetch("/api/formateurs", { method: "PATCH", body: JSON.stringify({ id, action: "archiver" }) });
+      toast.success("Formateur archivé.");
       await charger();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Archivage impossible — réessayez.");
     } finally { setBusy(null); }
   }
 

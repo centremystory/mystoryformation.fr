@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { apiFetch } from "@/lib/apiFetch";
+import { useToast } from "@/components/ui/Toast";
 
 type Ligne = { id: string; activite: string; duree_minutes: number; cree_le: string; utilisateur_id: string };
 type TacheFaite = { id: string; titre: string; agence: string | null; temps_minutes: number | null; fait_le: string };
@@ -20,6 +22,7 @@ function heures(min: number): string {
 }
 
 export default function RapportHebdoPage() {
+  const toast = useToast();
   const [lundi, setLundi] = useState<Date>(() => lundiDe(new Date()));
   const [employe, setEmploye] = useState<string>("");
   const [data, setData] = useState<{ lignes: Ligne[]; taches: TacheFaite[]; employes: Employe[]; estEncadrement: boolean; dimanche: string } | null>(null);
@@ -52,8 +55,13 @@ export default function RapportHebdoPage() {
   }
 
   async function archiver(id: string) {
-    await fetch("/api/rapport-hebdo", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, action: "archive" }) });
-    await charger();
+    try {
+      await apiFetch("/api/rapport-hebdo", { method: "PATCH", body: JSON.stringify({ id, action: "archive" }) });
+      toast.success("Activité retirée.");
+      await charger();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Action impossible — réessayez.");
+    }
   }
 
   const decaler = (n: number) => { const d = new Date(lundi); d.setDate(lundi.getDate() + n * 7); setLundi(lundiDe(d)); };

@@ -1,6 +1,8 @@
 "use client";
 // app/programmes/page.tsx — Séquençage : programmes types + modules + tableau croisé compétences.
 import { useCallback, useEffect, useState } from "react";
+import { apiFetch } from "@/lib/apiFetch";
+import { useToast } from "@/components/ui/Toast";
 
 type Module = {
   id: string; ordre: number; titre: string; objectif: string | null; duree_heures: number;
@@ -22,6 +24,7 @@ const COMPS = [
 ] as const;
 
 function ProgrammeCard({ p, onChange }: { p: Programme; onChange: () => void }) {
+  const toast = useToast();
   const [ouvert, setOuvert] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -53,12 +56,22 @@ function ProgrammeCard({ p, onChange }: { p: Programme; onChange: () => void }) 
     finally { setBusy(false); }
   }
   async function archiverModule(id: string) {
-    await fetch("/api/programmes/modules", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, action: "archiver" }) });
-    onChange();
+    try {
+      await apiFetch("/api/programmes/modules", { method: "PATCH", body: JSON.stringify({ id, action: "archiver" }) });
+      toast.success("Module retiré.");
+      onChange();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Action impossible — réessayez.");
+    }
   }
   async function archiverProgramme() {
-    await fetch("/api/programmes", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: p.id, action: "archiver" }) });
-    onChange();
+    try {
+      await apiFetch("/api/programmes", { method: "PATCH", body: JSON.stringify({ id: p.id, action: "archiver" }) });
+      toast.success("Programme archivé.");
+      onChange();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Archivage impossible — réessayez.");
+    }
   }
 
   return (

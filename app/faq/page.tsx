@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Copy, Check, Pencil, Archive, Mail } from "lucide-react";
 import GuidesSousNav from "@/components/GuidesSousNav";
+import { apiFetch } from "@/lib/apiFetch";
+import { useToast } from "@/components/ui/Toast";
 
 type Entree = { id: string; categorie: string; question: string; reponse: string; auteur: string | null; cree_le: string; maj_le: string };
 
@@ -100,6 +102,7 @@ function BoutonCopier({ texte }: { texte: string }) {
 }
 
 export default function PageFaq() {
+  const toast = useToast();
   const [entrees, setEntrees] = useState<Entree[]>([]);
   const [charge, setCharge] = useState(true);
   const [filtre, setFiltre] = useState<string>("toutes");
@@ -149,15 +152,14 @@ export default function PageFaq() {
     if (!question.trim() || !reponse.trim()) { setErr("Question et réponse requises."); return; }
     setBusy("__add__"); setErr(null);
     try {
-      const r = await fetch("/api/faq", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+      await apiFetch("/api/faq", {
+        method: "POST",
         body: JSON.stringify({ categorie, question, reponse }),
       });
-      const j = await r.json();
-      if (!j.ok) { setErr(j.erreur || "Ajout impossible."); return; }
+      toast.success("Entrée ajoutée.");
       setQuestion(""); setReponse(""); setOuvertAjout(false);
       await charger();
-    } catch (e: any) { setErr(e?.message || "Ajout impossible."); }
+    } catch (e: any) { toast.error(e?.message ?? "Ajout impossible — réessayez."); }
     finally { setBusy(null); }
   }
 
@@ -168,23 +170,24 @@ export default function PageFaq() {
     if (!editId) return;
     setBusy(`edit-${editId}`); setErr(null);
     try {
-      const r = await fetch("/api/faq", {
-        method: "PATCH", headers: { "Content-Type": "application/json" },
+      await apiFetch("/api/faq", {
+        method: "PATCH",
         body: JSON.stringify({ id: editId, question: editQ, reponse: editR, categorie: editC }),
       });
-      const j = await r.json();
-      if (!j.ok) { setErr(j.erreur || "Modification impossible."); return; }
+      toast.success("Entrée modifiée.");
       setEditId(null);
       await charger();
-    } catch (e: any) { setErr(e?.message || "Modification impossible."); }
+    } catch (e: any) { toast.error(e?.message ?? "Modification impossible — réessayez."); }
     finally { setBusy(null); }
   }
   async function archiver(id: string) {
     setBusy(`arch-${id}`);
     try {
-      await fetch("/api/faq", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, action: "archiver" }) });
+      await apiFetch("/api/faq", { method: "PATCH", body: JSON.stringify({ id, action: "archiver" }) });
+      toast.success("Entrée archivée.");
       await charger();
-    } finally { setBusy(null); }
+    } catch (e: any) { toast.error(e?.message ?? "Archivage impossible — réessayez."); }
+    finally { setBusy(null); }
   }
 
   return (

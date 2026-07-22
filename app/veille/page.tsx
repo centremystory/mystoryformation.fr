@@ -1,6 +1,8 @@
 "use client";
 // app/veille/page.tsx — Registre de veille (Qualiopi 23→26).
 import { useCallback, useEffect, useState } from "react";
+import { apiFetch } from "@/lib/apiFetch";
+import { useToast } from "@/components/ui/Toast";
 
 type Entree = {
   id: string; categorie: string; titre: string; source: string | null; lien: string | null;
@@ -22,6 +24,7 @@ function dateFr(iso: string | null): string {
 }
 
 export default function PageVeille() {
+  const toast = useToast();
   const [entrees, setEntrees] = useState<Entree[]>([]);
   const [charge, setCharge] = useState(true);
   const [filtre, setFiltre] = useState<string>("toutes");
@@ -68,11 +71,14 @@ export default function PageVeille() {
   async function archiver(id: string) {
     setBusy(`arch-${id}`);
     try {
-      await fetch("/api/veille", {
-        method: "PATCH", headers: { "Content-Type": "application/json" },
+      await apiFetch("/api/veille", {
+        method: "PATCH",
         body: JSON.stringify({ id, action: "archiver" }),
       });
+      toast.success("Archivé.");
       await charger();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Archivage impossible — réessayez.");
     } finally { setBusy(null); }
   }
 
