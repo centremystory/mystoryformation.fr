@@ -101,7 +101,7 @@
 
   <h3>Situation &amp; disponibilités</h3>
   <p class="check"><strong>Statut :</strong> {{sit_salarie}} Salarié &nbsp; {{sit_de}} Demandeur d'emploi &nbsp; {{sit_chef}} Chef d'entreprise &nbsp; {{sit_autre}} Autre{{#if situation_detail}} — <strong>{{situation_detail}}</strong>{{/if}}</p>
-  <p class="check"><strong>Financement :</strong> {{fin_cpf}} CPF{{#if cpf_informe}} <span style="font-size:7.4pt;color:#5b6472;">(informé du reste à charge : oui)</span>{{/if}} &nbsp; {{fin_opco}} OPCO &nbsp; {{fin_perso}} Personnel</p>
+  <p class="check"><strong>Financement :</strong> {{fin_cpf}} CPF{{#if cpf_informe}} <span style="font-size:7.4pt;color:#5b6472;">(informé du reste à charge : {{reste_a_charge}} € — oui)</span>{{/if}} &nbsp; {{fin_opco}} OPCO &nbsp; {{fin_perso}} Personnel</p>
   <p class="check"><strong>Disponibilités :</strong> {{dispo_1}} 1× &nbsp; {{dispo_2}} 2× &nbsp; {{dispo_3}} 3× &nbsp; {{dispo_4}} 4× &nbsp; {{dispo_5}} 5× &nbsp; {{dispo_6}} 6× / sem. &nbsp;&nbsp; {{dispo_matin}} Matin &nbsp; {{dispo_aprem}} Après-midi &nbsp; {{dispo_soir}} Soir &nbsp; {{dispo_samedi}} Samedi{{#if debut_souhaite}} &nbsp; Début : <strong>{{debut_souhaite}}</strong>{{/if}}</p>
   <p class="check"><strong>Situation de handicap :</strong> {{comp_non}} Non &nbsp; {{comp_oui}} Oui{{#if compensation_detail}} — <strong>{{compensation_detail}}</strong> (orienter vers le référent handicap){{/if}}</p>
 

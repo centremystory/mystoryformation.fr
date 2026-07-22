@@ -1405,7 +1405,7 @@ function FormulaireCompletion({
             {champs.financement === "cpf" && (
               <label className="inline-flex items-center gap-1.5">
                 <input type="checkbox" checked={!!champs.cpf_informe} onChange={(e) => set("cpf_informe", e.target.checked)} />
-                <span>Informé du reste à charge (150 €)</span>
+                <span>Informé du reste à charge <span className="text-gray-400">(montant réglable dans Réglages)</span></span>
               </label>
             )}
           </div>

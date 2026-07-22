@@ -20,6 +20,7 @@ import { renderHtmlToPdf, createFicheBesoinSubmissionFromHtml } from "@/lib/docu
 import { requireUser, UnauthorizedError, type SessionUser } from "@/lib/auth";
 import { peut } from "@/lib/roles";
 import { getFiche, archiveDocument, setPieceStatus, getSignedUrl } from "@/lib/crm";
+import { getParamNumber } from "@/lib/parametres";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { journal } from "@/lib/examens";
 
@@ -171,6 +172,7 @@ export async function POST(req: NextRequest) {
       fin_opco: box(financement === "opco"),
       fin_perso: box(financement === "personnel"),
       cpf_informe: box(financement === "cpf" && cpfInforme),
+      reste_a_charge: String(await getParamNumber("cpf_reste_a_charge", 150)),
       // Positionnement
       pos_test: box(positionnement === "test"),
       pos_attest: box(positionnement === "attestation"),
