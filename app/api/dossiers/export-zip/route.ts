@@ -78,7 +78,10 @@ export async function GET(req: NextRequest) {
       if (dl.error || !dl.data) { manquantes.push(a.piece_type); continue; }
       const buf = Buffer.from(await dl.data.arrayBuffer());
       n += 1;
-      const nom = `${String(n).padStart(2, "0")}_${LABEL[a.piece_type] ?? slug(a.piece_type)}.pdf`;
+      // Extension RÉELLE du fichier archivé (un justificatif/scan peut être .jpg/.png, pas .pdf) :
+      // forcer .pdf le rendait illisible après renommage.
+      const ext = (a.url.split(".").pop() || "pdf").toLowerCase().replace(/[^a-z0-9]/g, "") || "pdf";
+      const nom = `${String(n).padStart(2, "0")}_${LABEL[a.piece_type] ?? slug(a.piece_type)}.${ext}`;
       zip.file(nom, buf);
     } catch { manquantes.push(a.piece_type); }
   }
