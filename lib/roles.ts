@@ -115,6 +115,7 @@ export const PAGE_PERMISSIONS: Record<string, Role[]> = {
   "/dossiers/edof": ["direction", "manager", "back_office"],
   "/edof": ["direction", "manager", "back_office"],
   "/direction": ["direction", "manager"],
+  "/catalogue": ["direction", "manager"],
   "/dossiers": ["direction", "manager", "back_office", "formatrice"],
   // — Pédagogie / suivi élèves (formatrice) —
   "/formation": ["direction", "manager", "formatrice"],
