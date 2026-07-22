@@ -1163,7 +1163,7 @@ function FormulaireCompletion({
 }) {
   const [champs, setChamps] = useState<Record<string, any>>(
     type === "fiche_analyse_besoin"
-      ? { objectif: "", projet: "", apport_francais: "", disponibilites: "", compensation: "non", compensation_detail: "", coherence: false }
+      ? { objectif: "", demarches: [], projet: "", apport_francais: "", situation: "", situation_detail: "", positionnement: "test", positionnement_detail: "", prerequis: "Aucun prérequis de diplôme. Positionnement réalisé à l'entrée ; le bénéficiaire doit pouvoir suivre la formation dans les conditions prévues.", commentaires: "", disponibilites: "", compensation: "non", compensation_detail: "", coherence: false }
       : { niveau_co: "", niveau_ce: "", niveau_eo: "", niveau_ee: "", niveau_global: "", commentaires: "", axes: "" }
   );
   const [auteur, setAuteur] = useState("");
@@ -1242,10 +1242,57 @@ function FormulaireCompletion({
             <textarea value={champs.apport_francais} onChange={(e) => set("apport_francais", e.target.value)} rows={2}
                       className={`${champClasses} mt-1 block w-full resize-y`} />
           </label>
+          {/* Démarche administrative ASSOCIÉE — contexte lié au projet pro, jamais l'objectif principal CPF */}
+          <div className="text-sm">
+            <span className="font-medium">Démarche administrative associée </span>
+            <span className="text-xs font-normal text-gray-500">(le cas échéant — contexte lié au projet professionnel, jamais l'objectif principal d'une formation CPF)</span>
+            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+              {([["residence", "Carte de résidence longue durée"], ["naturalisation", "Naturalisation"], ["titre_sejour", "1re demande de titre de séjour"], ["maintien", "Maintien de résidence"], ["integration", "Intégration"]] as const).map(([v, l]) => (
+                <label key={v} className="inline-flex items-center gap-1.5">
+                  <input type="checkbox" checked={(champs.demarches ?? []).includes(v)}
+                         onChange={(e) => set("demarches", e.target.checked ? [...(champs.demarches ?? []), v] : (champs.demarches ?? []).filter((x: string) => x !== v))} />
+                  <span>{l}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          {/* Situation professionnelle — justifie le contexte pro exigé par le CPF */}
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            <span className="font-medium">Situation professionnelle :</span>
+            <select value={champs.situation} onChange={(e) => set("situation", e.target.value)} className={champClasses}>
+              <option value="">— Choisir —</option>
+              <option value="salarie">Salarié</option>
+              <option value="demandeur_emploi">Demandeur d'emploi</option>
+              <option value="chef_entreprise">Chef d'entreprise</option>
+              <option value="autre">Autre</option>
+            </select>
+            {champs.situation === "autre" && (
+              <input value={champs.situation_detail} onChange={(e) => set("situation_detail", e.target.value)}
+                     placeholder="Préciser la situation" className={`${champClasses} flex-1 min-w-[200px]`} />
+            )}
+          </div>
+          {/* Méthode de positionnement — Qualiopi ind. 8 */}
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            <span className="font-medium">Méthode de positionnement :</span>
+            <select value={champs.positionnement} onChange={(e) => set("positionnement", e.target.value)} className={champClasses}>
+              <option value="test">Test de positionnement</option>
+              <option value="attestation">Attestation de niveau</option>
+              <option value="autre">Autre</option>
+            </select>
+            {champs.positionnement === "autre" && (
+              <input value={champs.positionnement_detail} onChange={(e) => set("positionnement_detail", e.target.value)}
+                     placeholder="Préciser la méthode" className={`${champClasses} flex-1 min-w-[200px]`} />
+            )}
+          </div>
           <label className="block text-sm">
             <span className="font-medium">Disponibilités du stagiaire (jours / créneaux)</span>
             <textarea value={champs.disponibilites} onChange={(e) => set("disponibilites", e.target.value)} rows={2}
                       placeholder="ex : lundi et mercredi après-midi, samedi matin…"
+                      className={`${champClasses} mt-1 block w-full resize-y`} />
+          </label>
+          <label className="block text-sm">
+            <span className="font-medium">Prérequis</span>
+            <textarea value={champs.prerequis} onChange={(e) => set("prerequis", e.target.value)} rows={2}
                       className={`${champClasses} mt-1 block w-full resize-y`} />
           </label>
           <div className="flex flex-wrap items-center gap-3 text-sm">
@@ -1259,6 +1306,11 @@ function FormulaireCompletion({
                      placeholder="Préciser l'adaptation" className={`${champClasses} flex-1 min-w-[200px]`} />
             )}
           </div>
+          <label className="block text-sm">
+            <span className="font-medium">Commentaires</span>
+            <textarea value={champs.commentaires} onChange={(e) => set("commentaires", e.target.value)} rows={2}
+                      className={`${champClasses} mt-1 block w-full resize-y`} />
+          </label>
           <label className="flex items-start gap-2 text-sm">
             <input type="checkbox" checked={!!champs.coherence} onChange={(e) => set("coherence", e.target.checked)}
                    className="mt-0.5" />

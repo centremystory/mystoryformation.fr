@@ -77,12 +77,14 @@
 
   <table class="fields">
     <tr><td class="k">Bénéficiaire</td><td class="v">{{civilite}} {{nom}} {{prenom}}</td></tr>
+    <tr><td class="k">Date de naissance</td><td class="v">{{date_naissance}}</td></tr>
     <tr><td class="k">Contact</td><td class="v">{{email}} · {{telephone}}</td></tr>
     <tr><td class="k">Formation visée</td><td class="v">{{certif_intitule}} — {{certif_code}}</td></tr>
+    <tr><td class="k">Durée estimée</td><td class="v">{{duree_heures}} h</td></tr>
     <tr><td class="k">Date</td><td class="v">{{date_signature}}</td></tr>
   </table>
 
-  <h3>Objectif professionnel</h3>
+  <h3>Objectif &amp; projet professionnel</h3>
   <p class="check"><strong>Objectif principal (nécessairement professionnel) :</strong><br>
     {{obj_emploi}} Accès / retour à l'emploi &nbsp;&nbsp; {{obj_maintien}} Maintien dans l'emploi / adaptation au poste &nbsp;&nbsp; {{obj_mobilite}} Mobilité / évolution professionnelle
   </p>
@@ -90,15 +92,24 @@
   <div class="manus">{{projet}}</div>
   <p style="font-size:9.2pt; margin:6px 0 2px;"><strong>En quoi la maîtrise du français sert ce projet :</strong></p>
   <div class="manus">{{apport_francais}}</div>
+  <p class="check" style="margin-top:4px;"><strong>Démarche administrative associée :</strong>
+    {{adm_residence}} Carte de résidence longue durée &nbsp; {{adm_naturalisation}} Naturalisation &nbsp; {{adm_titre_sejour}} 1re demande de titre de séjour &nbsp; {{adm_maintien}} Maintien de résidence &nbsp; {{adm_integration}} Intégration
+  </p>
+  <p style="font-size:7.8pt; color:#5b6472; margin-top:-2px;"><em>Contexte lié au projet professionnel ci-dessus — ne constitue pas l'objectif principal d'une formation financée par le CPF.</em></p>
+
+  <h3>Situation &amp; positionnement</h3>
+  <p class="check"><strong>Situation professionnelle :</strong> {{sit_salarie}} Salarié &nbsp; {{sit_de}} Demandeur d'emploi &nbsp; {{sit_chef}} Chef d'entreprise &nbsp; {{sit_autre}} Autre{{#if situation_detail}} — <strong>{{situation_detail}}</strong>{{/if}}</p>
+  <p class="check"><strong>Méthode de positionnement :</strong> {{pos_test}} Test de positionnement &nbsp; {{pos_attest}} Attestation de niveau &nbsp; {{pos_autre}} Autre{{#if positionnement_detail}} — <strong>{{positionnement_detail}}</strong>{{/if}}</p>
   <p style="font-size:9.2pt; margin:6px 0 2px;"><strong>Disponibilités du stagiaire (jours / créneaux) :</strong></p>
   <div class="manus">{{disponibilites}}</div>
-  <p style="font-size:8.4pt; color:#5b6472;"><strong>Démarche administrative éventuelle (résidence / naturalisation) :</strong> le cas échéant, conséquence du projet professionnel ci-dessus — elle ne peut constituer l'objectif principal d'une formation financée par le CPF.</p>
+  {{#if prerequis}}<p class="check"><strong>Prérequis :</strong> {{prerequis}}</p>{{/if}}
 
   <h3>Niveau et besoins</h3>
-  <p class="check"><strong>Niveau estimé (CECRL) :</strong> {{est_a0}} A0 &nbsp; {{est_a1}} A1 &nbsp; {{est_a2}} A2 &nbsp; {{est_b1}} B1 &nbsp; {{est_b2}} B2</p>
-  <p class="check"><strong>Niveau visé :</strong> {{vise_a2}} A2 &nbsp; {{vise_b1}} B1 &nbsp; {{vise_b2}} B2 &nbsp; {{vise_c1}} C1</p>
+  <p class="check"><strong>Niveau estimé (CECRL) :</strong> {{est_a0}} A0 &nbsp; {{est_a1}} A1 &nbsp; {{est_a2}} A2 &nbsp; {{est_b1}} B1 &nbsp; {{est_b2}} B2 &nbsp; {{est_c1}} C1</p>
+  <p class="check"><strong>Niveau visé :</strong> {{vise_a2}} A2 &nbsp; {{vise_b1}} B1 &nbsp; {{vise_b2}} B2 &nbsp; {{vise_c1}} C1 &nbsp; {{vise_c2}} C2</p>
   <p class="check"><strong>Besoin de compensation (handicap) :</strong> {{comp_non}} Non &nbsp; {{comp_oui}} Oui{{#if compensation_detail}} — préciser : <strong>{{compensation_detail}}</strong>{{/if}}</p>
   <p class="check"><strong>Cohérence durée / écart de niveau vérifiée :</strong> ☑ Oui &nbsp; ☐ Non</p>
+  {{#if commentaires}}<p style="font-size:9.2pt; margin:6px 0 2px;"><strong>Commentaires :</strong></p><div class="manus">{{commentaires}}</div>{{/if}}
 
   <div class="twocol">
     <div><div class="sigwho">Signature du bénéficiaire</div><div class="sigline">&nbsp;<!--SIG_STAGIAIRE--></div></div>

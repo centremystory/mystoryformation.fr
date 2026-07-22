@@ -101,10 +101,32 @@ export async function POST(req: NextRequest) {
     const disponibilites = String(champs.disponibilites ?? "").trim();
     const envoyerSignature = champs.envoyer_signature === true;
 
+    // Démarche administrative ASSOCIÉE (résidence/naturalisation/titre de séjour…) : contexte lié
+    // au projet professionnel, JAMAIS l'objectif principal d'une formation CPF. Multi-choix, facultatif.
+    const DEMARCHES = ["residence", "naturalisation", "titre_sejour", "maintien", "integration"];
+    const demarches = Array.isArray(champs.demarches)
+      ? champs.demarches.map((x: unknown) => String(x)).filter((x: string) => DEMARCHES.includes(x))
+      : [];
+
+    // Situation professionnelle (justifie le contexte pro exigé par le CPF) — obligatoire.
+    const situation = String(champs.situation ?? "");
+    const situationDetail = String(champs.situation_detail ?? "").trim();
+    // Méthode de positionnement (Qualiopi ind. 8) — obligatoire.
+    const positionnement = String(champs.positionnement ?? "");
+    const positionnementDetail = String(champs.positionnement_detail ?? "").trim();
+    const prerequis = String(champs.prerequis ?? "").trim();
+    const commentaires = String(champs.commentaires ?? "").trim();
+
     if (!["emploi", "maintien", "mobilite"].includes(objectif))
       recap.push("Objectif principal à choisir (nécessairement professionnel — règle CPF).");
     if (!projet) recap.push("Description du projet professionnel obligatoire.");
     if (!apport) recap.push("« En quoi la maîtrise du français sert ce projet » est obligatoire.");
+    if (!["salarie", "demandeur_emploi", "chef_entreprise", "autre"].includes(situation))
+      recap.push("Situation professionnelle du bénéficiaire à renseigner.");
+    if (situation === "autre" && !situationDetail) recap.push("Situation « Autre » : précision obligatoire.");
+    if (!["test", "attestation", "autre"].includes(positionnement))
+      recap.push("Méthode de positionnement à renseigner (test / attestation / autre).");
+    if (positionnement === "autre" && !positionnementDetail) recap.push("Méthode de positionnement « Autre » : précision obligatoire.");
     if (!disponibilites) recap.push("Disponibilités du stagiaire à renseigner.");
     if (compensation === "oui" && !compDetail) recap.push("Besoin de compensation coché « Oui » : précision obligatoire.");
     if (!coherence) recap.push("La cohérence durée / écart de niveau doit être vérifiée et cochée avant de générer la fiche.");
@@ -115,8 +137,24 @@ export async function POST(req: NextRequest) {
       obj_emploi: box(objectif === "emploi"),
       obj_maintien: box(objectif === "maintien"),
       obj_mobilite: box(objectif === "mobilite"),
+      adm_residence: box(demarches.includes("residence")),
+      adm_naturalisation: box(demarches.includes("naturalisation")),
+      adm_titre_sejour: box(demarches.includes("titre_sejour")),
+      adm_maintien: box(demarches.includes("maintien")),
+      adm_integration: box(demarches.includes("integration")),
       projet,
       apport_francais: apport,
+      sit_salarie: box(situation === "salarie"),
+      sit_de: box(situation === "demandeur_emploi"),
+      sit_chef: box(situation === "chef_entreprise"),
+      sit_autre: box(situation === "autre"),
+      situation_detail: situation === "autre" ? situationDetail : null,
+      pos_test: box(positionnement === "test"),
+      pos_attest: box(positionnement === "attestation"),
+      pos_autre: box(positionnement === "autre"),
+      positionnement_detail: positionnement === "autre" ? positionnementDetail : null,
+      prerequis: prerequis || null,
+      commentaires: commentaires || null,
       disponibilites,
       comp_non: box(compensation !== "oui"),
       comp_oui: box(compensation === "oui"),
@@ -126,12 +164,20 @@ export async function POST(req: NextRequest) {
       est_a2: box(fiche.niveauInitial === "A2"),
       est_b1: box(fiche.niveauInitial === "B1"),
       est_b2: box(fiche.niveauInitial === "B2"),
+      est_c1: box(fiche.niveauInitial === "C1"),
       vise_a2: box(fiche.niveauVise === "A2"),
       vise_b1: box(fiche.niveauVise === "B1"),
       vise_b2: box(fiche.niveauVise === "B2"),
       vise_c1: box(fiche.niveauVise === "C1"),
+      vise_c2: box(fiche.niveauVise === "C2"),
     };
-    champsValides = { objectif, projet, apport_francais: apport, disponibilites, compensation, compensation_detail: compDetail, coherence };
+    champsValides = {
+      objectif, demarches, projet, apport_francais: apport,
+      situation, situation_detail: situationDetail,
+      positionnement, positionnement_detail: positionnementDetail,
+      disponibilites, prerequis, commentaires,
+      compensation, compensation_detail: compDetail, coherence,
+    };
     envoyerSignatureFiche = envoyerSignature;
   }
 
