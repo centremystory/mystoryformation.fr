@@ -808,6 +808,11 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
     if (p.type === "convention") {
       return (
         <>
+          <a href={`/api/conventions/preview?dossier=${d.id}`} target="_blank" rel="noreferrer"
+             title="Génère un aperçu de la convention sans l'envoyer en signature — pour vérifier avant."
+             className="px-3 py-1 rounded-lg text-xs border border-mystory text-mystory hover:bg-mystory/5">
+            Aperçu (sans signature)
+          </a>
           {(p.statut === "manquant" || p.statut === "erreur_envoi") && (
             <button onClick={() => envoyerConvention(p)} disabled={occupé}
                     className="px-3 py-1 rounded-lg text-xs text-white bg-mystory disabled:opacity-50">
