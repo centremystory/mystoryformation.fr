@@ -27,8 +27,8 @@ const NAV: Entree[] = [
   { type: "link", href: "/reglages", label: "Réglages", icon: Settings },
   {
     type: "menu", label: "Formation", icon: GraduationCap, items: [
-      { href: "/formation", label: "Tableau de bord", icon: LayoutGrid },
-      { href: "/inscriptions/nouvelle", label: "Inscrire", icon: Plus },
+      { href: "/formation", label: "Tableau de bord Formation", icon: LayoutGrid },
+      { href: "/inscriptions/nouvelle", label: "Inscrire un stagiaire", icon: Plus },
       { href: "/dossiers", label: "Dossiers", icon: FolderOpen },
       { href: "/catalogue", label: "Catalogue & tarifs", icon: Receipt },
       { href: "/emargement", label: "Suivi des cours", icon: ClipboardCheck },
@@ -42,8 +42,8 @@ const NAV: Entree[] = [
   },
   {
     type: "menu", label: "Examen", icon: ClipboardList, items: [
-      { href: "/examen", label: "Tableau de bord", icon: LayoutGrid },
-      { href: "/examens/vente-groupe", label: "Inscrire", icon: Plus },
+      { href: "/examen", label: "Tableau de bord Examen", icon: LayoutGrid },
+      { href: "/examens/vente-groupe", label: "Inscrire un candidat", icon: Plus },
       { href: "/examens/candidats", label: "Candidats", icon: Users },
       { href: "/examens/sessions", label: "Sessions", icon: CalendarDays },
       { href: "/examens/corrections", label: "Résultats", icon: FileCheck },

@@ -46,6 +46,7 @@ export default function PageVenteGroupe() {
   const [motifDoublon, setMotifDoublon] = useState("");
   const [envoi, setEnvoi] = useState(false);
   const [resultat, setResultat] = useState<any>(null);
+  const [commerciaux, setCommerciaux] = useState<{ id: string; nom: string; prenom: string | null }[]>([]);
 
   useEffect(() => {
     try { setVendeur((v) => ({ ...v, vendu_par: localStorage.getItem("mystory_auteur") ?? "" })); } catch {}
@@ -53,6 +54,8 @@ export default function PageVenteGroupe() {
       .then((r) => r.json())
       .then((j) => { if (j.ok) setSessions(j.sessions); })
       .catch(() => {});
+    fetch("/api/equipe/commerciaux").then((r) => r.json())
+      .then((d) => setCommerciaux((d.commerciaux ?? []).filter((c: any) => c.actif))).catch(() => {});
   }, []);
 
   const sessionsDe = (type: string) => sessions.filter((s) => s.type === type);
@@ -404,7 +407,11 @@ export default function PageVenteGroupe() {
             </select>
           </label>
           <label className="text-sm">Vendu par *
-            <input value={vendeur.vendu_par} onChange={(ev) => setVendeur({ ...vendeur, vendu_par: ev.target.value })} placeholder="Ton prénom" className="input mt-1" />
+            <select value={vendeur.vendu_par} onChange={(ev) => setVendeur({ ...vendeur, vendu_par: ev.target.value })} className="input mt-1">
+              <option value="">— choisir —</option>
+              {commerciaux.map((c) => { const n = c.prenom ? `${c.prenom} ${c.nom}` : c.nom; return <option key={c.id} value={n}>{n}</option>; })}
+              {vendeur.vendu_par && !commerciaux.some((c) => (c.prenom ? `${c.prenom} ${c.nom}` : c.nom) === vendeur.vendu_par) && <option value={vendeur.vendu_par}>{vendeur.vendu_par}</option>}
+            </select>
           </label>
           <label className="text-sm">Agence de vente *
             <select value={vendeur.agence} onChange={(ev) => setVendeur({ ...vendeur, agence: ev.target.value })} className="input mt-1">

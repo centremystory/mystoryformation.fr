@@ -29,6 +29,11 @@ export default function NouvelleInscription() {
     fetch("/api/inscriptions").then(r => r.json())
       .then(d => setFormatrices(d.formatrices ?? [])).catch(() => {});
   }, []);
+  const [commerciaux, setCommerciaux] = useState<{ id: string; nom: string; prenom: string | null }[]>([]);
+  useEffect(() => {
+    fetch("/api/equipe/commerciaux").then(r => r.json())
+      .then(d => setCommerciaux((d.commerciaux ?? []).filter((c: any) => c.actif))).catch(() => {});
+  }, []);
   useEffect(() => {
     try { const a = localStorage.getItem("mystory_auteur"); if (a) setForm(f => ({ ...f, venduPar: a })); } catch {}
   }, []);
@@ -125,7 +130,12 @@ export default function NouvelleInscription() {
           <select className={champ} value={form.agenceInscription} onChange={e => set("agenceInscription", e.target.value)}>
             <option value="GAGNY">Gagny</option><option value="SARCELLES">Sarcelles</option><option value="ROSNY">Rosny</option></select></div>
         <div><label className={label}>Vendeur</label>
-          <input className={champ} value={form.venduPar} onChange={e => set("venduPar", e.target.value)} placeholder="Ton prénom" /></div>
+          <select className={champ} value={form.venduPar} onChange={e => set("venduPar", e.target.value)}>
+            <option value="">— choisir —</option>
+            {commerciaux.map(c => { const n = c.prenom ? `${c.prenom} ${c.nom}` : c.nom; return <option key={c.id} value={n}>{n}</option>; })}
+            {form.venduPar && !commerciaux.some(c => (c.prenom ? `${c.prenom} ${c.nom}` : c.nom) === form.venduPar) && <option value={form.venduPar}>{form.venduPar}</option>}
+          </select>
+          {commerciaux.length === 0 && <p className="text-xs text-gray-400 mt-1">Aucun commercial actif — à ajouter dans l'équipe.</p>}</div>
         <div><label className={label}>Formatrice référente *</label>
           <select className={champ} value={form.formatriceId} onChange={e => set("formatriceId", e.target.value)}>
             <option value="">— choisir —</option>
@@ -153,8 +163,8 @@ export default function NouvelleInscription() {
             <input className={champ} value={form.remiseMotif} onChange={e => set("remiseMotif", e.target.value)} placeholder="ex. geste commercial, tarif partenaire…" /></div>
         </>}
         {cpf && <>
-          <div><label className={label}>N° dossier EDOF <span className="font-normal text-gray-500">(facultatif — complété ensuite via l'import EDOF)</span></label><input className={champ} value={form.numeroEdof} onChange={e => set("numeroEdof", e.target.value)} /></div>
-          <div className="col-span-2"><label className={label}>Date validation commande EDOF <span className="font-normal text-gray-500">(facultatif — complétée ensuite ; déclenche le délai de 11 j ouvrés)</span></label>
+          <div><label className={label}>N° dossier EDOF <span className="font-normal text-gray-500">(à compléter avant l'envoi de la convention)</span></label><input className={champ} value={form.numeroEdof} onChange={e => set("numeroEdof", e.target.value)} /></div>
+          <div className="col-span-2"><label className={label}>Date validation commande EDOF <span className="font-normal text-gray-500">(à compléter avant la convention ; déclenche le délai d'accès)</span></label>
             <input type="date" className={champ} value={form.dateCommandeValidee} onChange={e => set("dateCommandeValidee", e.target.value)} /></div>
         </>}
         <div className="col-span-2 md:col-span-4 text-sm text-gray-600">
