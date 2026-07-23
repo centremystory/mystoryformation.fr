@@ -108,7 +108,9 @@ export async function POST(req: NextRequest) {
   // Rattachement au dossier : final → niveau atteint ; initial → niveau initial
   if (ev.dossier_id) {
     const champ = ev.phase === "final" ? "niveau_atteint" : "niveau_initial";
-    await supabaseAdmin.from("dossiers").update({ [champ]: niveau }).eq("id", ev.dossier_id);
+    const { error: majNiveauErr } = await supabaseAdmin.from("dossiers").update({ [champ]: niveau }).eq("id", ev.dossier_id);
+    // Ne pas échouer silencieusement : le niveau du dossier doit refléter la notation. On trace.
+    if (majNiveauErr) await journal("dossier", ev.dossier_id, "niveau_maj_echouee", { champ, niveau, erreur: majNiveauErr.message }, u.email ?? null);
 
     // Auto : la pièce de conformité « Évaluation » du dossier est générée depuis le test (best-effort).
     if (ev.phase === "initial" || ev.phase === "final") {

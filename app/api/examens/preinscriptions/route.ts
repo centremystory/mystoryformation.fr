@@ -11,6 +11,7 @@
  * Pas de suppression (statut). Tout journalisé (auteur = session).
  */
 import { NextRequest, NextResponse } from "next/server";
+import { aujourdhuiParisISO } from "@/lib/dates";
 import { requireUser, UnauthorizedError, type SessionUser } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { envoyerEmail, gabaritEmail } from "@/lib/email";
@@ -82,7 +83,7 @@ export async function GET(req: NextRequest) {
   // Sessions à venir (pour le formulaire), places en direct.
   const { data: sessions } = await supabaseAdmin.from("v_sessions_examen")
     .select("id, type, date_examen, horaire, capacite, inscrits, restantes, note")
-    .gte("date_examen", new Date().toISOString().slice(0, 10))
+    .gte("date_examen", aujourdhuiParisISO())
     .order("date_examen", { ascending: true });
 
   return NextResponse.json({ ok: true, preinscriptions: data ?? [], sessions: sessions ?? [] });
