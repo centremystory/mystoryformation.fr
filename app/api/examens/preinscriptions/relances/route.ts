@@ -7,6 +7,7 @@
  * Appelée par un workflow n8n quotidien (Bearer). Auth requireUser (le Bearer JWT passe).
  */
 import { NextRequest, NextResponse } from "next/server";
+import { aujourdhuiParisISO } from "@/lib/dates";
 import { requireUser, UnauthorizedError } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { envoyerEmail, gabaritEmail } from "@/lib/email";
@@ -81,7 +82,7 @@ export async function POST(req: NextRequest) {
       });
       const maj: Record<string, unknown> = {};
       // On pose la date de relance même si l'email échoue, pour éviter le matraquage (tracé en incident par lib/email).
-      maj.relance_le = new Date().toISOString().slice(0, 10);
+      maj.relance_le = aujourdhuiParisISO();
       await supabaseAdmin.from("preinscriptions_examen").update(maj).eq("id", p.id);
       await journal("preinscriptions_examen", p.id, "preinscription_relancee", { a: p.candidat_email, envoye: env.ok }, "preinscription-relance-auto");
       relancees++;

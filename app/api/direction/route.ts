@@ -9,6 +9,7 @@
  *  Toutes les définitions sont explicitées côté page (pas d'interprétation cachée).
  */
 import { NextRequest, NextResponse } from "next/server";
+import { aujourdhuiParisISO } from "@/lib/dates";
 import { requireRole, UnauthorizedError, ForbiddenError } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
@@ -33,7 +34,7 @@ export async function GET(req: NextRequest) {
   try {
     await requireRole(req, ["direction", "manager"]);
     const url = new URL(req.url);
-    const today = new Date().toISOString().slice(0, 10);
+    const today = aujourdhuiParisISO();
     const debutMois = today.slice(0, 8) + "01";
     const debut = jour(url.searchParams.get("debut")) || debutMois;
     const fin = jour(url.searchParams.get("fin")) || today;

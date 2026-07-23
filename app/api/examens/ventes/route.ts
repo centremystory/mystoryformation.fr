@@ -9,6 +9,7 @@
  * GET — liste des ventes (?session=… pour le jour J, sinon 50 dernières).
  */
 import { NextRequest, NextResponse } from "next/server";
+import { aujourdhuiParisISO } from "@/lib/dates";
 import { requireUser, UnauthorizedError, type SessionUser } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import {
@@ -102,7 +103,7 @@ export async function POST(req: NextRequest) {
   if (!["Gagny", "Sarcelles", "Rosny"].includes(agence)) recap.push("Agence de vente : Gagny / Sarcelles / Rosny.");
   if (tefExterneDeclare) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(tefExterneDate ?? "")) recap.push("Indiquez la date du TEF déjà passé dans un autre centre.");
-    else if (tefExterneDate! > new Date().toISOString().slice(0, 10)) recap.push("La date du TEF déjà passé ne peut pas être dans le futur.");
+    else if (tefExterneDate! > aujourdhuiParisISO()) recap.push("La date du TEF déjà passé ne peut pas être dans le futur.");
   }
 
   if (recap.length > 0) return NextResponse.json({ ok: false, status: "gate_ko", recap }, { status: 409 });

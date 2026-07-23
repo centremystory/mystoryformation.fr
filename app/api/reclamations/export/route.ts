@@ -5,6 +5,7 @@
  * Inclut tous les statuts (ouverte / en cours / résolue), hors archivés (actif=false).
  */
 import { NextRequest, NextResponse } from "next/server";
+import { aujourdhuiParisISO } from "@/lib/dates";
 import { requireUser, UnauthorizedError } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { renderHtmlToPdf } from "@/lib/docuseal";
@@ -121,7 +122,7 @@ export async function GET(req: NextRequest) {
   }
   const format = String(req.nextUrl.searchParams.get("format") ?? "csv").toLowerCase();
   const rows = await charger();
-  const stamp = new Date().toISOString().slice(0, 10);
+  const stamp = aujourdhuiParisISO();
 
   if (format === "pdf") {
     const { pdf } = await renderHtmlToPdf({ html: pdfHtml(rows), name: `Registre_reclamations_${stamp}.pdf` });
