@@ -12,6 +12,7 @@ import path from "path";
 import { renderHtmlToPdf } from "@/lib/docuseal";
 import { envoyerEmail, gabaritEmail } from "@/lib/email";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getParam } from "@/lib/parametres";
 
 const COCHE = "☑";
 const VIDE = "☐";
@@ -144,6 +145,9 @@ export interface DocumentGenere {
 export async function genererDocumentsVente(vc: VenteComplete, options?: { corrigee?: boolean }): Promise<DocumentGenere[]> {
   const { vente, candidat } = vc;
   const valeurs = valeursVente(vc, options);
+  // Lieu d'examen éditable via /reglages (remplace l'adresse en dur du gabarit ; prêt pour Rosny).
+  valeurs.lieu_examen = await getParam("examen_lieu", "3 bis avenue de Gagny, 93220 Gagny");
+  valeurs.acces_examen = await getParam("examen_acces", "RER E : station Gagny. Stationnement à proximité.");
   const docs: DocumentGenere[] = [];
 
   const rendus: Array<{ piece: "attestation" | "convocation"; template: string; nom: string }> = [
