@@ -35,7 +35,12 @@ export default function PageExamens() {
   const [erreur, setErreur] = useState<string | null>(null);
   const [filtre, setFiltre] = useState<string>("tous");
   const [genOuvert, setGenOuvert] = useState(false);
-  const [gen, setGen] = useState({ type: "TEF_IRN", du: "", au: "", capacite: 12 });
+  const [gen, setGen] = useState({ type: "TEF_IRN", du: "", au: "", capacite: 12, centre: "GAGNY" });
+  const [centres, setCentres] = useState<{ code: string; nom: string; accueille_examen: boolean; actif: boolean }[]>([]);
+  useEffect(() => {
+    fetch("/api/centres").then((r) => r.json())
+      .then((d) => setCentres((d.centres ?? []).filter((c: any) => c.accueille_examen && c.actif))).catch(() => {});
+  }, []);
   const [genBusy, setGenBusy] = useState(false);
   const [edition, setEdition] = useState<string | null>(null);
   const [alertes, setAlertes] = useState<{ cci: any[]; acomptes: any[]; convocations_manquantes: any[]; completude_j3: any[]; relances: any } | null>(null);
@@ -155,6 +160,12 @@ export default function PageExamens() {
             <select value={gen.type} onChange={(e) => setGen({ ...gen, type: e.target.value })} className={`${champ} block mt-1`}>
               <option value="TEF_IRN">TEF IRN (lun & ven · 9h30-12h30 et 14h-17h)</option>
               <option value="Examen_civique">Examen civique (lun→ven · 17h30-18h30)</option>
+            </select>
+          </label>
+          <label className="text-sm">Centre
+            <select value={gen.centre} onChange={(e) => setGen({ ...gen, centre: e.target.value })} className={`${champ} block mt-1`}>
+              {centres.length === 0 && <option value="GAGNY">Gagny</option>}
+              {centres.map((c) => <option key={c.code} value={c.code}>{c.nom}</option>)}
             </select>
           </label>
           <label className="text-sm">Du
