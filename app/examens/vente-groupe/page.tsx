@@ -61,6 +61,8 @@ export default function PageVenteGroupe() {
   const sessionsDe = (type: string) => sessions.filter((s) => s.type === type);
   const aPack = useMemo(() =>
     panier.some((e) => e.type === "TEF_IRN") && panier.some((e) => e.type === "Examen_civique"), [panier]);
+  const totalExamens = useMemo(() =>
+    panier.filter((e) => e.categorie === "examen").reduce((s, e) => s + (Number(e.montant) || 0), 0), [panier]);
 
   function majExamen(uid: number, patch: Partial<Examen>) {
     setPanier((p) => p.map((e) => {
@@ -367,7 +369,10 @@ export default function PageVenteGroupe() {
 
       {aPack && (
         <div className="mb-3 rounded-xl border border-mystory/20 bg-mystory-clair/50 px-4 py-2.5 text-sm text-mystory-fonce">
-          Pack <strong>TEF IRN + civique = 265 €</strong> — répartis le montant entre les deux examens. Ils seront regroupés sur <strong>une seule facture</strong> dont le total doit faire 265 €.
+          Pack <strong>TEF IRN + civique = 265 €</strong> — répartis le montant entre les deux examens (une seule facture).
+          <span className={`ml-2 inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${totalExamens === 265 ? "bg-success-100 text-success-700" : "bg-danger-100 text-danger-700"}`}>
+            Total saisi : {totalExamens} €{totalExamens === 265 ? " ✓" : " — doit faire 265 €"}
+          </span>
         </div>
       )}
 

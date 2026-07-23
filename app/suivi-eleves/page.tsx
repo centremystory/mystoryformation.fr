@@ -37,6 +37,11 @@ type Cours = {
 };
 type FormCours = { numero: string; date: string; contenu: string; forts: string; faibles: string; satis: string };
 const F0: FormCours = { numero: "", date: "", contenu: "", forts: "", faibles: "", satis: "" };
+/** Formulaire pré-rempli : N° = dernier cours + 1, date = aujourd'hui (moins de saisie). */
+function prochainForm(liste: { numero_cours: number | null }[]): FormCours {
+  const max = liste.reduce((m, c) => Math.max(m, c.numero_cours ?? 0), 0);
+  return { ...F0, numero: String(max + 1), date: new Date().toLocaleDateString("fr-CA") };
+}
 const DEMI_LBL: Record<string, string> = { matin: "Matin", apres_midi: "Après-midi" };
 const STATUT_JOUR: Record<string, { t: string; c: string }> = {
   present: { t: "✅ Présent", c: "bg-green-100 text-green-800" },
@@ -89,7 +94,10 @@ export default function PageSuiviEleves() {
       try {
         const r = await fetch(`/api/suivi-cours?dossier=${encodeURIComponent(dossierId)}`, { cache: "no-store" });
         const j = await r.json();
-        if (j.ok) setCours((c) => ({ ...c, [dossierId]: j.cours }));
+        if (j.ok) {
+          setCours((c) => ({ ...c, [dossierId]: j.cours }));
+          setForm((ff) => (ff[dossierId] ? ff : { ...ff, [dossierId]: prochainForm(j.cours) }));
+        }
       } catch { /* silencieux */ }
       finally { setChargeCours((p) => { const n = new Set(p); n.delete(dossierId); return n; }); }
     }
@@ -119,7 +127,7 @@ export default function PageSuiviEleves() {
       const j = await r.json();
       if (!j.ok) { setErreurForm((e) => ({ ...e, [dossierId]: j.erreur || "Erreur." })); return; }
       setCours((c) => ({ ...c, [dossierId]: [...(c[dossierId] ?? []), j.entree] }));
-      setForm((ff) => ({ ...ff, [dossierId]: F0 }));
+      setForm((ff) => ({ ...ff, [dossierId]: { ...F0, numero: String((j.entree.numero_cours ?? (Number(f.numero) || 0)) + 1), date: new Date().toLocaleDateString("fr-CA") } }));
     } catch { setErreurForm((e) => ({ ...e, [dossierId]: "Erreur réseau." })); }
     finally { setEnvoi((p) => { const n = new Set(p); n.delete(dossierId); return n; }); }
   }
