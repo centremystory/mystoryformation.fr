@@ -50,8 +50,9 @@ export async function POST(req: NextRequest) {
   const capacite = Number.isInteger(body?.capacite) && body.capacite >= 0 ? body.capacite : 12;
   const note = String(body?.note ?? "").trim() || null;
   const auteur = String(body?.auteur ?? "").trim() || null;
+  const centre = (String(body?.centre ?? "GAGNY").trim().toUpperCase() || "GAGNY");
 
-  const lignes: Array<{ type: string; date_examen: string; horaire: string; capacite: number; note: string | null }> = [];
+  const lignes: Array<{ type: string; date_examen: string; horaire: string; capacite: number; note: string | null; centre: string }> = [];
 
   if (body?.plage) {
     const du = String(body?.du ?? ""), au = String(body?.au ?? "");
@@ -65,7 +66,7 @@ export async function POST(req: NextRequest) {
       const jour = d.getUTCDay(); // 0=dim … 6=sam
       if (regles.jours.includes(jour)) {
         const iso = d.toISOString().slice(0, 10);
-        for (const h of regles.horaires) lignes.push({ type, date_examen: iso, horaire: h, capacite, note });
+        for (const h of regles.horaires) lignes.push({ type, date_examen: iso, horaire: h, capacite, note, centre });
       }
       d.setUTCDate(d.getUTCDate() + 1);
     }
@@ -75,7 +76,7 @@ export async function POST(req: NextRequest) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date_examen) || !horaire) {
       return NextResponse.json({ ok: false, erreur: "date_examen (AAAA-MM-JJ) et horaire requis." }, { status: 400 });
     }
-    lignes.push({ type, date_examen, horaire, capacite, note });
+    lignes.push({ type, date_examen, horaire, capacite, note, centre });
   }
 
   if (lignes.length === 0) return NextResponse.json({ ok: false, erreur: "Aucune session à créer sur cette plage." }, { status: 400 });
@@ -83,7 +84,7 @@ export async function POST(req: NextRequest) {
   // Idempotent : les créneaux déjà existants sont ignorés (contrainte unique type/date/horaire).
   const { data, error } = await supabaseAdmin
     .from("sessions_examen")
-    .upsert(lignes, { onConflict: "type,date_examen,horaire", ignoreDuplicates: true })
+    .upsert(lignes, { onConflict: "type,date_examen,horaire,centre", ignoreDuplicates: true })
     .select("id");
   if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
 

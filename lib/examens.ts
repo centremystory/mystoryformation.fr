@@ -145,9 +145,16 @@ export interface DocumentGenere {
 export async function genererDocumentsVente(vc: VenteComplete, options?: { corrigee?: boolean }): Promise<DocumentGenere[]> {
   const { vente, candidat } = vc;
   const valeurs = valeursVente(vc, options);
-  // Lieu d'examen éditable via /reglages (remplace l'adresse en dur du gabarit ; prêt pour Rosny).
-  valeurs.lieu_examen = await getParam("examen_lieu", "3 bis avenue de Gagny, 93220 Gagny");
-  valeurs.acces_examen = await getParam("examen_acces", "RER E : station Gagny. Stationnement à proximité.");
+  // Lieu d'examen = centre de la SESSION (référentiel /centres, ex. Gagny ou Rosny) ;
+  // repli sur le paramètre global /reglages si la session n'a pas de centre reconnu.
+  const centreCode = (vc.session as any)?.centre ?? null;
+  let lieuExamen = "", accesExamen = "";
+  if (centreCode) {
+    const { data: centre } = await supabaseAdmin.from("centres").select("adresse, acces").eq("code", centreCode).maybeSingle();
+    if (centre) { lieuExamen = centre.adresse ?? ""; accesExamen = centre.acces ?? ""; }
+  }
+  valeurs.lieu_examen = lieuExamen || await getParam("examen_lieu", "3 bis avenue de Gagny, 93220 Gagny");
+  valeurs.acces_examen = accesExamen || await getParam("examen_acces", "RER E : station Gagny. Stationnement à proximité.");
   const docs: DocumentGenere[] = [];
 
   const rendus: Array<{ piece: "attestation" | "convocation"; template: string; nom: string }> = [
