@@ -19,6 +19,7 @@
 import nodemailer, { type Transporter } from "nodemailer";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { consignerIncident } from "@/lib/incidents";
+import { identiteLegale } from "@/lib/identiteLegale";
 
 const SMTP_HOST = process.env.SMTP_HOST ?? "smtp.ionos.fr";
 const SMTP_PORT = Number(process.env.SMTP_PORT ?? "465");
@@ -118,6 +119,7 @@ export async function envoyerEmail(e: EnvoiEmail): Promise<{ ok: boolean; erreur
 
 /** Gabarit HTML maison : bandeau bleu MYSTORY + pied légal (3 sites, jamais Paris). */
 export function gabaritEmail(titre: string, corpsHtml: string): string {
+  const i = identiteLegale();
   return `<!DOCTYPE html><html lang="fr"><body style="margin:0;background:#f4f6fb;font-family:Arial,Helvetica,sans-serif;color:#1f2430;">
 <div style="max-width:560px;margin:0 auto;padding:20px 14px;">
   <div style="background:#2F72DE;color:#ffffff;border-radius:12px;padding:18px 20px;">
@@ -128,10 +130,10 @@ export function gabaritEmail(titre: string, corpsHtml: string): string {
     ${corpsHtml}
   </div>
   <div style="color:#9aa1ad;font-size:11px;text-align:center;margin-top:16px;line-height:1.5;">
-    MYSTORY — SASU · SIRET 913 423 083 00017 · Déclaration d'activité n° 11756521775 (ne vaut pas agrément de l'État)<br>
+    ${i.raison} · SIRET ${i.siret} · Déclaration d'activité n° ${i.nda} (ne vaut pas agrément de l'État)<br>
     Gagny : 3 bis av. de Gagny, 93220 · Sarcelles : 18 av. du 8 Mai 1945, 95200 · Rosny : 46 bis rue d'Estienne d'Orves, 93110<br>
-    06 81 43 16 54 · contact@mystoryformation.fr · mystoryformation.fr<br>
-    <span style="display:inline-block;margin-top:8px;color:#aab0bb;">Vos données sont traitées par MYSTORY (responsable de traitement) pour la gestion de votre formation, conservées 5 ans et jamais cédées. Vous disposez d'un droit d'accès, de rectification et d'effacement&nbsp;: contact@mystoryformation.fr. Politique de confidentialité&nbsp;: <a href="https://mystory-automatisation.vercel.app/politique-confidentialite" style="color:#aab0bb;">mystoryformation.fr/politique-confidentialite</a>. Médiateur de la consommation&nbsp;: CM2C (cm2c.net).</span>
+    ${i.telephone} · ${i.email} · ${i.siteWeb}<br>
+    <span style="display:inline-block;margin-top:8px;color:#aab0bb;">Vos données sont traitées par MYSTORY (responsable de traitement) pour la gestion de votre formation, conservées 5 ans et jamais cédées. Vous disposez d'un droit d'accès, de rectification et d'effacement&nbsp;: ${i.email}. Politique de confidentialité&nbsp;: <a href="https://mystory-automatisation.vercel.app/politique-confidentialite" style="color:#aab0bb;">mystoryformation.fr/politique-confidentialite</a>. Médiateur de la consommation&nbsp;: ${i.mediateur}.</span>
   </div>
 </div>
 </body></html>`;
