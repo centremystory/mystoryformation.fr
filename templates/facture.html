@@ -37,8 +37,8 @@
 </head>
 <body>
   <footer>
-    MYSTORY — SASU · RCS Paris 913 423 083 · SIRET 913 423 083 00017 · Déclaration d'activité n° 11756521775 (ne vaut pas agrément de l'État)<br>
-    Gagny : 3 bis av. de Gagny, 93220 · Sarcelles : 18 av. du 8 Mai 1945, 95200 · Rosny : 46 bis rue d'Estienne d'Orves, 93110 Rosny-sous-Bois · 06 81 43 16 54 · contact@mystoryformation.fr
+    MYSTORY — SASU · {{of_rcs}} · SIRET {{of_siret}} · Déclaration d'activité n° {{of_nda}} (ne vaut pas agrément de l'État)<br>
+    Gagny : 3 bis av. de Gagny, 93220 · Sarcelles : 18 av. du 8 Mai 1945, 95200 · Rosny : 46 bis rue d'Estienne d'Orves, 93110 Rosny-sous-Bois · {{of_tel}} · {{of_email}}
   </footer>
 
   <div class="brandbar"></div>
@@ -46,10 +46,10 @@
     <div class="org">
       <h1>MYSTORY</h1>
       <div class="legal">
-        SASU · RCS Paris 913 423 083 · SIRET 913 423 083 00017<br>
+        SASU · {{of_rcs}} · SIRET {{of_siret}}<br>
         Siège social : 14 rue Bichat, 75010 Paris<br>
-        Déclaration d'activité n° 11756521775<br>
-        06 81 43 16 54 · contact@mystoryformation.fr
+        Déclaration d'activité n° {{of_nda}}<br>
+        {{of_tel}} · {{of_email}}
       </div>
     </div>
     <div class="doctype">
@@ -78,7 +78,7 @@
     <div class="sub">Arudhan NATKUNASINGAM · Président</div>
     {{#if of_signature_img}}<img class="sig-img" src="{{of_signature_img}}" alt="">{{/if}}
     {{#if cachet_img}}<img class="cachet-img" src="{{cachet_img}}" alt="">{{/if}}
-    {{#if cachet_absent}}<div class="cachet">MYSTORY<br>Gagny · Sarcelles · Rosny<br>NDA 11756521775</div>{{/if}}
+    {{#if cachet_absent}}<div class="cachet">MYSTORY<br>Gagny · Sarcelles · Rosny<br>NDA {{of_nda}}</div>{{/if}}
   </div>
 
   <p class="mentions">
@@ -88,7 +88,7 @@
     après validation du service fait (art. L.6323-12 du Code du travail).<br>{{/if}}
     En cas de retard de paiement : pénalités de retard au taux légal et indemnité forfaitaire pour frais de recouvrement
     de 40 € (art. L.441-10 et D.441-5 du Code de commerce). Pas d'escompte pour paiement anticipé.<br>
-    Le NDA 11756521775 ne vaut pas agrément de l'État.
+    Le NDA {{of_nda}} ne vaut pas agrément de l'État.
   </p>
 </body>
 </html>

@@ -48,8 +48,8 @@
 </head>
 <body>
   <footer>
-    MYSTORY — SASU · RCS Paris 913 423 083 · SIRET 913 423 083 00017 · Déclaration d'activité n° 11756521775 (ne vaut pas agrément de l'État)<br>
-    Gagny : 3 bis av. de Gagny, 93220 · Sarcelles : 18 av. du 8 Mai 1945, 95200 · Rosny : 46 bis rue d'Estienne d'Orves, 93110 Rosny-sous-Bois · 06 81 43 16 54 · contact@mystoryformation.fr
+    MYSTORY — SASU · {{of_rcs}} · SIRET {{of_siret}} · Déclaration d'activité n° {{of_nda}} (ne vaut pas agrément de l'État)<br>
+    Gagny : 3 bis av. de Gagny, 93220 · Sarcelles : 18 av. du 8 Mai 1945, 95200 · Rosny : 46 bis rue d'Estienne d'Orves, 93110 Rosny-sous-Bois · {{of_tel}} · {{of_email}}
   </footer>
 
   <div class="brandbar"></div>
@@ -57,9 +57,9 @@
     <div class="org">
       <h1>MYSTORY</h1>
       <div class="legal">
-        SASU · RCS Paris 913 423 083 · SIRET 913 423 083 00017<br>
-        Déclaration d'activité n° 11756521775<br>
-        06 81 43 16 54 · contact@mystoryformation.fr
+        SASU · {{of_rcs}} · SIRET {{of_siret}}<br>
+        Déclaration d'activité n° {{of_nda}}<br>
+        {{of_tel}} · {{of_email}}
       </div>
     </div>
     <div class="doctype">
@@ -95,7 +95,7 @@
   <p class="check"><strong>Reste à payer :</strong> {{reste_a_payer}} €</p>
 
   <p>Nous attestons que le candidat mentionné ci-dessus est inscrit à la session indiquée et que le paiement correspondant a été validé par notre centre. La convocation officielle est transmise par courrier électronique dans un délai maximum de 24 heures après validation du règlement.</p>
-  <p style="font-size:8.8pt;">Réclamation : contact@mystoryformation.fr · Handicap : aménagement possible sur demande.</p>
+  <p style="font-size:8.8pt;">Réclamation : {{of_email}} · Handicap : aménagement possible sur demande.</p>
   <p class="warn">Le test se déroule sur ORDINATEUR et les frais d'inscription ne sont pas remboursables.</p>
 
   <p>Fait à Gagny, le {{date_emission}} — Référent : {{referent}}</p>
@@ -107,11 +107,11 @@
     <div class="sub">Arudhan NATKUNASINGAM, Président</div>
     {{#if of_signature_img}}<img class="sig-img" src="{{of_signature_img}}" alt="Signature du Président">{{/if}}
     {{#if cachet_img}}<img class="cachet-img" src="{{cachet_img}}" alt="Cachet MYSTORY">{{/if}}
-    {{#if cachet_absent}}<div class="cachet">MYSTORY<br>Gagny<br>NDA 11756521775</div>{{/if}}
+    {{#if cachet_absent}}<div class="cachet">MYSTORY<br>Gagny<br>NDA {{of_nda}}</div>{{/if}}
   </div>
     </div>
     <div><div class="sigwho">Signature du candidat</div><div class="sigline">&nbsp;</div></div>
   </div>
-  <p class="rgpd"><strong>Données personnelles (RGPD).</strong> Données traitées par MYSTORY (SASU) pour le suivi de la formation et les obligations liées au financement CPF. Conservation : 5 ans. Droits d'accès, rectification, effacement, opposition : contact@mystoryformation.fr — réclamation possible auprès de la CNIL (www.cnil.fr).</p>
+  <p class="rgpd"><strong>Données personnelles (RGPD).</strong> Données traitées par MYSTORY (SASU) pour le suivi de la formation et les obligations liées au financement CPF. Conservation : 5 ans. Droits d'accès, rectification, effacement, opposition : {{of_email}} — réclamation possible auprès de la CNIL (www.cnil.fr).</p>
 </body>
 </html>
