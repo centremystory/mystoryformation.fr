@@ -47,8 +47,8 @@
 </head>
 <body>
   <footer>
-    MYSTORY — SASU · RCS Paris 913 423 083 · SIRET 913 423 083 00017 · Déclaration d'activité n° 11756521775 (ne vaut pas agrément de l'État)<br>
-    Gagny : 3 bis av. de Gagny, 93220 · Sarcelles : 18 av. du 8 Mai 1945, 95200 · Rosny : 46 bis rue d'Estienne d'Orves, 93110 Rosny-sous-Bois · 06 81 43 16 54 · contact@mystoryformation.fr
+    MYSTORY — SASU · {{of_rcs}} · SIRET {{of_siret}} · Déclaration d'activité n° {{of_nda}} (ne vaut pas agrément de l'État)<br>
+    Gagny : 3 bis av. de Gagny, 93220 · Sarcelles : 18 av. du 8 Mai 1945, 95200 · Rosny : 46 bis rue d'Estienne d'Orves, 93110 Rosny-sous-Bois · {{of_tel}} · {{of_email}}
   </footer>
 
   <div class="brandbar"></div>
@@ -56,9 +56,9 @@
     <div class="org">
       <h1>MYSTORY</h1>
       <div class="legal">
-        SASU · RCS Paris 913 423 083 · SIRET 913 423 083 00017<br>
-        Déclaration d'activité n° 11756521775<br>
-        06 81 43 16 54 · contact@mystoryformation.fr
+        SASU · {{of_rcs}} · SIRET {{of_siret}}<br>
+        Déclaration d'activité n° {{of_nda}}<br>
+        {{of_tel}} · {{of_email}}
       </div>
     </div>
     <div class="doctype">
@@ -140,7 +140,7 @@
   <p class="art">Le TEF IRN comporte 4 épreuves obligatoires et indissociables (compréhension écrite et orale, expression écrite et orale), évaluant de A1 à B2 du CECRL. Chaque candidat reçoit une attestation de résultats avec un score par épreuve : A1 = 100-199 · A2 = 200-299 · B1 = 300-399 · B2 = 400-499. L'attestation précise le niveau global atteint (A1, A2, B1 ou B2).</p>
 
   <h3>Équipe, ressources, accessibilité, indicateurs</h3>
-  <p class="art">Formateurs FLE qualifiés (CV/diplômes disponibles). Salle équipée, supports papier et numériques, manuels TEF IRN, outils de simulation. Locaux accessibles PMR — référent handicap : Arudhan NATKUNASINGAM (contact@mystoryformation.fr · 06 81 43 16 54). Indicateurs de résultats (réussite, satisfaction, recommandation) publiés sur le site.</p>
+  <p class="art">Formateurs FLE qualifiés (CV/diplômes disponibles). Salle équipée, supports papier et numériques, manuels TEF IRN, outils de simulation. Locaux accessibles PMR — référent handicap : Arudhan NATKUNASINGAM ({{of_email}} · {{of_tel}}). Indicateurs de résultats (réussite, satisfaction, recommandation) publiés sur le site.</p>
 
   <p class="madeat">Fait à {{lieu_signature}}, le {{date_signature}}.</p>
   <div class="ofsign">
@@ -148,7 +148,7 @@
     <div class="sub">Arudhan NATKUNASINGAM, Président</div>
     {{#if of_signature_img}}<img class="sig-img" src="{{of_signature_img}}" alt="Signature du Président">{{/if}}
     {{#if cachet_img}}<img class="cachet-img" src="{{cachet_img}}" alt="Cachet MYSTORY">{{/if}}
-    {{#if cachet_absent}}<div class="cachet">MYSTORY<br>Gagny<br>NDA 11756521775</div>{{/if}}
+    {{#if cachet_absent}}<div class="cachet">MYSTORY<br>Gagny<br>NDA {{of_nda}}</div>{{/if}}
   </div>
 </body>
 </html>
