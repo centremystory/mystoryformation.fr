@@ -13,6 +13,7 @@ import Link from "next/link";
 interface Session {
   id: string; type: string; date_examen: string; horaire: string;
   capacite: number; inscrits: number; restantes: number; note: string | null;
+  centre?: string | null; centre_nom?: string | null;
 }
 
 const LIBELLE_TYPE: Record<string, string> = { TEF_IRN: "TEF IRN", Examen_civique: "Examen civique" };
@@ -255,6 +256,7 @@ export default function PageExamens() {
                     <span className="font-semibold text-sm">{LIBELLE_TYPE[s.type] ?? s.type}</span>
                     <span className="text-xs">{s.horaire}</span>
                   </div>
+                  <div className="text-[11px] font-medium opacity-80">📍 {s.centre_nom ?? s.centre ?? "Gagny"}</div>
                   <p className="text-sm mt-1">
                     {s.restantes <= 0
                       ? <strong>COMPLET — ne plus inscrire</strong>

@@ -18,7 +18,7 @@ const PLATEFORMES = ["Passetontef", "Prepcivique", "Prepmyfuture"];
 const TARIF_DEFAUT: Record<string, string> = { TEF_IRN: "265", Examen_civique: "", Vente_plateforme: "" };
 const TYPE_LABEL: Record<string, string> = { TEF_IRN: "TEF IRN", Examen_civique: "Examen civique", Vente_plateforme: "Vente plateforme" };
 
-interface Session { id: string; type: string; date_examen: string; horaire: string; capacite: number; inscrits: number; restantes: number; note: string | null; }
+interface Session { id: string; type: string; date_examen: string; horaire: string; capacite: number; inscrits: number; restantes: number; note: string | null; centre?: string | null; centre_nom?: string | null; }
 type Examen = {
   uid: number; categorie: "examen" | "plateforme"; type: string; sessionId: string; sousType: string; montant: string;
   dontCb: string; reste: string; tefExterne: boolean; tefExterneDate: string;
@@ -170,7 +170,7 @@ export default function PageVenteGroupe() {
                 <option value="">—</option>
                 {sessionsDe(e.type).map((s) => (
                   <option key={s.id} value={s.id} disabled={s.restantes <= 0}>
-                    {dateFR(s.date_examen)} · {s.horaire} · {s.restantes <= 0 ? "COMPLET" : `${s.restantes} place(s)`}
+                    {dateFR(s.date_examen)} · {s.horaire} · {s.centre_nom ?? s.centre ?? "—"} · {s.restantes <= 0 ? "COMPLET" : `${s.restantes} place(s)`}
                   </option>
                 ))}
               </select>
