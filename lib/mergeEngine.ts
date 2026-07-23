@@ -16,6 +16,7 @@
 
 import { readFileSync } from "fs";
 import path from "path";
+import { identiteLegale, piedLegal } from "@/lib/identiteLegale";
 
 // ---------------------------------------------------------------------------
 // 1. Types
@@ -251,6 +252,16 @@ function resolveBalises(fiche: FicheStagiaire, cfg: TemplateConfig): Record<stri
     montant:          formatEuro(fiche.montant),
     certif_intitule:  certif.intitule,
     certif_code:      certif.code,
+    // Identité légale éditable (/reglages > Identité) — prêtes pour les gabarits PDF.
+    of_raison:        identiteLegale().raison,
+    of_siret:         identiteLegale().siret,
+    of_rcs:           identiteLegale().rcs,
+    of_nda:           identiteLegale().nda,
+    of_tel:           identiteLegale().telephone,
+    of_email:         identiteLegale().email,
+    of_mediateur:     identiteLegale().mediateur,
+    of_site_web:      identiteLegale().siteWeb,
+    pied_legal:       piedLegal(),
     site_adresse:     site.adresse,
     site_acces:       site.acces,
     // BALISES ÉTENDUES (attestation / certificat / annexes) :
