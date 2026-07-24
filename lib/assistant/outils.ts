@@ -2,6 +2,7 @@
 // Outils LECTURE SEULE de l'assistant CRM. Le LLM choisit l'outil + les arguments,
 // le serveur exécute une requête cadrée (jamais de SQL libre). Aucune écriture.
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { embedMistral, versVecteurSql } from "@/lib/ai/embeddings";
 
 function aujParis(): string {
   return new Intl.DateTimeFormat("fr-CA", { timeZone: "Europe/Paris" }).format(new Date());
@@ -197,6 +198,25 @@ export const OUTILS: Record<string, Outil> = {
       const { count: impayes } = await supabaseAdmin.from("examens")
         .select("id", { count: "exact", head: true }).eq("actif", true).gt("reste_a_payer_eur", 0);
       return { dossiers_par_statut: parStatut, sessions_examen_14j: examsAvenir ?? 0, candidats_impayes: impayes ?? 0 };
+    },
+  },
+
+  // 9 — Base de connaissance (RAG : FAQ, techniques de vente, procédures)
+  rechercher_connaissance: {
+    schema: { type: "function", function: {
+      name: "rechercher_connaissance",
+      description: "Recherche dans la base de connaissance MYSTORY (FAQ, techniques de vente, procédures, règles) pour répondre aux questions de type « comment fait-on… », « quelle est la règle pour… », « que faire si… », « quel process pour… ». À utiliser pour toute question sur les procédures/règles internes plutôt que sur des données chiffrées.",
+      parameters: { type: "object", properties: { question: { type: "string", description: "La question ou le sujet à rechercher dans la connaissance interne" } }, required: ["question"] },
+    } },
+    run: async ({ question }) => {
+      const q = nettoie(question) || String(question || "").trim().slice(0, 200);
+      if (!q) return { erreur: "Question vide." };
+      let vec: number[][];
+      try { vec = await embedMistral([q]); } catch (e: any) { return { erreur: "Recherche sémantique indisponible : " + (e?.message || String(e)) }; }
+      const { data, error } = await supabaseAdmin.rpc("match_kb_documents", { query_embedding: versVecteurSql(vec[0] || []), match_count: 5 });
+      if (error) return { erreur: error.message };
+      if (!data || !(data as any[]).length) return { resultat: "Aucun élément de connaissance trouvé. (La base est peut-être vide — relancer la réindexation.)" };
+      return { extraits: (data as any[]).map((d) => ({ source: d.source, titre: d.titre, contenu: String(d.contenu || "").slice(0, 900), pertinence: Math.round((d.similarite || 0) * 100) / 100 })) };
     },
   },
 };
