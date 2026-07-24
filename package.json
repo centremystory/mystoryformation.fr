@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.8",
-    "@sparticuz/chromium-min": "131.0.0",
+    "@sparticuz/chromium": "131.0.0",
     "@supabase/supabase-js": "^2.45.0",
     "bcryptjs": "^2.4.3",
     "jose": "^5.9.0",
