@@ -33,6 +33,26 @@ export async function POST(req: NextRequest) {
     const x = t as any;
     docs.push({ source: "technique_vente", ref_id: x.id, titre: String(x.titre || ""), categorie: x.categorie ?? null, contenu: `${x.titre}\n${x.contenu}` });
   }
+  // Tarifs (formules)
+  const { data: fm } = await supabaseAdmin.from("formules").select("id,certif,heures,prix_eur,libelle,financement,frais_examen_inclus").eq("actif", true);
+  for (const f of fm ?? []) {
+    const x = f as any;
+    const titre = `Tarif ${x.certif} — ${x.heures} h${x.financement ? ` (${x.financement})` : ""}`;
+    docs.push({ source: "tarif", ref_id: x.id, titre, categorie: "tarifs", contenu: `${titre} : ${x.prix_eur} €${x.frais_examen_inclus ? ", examen inclus" : ""}. ${x.libelle || ""}`.trim() });
+  }
+  // Centres
+  const { data: ce } = await supabaseAdmin.from("centres").select("code,nom,adresse,acces,accueille_formation,accueille_examen").eq("actif", true);
+  for (const c of ce ?? []) {
+    const x = c as any;
+    const accueille = [x.accueille_formation ? "formation" : null, x.accueille_examen ? "examen" : null].filter(Boolean).join(" et ");
+    docs.push({ source: "centre", ref_id: null, titre: `Centre ${x.nom}`, categorie: "centres", contenu: `Centre ${x.nom} (${x.code}). Adresse : ${x.adresse || "-"}. Accès : ${x.acces || "-"}. Accueille : ${accueille || "-"}.` });
+  }
+  // Référence métier (réglementation, offres, économie) — non-personnelle, éditable
+  const { data: kr } = await supabaseAdmin.from("kb_reference").select("id,categorie,titre,contenu").eq("actif", true);
+  for (const r of kr ?? []) {
+    const x = r as any;
+    docs.push({ source: "reference", ref_id: x.id, titre: String(x.titre || ""), categorie: x.categorie ?? null, contenu: `${x.titre}\n${x.contenu}` });
+  }
   if (!docs.length) return NextResponse.json({ ok: true, indexes: 0, message: "Aucun document actif à indexer." });
 
   // 2 — Embeddings par lots.
