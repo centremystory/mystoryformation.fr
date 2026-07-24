@@ -304,7 +304,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <button onClick={() => setDrawer(true)} aria-label="Ouvrir le menu" className="rounded-lg p-2 text-gray-600 hover:bg-gray-100 lg:hidden">
             <Menu size={20} />
           </button>
-          <h1 className="text-base font-semibold tracking-tight text-gray-900">{titreDe(pathname)}</h1>
+          <span className="truncate text-sm font-medium text-gray-400">{titreDe(pathname)}</span>
           <div className="ml-auto flex items-center gap-2">
             {actionsRapides.length > 0 && (
               <div className="relative">
@@ -345,7 +345,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        {children}
+        <main className="mx-auto w-full max-w-7xl px-4 py-6 md:px-6 md:py-7">{children}</main>
       </div>
     </div>
   );
