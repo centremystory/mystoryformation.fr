@@ -93,6 +93,8 @@ export function peutAgir(role: string | string[] | undefined | null, action: Act
  * Le scoping fin (commercial = SES stats, manager = SON site) arrive avec la brique multi-sites.
  */
 export const PAGE_PERMISSIONS: Record<string, Role[]> = {
+  // — Assistant IA (données live, lecture seule) —
+  "/assistant": ["direction", "manager"],
   // — Direction seule —
   "/comptes": ["direction"],
   "/journal": ["direction"],
