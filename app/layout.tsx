@@ -14,6 +14,13 @@ const inter = localFont({
 export const metadata = {
   title: "MYSTORY — CRM",
   description: "Back-office MYSTORY Formation : inscriptions, dossiers, équipe.",
+  icons: {
+    icon: [
+      { url: "/embleme-bleu.png", type: "image/png" },
+    ],
+    shortcut: "/embleme-bleu.png",
+    apple: "/embleme-bleu.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
