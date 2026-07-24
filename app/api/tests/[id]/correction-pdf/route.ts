@@ -128,7 +128,12 @@ th { background:#EAF1FC; text-align:left; }
 <div class="footer">MYSTORY SASU · 3 bis avenue de Gagny, 93220 Gagny · SIRET 913 423 083 00017 · NDA 11756521775 (ne vaut pas agrément de l'État)</div>
 </body></html>`;
 
-  const pdf = await renderPdf(html);
+  let pdf: Buffer;
+  try {
+    pdf = await renderPdf(html);
+  } catch (e: any) {
+    return NextResponse.json({ ok: false, erreur: "Rendu PDF échoué : " + (e?.message || String(e)) }, { status: 500 });
+  }
   return new NextResponse(new Uint8Array(pdf), {
     headers: {
       "Content-Type": "application/pdf",
