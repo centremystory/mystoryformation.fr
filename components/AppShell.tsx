@@ -11,7 +11,7 @@ import {
   ClipboardList, Users, Plane, CalendarRange, Clock, Settings, Receipt, CheckCircle2,
   FileSpreadsheet, UserCog, MessageSquare, MessageCircle, Eye, HelpCircle, KeyRound, AlertTriangle,
   Workflow, ScrollText, LogOut, Menu, X, ChevronDown,
-  Plus, FileCheck, RotateCcw, Trophy, UserPlus, Phone, ShieldCheck, BarChart3, TrendingUp, QrCode, MapPin, } from "lucide-react";
+  Plus, FileCheck, RotateCcw, Trophy, UserPlus, Phone, ShieldCheck, BarChart3, TrendingUp, QrCode, MapPin, Sparkles, } from "lucide-react";
 import { peutVoirPage, ROLE_LABEL } from "@/lib/roles";
 import { SITES, COOKIE_SITE, siteValide } from "@/lib/sites";
 
@@ -22,6 +22,7 @@ type Entree = { type: "link"; href: string; label: string; icon: LucideIcon } | 
 
 const NAV: Entree[] = [
   { type: "link", href: "/", label: "Accueil", icon: Home },
+  { type: "link", href: "/assistant", label: "Assistant IA", icon: Sparkles },
   { type: "link", href: "/recherche", label: "Rechercher", icon: Search },
   { type: "link", href: "/direction", label: "Direction", icon: LayoutGrid },
   { type: "link", href: "/reglages", label: "Réglages", icon: Settings },
