@@ -1,20 +1,17 @@
 /**
  * MYSTORY — Rendu HTML → PDF (serveur)  (Brique 2A)
- * puppeteer-core + @sparticuz/chromium-min : le binaire Chromium est téléchargé
- * depuis un paquet distant au démarrage (compatible Vercel serverless, sans bundling).
+ * puppeteer-core + @sparticuz/chromium (paquet complet : binaire + librairies système
+ * embarqués → pas de téléchargement distant, plus fiable en serverless Vercel).
  * Renvoie un Buffer PDF A4.
  */
 import puppeteer from "puppeteer-core";
-import chromium from "@sparticuz/chromium-min";
-
-const CHROMIUM_PACK =
-  "https://github.com/Sparticuz/chromium/releases/download/v131.0.0/chromium-v131.0.0-pack.tar";
+import chromium from "@sparticuz/chromium";
 
 export async function renderPdf(html: string): Promise<Buffer> {
   const browser = await puppeteer.launch({
     args: chromium.args,
     defaultViewport: chromium.defaultViewport,
-    executablePath: await chromium.executablePath(CHROMIUM_PACK),
+    executablePath: await chromium.executablePath(),
     headless: true,
   });
   try {

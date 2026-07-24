@@ -9,8 +9,8 @@ const nextConfig = {
     ];
   },
   experimental: {
-    // Chromium chargé à l'exécution depuis un paquet distant (chromium-min) — ne pas bundler.
-    serverComponentsExternalPackages: ["puppeteer-core", "@sparticuz/chromium-min"],
+    // Chromium (paquet complet @sparticuz/chromium : binaire + libs système embarqués) — ne pas bundler.
+    serverComponentsExternalPackages: ["puppeteer-core", "@sparticuz/chromium"],
     // Inclure les templates dans la fonction de génération de la convention.
     outputFileTracingIncludes: {
       "/api/conventions/send": ["./templates/**"],
