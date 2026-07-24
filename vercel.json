@@ -1,10 +1,20 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
-    "app/api/conventions/send/route.ts": {
-      "memory": 3009,
-      "maxDuration": 60
-    }
+    "app/api/conventions/send/route.ts": { "memory": 3009, "maxDuration": 60 },
+    "app/api/conventions/preview/route.ts": { "memory": 3009, "maxDuration": 60 },
+    "app/api/tests/[id]/correction-pdf/route.ts": { "memory": 3009, "maxDuration": 60 },
+    "app/api/documents/generate/route.ts": { "memory": 3009, "maxDuration": 60 },
+    "app/api/documents/completer/route.ts": { "memory": 3009, "maxDuration": 60 },
+    "app/api/documents/justificatif/route.ts": { "memory": 3009, "maxDuration": 60 },
+    "app/api/documents/evaluation/route.ts": { "memory": 3009, "maxDuration": 60 },
+    "app/api/documents/envoyer-dossier/route.ts": { "memory": 3009, "maxDuration": 60 },
+    "app/api/emargement/jour/pdf/route.ts": { "memory": 3009, "maxDuration": 60 },
+    "app/api/emargement/feuille/pdf/route.ts": { "memory": 3009, "maxDuration": 60 },
+    "app/api/examens/remboursements/route.ts": { "memory": 3009, "maxDuration": 60 },
+    "app/api/reclamations/export/route.ts": { "memory": 3009, "maxDuration": 60 },
+    "app/api/satisfaction/route.ts": { "memory": 3009, "maxDuration": 60 },
+    "app/api/bpf/export/route.ts": { "memory": 3009, "maxDuration": 60 }
   },
   "crons": [
     {
