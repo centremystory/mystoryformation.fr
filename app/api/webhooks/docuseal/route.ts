@@ -13,6 +13,7 @@ import {
 } from "@/lib/crm";
 import { journal } from "@/lib/examens";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { envoyerEmail, gabaritEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -153,7 +154,32 @@ async function finalizeSignature(dossierId: string, submissionId: number, event:
     submission_id: submissionId,
     event_type: event.event_type,
   });
- }
+
+  // Cadeau d'inscription : le Grand livret d'exercices TEF IRN (offert), une seule fois.
+  await envoyerGrandLivret(dossierId);
+}
+
+/** Envoie le Grand livret d'exercices TEF IRN (offert) au stagiaire, une seule fois par dossier. Ne bloque jamais la signature. */
+async function envoyerGrandLivret(dossierId: string): Promise<void> {
+  try {
+    const { data: d } = await supabaseAdmin
+      .from("dossiers").select("grand_livret_envoye, stagiaires:stagiaire_id ( prenom, email )").eq("id", dossierId).maybeSingle();
+    if (!d || (d as any).grand_livret_envoye) return;
+    const s: any = Array.isArray((d as any).stagiaires) ? (d as any).stagiaires[0] : (d as any).stagiaires;
+    const email = s?.email;
+    if (!email) return;
+    const url = `${process.env.APP_URL || "https://crm.mystoryformation.fr"}/documents/grand-livret-exercices-tef-irn.pdf`;
+    const corps = `<p>Bonjour${s.prenom ? " " + s.prenom : ""},</p>
+      <p>Bienvenue chez MYSTORY Formation ! Pour bien démarrer votre préparation au TEF IRN, voici votre <strong>Grand livret d'exercices</strong>, offert :</p>
+      <p style="text-align:center;margin:24px 0;"><a href="${url}" style="background:#2F72DE;color:#ffffff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:600;">Télécharger le livret (PDF)</a></p>
+      <p>Bon travail — votre réussite est notre fierté 🙂</p>`;
+    const r = await envoyerEmail({ a: email, objet: "Votre Grand livret d'exercices TEF IRN — offert 🎁", html: gabaritEmail("Votre livret d'exercices offert", corps), entite: "dossier", entiteId: dossierId });
+    if (r.ok) {
+      await supabaseAdmin.from("dossiers").update({ grand_livret_envoye: true }).eq("id", dossierId);
+      await journal("dossier", dossierId, "grand_livret_envoye", { email });
+    }
+  } catch { /* ne bloque jamais la signature */ }
+}
 
 /** Fiche d'analyse du besoin signée (stagiaire + centre) : archive le PDF signé et passe la pièce à « signée ». */
 async function finalizeFicheBesoinSignature(dossierId: string, submissionId: number, event: DocusealEvent): Promise<void> {
