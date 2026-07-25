@@ -163,3 +163,36 @@ export function rolesAutorisesPage(pathname: string): Role[] {
   }
   return [];
 }
+
+/* ────────────────────────────────────────────────────────────────────────
+ * VERROU « PROPRIÉTAIRE » — finance & BPF réservés au SEUL Arudhan (par email).
+ * Plus strict que le rôle "direction" (lavania@ a aussi direction) et IGNORE le
+ * filet "staff" : ces pages/API n'apparaissent et ne répondent QUE pour cet email.
+ * Les automates de confiance (n8n/cron, token de service) restent autorisés côté API
+ * pour alimenter le brief cash — géré dans requireProprietaire (lib/auth).
+ * ──────────────────────────────────────────────────────────────────────── */
+export const EMAIL_PROPRIETAIRE = "arudhan@mystoryformation.fr";
+
+/** Préfixes de pages FINANCE réservées au propriétaire (email), sans exception de rôle. */
+export const PAGES_PROPRIETAIRE = ["/bpf", "/direction", "/classement", "/finances"] as const;
+
+export function estProprietaire(email: string | undefined | null): boolean {
+  return (email ?? "").trim().toLowerCase() === EMAIL_PROPRIETAIRE;
+}
+
+export function pageEstProprietaire(pathname: string): boolean {
+  return PAGES_PROPRIETAIRE.some((p) => pathname === p || pathname.startsWith(p + "/"));
+}
+
+/**
+ * Accès à une page en tenant compte À LA FOIS des rôles ET du verrou propriétaire.
+ * À utiliser dans le middleware et la nav (remplace peutVoirPage seul).
+ */
+export function accesPage(
+  role: string | string[] | undefined | null,
+  email: string | undefined | null,
+  pathname: string,
+): boolean {
+  if (pageEstProprietaire(pathname)) return estProprietaire(email); // finance = email exact, aucun filet
+  return peutVoirPage(role, pathname);
+}

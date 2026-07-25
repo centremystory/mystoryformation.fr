@@ -4,7 +4,7 @@
  * Pas de suppression (traçabilité Qualiopi) — on ajoute, on ne détruit pas.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { requireUser, UnauthorizedError } from "@/lib/auth";
+import { requireProprietaire, UnauthorizedError, ForbiddenError } from "@/lib/auth";
 import { estDirection } from "@/lib/roles";
 import { demanderValidation } from "@/lib/validations";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
@@ -14,9 +14,10 @@ export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   let u;
-  try { u = await requireUser(req); }
+  try { u = await requireProprietaire(req); }
   catch (e) {
     if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
+    if (e instanceof ForbiddenError) return NextResponse.json({ ok: false, erreur: "Finance réservée à la direction." }, { status: 403 });
     throw e;
   }
   let b: any;

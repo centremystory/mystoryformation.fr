@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { fetchAllRows } from "@/lib/fetchAllRows";
-import { requireRole, UnauthorizedError, ForbiddenError } from "@/lib/auth";
+import { requireProprietaire, UnauthorizedError, ForbiddenError } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -31,7 +31,7 @@ const triCa = (a: { ca: number }, b: { ca: number }) => b.ca - a.ca;
 
 export async function GET(req: NextRequest) {
   try {
-    await requireRole(req, ["direction"]);
+    await requireProprietaire(req);
     const periode = req.nextUrl.searchParams.get("periode") === "mois" ? "mois" : "tout";
     let depuis: string | null = null;
     if (periode === "mois") {

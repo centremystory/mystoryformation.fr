@@ -13,6 +13,7 @@
  */
 
 import { jwtVerify } from "jose";
+import { estProprietaire, estAutomate } from "./roles";
 
 const AUTH_SECRET = process.env.AUTH_SECRET ?? "";
 const AUTH_COOKIE = process.env.AUTH_COOKIE ?? "mystory_session";
@@ -93,4 +94,18 @@ export async function requireRole(req: Request, roles: readonly string[]): Promi
   // Multi-rôles : autorisé si AU MOINS UN rôle est dans la liste permise.
   if (!rs.some((r) => roles.includes(r))) throw new ForbiddenError();
   return user;
+}
+
+/**
+ * Garde FINANCE : réservée au SEUL propriétaire (arudhan@mystoryformation.fr, par email).
+ * AUCUN filet "staff" ni rôle direction — même lavania@ (direction) est refusée.
+ * Exception : les automates de confiance (n8n/cron, token de service SANS rôle de la
+ * matrice staff) passent, pour alimenter le brief cash — ils ne sont pas des humains.
+ * À placer en tête des routes BPF / cockpit direction / classement / finances.
+ */
+export async function requireProprietaire(req: Request): Promise<SessionUser> {
+  const user = await requireUser(req);
+  const rs = user.roles && user.roles.length > 0 ? user.roles : (user.role ? [user.role] : []);
+  if (estProprietaire(user.email) || estAutomate(rs)) return user;
+  throw new ForbiddenError();
 }
