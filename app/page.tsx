@@ -482,9 +482,9 @@ export default async function Accueil() {
             </Link>
           )}
           {testsDist > 0 && (
-            <Link href="/formation" className="flex items-center gap-3 rounded-xl border border-mystory/20 bg-mystory-clair px-4 py-3 text-sm text-mystory-fonce hover:brightness-95">
+            <Link href="/tests/relances" className="flex items-center gap-3 rounded-xl border border-mystory/20 bg-mystory-clair px-4 py-3 text-sm text-mystory-fonce hover:brightness-95">
               <Send size={18} strokeWidth={1.9} className="shrink-0 text-mystory" />
-              <span><strong>{testsDist}</strong> test{testsDist > 1 ? "s" : ""} initial envoyé{testsDist > 1 ? "s" : ""} à distance — en attente de passation.</span>
+              <span><strong>{testsDist}</strong> test{testsDist > 1 ? "s" : ""} initial envoyé{testsDist > 1 ? "s" : ""} à distance — en attente de passation. <em className="not-italic underline">Relancer →</em></span>
               <ChevronRight size={16} className="ml-auto shrink-0 text-mystory/60" />
             </Link>
           )}
