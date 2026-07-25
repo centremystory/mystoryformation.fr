@@ -174,7 +174,7 @@ export function rolesAutorisesPage(pathname: string): Role[] {
 export const EMAIL_PROPRIETAIRE = "arudhan@mystoryformation.fr";
 
 /** Préfixes de pages FINANCE réservées au propriétaire (email), sans exception de rôle. */
-export const PAGES_PROPRIETAIRE = ["/bpf", "/direction", "/classement", "/finances"] as const;
+export const PAGES_PROPRIETAIRE = ["/bpf", "/direction", "/classement", "/finances", "/activite"] as const;
 
 export function estProprietaire(email: string | undefined | null): boolean {
   return (email ?? "").trim().toLowerCase() === EMAIL_PROPRIETAIRE;
