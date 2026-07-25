@@ -14,6 +14,7 @@ import {
   Plus, FileCheck, RotateCcw, Trophy, UserPlus, Phone, ShieldCheck, BarChart3, TrendingUp, QrCode, MapPin, Sparkles, } from "lucide-react";
 import { accesPage, ROLE_LABEL } from "@/lib/roles";
 import TachesUrgentes from "@/components/TachesUrgentes";
+import RituelDuJour from "@/components/RituelDuJour";
 import { SITES, COOKIE_SITE, siteValide } from "@/lib/sites";
 
 const PAGES_SANS_NAV = ["/connexion", "/qcm", "/positionnement", "/suivi", "/evaluation", "/fiche-besoin", "/emargement/signer", "/satisfaction", "/formateur-questionnaire", "/contact", "/partenaire", "/test"];
@@ -275,10 +276,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen">
       {/* Sidebar desktop */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-gray-200 bg-white lg:flex">
-        <Link href="/" className="flex items-center gap-2 px-4 h-16 shrink-0 border-b border-gray-100">
+        <Link href="/" className="flex items-center gap-2 px-4 py-3 shrink-0 border-b border-gray-100">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/embleme-blanc.png" alt="" className="h-8 w-auto rounded bg-mystory p-1" />
-          <span className="font-semibold tracking-tight text-gray-900">MYSTORY</span>
+          <img src="/embleme-blanc.png" alt="" className="h-8 w-auto shrink-0 rounded bg-mystory p-1" />
+          <span className="flex flex-col leading-tight">
+            <span className="font-semibold tracking-tight text-gray-900">MYSTORY</span>
+            <span className="text-[10px] leading-snug text-gray-400">Développer l'histoire de MYSTORY est notre priorité 🙂</span>
+          </span>
         </Link>
         {nav()}
         {pied}
@@ -348,7 +352,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-7xl px-4 py-6 md:px-6 md:py-7"><TachesUrgentes />{children}</main>
+        <main className="mx-auto w-full max-w-7xl px-4 py-6 md:px-6 md:py-7"><RituelDuJour /><TachesUrgentes />{children}</main>
       </div>
     </div>
   );
