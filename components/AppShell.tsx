@@ -13,6 +13,7 @@ import {
   Workflow, ScrollText, LogOut, Menu, X, ChevronDown,
   Plus, FileCheck, RotateCcw, Trophy, UserPlus, Phone, ShieldCheck, BarChart3, TrendingUp, QrCode, MapPin, Sparkles, } from "lucide-react";
 import { accesPage, ROLE_LABEL } from "@/lib/roles";
+import TachesUrgentes from "@/components/TachesUrgentes";
 import { SITES, COOKIE_SITE, siteValide } from "@/lib/sites";
 
 const PAGES_SANS_NAV = ["/connexion", "/qcm", "/positionnement", "/suivi", "/evaluation", "/fiche-besoin", "/emargement/signer", "/satisfaction", "/formateur-questionnaire", "/contact", "/partenaire", "/test"];
@@ -347,7 +348,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-7xl px-4 py-6 md:px-6 md:py-7">{children}</main>
+        <main className="mx-auto w-full max-w-7xl px-4 py-6 md:px-6 md:py-7"><TachesUrgentes />{children}</main>
       </div>
     </div>
   );
