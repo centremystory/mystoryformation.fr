@@ -87,7 +87,7 @@ export default function CatalogueOffresPage() {
     <div style={{ maxWidth: 1000, margin: "0 auto", padding: "8px 4px 60px" }}>
       <h1 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 2px" }}>Catalogue — Offres & formules (v4)</h1>
       <p style={{ color: "#667085", fontSize: 14, marginTop: 0 }}>
-        Édite <strong>titres, finalités, niveaux</strong> (au niveau offre) et <strong>formules</strong> (nom, heures, prix). <strong>Barème :</strong> 6-15h=50€/h · 18-27h=45€/h · 30-39h=40€/h · 42-45h=35€/h. Plafond 1 575€.
+        Édite <strong>titres, finalités, niveaux</strong> (au niveau offre) et <strong>formules</strong> (nom, heures, prix). <strong>Barème v6 :</strong> 150€ (examen) + heures × taux — 6-15h=45€/h · 18-27h=40€/h · 30-39h=35€/h · 42-45h=30€/h. Plafond 1 500€ (max 1 515€).
       </p>
       <div style={{ background: "#FFFAEB", border: "1px solid #FEDF89", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#B54708", margin: "12px 0" }}>
         ⚠️ <strong>Brouillon</strong> — offres en attente de validation du certificateur (Le français des affaires). Ne pas publier sur EDOF avant son retour.
