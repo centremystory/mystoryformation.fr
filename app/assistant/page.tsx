@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 const BLEU = "#2F72DE";
 
-type Msg = { role: "user" | "assistant"; content: string; outils?: string[] };
+type Msg = { role: "user" | "assistant"; content: string; outils?: string[]; proposition?: any };
 
 const EXEMPLES = [
   "Où en est le dossier de …",
@@ -20,8 +20,21 @@ export default function AssistantPage() {
   const [charge, setCharge] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const finRef = useRef<HTMLDivElement>(null);
+  const [applique, setApplique] = useState<Record<number, string>>({});
 
   useEffect(() => { finRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, charge]);
+
+  async function appliquer(i: number, patch: any) {
+    setApplique((p) => ({ ...p, [i]: "..." }));
+    try {
+      const r = await fetch("/api/catalogue/offres", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.erreur || "Échec.");
+      setApplique((p) => ({ ...p, [i]: "ok" }));
+    } catch (e: any) {
+      setApplique((p) => ({ ...p, [i]: "err:" + (e?.message || "erreur") }));
+    }
+  }
 
   async function envoyer(texte?: string) {
     const q = (texte ?? input).trim();
@@ -39,7 +52,7 @@ export default function AssistantPage() {
       });
       const j = await r.json();
       if (!j.ok) throw new Error(j.erreur || "Erreur inconnue.");
-      setMessages((prev) => [...prev, { role: "assistant", content: j.reponse || "(réponse vide)", outils: j.outils }]);
+      setMessages((prev) => [...prev, { role: "assistant", content: j.reponse || "(réponse vide)", outils: j.outils, proposition: j.proposition }]);
     } catch (e: any) {
       setErreur(e?.message || "Erreur.");
     } finally {
@@ -81,6 +94,30 @@ export default function AssistantPage() {
             {m.outils && m.outils.length > 0 && (
               <div style={{ fontSize: 11, color: "#98A2B3", marginTop: 4 }}>
                 🔧 {m.outils.join(" · ")}
+              </div>
+            )}
+            {m.proposition && (
+              <div style={{ marginTop: 8, border: "1px solid #FEDF89", background: "#FFFAEB", borderRadius: 12, padding: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#B54708" }}>Proposition — {String(m.proposition.cible)}</div>
+                <div style={{ fontSize: 13, margin: "6px 0", color: "#344054" }}>
+                  <b>{String(m.proposition.champ)}</b> : <span style={{ textDecoration: "line-through", color: "#98A2B3" }}>{String(m.proposition.ancienne_valeur)}</span> → <b>{String(m.proposition.nouvelle_valeur)}</b>
+                </div>
+                {applique[i] === "ok" ? (
+                  <div style={{ color: "#12B76A", fontSize: 13, fontWeight: 600 }}>✓ Appliqué — annulable dans Catalogue → Historique.</div>
+                ) : applique[i]?.startsWith("err:") ? (
+                  <div style={{ color: "#B42318", fontSize: 13 }}>{applique[i].slice(4)}</div>
+                ) : (
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={() => appliquer(i, m.proposition.patch)} disabled={applique[i] === "..."}
+                      style={{ background: BLEU, color: "#fff", border: "none", borderRadius: 8, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                      {applique[i] === "..." ? "…" : "Appliquer"}
+                    </button>
+                    <button onClick={() => setApplique((p) => ({ ...p, [i]: "err:Proposition ignorée." }))}
+                      style={{ background: "#fff", color: "#667085", border: "1px solid #D0D5DD", borderRadius: 8, padding: "7px 14px", fontSize: 13, cursor: "pointer" }}>
+                      Ignorer
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -24,6 +24,45 @@ function eur(n: any): string {
 export type Outil = { schema: any; run: (args: any) => Promise<any> };
 
 export const OUTILS: Record<string, Outil> = {
+  // 0 — Préparer une modif du catalogue (PROPOSE, n'applique jamais : l'utilisateur valide)
+  preparer_modif_catalogue: {
+    schema: { type: "function", function: {
+      name: "preparer_modif_catalogue",
+      description: "PRÉPARE (sans appliquer) une modification du catalogue des offres/formules TEF IRN. À utiliser quand la direction veut changer un intitulé d'offre, une finalité, un niveau, un nom de formule, une durée ou un prix. Renvoie une PROPOSITION que l'utilisateur validera lui-même — aucune écriture directe. Offre = ID TEFIRN7_01 à 04 ; formule = ID TEFIRN7_0X_0Y (ex TEFIRN7_02_03). Explique ensuite en une phrase la modification proposée.",
+      parameters: { type: "object", properties: {
+        cible_offre: { type: "string", description: "ID d'offre (TEFIRN7_01..04) — pour intitulé, finalité, niveaux." },
+        cible_formule: { type: "string", description: "ID de formule (TEFIRN7_0X_0Y) — pour nom, prix, heures." },
+        champ: { type: "string", enum: ["offre_intitule", "finalite", "entree_niveau", "vise_niveau", "formule_nom", "prix_eur", "heures"], description: "Champ à modifier." },
+        nouvelle_valeur: { type: "string", description: "Nouvelle valeur souhaitée." },
+      }, required: ["champ", "nouvelle_valeur"] },
+    } },
+    run: async ({ cible_offre, cible_formule, champ, nouvelle_valeur }) => {
+      const champsOffre = ["offre_intitule", "finalite", "entree_niveau", "vise_niveau"];
+      const champsFormule = ["formule_nom", "prix_eur", "heures"];
+      if (champsOffre.includes(champ)) {
+        const oid = String(cible_offre ?? "").trim().toUpperCase();
+        if (!/^TEFIRN7_0[1-4]$/.test(oid)) return { erreur: "Précise un ID d'offre valide (TEFIRN7_01 à 04) pour ce champ." };
+        const { data } = await supabaseAdmin.from("offres_formules").select("offre_intitule,finalite,entree_niveau,vise_niveau").eq("offre_id", oid).limit(1).maybeSingle();
+        if (!data) return { erreur: "Offre introuvable : " + oid };
+        return { proposition: true, type: "catalogue", cible: oid, champ, ancienne_valeur: (data as any)[champ] ?? "(vide)", nouvelle_valeur, patch: { offre_id: oid, [champ]: nouvelle_valeur } };
+      }
+      if (champsFormule.includes(champ)) {
+        const fid = String(cible_formule ?? "").trim().toUpperCase();
+        if (!/^TEFIRN7_0[1-4]_0[1-9]$/.test(fid)) return { erreur: "Précise un ID de formule valide (ex TEFIRN7_02_03) pour ce champ." };
+        const { data } = await supabaseAdmin.from("offres_formules").select("id,formule_nom,prix_eur,heures").eq("formule_id", fid).maybeSingle();
+        if (!data) return { erreur: "Formule introuvable : " + fid };
+        let val: any = nouvelle_valeur;
+        if (champ === "prix_eur" || champ === "heures") {
+          val = Number(String(nouvelle_valeur).replace(/[^\d.,]/g, "").replace(",", "."));
+          if (!isFinite(val)) return { erreur: "Valeur numérique invalide." };
+          if (champ === "prix_eur" && val > 1600) return { erreur: "Prix > 1 600 € interdit (plafond CPF)." };
+        }
+        return { proposition: true, type: "catalogue", cible: fid, champ, ancienne_valeur: (data as any)[champ], nouvelle_valeur: val, patch: { id: (data as any).id, [champ]: val } };
+      }
+      return { erreur: "Champ non pris en charge." };
+    },
+  },
+
   // 1 — Dossiers de formation (CPF/OPCO)
   rechercher_dossier: {
     schema: { type: "function", function: {
