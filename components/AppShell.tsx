@@ -12,7 +12,7 @@ import {
   FileSpreadsheet, UserCog, MessageSquare, MessageCircle, Eye, HelpCircle, KeyRound, AlertTriangle,
   Workflow, ScrollText, LogOut, Menu, X, ChevronDown,
   Plus, FileCheck, RotateCcw, Trophy, UserPlus, Phone, ShieldCheck, BarChart3, TrendingUp, QrCode, MapPin, Sparkles, } from "lucide-react";
-import { peutVoirPage, ROLE_LABEL } from "@/lib/roles";
+import { accesPage, ROLE_LABEL } from "@/lib/roles";
 import { SITES, COOKIE_SITE, siteValide } from "@/lib/sites";
 
 const PAGES_SANS_NAV = ["/connexion", "/qcm", "/positionnement", "/suivi", "/evaluation", "/fiche-besoin", "/emargement/signer", "/satisfaction", "/formateur-questionnaire", "/contact", "/partenaire", "/test"];
@@ -150,6 +150,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [role, setRole] = useState<string | null | undefined>(undefined);
   const [roles, setRoles] = useState<string[] | undefined>(undefined);
+  const [email, setEmail] = useState<string | null | undefined>(undefined);
   const [site, setSite] = useState<string>("");
   const [drawer, setDrawer] = useState(false);
   const [ouverts, setOuverts] = useState<string[]>([]);
@@ -158,7 +159,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let vivant = true;
-    fetch("/api/me").then((r) => r.json()).then((j) => { if (vivant) { setRole(j?.ok ? (j.user?.role ?? null) : null); setRoles(j?.ok ? (j.user?.roles ?? undefined) : undefined); } }).catch(() => {});
+    fetch("/api/me").then((r) => r.json()).then((j) => { if (vivant) { setRole(j?.ok ? (j.user?.role ?? null) : null); setRoles(j?.ok ? (j.user?.roles ?? undefined) : undefined); setEmail(j?.ok ? (j.user?.email ?? null) : null); } }).catch(() => {});
     return () => { vivant = false; };
   }, []);
 
@@ -168,10 +169,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   const navVisible = useMemo(() => NAV
-    .map((e) => (e.type === "menu" ? { ...e, items: e.items.filter((i) => peutVoirPage(roles ?? role, i.href)) } : e))
-    .filter((e) => (e.type === "link" ? peutVoirPage(roles ?? role, e.href) : e.items.length > 0)), [role, roles]);
+    .map((e) => (e.type === "menu" ? { ...e, items: e.items.filter((i) => accesPage(roles ?? role, email, i.href)) } : e))
+    .filter((e) => (e.type === "link" ? accesPage(roles ?? role, email, e.href) : e.items.length > 0)), [role, roles, email]);
 
-  const actionsRapides = useMemo(() => ACTIONS_RAPIDES.filter((a) => peutVoirPage(roles ?? role, a.href)), [role, roles]);
+  const actionsRapides = useMemo(() => ACTIONS_RAPIDES.filter((a) => accesPage(roles ?? role, email, a.href)), [role, roles, email]);
 
   // Ouvre automatiquement le groupe contenant la page active.
   useEffect(() => {

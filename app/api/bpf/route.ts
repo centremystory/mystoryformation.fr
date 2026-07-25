@@ -3,16 +3,17 @@
  * Année N-1 par défaut.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { requireUser, UnauthorizedError } from "@/lib/auth";
+import { requireProprietaire, UnauthorizedError, ForbiddenError } from "@/lib/auth";
 import { bpfSynthese } from "@/lib/bpf";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  try { await requireUser(req); }
+  try { await requireProprietaire(req); }
   catch (e) {
     if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
+    if (e instanceof ForbiddenError) return NextResponse.json({ ok: false, erreur: "Finance réservée à la direction." }, { status: 403 });
     throw e;
   }
   const a = Number(req.nextUrl.searchParams.get("annee"));

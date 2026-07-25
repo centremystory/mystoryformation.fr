@@ -6,8 +6,7 @@
  *          autres_produits?, part_ca_pct?, charges_total?, salaires_formateurs?, achats_prestations? }
  */
 import { NextRequest, NextResponse } from "next/server";
-import { requireUser, UnauthorizedError, type SessionUser } from "@/lib/auth";
-import { peut } from "@/lib/roles";
+import { requireProprietaire, UnauthorizedError, ForbiddenError, type SessionUser } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { journal } from "@/lib/examens";
 
@@ -22,12 +21,12 @@ function num(v: any): number | null {
 
 export async function POST(req: NextRequest) {
   let u: SessionUser;
-  try { u = await requireUser(req); }
+  try { u = await requireProprietaire(req); }
   catch (e) {
     if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
+    if (e instanceof ForbiddenError) return NextResponse.json({ ok: false, erreur: "Finance réservée à la direction." }, { status: 403 });
     throw e;
   }
-  if (u.role && !peut(u.roles ?? u.role, "bpf_saisir")) return NextResponse.json({ ok: false, erreur: "Action réservée à la Direction." }, { status: 403 });
 
   let b: any;
   try { b = await req.json(); } catch { return NextResponse.json({ ok: false, erreur: "JSON invalide." }, { status: 400 }); }

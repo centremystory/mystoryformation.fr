@@ -10,7 +10,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { aujourdhuiParisISO } from "@/lib/dates";
-import { requireRole, UnauthorizedError, ForbiddenError } from "@/lib/auth";
+import { requireProprietaire, UnauthorizedError, ForbiddenError } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { fetchAllRows } from "@/lib/fetchAllRows";
 
@@ -33,7 +33,7 @@ function num(v: unknown): number {
 
 export async function GET(req: NextRequest) {
   try {
-    await requireRole(req, ["direction", "manager"]);
+    await requireProprietaire(req);
     const url = new URL(req.url);
     const today = aujourdhuiParisISO();
     const debutMois = today.slice(0, 8) + "01";

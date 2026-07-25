@@ -3,8 +3,7 @@
  * Exporte le BPF de l'année : CSV (données) ou PDF (calé sur le Cerfa, aide au remplissage).
  */
 import { NextRequest, NextResponse } from "next/server";
-import { requireUser, UnauthorizedError, type SessionUser } from "@/lib/auth";
-import { peut } from "@/lib/roles";
+import { requireProprietaire, UnauthorizedError, ForbiddenError, type SessionUser } from "@/lib/auth";
 import { bpfSynthese } from "@/lib/bpf";
 import { bpfCsv, bpfHtml } from "@/lib/bpf-export";
 import { renderPdf } from "@/lib/renderPdf";
@@ -15,12 +14,12 @@ export const maxDuration = 60;
 
 export async function GET(req: NextRequest) {
   let u: SessionUser;
-  try { u = await requireUser(req); }
+  try { u = await requireProprietaire(req); }
   catch (e) {
     if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
+    if (e instanceof ForbiddenError) return NextResponse.json({ ok: false, erreur: "Finance réservée à la direction." }, { status: 403 });
     throw e;
   }
-  if (u.role && !peut(u.roles ?? u.role, "bpf_saisir")) return NextResponse.json({ ok: false, erreur: "Action réservée à la Direction." }, { status: 403 });
   const a = Number(req.nextUrl.searchParams.get("annee"));
   const annee = Number.isInteger(a) && a >= 2000 && a <= 2100 ? a : new Date().getFullYear() - 1;
   const format = (req.nextUrl.searchParams.get("format") || "csv").toLowerCase();

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { verifySession } from "@/lib/auth";
-import { peutVoirPage } from "@/lib/roles";
+import { accesPage } from "@/lib/roles";
 
 /**
  * MYSTORY — Garde d'accès global (v2, harmonisée avec lib/auth.ts).
@@ -72,7 +72,7 @@ export async function middleware(req: NextRequest) {
   if (utilisateur) {
     // Gating par page selon le rôle. Pages uniquement : les API gardent leurs propres
     // contrôles peut(). Filet de transition : rôle "staff"/absent = accès complet.
-    if (!pathname.startsWith("/api/") && !peutVoirPage(utilisateur.roles ?? utilisateur.role, pathname)) {
+    if (!pathname.startsWith("/api/") && !accesPage(utilisateur.roles ?? utilisateur.role, utilisateur.email, pathname)) {
       const url = req.nextUrl.clone();
       url.pathname = "/acces-refuse";
       url.search = "";
