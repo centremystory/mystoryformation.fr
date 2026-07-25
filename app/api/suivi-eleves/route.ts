@@ -6,6 +6,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 import { requireUser, UnauthorizedError } from "@/lib/auth";
 
 export const runtime = "nodejs";
@@ -43,14 +44,20 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, jours });
   }
 
-  const { data, error } = await supabaseAdmin
-    .from("planning")
-    .select(`
-      id, date_seance, heures, emarge_le, absence,
-      dossier:dossiers!dossier_id ( id, certif, statut, heures_prevues, date_fin,
-        stagiaire:stagiaires!stagiaire_id ( prenom, nom, agence ) )
-    `);
-  if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
+  // Récapitulatif tous élèves : lecture paginée du planning (contourne le plafond 1000).
+  let data: any[];
+  try {
+    data = await fetchAllRows<any>((from, to) => supabaseAdmin
+      .from("planning")
+      .select(`
+        id, date_seance, heures, emarge_le, absence,
+        dossier:dossiers!dossier_id ( id, certif, statut, heures_prevues, date_fin,
+          stagiaire:stagiaires!stagiaire_id ( prenom, nom, agence ) )
+      `)
+      .order("id").range(from, to));
+  } catch (e: any) {
+    return NextResponse.json({ ok: false, erreur: e?.message || "Erreur de lecture." }, { status: 500 });
+  }
 
   const map = new Map<string, any>();
   for (const r of data ?? []) {

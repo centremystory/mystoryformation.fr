@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, UnauthorizedError, type SessionUser } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 import { envoyerEmail, gabaritEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
@@ -30,27 +31,27 @@ async function calcul() {
   const ilYa7jDate = ilYa7jISO.slice(0, 10);
   const aujourdHuiDate = new Intl.DateTimeFormat("fr-CA", { timeZone: "Europe/Paris" }).format(maintenant);
 
-  // Séances émargées (présentes) cette semaine + heures réalisées
-  const { data: seances } = await supabaseAdmin
-    .from("planning").select("heures, heures_realisees, absence, emarge_le").gte("emarge_le", ilYa7jISO);
+  // Séances émargées (présentes) cette semaine + heures réalisées — lecture paginée.
+  const seances = await fetchAllRows<any>((f, t) => supabaseAdmin
+    .from("planning").select("heures, heures_realisees, absence, emarge_le, id").gte("emarge_le", ilYa7jISO).order("id").range(f, t));
   const sEmargees = (seances ?? []).filter((s: any) => !s.absence);
   const nbSeances = sEmargees.length;
   const heures = sEmargees.reduce((t: number, s: any) => t + Number(s.heures_realisees ?? s.heures ?? 0), 0);
 
-  // Dossiers clôturés (date_fin dans les 7 derniers jours)
-  const { data: clotures } = await supabaseAdmin
-    .from("dossiers").select("id, date_fin").gte("date_fin", ilYa7jDate).lte("date_fin", aujourdHuiDate);
+  // Dossiers clôturés (date_fin dans les 7 derniers jours) — lecture paginée.
+  const clotures = await fetchAllRows<any>((f, t) => supabaseAdmin
+    .from("dossiers").select("id, date_fin").gte("date_fin", ilYa7jDate).lte("date_fin", aujourdHuiDate).order("id").range(f, t));
   const nbClotures = (clotures ?? []).length;
 
-  // Satisfaction des séances notées cette semaine
-  const { data: notes } = await supabaseAdmin
-    .from("satisfaction_seance").select("note, horodatage").gte("horodatage", ilYa7jISO);
+  // Satisfaction des séances notées cette semaine — lecture paginée.
+  const notes = await fetchAllRows<any>((f, t) => supabaseAdmin
+    .from("satisfaction_seance").select("note, horodatage, id").gte("horodatage", ilYa7jISO).order("id").range(f, t));
   const lesNotes = (notes ?? []).map((n: any) => Number(n.note)).filter((n: number) => n > 0);
   const moyenne = lesNotes.length ? Math.round((lesNotes.reduce((a, b) => a + b, 0) / lesNotes.length) * 100) / 100 : null;
 
-  // Alertes en cours (dossiers CPF)
-  const { data: dossiers } = await supabaseAdmin
-    .from("dossiers").select("financement, origine_fonds, cpf_identite_ok, participation_forfaitaire_reglee, participation_forfaitaire_exemptee");
+  // Alertes en cours (dossiers CPF) — lecture NON bornée à l'origine → paginée (critique).
+  const dossiers = await fetchAllRows<any>((f, t) => supabaseAdmin
+    .from("dossiers").select("id, financement, origine_fonds, cpf_identite_ok, participation_forfaitaire_reglee, participation_forfaitaire_exemptee").order("id").range(f, t));
   const cpf = (dossiers ?? []).filter(estCpf);
   const participationDue = cpf.filter((d: any) => !d.participation_forfaitaire_reglee && !d.participation_forfaitaire_exemptee).length;
   const identiteDue = cpf.filter((d: any) => !d.cpf_identite_ok).length;

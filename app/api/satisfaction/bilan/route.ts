@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, UnauthorizedError } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,13 +35,18 @@ export async function GET(req: NextRequest) {
     const depuis = url.searchParams.get("depuis");
     const jusqu = url.searchParams.get("jusqu");
 
-    let q = supabaseAdmin.from("satisfactions").select("reponses, horodatage").eq("type", type);
-    if (depuis) q = q.gte("horodatage", `${depuis}T00:00:00`);
-    if (jusqu) q = q.lte("horodatage", `${jusqu}T23:59:59`);
-    const { data, error } = await q.order("horodatage", { ascending: false });
-    if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
-
-    const lignes = (data ?? []) as { reponses: any; horodatage: string }[];
+    // Lecture paginée (contourne le plafond 1000) — tri stable (horodatage desc + dossier_id).
+    let lignes: { reponses: any; horodatage: string }[];
+    try {
+      lignes = await fetchAllRows<any>((from, to) => {
+        let q = supabaseAdmin.from("satisfactions").select("reponses, horodatage").eq("type", type);
+        if (depuis) q = q.gte("horodatage", `${depuis}T00:00:00`);
+        if (jusqu) q = q.lte("horodatage", `${jusqu}T23:59:59`);
+        return q.order("horodatage", { ascending: false }).order("dossier_id").range(from, to);
+      });
+    } catch (e: any) {
+      return NextResponse.json({ ok: false, erreur: e?.message || "Erreur de lecture." }, { status: 500 });
+    }
     const n = lignes.length;
 
     // Moyenne + % satisfaits (note ≥ 4) par critère
