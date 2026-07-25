@@ -236,6 +236,7 @@ export default function PageFiche() {
                 {d.participation_forfaitaire_reglee && <span className="badge bg-emerald-50 text-emerald-700">Participation réglée</span>}
                 {!d.cpf_identite_ok && <span className="badge bg-amber-50 text-amber-700">Identité CPF non confirmée</span>}
                 {d.numero_edof && <span className="badge bg-gray-100 text-gray-500">EDOF {d.numero_edof}</span>}
+                <a href={`/api/dossiers/${d.id}/livret-pdf`} target="_blank" rel="noopener" className="badge bg-mystory/10 text-mystory hover:bg-mystory/20" style={{ cursor: "pointer" }}>📘 Livret de suivi (PDF)</a>
               </div>
             </div>
           ))
