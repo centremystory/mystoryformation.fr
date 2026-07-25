@@ -2,15 +2,20 @@
  * MYSTORY — Rendu HTML → PDF (serveur)  (Brique 2A)
  * puppeteer-core + @sparticuz/chromium (paquet complet : binaire + librairies système
  * embarqués → pas de téléchargement distant, plus fiable en serverless Vercel).
+ * Chrome 138 : version dont les libs système sont compatibles avec le runtime
+ * Vercel actuel (Amazon Linux 2023) — la v131 échouait en `libnss3.so introuvable`.
  * Renvoie un Buffer PDF A4.
  */
 import puppeteer from "puppeteer-core";
 import chromium from "@sparticuz/chromium";
 
+// Un PDF n'a besoin ni de WebGL ni de la pile graphique → on la coupe.
+// Moins de librairies système à charger = démarrage plus rapide et plus fiable.
+chromium.setGraphicsMode = false;
+
 export async function renderPdf(html: string): Promise<Buffer> {
   const browser = await puppeteer.launch({
     args: chromium.args,
-    defaultViewport: chromium.defaultViewport,
     executablePath: await chromium.executablePath(),
     headless: true,
   });
