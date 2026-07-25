@@ -86,6 +86,8 @@ export default function EditionTest({ params }: { params: { id: string } }) {
         <Link href="/tests/banque" className="text-sm text-mystory underline">← Banque de tests</Link>
         <h1 className="page-title mt-1">{test.titre}</h1>
         <p className="page-subtitle">{test.phase === "final" ? "Test final" : "Test initial"} · {test.periode ?? "—"}</p>
+        <a href={`/api/tests/${params.id}/sujet-pdf`} target="_blank" rel="noopener"
+          className="btn-ghost mt-2 inline-block !text-sm">Sujet PDF (à imprimer, sans corrigé)</a>
       </div>
 
       <div className="card mb-5 space-y-3">

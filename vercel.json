@@ -4,6 +4,7 @@
     "app/api/conventions/send/route.ts": { "memory": 3009, "maxDuration": 60 },
     "app/api/conventions/preview/route.ts": { "memory": 3009, "maxDuration": 60 },
     "app/api/tests/[id]/correction-pdf/route.ts": { "memory": 3009, "maxDuration": 60 },
+    "app/api/tests/[id]/sujet-pdf/route.ts": { "memory": 3009, "maxDuration": 60 },
     "app/api/documents/generate/route.ts": { "memory": 3009, "maxDuration": 60 },
     "app/api/documents/completer/route.ts": { "memory": 3009, "maxDuration": 60 },
     "app/api/documents/justificatif/route.ts": { "memory": 3009, "maxDuration": 60 },
