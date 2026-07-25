@@ -65,6 +65,7 @@ const NAV: Entree[] = [
   },
   {
     type: "menu", label: "Finances", icon: Receipt, items: [
+      { href: "/activite", label: "Activité", icon: BarChart3 },
       { href: "/factures", label: "Factures", icon: Receipt },
       { href: "/validations", label: "Validations", icon: CheckCircle2 },
       { href: "/bpf", label: "BPF", icon: FileSpreadsheet },
