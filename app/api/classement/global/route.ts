@@ -6,6 +6,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 import { requireRole, UnauthorizedError, ForbiddenError } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -38,19 +39,21 @@ export async function GET(req: NextRequest) {
       depuis = new Date(d.getFullYear(), d.getMonth(), 1).toISOString();
     }
 
-    // Examen — exclut Annulé / Remboursé.
-    let qe = supabaseAdmin.from("ventes_examen").select("vendu_par, montant, statut_paiement, created_at");
-    if (depuis) qe = qe.gte("created_at", depuis);
-    const { data: exAll, error: eEx } = await qe;
-    if (eEx) return NextResponse.json({ ok: false, erreur: eEx.message }, { status: 500 });
-    const ex = (exAll ?? []).filter((r: any) => !["Annulé", "Remboursé"].includes(r.statut_paiement));
+    // Examen — exclut Annulé / Remboursé. Lecture paginée (plafond 1000 contourné).
+    const exAll = await fetchAllRows<any>((from, to) => {
+      let q = supabaseAdmin.from("ventes_examen").select("vendu_par, montant, statut_paiement, created_at").order("id");
+      if (depuis) q = q.gte("created_at", depuis);
+      return q.range(from, to);
+    });
+    const ex = exAll.filter((r: any) => !["Annulé", "Remboursé"].includes(r.statut_paiement));
 
-    // Formation — exclut annulé / archivé.
-    let qf = supabaseAdmin.from("dossiers").select("vendu_par, montant, statut, created_at");
-    if (depuis) qf = qf.gte("created_at", depuis);
-    const { data: foAll, error: eFo } = await qf;
-    if (eFo) return NextResponse.json({ ok: false, erreur: eFo.message }, { status: 500 });
-    const fo = (foAll ?? []).filter((r: any) => !["annule", "archive", "annulé", "archivé"].includes(String(r.statut ?? "").toLowerCase()));
+    // Formation — exclut annulé / archivé. Lecture paginée.
+    const foAll = await fetchAllRows<any>((from, to) => {
+      let q = supabaseAdmin.from("dossiers").select("vendu_par, montant, statut, created_at").order("id");
+      if (depuis) q = q.gte("created_at", depuis);
+      return q.range(from, to);
+    });
+    const fo = foAll.filter((r: any) => !["annule", "archive", "annulé", "archivé"].includes(String(r.statut ?? "").toLowerCase()));
 
     const mEx = agreger(ex);
     const mFo = agreger(fo);

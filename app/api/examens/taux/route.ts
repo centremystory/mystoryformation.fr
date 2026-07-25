@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, UnauthorizedError } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,13 +28,16 @@ export async function GET(req: NextRequest) {
   const debut = sp.get("debut") || null;
   const fin = sp.get("fin") || null;
 
-  const { data: cands, error } = await supabaseAdmin
-    .from("v_candidats_examen")
-    .select("id, source, type_norm, agence, date_examen");
-  if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
-
-  const { data: resultats } = await supabaseAdmin
-    .from("resultats_examen").select("vente_id, examen_ref, source, statut, niveau_obtenu");
+  let cands: any[] = [], resultats: any[] = [];
+  try {
+    // Lectures paginées (contourne le plafond 1000 → stats justes à tout volume).
+    cands = await fetchAllRows<any>((from, to) =>
+      supabaseAdmin.from("v_candidats_examen").select("id, source, type_norm, agence, date_examen").order("id").range(from, to));
+    resultats = await fetchAllRows<any>((from, to) =>
+      supabaseAdmin.from("resultats_examen").select("vente_id, examen_ref, source, statut, niveau_obtenu").order("id").range(from, to));
+  } catch (e: any) {
+    return NextResponse.json({ ok: false, erreur: e?.message || "Erreur de lecture." }, { status: 500 });
+  }
   const parVente = new Map<string, any>();
   const parImport = new Map<string, any>();
   for (const r of (resultats ?? []) as any[]) {

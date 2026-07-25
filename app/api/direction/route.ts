@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { aujourdhuiParisISO } from "@/lib/dates";
 import { requireRole, UnauthorizedError, ForbiddenError } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,22 +42,28 @@ export async function GET(req: NextRequest) {
     const agence = url.searchParams.get("agence") || "";
     const okAgence = (a: string | null | undefined) => !agence || (a ?? "") === agence;
 
+    // Lectures paginées (contourne le plafond 1000) — enveloppées en {data} pour ne rien changer au calcul.
     const [dossiersRes, planningRes, facturesRes, ventesRes, prospectsRes] = await Promise.all([
-      supabaseAdmin
+      fetchAllRows<any>((f, t) => supabaseAdmin
         .from("dossiers")
-        .select("id, statut, date_fin, created_at, heures_prevues, stagiaire:stagiaires!stagiaire_id ( agence )"),
-      supabaseAdmin
+        .select("id, statut, date_fin, created_at, heures_prevues, stagiaire:stagiaires!stagiaire_id ( agence )")
+        .order("id").range(f, t)).then((data) => ({ data })),
+      fetchAllRows<any>((f, t) => supabaseAdmin
         .from("planning")
-        .select("heures, heures_realisees, emarge_le, date_seance, dossier:dossiers!dossier_id ( statut, date_fin, stagiaire:stagiaires!stagiaire_id ( agence ) )"),
-      supabaseAdmin
+        .select("heures, heures_realisees, emarge_le, date_seance, dossier:dossiers!dossier_id ( statut, date_fin, stagiaire:stagiaires!stagiaire_id ( agence ) )")
+        .order("id").range(f, t)).then((data) => ({ data })),
+      fetchAllRows<any>((f, t) => supabaseAdmin
         .from("factures")
-        .select("montant, statut, date_emission, date_paiement, dossier_id, vente_id"),
-      supabaseAdmin
+        .select("montant, statut, date_emission, date_paiement, dossier_id, vente_id")
+        .order("id").range(f, t)).then((data) => ({ data })),
+      fetchAllRows<any>((f, t) => supabaseAdmin
         .from("ventes_examen")
-        .select("id, montant, reste_a_payer, type_examen, date_inscription, agence, statut_paiement"),
-      supabaseAdmin
+        .select("id, montant, reste_a_payer, type_examen, date_inscription, agence, statut_paiement")
+        .order("id").range(f, t)).then((data) => ({ data })),
+      fetchAllRows<any>((f, t) => supabaseAdmin
         .from("messages_prospects")
-        .select("cree_le"),
+        .select("cree_le, id")
+        .order("id").range(f, t)).then((data) => ({ data })),
     ]);
 
     // ---- ACTIVITÉ ----
