@@ -24,6 +24,7 @@ type Entree = { type: "link"; href: string; label: string; icon: LucideIcon } | 
 
 const NAV: Entree[] = [
   { type: "link", href: "/", label: "Accueil", icon: Home },
+  { type: "link", href: "/mon-rapport", label: "Mon rapport", icon: Clock },
   { type: "link", href: "/assistant", label: "Assistant IA", icon: Sparkles },
   { type: "link", href: "/recherche", label: "Rechercher", icon: Search },
   { type: "link", href: "/direction", label: "Direction", icon: LayoutGrid },
