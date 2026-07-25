@@ -42,12 +42,13 @@ export async function POST(req: NextRequest) {
       `Utilise TOUJOURS les outils pour obtenir des chiffres ou des faits — n'invente JAMAIS une donnée, un nom ou un montant. ` +
       `Si un outil ne renvoie rien, dis-le clairement plutôt que d'inventer. ` +
       `Pour une période exprimée en langage courant, déduis les dates (ex. « cette semaine » = lundi de la semaine en cours jusqu'à aujourd'hui) et passe-les au format AAAA-MM-JJ. ` +
-      `Tu es en lecture seule : tu ne peux pas modifier le CRM. Termine par une réponse claire, pas par du JSON brut.`,
+      `Tu es en lecture seule SAUF pour le catalogue : pour changer un intitulé, un prix, un nom, une durée, une finalité ou un niveau d'offre/formule, appelle « preparer_modif_catalogue » qui PRÉPARE une proposition — l'utilisateur la validera lui-même via un bouton (tu ne modifies JAMAIS directement). Termine par une réponse claire, pas par du JSON brut.`,
   };
 
   const tools = Object.values(OUTILS).map((o) => o.schema);
   const messages: any[] = [systeme, ...messagesClient];
   const outilsUtilises: string[] = [];
+  let proposition: any = null;
 
   for (let i = 0; i < 5; i++) {
     let r: Response;
@@ -75,7 +76,7 @@ export async function POST(req: NextRequest) {
 
     const calls = msg.tool_calls;
     if (!calls || !calls.length) {
-      return NextResponse.json({ ok: true, reponse: msg.content || "", outils: [...new Set(outilsUtilises)] });
+      return NextResponse.json({ ok: true, reponse: msg.content || "", outils: [...new Set(outilsUtilises)], proposition });
     }
     for (const c of calls) {
       const nom = c?.function?.name;
@@ -88,6 +89,7 @@ export async function POST(req: NextRequest) {
       } catch (e: any) {
         resultat = { erreur: "Échec de l'outil : " + (e?.message || String(e)) };
       }
+      if (resultat && resultat.proposition) proposition = resultat;
       messages.push({ role: "tool", tool_call_id: c.id, content: JSON.stringify(resultat).slice(0, 6000) });
     }
   }
