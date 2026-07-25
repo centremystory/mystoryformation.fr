@@ -15,6 +15,7 @@ import {
 import { accesPage, ROLE_LABEL } from "@/lib/roles";
 import TachesUrgentes from "@/components/TachesUrgentes";
 import RituelDuJour from "@/components/RituelDuJour";
+import ReclamationsAlerte from "@/components/ReclamationsAlerte";
 import { SITES, COOKIE_SITE, siteValide } from "@/lib/sites";
 
 const PAGES_SANS_NAV = ["/connexion", "/qcm", "/positionnement", "/suivi", "/evaluation", "/fiche-besoin", "/emargement/signer", "/satisfaction", "/formateur-questionnaire", "/contact", "/partenaire", "/test"];
@@ -353,7 +354,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-7xl px-4 py-6 md:px-6 md:py-7"><RituelDuJour /><TachesUrgentes />{children}</main>
+        <main className="mx-auto w-full max-w-7xl px-4 py-6 md:px-6 md:py-7"><RituelDuJour /><TachesUrgentes /><ReclamationsAlerte />{children}</main>
       </div>
     </div>
   );
