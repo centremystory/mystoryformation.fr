@@ -128,6 +128,20 @@ export default function PageFiche() {
     finally { setArchivage(false); }
   }
 
+  // Participation forfaitaire réglée directement par le candidat → dossier valide sur ce point.
+  async function reglerParticipation(dossierId: string) {
+    if (!confirm("Marquer la participation forfaitaire (150 €) comme RÉGLÉE directement ? Le dossier sera considéré complet sur ce point (avant l'entrée en formation).")) return;
+    try {
+      const r = await fetch("/api/formation/alertes", {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dossierId, action: "participation_reglee" }),
+      });
+      const j = await r.json();
+      if (!j.ok) { alert(j.erreur ?? "Action impossible."); return; }
+      setFiche((f) => f ? { ...f, dossiers: f.dossiers.map((d) => d.id === dossierId ? { ...d, participation_forfaitaire_reglee: true } : d) } : f);
+    } catch { alert("Erreur réseau."); }
+  }
+
   useEffect(() => {
     if (!id) return;
     setChargement(true);
@@ -213,7 +227,13 @@ export default function PageFiche() {
               </div>
               <div className="mt-2 flex flex-wrap gap-2 text-xs">
                 {d.service_fait_valide ? <span className="badge bg-emerald-50 text-emerald-700">Service fait validé</span> : <span className="badge bg-amber-50 text-amber-700">Service fait à valider</span>}
-                {!d.participation_forfaitaire_reglee && !d.participation_forfaitaire_exemptee && <span className="badge bg-amber-50 text-amber-700">Participation forfaitaire due</span>}
+                {!d.participation_forfaitaire_reglee && !d.participation_forfaitaire_exemptee && (
+                  <>
+                    <span className="badge bg-amber-50 text-amber-700">Participation forfaitaire due</span>
+                    <button onClick={() => reglerParticipation(d.id)} className="badge bg-emerald-600 text-white hover:bg-emerald-700" style={{ cursor: "pointer" }}>Régler directement ✓</button>
+                  </>
+                )}
+                {d.participation_forfaitaire_reglee && <span className="badge bg-emerald-50 text-emerald-700">Participation réglée</span>}
                 {!d.cpf_identite_ok && <span className="badge bg-amber-50 text-amber-700">Identité CPF non confirmée</span>}
                 {d.numero_edof && <span className="badge bg-gray-100 text-gray-500">EDOF {d.numero_edof}</span>}
               </div>
