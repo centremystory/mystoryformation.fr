@@ -39,6 +39,7 @@ const NAV: Entree[] = [
       { href: "/inscriptions/nouvelle", label: "Inscrire un stagiaire", icon: Plus },
       { href: "/dossiers", label: "Dossiers", icon: FolderOpen },
       { href: "/ventes-formation", label: "Ventes formation", icon: TrendingUp },
+      { href: "/cockpit-commercial", label: "Cockpit commercial", icon: BarChart3 },
       { href: "/catalogue", label: "Catalogue & tarifs", icon: Receipt },
       { href: "/emargement", label: "Suivi des cours", icon: ClipboardCheck },
       { href: "/calendrier", label: "Planning", icon: CalendarDays },
