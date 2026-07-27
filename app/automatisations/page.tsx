@@ -50,7 +50,7 @@ export default function AutomatisationsPage() {
   return (
     <main className="max-w-4xl mx-auto px-4 md:px-6 py-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-gray-900">Automatisations (n8n)</h1>
+        <h1 className="page-title">Automatisations (n8n)</h1>
         <button onClick={charger} className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm hover:bg-gray-50">Rafraîchir</button>
       </div>
       <p className="text-sm text-gray-500 mt-1">Workflows, dernier passage et erreurs récentes — en lecture.</p>

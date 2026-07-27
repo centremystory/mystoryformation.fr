@@ -89,7 +89,7 @@ export default function FicheFormateurPage() {
       <div className="flex items-start justify-between gap-3">
         <div>
           <button onClick={() => router.push("/formateurs")} className="text-xs text-gray-400 hover:text-gray-600">← Formateurs</button>
-          <h1 className="text-xl font-bold text-gray-900">
+          <h1 className="page-title">
             {[f.civilite, f.prenom, f.nom].filter(Boolean).join(" ") || "Formateur"}
             {f.actif === false && <span className="ml-2 text-xs font-semibold text-gray-400">(archivé)</span>}
           </h1>

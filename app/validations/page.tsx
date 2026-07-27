@@ -121,7 +121,7 @@ export default function ValidationsPage() {
 
   return (
     <main className="max-w-3xl mx-auto px-4 md:px-6 py-6">
-      <h1 className="text-xl font-semibold text-gray-900">Validations Direction</h1>
+      <h1 className="page-title">Validations Direction</h1>
       <p className="text-sm text-gray-500 mt-1">
         {peutValider
           ? "Approuvez ou refusez les actions sensibles. L'action n'est exécutée qu'à l'approbation."

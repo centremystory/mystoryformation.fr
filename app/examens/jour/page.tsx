@@ -136,7 +136,7 @@ export default function PageJourJ() {
       </div>
 
       <div className="hidden print:block mb-4">
-        <h1 className="text-xl font-bold">MYSTORY — Feuille de présence · {date}</h1>
+        <h1 className="page-title">MYSTORY — Feuille de présence · {date}</h1>
         <p className="text-sm">Centre d'examen : Gagny — 3 bis av. de Gagny, 93220 · Le formateur certifie l'exactitude des présences.</p>
       </div>
 
