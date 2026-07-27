@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
       let q = supabaseAdmin
         .from("v_candidats_examen")
         .select(
-          "id, source, nom, prenom, civilite, email, telephone, type_brut, type_norm, sous_type, date_examen, horaire, agence, statut_paiement, numero_attestation, numero_facture, vendu_par, montant, a_confirmer, date_inscription, attestation_nom, attestation_depose_le, candidat_id"
+          "id, source, nom, prenom, civilite, email, telephone, type_brut, type_norm, sous_type, date_examen, horaire, agence, statut_paiement, numero_attestation, numero_facture, vendu_par, montant, a_confirmer, date_inscription, attestation_nom, attestation_depose_le, candidat_id, reste_a_payer, inscrit_cci"
         )
         .order("date_examen", { ascending: false, nullsFirst: false })
         .order("nom", { ascending: true })

@@ -28,6 +28,8 @@ type Candidat = {
   vendu_par: string | null;
   montant: number | null;
   a_confirmer: boolean;
+  reste_a_payer: number | null;
+  inscrit_cci: boolean | null;
   date_inscription: string | null;
   attestation_nom: string | null;
   attestation_depose_le: string | null;
@@ -150,6 +152,7 @@ export default function PageCandidatsExamen() {
   const [recherche, setRecherche] = useState("");
   const [fType, setFType] = useState<string>("tous");
   const [fAgence, setFAgence] = useState<string>("toutes");
+  const [fRelance, setFRelance] = useState<string>("tous"); // confirmer | impaye | cci — piloté par l'URL (cockpit)
   const [ouverts, setOuverts] = useState<Set<string>>(new Set());
   const [vue, setVue] = useState<"session" | "candidat">("session");
   const [uploadRef, setUploadRef] = useState<string | null>(null);
@@ -173,6 +176,12 @@ export default function PageCandidatsExamen() {
 
   useEffect(() => { charger(); }, [charger]);
 
+  // Filtre « à relancer » passé par l'URL (?relance=confirmer|impaye|cci) depuis le cockpit commercial.
+  useEffect(() => {
+    const r = new URLSearchParams(window.location.search).get("relance");
+    if (r === "confirmer" || r === "impaye" || r === "cci") { setFRelance(r); setVue("candidat"); }
+  }, []);
+
   const q = recherche.trim().toLowerCase();
 
   const filtres = useMemo(
@@ -180,10 +189,13 @@ export default function PageCandidatsExamen() {
       candidats.filter((c) => {
         if (fType !== "tous" && c.type_norm !== fType) return false;
         if (fAgence !== "toutes" && (c.agence ?? "") !== fAgence) return false;
+        if (fRelance === "confirmer" && !c.a_confirmer) return false;
+        if (fRelance === "impaye" && !(Number(c.reste_a_payer) > 0)) return false;
+        if (fRelance === "cci" && c.inscrit_cci !== false) return false;
         if (!q) return true;
         return `${c.prenom ?? ""} ${c.nom}`.toLowerCase().includes(q);
       }),
-    [candidats, fType, fAgence, q]
+    [candidats, fType, fAgence, fRelance, q]
   );
 
   // Regroupement par session = date d'examen + type
@@ -301,6 +313,13 @@ export default function PageCandidatsExamen() {
           </p>
         </div>
       </header>
+
+      {fRelance !== "tous" && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          <span>Filtre à relancer : <strong>{fRelance === "confirmer" ? "à confirmer" : fRelance === "impaye" ? "impayés" : "non inscrits CCI"}</strong> ({filtres.length})</span>
+          <button onClick={() => setFRelance("tous")} className="ml-auto rounded-full border border-amber-300 bg-white px-2 py-0.5 text-xs hover:bg-amber-100">✕ enlever le filtre</button>
+        </div>
+      )}
 
       {/* Compteurs */}
       <div className="flex flex-wrap gap-3 mb-5 text-sm">

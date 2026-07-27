@@ -2,6 +2,7 @@
 // app/cockpit-commercial/page.tsx — Cockpit commercial par vendeur (formations + examens).
 // Volumes + items à relancer (à confirmer / impayés / non inscrits CCI). Montants owner-only.
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 const BLEU = "#2F72DE";
 type Ligne = {
@@ -14,13 +15,17 @@ type Totaux = {
 };
 const euro = (n: number | null) => (n == null ? "—" : `${Number(n).toLocaleString("fr-FR")} €`);
 
-function Kpi({ label, valeur, accent }: { label: string; valeur: number | string; accent?: boolean }) {
-  return (
-    <div className="card p-3">
+function Kpi({ label, valeur, accent, href }: { label: string; valeur: number | string; accent?: boolean; href?: string }) {
+  const contenu = (
+    <>
       <p className="text-xs text-gray-400">{label}</p>
       <p className={`mt-1 text-xl font-semibold ${accent ? "text-amber-700" : "text-gray-900"}`}>{valeur}</p>
-    </div>
+    </>
   );
+  // Cliquable seulement s'il y a des items à relancer → drill-down vers la liste filtrée.
+  return href && Number(valeur) > 0
+    ? <Link href={href} className="card block p-3 transition hover:border-mystory hover:shadow-sm">{contenu}<span className="mt-1 block text-xs text-mystory">Voir la liste →</span></Link>
+    : <div className="card p-3">{contenu}</div>;
 }
 
 export default function CockpitCommercialPage() {
@@ -58,9 +63,9 @@ export default function CockpitCommercialPage() {
         <>
           <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4">
             <Kpi label="Vendeurs actifs" valeur={totaux.vendeurs} />
-            <Kpi label="À confirmer" valeur={totaux.aConfirmer} accent={totaux.aConfirmer > 0} />
-            <Kpi label="Impayés" valeur={totaux.impayes} accent={totaux.impayes > 0} />
-            <Kpi label="Non inscrits CCI" valeur={totaux.nonInscritCci} accent={totaux.nonInscritCci > 0} />
+            <Kpi label="À confirmer" valeur={totaux.aConfirmer} accent={totaux.aConfirmer > 0} href="/examens/candidats?relance=confirmer" />
+            <Kpi label="Impayés" valeur={totaux.impayes} accent={totaux.impayes > 0} href="/examens/candidats?relance=impaye" />
+            <Kpi label="Non inscrits CCI" valeur={totaux.nonInscritCci} accent={totaux.nonInscritCci > 0} href="/examens/candidats?relance=cci" />
           </div>
 
           <div className="card overflow-x-auto">
