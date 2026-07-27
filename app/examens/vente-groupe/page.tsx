@@ -235,7 +235,7 @@ export default function PageVenteGroupe() {
           <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-success-50 text-success-600">
             <CheckCircle2 size={28} strokeWidth={1.75} />
           </div>
-          <h1 className="text-xl font-semibold text-gray-900">{ok.length} inscription{ok.length > 1 ? "s" : ""} enregistrée{ok.length > 1 ? "s" : ""}</h1>
+          <h1 className="page-title">{ok.length} inscription{ok.length > 1 ? "s" : ""} enregistrée{ok.length > 1 ? "s" : ""}</h1>
           <p className="mt-1 text-sm text-gray-500">{candidat.prenom} {candidat.nom} · {candidat.email}</p>
         </div>
 

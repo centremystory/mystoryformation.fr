@@ -41,7 +41,7 @@ export default function RgpdPage() {
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-6">
-      <h1 className="text-xl font-bold text-gray-900">RGPD — purge de fin de rétention</h1>
+      <h1 className="page-title">RGPD — purge de fin de rétention</h1>
       <p className="mt-1 text-sm text-gray-500">
         Anonymisation (jamais de suppression de lignes) des personnes dont la durée de conservation est
         échue : <strong>stagiaires</strong> 5 ans après la clôture du dernier dossier, <strong>prospects</strong> 3 ans
