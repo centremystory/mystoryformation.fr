@@ -11,7 +11,7 @@ import {
   ClipboardList, Users, Plane, CalendarRange, Clock, Settings, Receipt, CheckCircle2,
   FileSpreadsheet, UserCog, MessageSquare, MessageCircle, Eye, HelpCircle, KeyRound, AlertTriangle,
   Workflow, ScrollText, LogOut, Menu, X, ChevronDown,
-  Plus, FileCheck, RotateCcw, Trophy, UserPlus, Phone, ShieldCheck, BarChart3, TrendingUp, QrCode, MapPin, Sparkles, } from "lucide-react";
+  Plus, FileCheck, RotateCcw, Trophy, UserPlus, Phone, ShieldCheck, BarChart3, TrendingUp, QrCode, Sparkles, } from "lucide-react";
 import { accesPage, ROLE_LABEL } from "@/lib/roles";
 import TachesUrgentes from "@/components/TachesUrgentes";
 import RituelDuJour from "@/components/RituelDuJour";
@@ -32,8 +32,7 @@ const NAV: Entree[] = [
   { type: "link", href: "/assistant", label: "Assistant IA", icon: Sparkles },
   { type: "link", href: "/recherche", label: "Rechercher", icon: Search },
   { type: "link", href: "/direction", label: "Direction", icon: LayoutGrid },
-  { type: "link", href: "/reglages", label: "Réglages", icon: Settings },
-  { type: "link", href: "/centres", label: "Centres", icon: MapPin },
+  { type: "link", href: "/reglages", label: "Réglages", icon: Settings, membres: ["/centres"] },
   {
     type: "menu", label: "Formation", icon: GraduationCap, items: [
       { href: "/formation", label: "Tableau de bord Formation", icon: LayoutGrid },
@@ -44,8 +43,7 @@ const NAV: Entree[] = [
       { href: "/calendrier", label: "Planning", icon: CalendarDays },
       { href: "/contenu-pedagogique", label: "Pédagogie", icon: BookOpen },
       { href: "/satisfaction-cours", label: "Satisfaction", icon: Star, membres: ["/bilan-satisfaction"] },
-      { href: "/tests/a-noter", label: "Tests à noter", icon: ClipboardList },
-      { href: "/tests/banque", label: "Banque de tests", icon: ScrollText },
+      { href: "/tests/a-noter", label: "Tests", icon: ClipboardList, membres: ["/tests/banque"] },
     ],
   },
   {

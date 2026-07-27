@@ -11,6 +11,16 @@ export const ONGLETS_SATISFACTION: Onglet[] = [
   { href: "/bilan-satisfaction", label: "Bilan & NPS" },
 ];
 
+export const ONGLETS_TESTS: Onglet[] = [
+  { href: "/tests/a-noter", label: "À noter" },
+  { href: "/tests/banque", label: "Banque de tests" },
+];
+
+export const ONGLETS_REGLAGES: Onglet[] = [
+  { href: "/reglages", label: "Réglages" },
+  { href: "/centres", label: "Centres" },
+];
+
 export const ONGLETS_RH: Onglet[] = [
   { href: "/equipe", label: "Équipe" },
   { href: "/formateurs", label: "Formateurs" },
