@@ -14,10 +14,14 @@ export default function RgpdPage() {
 
   async function charger() {
     setErreur(null);
-    const r = await fetch("/api/rgpd/purge");
-    const j = await r.json();
-    if (!r.ok) { setErreur(j.error ?? "Erreur"); setCandidats([]); return; }
-    setCandidats(j.candidats ?? []);
+    try {
+      const r = await fetch("/api/rgpd/purge");
+      const j = await r.json();
+      if (!r.ok) { setErreur(j.error ?? "Erreur"); setCandidats([]); return; }
+      setCandidats(j.candidats ?? []);
+    } catch {
+      setErreur("Chargement impossible — réessayez."); setCandidats([]);
+    }
   }
   useEffect(() => { charger(); }, []);
 

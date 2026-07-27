@@ -34,10 +34,15 @@ export default function ConfidentialitePage() {
   const [erreur, setErreur] = useState<string | null>(null);
 
   async function charger() {
-    const r = await fetch("/api/confidentialite", { cache: "no-store" });
-    const j = await r.json();
-    if (j.ok) setPersonnes(j.personnes);
-    else setErreur(j.erreur || "Chargement impossible.");
+    setErreur(null);
+    try {
+      const r = await fetch("/api/confidentialite", { cache: "no-store" });
+      const j = await r.json();
+      if (j.ok) setPersonnes(j.personnes);
+      else { setErreur(j.erreur || "Chargement impossible."); setPersonnes([]); }
+    } catch {
+      setErreur("Chargement impossible — réessayez."); setPersonnes([]);
+    }
   }
   useEffect(() => { charger(); }, []);
 
