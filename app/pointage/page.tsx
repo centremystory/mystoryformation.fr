@@ -1,6 +1,7 @@
 "use client";
 // app/pointage/page.tsx — Pointage entrée/sortie (RH), lié au compte connecté.
 import { useCallback, useEffect, useState } from "react";
+import { LIEUX_TRAVAIL } from "@/lib/sites";
 
 type Pointage = {
   id: string; utilisateur_id: string; jour: string; entree_le: string; sortie_le: string | null; site: string | null;
@@ -8,7 +9,7 @@ type Pointage = {
 };
 type SessionOuverte = { id: string; entree_le: string; site: string | null } | null;
 
-const SITES = ["Gagny", "Sarcelles", "Rosny", "Télétravail", "Autre"];
+const SITES = LIEUX_TRAVAIL; // source unique (lib/sites) : 3 sites + Télétravail/Autre
 
 function heure(iso: string | null): string {
   if (!iso) return "—";

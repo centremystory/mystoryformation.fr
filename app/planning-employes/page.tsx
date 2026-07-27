@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/apiFetch";
 import { useToast } from "@/components/ui/Toast";
+import { LIEUX_TRAVAIL } from "@/lib/sites";
 
 type Creneau = {
   id: string; utilisateur_id: string; date_jour: string; heure_debut: string | null; heure_fin: string | null;
@@ -11,7 +12,7 @@ type Creneau = {
 };
 type Employe = { id: string; nom: string | null; prenom: string | null };
 
-const SITES = ["Gagny", "Sarcelles", "Rosny", "Télétravail", "Autre"];
+const SITES = LIEUX_TRAVAIL; // source unique (lib/sites) : 3 sites + Télétravail/Autre
 
 function dateLongue(iso: string): string {
   try { return new Date(iso + "T00:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }); }

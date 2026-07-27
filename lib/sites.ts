@@ -9,6 +9,10 @@
 export const SITES = ["Gagny", "Sarcelles", "Rosny"] as const;
 export type Site = (typeof SITES)[number];
 
+/** Lieux de travail d'un salarié (RH : pointage / planning équipe) — les 3 sites + hors-site.
+ *  NB : concept distinct de l'agence d'un client (SITES). Ne pas utiliser pour filtrer des clients. */
+export const LIEUX_TRAVAIL = [...SITES, "Télétravail", "Autre"] as const;
+
 /** Valeur du filtre global : "" = tous les sites, sinon un site. */
 export type SiteFiltre = "" | Site;
 
