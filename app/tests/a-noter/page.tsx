@@ -56,6 +56,32 @@ const ORAL_MODES: { value: string; label: string }[] = [
   { value: "not_required", label: "Épreuve orale non requise" },
 ];
 
+// Valeurs pré-remplies pour la notation de l'oral (moins de texte libre pour les formatrices).
+const NIVEAUX_ORAL = ["A1", "A2", "B1", "B2", "C1"];
+const CHIPS_FORTS = ["Bonne aisance", "Vocabulaire riche", "Prononciation claire", "Phrases complètes", "Comprend bien les questions"];
+const CHIPS_AXES = ["Vocabulaire à enrichir", "Hésitations fréquentes", "Grammaire à consolider", "Prononciation à travailler", "Réponses trop courtes"];
+const CHIPS_RECO = ["Niveau visé atteint", "Renforcement recommandé", "Travailler l'oral en priorité", "Poursuivre la préparation"];
+
+// Ajoute une phrase-type à une zone de texte (sans doublon, séparateur « ; »).
+function ajoutChip(actuel: string, phrase: string): string {
+  if (actuel.includes(phrase)) return actuel;
+  return actuel.trim() ? `${actuel.trim()} ; ${phrase}` : phrase;
+}
+
+/** Rangée de phrases-types cliquables au-dessus d'une zone de texte. */
+function Chips({ options, onPick }: { options: string[]; onPick: (v: string) => void }) {
+  return (
+    <div className="mb-1 flex flex-wrap gap-1">
+      {options.map((o) => (
+        <button key={o} type="button" onClick={() => onPick(o)}
+          className="rounded-full border border-gray-300 bg-white px-2 py-0.5 text-xs text-gray-600 hover:border-mystory hover:bg-mystory/5 hover:text-mystory">
+          + {o}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function CarteNotation({ ev, onFini }: { ev: Evaluation; onFini: () => void }) {
   const [ee, setEe] = useState(""); const [eo, setEo] = useState(""); const [rem, setRem] = useState("");
   // Pré-sélection : audios présents → à distance, sinon entretien sur place.
@@ -153,16 +179,33 @@ function CarteNotation({ ev, onFini }: { ev: Evaluation; onFini: () => void }) {
             </select>
           </label>
           {oralRequis && (
-            <label className="text-sm text-gray-700">Niveau estimé à l&apos;oral
-              <input value={oralLevel} onChange={(e) => setOralLevel(e.target.value)} placeholder="ex. A2, B1…" className="input ml-2 w-24" />
-            </label>
+            <div className="text-sm text-gray-700">
+              <span className="mr-2">Niveau estimé à l&apos;oral</span>
+              <span className="inline-flex flex-wrap gap-1 align-middle">
+                {NIVEAUX_ORAL.map((n) => (
+                  <button key={n} type="button" onClick={() => setOralLevel(n)}
+                    className={`rounded-full border px-2.5 py-0.5 text-xs ${oralLevel === n ? "border-mystory bg-mystory text-white" : "border-gray-300 bg-white text-gray-600 hover:border-mystory hover:text-mystory"}`}>
+                    {n}
+                  </button>
+                ))}
+              </span>
+            </div>
           )}
         </div>
         {oralRequis && (
           <div className="mt-2 grid gap-2 sm:grid-cols-3">
-            <textarea value={oralStrengths} onChange={(e) => setOralStrengths(e.target.value)} placeholder="Points forts (facultatif)…" rows={2} className="input w-full" />
-            <textarea value={oralImprovement} onChange={(e) => setOralImprovement(e.target.value)} placeholder="Axes d'amélioration (facultatif)…" rows={2} className="input w-full" />
-            <textarea value={oralReco} onChange={(e) => setOralReco(e.target.value)} placeholder="Recommandation (facultatif)…" rows={2} className="input w-full" />
+            <div>
+              <Chips options={CHIPS_FORTS} onPick={(v) => setOralStrengths((c) => ajoutChip(c, v))} />
+              <textarea value={oralStrengths} onChange={(e) => setOralStrengths(e.target.value)} placeholder="Points forts (facultatif)…" rows={2} className="input w-full" />
+            </div>
+            <div>
+              <Chips options={CHIPS_AXES} onPick={(v) => setOralImprovement((c) => ajoutChip(c, v))} />
+              <textarea value={oralImprovement} onChange={(e) => setOralImprovement(e.target.value)} placeholder="Axes d'amélioration (facultatif)…" rows={2} className="input w-full" />
+            </div>
+            <div>
+              <Chips options={CHIPS_RECO} onPick={(v) => setOralReco((c) => ajoutChip(c, v))} />
+              <textarea value={oralReco} onChange={(e) => setOralReco(e.target.value)} placeholder="Recommandation (facultatif)…" rows={2} className="input w-full" />
+            </div>
           </div>
         )}
       </div>

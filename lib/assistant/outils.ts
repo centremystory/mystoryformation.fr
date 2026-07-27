@@ -21,7 +21,9 @@ function eur(n: any): string {
   return v.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 }
 
-export type Outil = { schema: any; run: (args: any) => Promise<any> };
+// `proprietaire: true` = outil FINANCE réservé au propriétaire (arudhan@) — masqué et refusé aux autres,
+// comme les pages /finances /classement (verrou email exact, cf. lib/roles.ts).
+export type Outil = { schema: any; run: (args: any) => Promise<any>; proprietaire?: boolean };
 
 export const OUTILS: Record<string, Outil> = {
   // 0 — Préparer une modif du catalogue (PROPOSE, n'applique jamais : l'utilisateur valide)
@@ -109,6 +111,7 @@ export const OUTILS: Record<string, Outil> = {
 
   // 3 — Ventes examens sur une période
   ventes_examen_periode: {
+    proprietaire: true,
     schema: { type: "function", function: {
       name: "ventes_examen_periode",
       description: "Chiffre les ventes d'EXAMENS sur une période (filtre par date d'inscription = date de vente). Renvoie nombre de ventes, total encaissé, et répartition par vendeur. Utilise le format de date AAAA-MM-JJ.",
@@ -144,6 +147,7 @@ export const OUTILS: Record<string, Outil> = {
 
   // 4 — Impayés examen
   impayes_examen: {
+    proprietaire: true,
     schema: { type: "function", function: {
       name: "impayes_examen",
       description: "Liste les candidats examen avec un RESTE À PAYER (> 0 €), hors remboursés. Trié du plus gros au plus petit.",
@@ -184,6 +188,7 @@ export const OUTILS: Record<string, Outil> = {
 
   // 6 — Factures impayées
   factures_impayees: {
+    proprietaire: true,
     schema: { type: "function", function: {
       name: "factures_impayees",
       description: "Liste les FACTURES non réglées (sans date de paiement), hors annulées.",

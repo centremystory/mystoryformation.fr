@@ -3,14 +3,17 @@
 // Le LLM choisit des outils cadrés (lib/assistant/outils.ts) ; jamais de SQL libre.
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole, UnauthorizedError, ForbiddenError } from "@/lib/auth";
+import { estProprietaire } from "@/lib/roles";
 import { OUTILS } from "@/lib/assistant/outils";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
+  let estProp = false;
   try {
-    await requireRole(req, ["direction", "manager"]);
+    const u = await requireRole(req, ["direction", "manager"]);
+    estProp = estProprietaire(u.email);
   } catch (e) {
     if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
     if (e instanceof ForbiddenError) return NextResponse.json({ ok: false, erreur: "Accès réservé à la direction / au management." }, { status: 403 });
@@ -45,7 +48,8 @@ export async function POST(req: NextRequest) {
       `Tu es en lecture seule SAUF pour le catalogue : pour changer un intitulé, un prix, un nom, une durée, une finalité ou un niveau d'offre/formule, appelle « preparer_modif_catalogue » qui PRÉPARE une proposition — l'utilisateur la validera lui-même via un bouton (tu ne modifies JAMAIS directement). Termine par une réponse claire, pas par du JSON brut.`,
   };
 
-  const tools = Object.values(OUTILS).map((o) => o.schema);
+  // Outils FINANCE (proprietaire) masqués si l'utilisateur n'est pas le propriétaire (arudhan@).
+  const tools = Object.values(OUTILS).filter((o) => estProp || !o.proprietaire).map((o) => o.schema);
   const messages: any[] = [systeme, ...messagesClient];
   const outilsUtilises: string[] = [];
   let proposition: any = null;
@@ -85,7 +89,11 @@ export async function POST(req: NextRequest) {
       outilsUtilises.push(nom);
       let resultat: any;
       try {
-        resultat = OUTILS[nom] ? await OUTILS[nom].run(args) : { erreur: "Outil inconnu : " + nom };
+        if (OUTILS[nom]?.proprietaire && !estProp) {
+          resultat = { erreur: "Les données financières (CA, impayés, factures) sont réservées à la direction propriétaire." };
+        } else {
+          resultat = OUTILS[nom] ? await OUTILS[nom].run(args) : { erreur: "Outil inconnu : " + nom };
+        }
       } catch (e: any) {
         resultat = { erreur: "Échec de l'outil : " + (e?.message || String(e)) };
       }

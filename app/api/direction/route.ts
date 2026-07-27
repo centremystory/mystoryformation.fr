@@ -124,8 +124,8 @@ export async function GET(req: NextRequest) {
       .reduce((s, f) => s + num(f.montant), 0);
 
     // ---- FINANCES (examens) ----
-    // Depuis v_candidats_examen. Les examens importés exposent reste_a_payer = 0 dans la vue :
-    // le « reste à encaisser » reste donc opérationnel (non pollué par de vieux soldes historiques).
+    // Depuis v_candidats_examen (la vue expose reste_a_payer_eur des imports ; ils sont tous soldés
+    // aujourd'hui → reste 0, mais tout futur impayé importé remontera correctement).
     const LABEL_TYPE: Record<string, string> = { TEF_IRN: "TEF IRN", CIVIQUE: "Test civique", PLATEFORME: "Plateforme", AUTRE: "Autre" };
     const caExamens = candidatsPeriode.reduce((s, c) => s + num(c.montant), 0);
     const resteExamens = candidats

@@ -17,16 +17,23 @@ export default function BilanSatisfactionPage() {
   const [depuis, setDepuis] = useState(""); const [jusqu, setJusqu] = useState("");
   const [bilan, setBilan] = useState<Bilan | null>(null);
   const [chargement, setChargement] = useState(true);
+  const [erreur, setErreur] = useState<string | null>(null);
 
   const charger = useCallback(async () => {
-    setChargement(true);
-    const qs = new URLSearchParams({ type });
-    if (depuis) qs.set("depuis", depuis);
-    if (jusqu) qs.set("jusqu", jusqu);
-    const r = await fetch(`/api/satisfaction/bilan?${qs.toString()}`, { cache: "no-store" });
-    const j = await r.json();
-    setBilan(j.ok ? j : null);
-    setChargement(false);
+    setChargement(true); setErreur(null);
+    try {
+      const qs = new URLSearchParams({ type });
+      if (depuis) qs.set("depuis", depuis);
+      if (jusqu) qs.set("jusqu", jusqu);
+      const r = await fetch(`/api/satisfaction/bilan?${qs.toString()}`, { cache: "no-store" });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.erreur || "Chargement impossible.");
+      setBilan(j);
+    } catch (e: any) {
+      setBilan(null); setErreur(e?.message || "Chargement impossible.");
+    } finally {
+      setChargement(false);
+    }
   }, [type, depuis, jusqu]);
   useEffect(() => { charger(); }, [charger]);
 
@@ -56,6 +63,12 @@ export default function BilanSatisfactionPage() {
       </div>
 
       {chargement && <p className="text-sm text-gray-400">Calcul du bilan…</p>}
+
+      {!chargement && erreur && (
+        <div className="empty-state text-red-600">
+          {erreur} <button onClick={charger} className="btn-ghost ml-2 text-sm">Réessayer</button>
+        </div>
+      )}
 
       {!chargement && bilan && bilan.n === 0 && (
         <div className="empty-state">Aucune réponse {type === "chaud" ? "à chaud" : "à froid"} sur cette période.</div>
