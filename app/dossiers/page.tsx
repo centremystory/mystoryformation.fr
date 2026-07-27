@@ -130,6 +130,7 @@ export default function PageDossiers() {
   const [filtreAgence, setFiltreAgence] = useState<string>("toutes");
   const [filtreTunnel, setFiltreTunnel] = useState<string>("tous");
   const [ouvert, setOuvert] = useState<string | null>(null);
+  const [nbAffiche, setNbAffiche] = useState(100);
 
   const charger = useCallback(async () => {
     try {
@@ -260,7 +261,7 @@ export default function PageDossiers() {
               </tr>
             </thead>
             <tbody>
-              {visibles.map((d) => (
+              {visibles.slice(0, nbAffiche).map((d) => (
                 <LigneDossier
                   key={d.id}
                   d={d}
@@ -271,6 +272,13 @@ export default function PageDossiers() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+      {visibles.length > nbAffiche && (
+        <div className="mt-3 text-center">
+          <button onClick={() => setNbAffiche((n) => n + 100)} className="btn-ghost !text-sm">
+            Afficher plus ({visibles.length - nbAffiche} dossiers restants sur {visibles.length})
+          </button>
         </div>
       )}
 
