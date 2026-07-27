@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
 
   const [formations, examens] = await Promise.all([
     fetchAllRows<any>((f, t) => supabaseAdmin
-      .from("ventes_formation").select("vendu_par, montant_eur").eq("actif", true).order("id").range(f, t)),
+      .from("ventes_formation").select("vendu_par, montant_eur, statut").eq("actif", true).order("id").range(f, t)),
     fetchAllRows<any>((f, t) => supabaseAdmin
       .from("examens").select("vendu_par, montant_eur, reste_a_payer_eur, inscrit_cci, a_confirmer, statut_paiement")
       .eq("actif", true).order("id").range(f, t)),
@@ -58,18 +58,23 @@ export async function GET(req: NextRequest) {
     l.montant = (l.montant ?? 0) + num(e.montant_eur);
     if (e.a_confirmer) l.aConfirmer++;
     // Impayé : un reste à payer strictement positif (source fiable ; les imports soldés = 0).
-    if (num(e.reste_a_payer_eur) > 0) l.impayes++;
-    // Non inscrit CCI : examen non encore inscrit auprès de la CCI.
-    if (e.inscrit_cci === false) l.nonInscritCci++;
+    const impaye = num(e.reste_a_payer_eur) > 0 || /(acompte|attente|partiel|impay|à payer)/i.test(String(e.statut_paiement ?? ""));
+    if (impaye) l.impayes++;
+    // Non inscrit CCI : on n'inscrit à la CCI QUE quand c'est payé en entier (règle métier).
+    if (e.inscrit_cci === false && !impaye) l.nonInscritCci++;
   }
 
   const lignes = [...map.values()]
     .map((l) => ({ ...l, montant: voitMontants ? Math.round(l.montant ?? 0) : null }))
     .sort((a, b) => b.formations + b.examens - (a.formations + a.examens));
 
+  // Formations à relancer = argent dû (statut « à payer » / « reste à payer »).
+  const formationsARelancer = formations.filter((f: any) => /payer/i.test(String(f.statut ?? ""))).length;
+
   const totaux = {
     vendeurs: lignes.length,
     formations: formations.length,
+    formationsARelancer,
     examens: examens.length,
     aConfirmer: lignes.reduce((s, l) => s + l.aConfirmer, 0),
     impayes: lignes.reduce((s, l) => s + l.impayes, 0),

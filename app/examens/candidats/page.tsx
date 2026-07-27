@@ -189,9 +189,11 @@ export default function PageCandidatsExamen() {
       candidats.filter((c) => {
         if (fType !== "tous" && c.type_norm !== fType) return false;
         if (fAgence !== "toutes" && (c.agence ?? "") !== fAgence) return false;
+        const impayeC = Number(c.reste_a_payer) > 0 || /(acompte|attente|partiel|impay|à payer)/i.test(c.statut_paiement ?? "");
         if (fRelance === "confirmer" && !c.a_confirmer) return false;
-        if (fRelance === "impaye" && !(Number(c.reste_a_payer) > 0)) return false;
-        if (fRelance === "cci" && c.inscrit_cci !== false) return false;
+        if (fRelance === "impaye" && !impayeC) return false;
+        // « À inscrire CCI » = non inscrit ET payé en entier (on n'inscrit que le soldé).
+        if (fRelance === "cci" && !(c.inscrit_cci === false && !impayeC)) return false;
         if (!q) return true;
         return `${c.prenom ?? ""} ${c.nom}`.toLowerCase().includes(q);
       }),
