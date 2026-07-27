@@ -107,6 +107,7 @@ export const PAGE_PERMISSIONS: Record<string, Role[]> = {
   "/examens/croise": ["direction", "manager"],
   // — Commercial / prospects —
   "/inscriptions": ["direction", "manager", "commercial", "back_office"],
+  "/ventes-formation": ["direction", "manager", "commercial", "back_office"],
   "/messages": ["direction", "manager", "commercial"],
   // — Outils suivi candidat / qualité (commercial + encadrement, pas formatrice) —
   "/attestations-paiement": ["direction", "manager", "commercial", "back_office"],
