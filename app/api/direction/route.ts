@@ -43,7 +43,10 @@ export async function GET(req: NextRequest) {
     const okAgence = (a: string | null | undefined) => !agence || (a ?? "") === agence;
 
     // Lectures paginées (contourne le plafond 1000) — enveloppées en {data} pour ne rien changer au calcul.
-    const [dossiersRes, planningRes, facturesRes, ventesRes, prospectsRes] = await Promise.all([
+    // Examens : lus depuis la vue v_candidats_examen (= ventes opérationnelles + examens importés)
+    // pour que le cockpit reflète le VRAI volume. `ventes_examen` reste chargé à part, uniquement
+    // pour rattacher l'agence des factures (factures.vente_id référence les vraies ventes).
+    const [dossiersRes, planningRes, facturesRes, ventesRes, candidatsRes, prospectsRes] = await Promise.all([
       fetchAllRows<any>((f, t) => supabaseAdmin
         .from("dossiers")
         .select("id, statut, date_fin, created_at, heures_prevues, stagiaire:stagiaires!stagiaire_id ( agence )")
@@ -58,7 +61,11 @@ export async function GET(req: NextRequest) {
         .order("id").range(f, t)).then((data) => ({ data })),
       fetchAllRows<any>((f, t) => supabaseAdmin
         .from("ventes_examen")
-        .select("id, montant, reste_a_payer, type_examen, date_inscription, agence, statut_paiement")
+        .select("id, agence")
+        .order("id").range(f, t)).then((data) => ({ data })),
+      fetchAllRows<any>((f, t) => supabaseAdmin
+        .from("v_candidats_examen")
+        .select("id, montant, reste_a_payer, type_norm, date_inscription, agence, statut_paiement")
         .order("id").range(f, t)).then((data) => ({ data })),
       fetchAllRows<any>((f, t) => supabaseAdmin
         .from("messages_prospects")
@@ -86,9 +93,10 @@ export async function GET(req: NextRequest) {
 
     // ---- ACQUISITION ----
     const prospects = ((prospectsRes.data ?? []) as any[]).filter((p) => dansPeriode(p.cree_le, debut, fin)).length;
-    const ventes = (ventesRes.data ?? []) as any[];
-    const ventesPeriode = ventes.filter((v) => okAgence(v.agence) && dansPeriode(v.date_inscription, debut, fin));
-    const nbVentesExamen = ventesPeriode.length;
+    const ventes = (ventesRes.data ?? []) as any[];        // ventes_examen réelles (attribution agence des factures)
+    const candidats = (candidatsRes.data ?? []) as any[];  // v_candidats_examen = ventes + examens importés
+    const candidatsPeriode = candidats.filter((c) => okAgence(c.agence) && dansPeriode(c.date_inscription, debut, fin));
+    const nbVentesExamen = candidatsPeriode.length;
     // Taux indicatif : inscriptions formation rapportées aux prospects entrants sur la même période.
     // (les prospects n'ont pas d'agence -> ce ratio est global, fourni à titre indicatif)
     const tauxConversion = prospects > 0 ? Math.round((inscriptions / prospects) * 100) : null;
@@ -116,14 +124,17 @@ export async function GET(req: NextRequest) {
       .reduce((s, f) => s + num(f.montant), 0);
 
     // ---- FINANCES (examens) ----
-    const caExamens = ventesPeriode.reduce((s, v) => s + num(v.montant), 0);
-    const resteExamens = ventes
-      .filter((v) => okAgence(v.agence))
-      .reduce((s, v) => s + num(v.reste_a_payer), 0);
+    // Depuis v_candidats_examen. Les examens importés exposent reste_a_payer = 0 dans la vue :
+    // le « reste à encaisser » reste donc opérationnel (non pollué par de vieux soldes historiques).
+    const LABEL_TYPE: Record<string, string> = { TEF_IRN: "TEF IRN", CIVIQUE: "Test civique", PLATEFORME: "Plateforme", AUTRE: "Autre" };
+    const caExamens = candidatsPeriode.reduce((s, c) => s + num(c.montant), 0);
+    const resteExamens = candidats
+      .filter((c) => okAgence(c.agence))
+      .reduce((s, c) => s + num(c.reste_a_payer), 0);
     const parTypeExamen: Record<string, number> = {};
-    for (const v of ventesPeriode) {
-      const t = v.type_examen || "Autre";
-      parTypeExamen[t] = (parTypeExamen[t] || 0) + num(v.montant);
+    for (const c of candidatsPeriode) {
+      const t = LABEL_TYPE[c.type_norm as string] || c.type_norm || "Autre";
+      parTypeExamen[t] = (parTypeExamen[t] || 0) + num(c.montant);
     }
 
     return NextResponse.json({
