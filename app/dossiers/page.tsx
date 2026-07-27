@@ -73,6 +73,7 @@ type Dossier = {
   date_entree_declaree: string | null;
   token: string;
   heures_prevues: number | null;
+  heures_hebdo: number | null;
   service_fait_valide: boolean;
   satisfaction_froid_envoyee_le: string | null;
   niveau_initial: string | null;
@@ -646,6 +647,28 @@ function TunnelControl({ d, recharger }: { d: Dossier; recharger: () => Promise<
               onChange={(e) => patch({ [champ]: e.target.value })} className="input ml-1 py-1 text-xs" />
           </label>
         ))}
+      </div>
+      {/* Rythme souhaité → durée estimée (heures prévues / rythme). N'écrit pas de planning, aide à planifier. */}
+      <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+        <label>
+          Rythme :
+          <input type="number" min={0} max={40} step={0.5} disabled={busy}
+            defaultValue={d.heures_hebdo ?? ""} onBlur={(e) => patch({ heures_hebdo: e.target.value })}
+            className="input ml-1 w-16 py-1 text-xs" /> h/sem
+        </label>
+        {(() => {
+          const hebdo = Number(d.heures_hebdo) || 0;
+          const prevues = Number(d.heures_prevues) || 0;
+          if (hebdo <= 0 || prevues <= 0) return <span className="text-gray-400">— saisir un rythme pour estimer la durée</span>;
+          const semaines = Math.ceil(prevues / hebdo);
+          let fin = "";
+          if (d.date_debut) {
+            const dd = new Date(d.date_debut.slice(0, 10) + "T12:00:00Z");
+            dd.setUTCDate(dd.getUTCDate() + semaines * 7);
+            fin = dd.toLocaleDateString("fr-FR");
+          }
+          return <span className="font-medium text-gray-700">≈ {semaines} semaine{semaines > 1 ? "s" : ""} ({prevues} h){fin ? ` · fin estimée ${fin}` : ""}</span>;
+        })()}
       </div>
     </div>
   );

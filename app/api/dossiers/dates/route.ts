@@ -46,6 +46,20 @@ export async function PATCH(req: NextRequest) {
     maj[champ] = s;
   }
 
+  // Rythme souhaité (heures/semaine) — numérique facultatif, "" ou null efface.
+  if ("heures_hebdo" in body) {
+    const v = body.heures_hebdo;
+    if (v == null || String(v).trim() === "") {
+      maj.heures_hebdo = null;
+    } else {
+      const n = Number(v);
+      if (!Number.isFinite(n) || n < 0 || n > 40) {
+        return NextResponse.json({ ok: false, erreur: "Rythme invalide (0 à 40 h/semaine)." }, { status: 422 });
+      }
+      maj.heures_hebdo = n;
+    }
+  }
+
   // Cohérence début/fin si les deux sont posés dans la requête.
   if (typeof maj.date_debut === "string" && typeof maj.date_fin === "string" && maj.date_fin < maj.date_debut) {
     return NextResponse.json({ ok: false, erreur: "La date de fin ne peut pas précéder la date de début." }, { status: 422 });
