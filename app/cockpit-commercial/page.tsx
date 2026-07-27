@@ -10,7 +10,7 @@ type Ligne = {
   aConfirmer: number; impayes: number; nonInscritCci: number; montant: number | null;
 };
 type Totaux = {
-  vendeurs: number; formations: number; examens: number;
+  vendeurs: number; formations: number; formationsARelancer: number; examens: number;
   aConfirmer: number; impayes: number; nonInscritCci: number; montant: number | null;
 };
 const euro = (n: number | null) => (n == null ? "—" : `${Number(n).toLocaleString("fr-FR")} €`);
@@ -61,10 +61,11 @@ export default function CockpitCommercialPage() {
         <div className="empty-state text-red-600">{erreur}</div>
       ) : totaux && (
         <>
-          <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-5">
             <Kpi label="Vendeurs actifs" valeur={totaux.vendeurs} />
-            <Kpi label="À confirmer" valeur={totaux.aConfirmer} accent={totaux.aConfirmer > 0} href="/examens/candidats?relance=confirmer" />
-            <Kpi label="Impayés" valeur={totaux.impayes} accent={totaux.impayes > 0} href="/examens/candidats?relance=impaye" />
+            <Kpi label="Formations à relancer" valeur={totaux.formationsARelancer} accent={totaux.formationsARelancer > 0} href="/ventes-formation?relance=impaye" />
+            <Kpi label="Examens à confirmer" valeur={totaux.aConfirmer} accent={totaux.aConfirmer > 0} href="/examens/candidats?relance=confirmer" />
+            <Kpi label="Examens impayés" valeur={totaux.impayes} accent={totaux.impayes > 0} href="/examens/candidats?relance=impaye" />
             <Kpi label="Non inscrits CCI" valeur={totaux.nonInscritCci} accent={totaux.nonInscritCci > 0} href="/examens/candidats?relance=cci" />
           </div>
 

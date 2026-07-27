@@ -37,8 +37,10 @@ export default function FicheFormateurPage() {
   const [form, setForm] = useState<Record<string, string>>({});
 
   async function charger() {
-    const r = await fetch(`/api/formateurs/${id}`, { cache: "no-store" });
-    const j = await r.json();
+    setErreur(null);
+    let r: Response, j: any;
+    try { r = await fetch(`/api/formateurs/${id}`, { cache: "no-store" }); j = await r.json(); }
+    catch { setErreur("Chargement impossible — réessayez."); return; }
     if (!r.ok) { setErreur(j.erreur ?? "Erreur"); return; }
     setF(j.formateur);
     setForm({
@@ -78,7 +80,13 @@ export default function FicheFormateurPage() {
   }, [f]);
 
   if (erreur && !f) return <main className="max-w-3xl mx-auto p-6"><p className="text-red-600 text-sm">{erreur}</p></main>;
-  if (!f) return <main className="max-w-3xl mx-auto p-6"><p className="text-gray-400 text-sm">Chargement…</p></main>;
+  if (!f) return (
+    <main className="max-w-3xl mx-auto p-6">
+      {erreur
+        ? <div className="empty-state text-red-600">{erreur} <button onClick={charger} className="btn-ghost ml-2 text-sm">Réessayer</button></div>
+        : <p className="text-gray-400 text-sm">Chargement…</p>}
+    </main>
+  );
 
   const fleOk = f.formatrice?.justificatif_fle === true;
   const questionnaire = f.formateur_questionnaire?.[0];

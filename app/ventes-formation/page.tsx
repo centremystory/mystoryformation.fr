@@ -28,7 +28,12 @@ export default function VentesFormationPage() {
   const [fAgence, setFAgence] = useState("toutes");
   const [fStatut, setFStatut] = useState("tous");
   const [fVendeur, setFVendeur] = useState("tous");
+  const [relance, setRelance] = useState(false); // ?relance=impaye (depuis le cockpit) = statut « à payer / reste à payer »
   const [nbAffiche, setNbAffiche] = useState(100);
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("relance") === "impaye") setRelance(true);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -52,10 +57,11 @@ export default function VentesFormationPage() {
       if (fAgence !== "toutes" && (v.agence ?? "") !== fAgence) return false;
       if (fStatut !== "tous" && (v.statut ?? "") !== fStatut) return false;
       if (fVendeur !== "tous" && (v.vendeur ?? "") !== fVendeur) return false;
+      if (relance && !/payer/i.test(v.statut ?? "")) return false;
       if (t && !`${v.nom} ${v.email ?? ""} ${v.formule ?? ""}`.toLowerCase().includes(t)) return false;
       return true;
     });
-  }, [ventes, q, fAgence, fStatut, fVendeur]);
+  }, [ventes, q, fAgence, fStatut, fVendeur, relance]);
 
   const totalMontant = useMemo(
     () => (voitMontants ? visibles.reduce((s, v) => s + (Number(v.montant) || 0), 0) : 0),
@@ -68,6 +74,13 @@ export default function VentesFormationPage() {
         <h1 className="page-title">Ventes formation</h1>
         <p className="page-subtitle">Suivi commercial des ventes de formation (source : suivi de ventes). Cliquez un client pour ouvrir sa fiche.</p>
       </div>
+
+      {relance && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          <span>Filtre <strong>à relancer</strong> (reste à payer / à payer) — {visibles.length}</span>
+          <button onClick={() => setRelance(false)} className="ml-auto rounded-full border border-amber-300 bg-white px-2 py-0.5 text-xs hover:bg-amber-100">✕ enlever le filtre</button>
+        </div>
+      )}
 
       <div className="card mb-4 flex flex-wrap items-end gap-2 p-3">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher (nom, email, formule)…" className="input flex-1 min-w-[200px]" />
