@@ -7,6 +7,7 @@
 // cette page n'invente AUCUNE règle, elle appuie sur les routes déjà validées.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { SITES } from "@/lib/sites";
 
 const LIBELLE_PIECE: Record<string, string> = {
   fiche_analyse_besoin: "Fiche d'analyse du besoin",
@@ -209,12 +210,7 @@ export default function PageDossiers() {
           ))}
         </div>
         <div className="flex gap-1.5">
-          {([
-            ["toutes", "Toutes agences"],
-            ["Gagny", "Gagny"],
-            ["Sarcelles", "Sarcelles"],
-            ["Rosny", "Rosny"],
-          ] as const).map(([v, l]) => (
+          {([["toutes", "Toutes agences"], ...SITES.map((s) => [s, s])] as [string, string][]).map(([v, l]) => (
             <button
               key={v}
               onClick={() => setFiltreAgence(v)}

@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { SITES } from "@/lib/sites";
 
 type Donnees = {
   periode: { debut: string; fin: string; agence: string | null };
@@ -109,7 +110,7 @@ export default function DirectionPage() {
           ))}
         </div>
         <div className="flex gap-1.5">
-          {([["", "Toutes agences"], ["Gagny", "Gagny"], ["Sarcelles", "Sarcelles"], ["Rosny", "Rosny"]] as const).map(([v, l]) => (
+          {([["", "Toutes agences"], ...SITES.map((s) => [s, s])] as [string, string][]).map(([v, l]) => (
             <button key={v || "all"} onClick={() => setAgence(v)}
               className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
                 agence === v ? "bg-mystory text-white border-mystory" : "bg-white text-gray-600 border-gray-300 hover:border-mystory hover:text-mystory"

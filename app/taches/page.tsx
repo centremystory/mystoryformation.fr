@@ -2,9 +2,10 @@
 // app/taches/page.tsx — Liste de tâches opérationnelles par agence.
 // Ajout (agence + intitulé + échéance), coche « fait », archive. Filtre/groupement par agence.
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { SITES } from "@/lib/sites";
 
 const BLEU = "#2F72DE";
-const AGENCES = ["Gagny", "Sarcelles", "Rosny"] as const;
+const AGENCES = SITES; // source unique (lib/sites)
 
 type Tache = {
   id: string;
