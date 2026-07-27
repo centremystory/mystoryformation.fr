@@ -1,13 +1,24 @@
 // app/api/dossiers/[id]/suivi/route.ts — Suivi pédagogique d'un dossier (formatrices) :
 // examens blancs (scores /699 par épreuve) + checklist jour J. Alimente le livret de suivi PDF.
 import { NextRequest, NextResponse } from "next/server";
-import { requireUser, UnauthorizedError } from "@/lib/auth";
+import { requireRole, UnauthorizedError, ForbiddenError } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { CHECKLIST_JOUR_J } from "@/lib/suivi";
 import { journal } from "@/lib/examens";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+// Suivi pédagogique = rôles pédago/encadrement (même périmètre que la page /dossiers).
+const ROLES_SUIVI = ["direction", "manager", "formatrice", "back_office"] as const;
+async function garde(req: NextRequest) {
+  try { return await requireRole(req, ROLES_SUIVI); }
+  catch (e) {
+    if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
+    if (e instanceof ForbiddenError) return NextResponse.json({ ok: false, erreur: "Accès réservé (pédagogie / encadrement)." }, { status: 403 });
+    throw e;
+  }
+}
 
 const scoreOk = (v: any) => {
   if (v === "" || v == null) return null;
@@ -16,9 +27,7 @@ const scoreOk = (v: any) => {
 };
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  try { await requireUser(req); } catch (e) {
-    if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false }, { status: 401 }); throw e;
-  }
+  const g = await garde(req); if (g instanceof NextResponse) return g;
   const { data: bl } = await supabaseAdmin.from("examens_blancs")
     .select("id, numero, date_passage, ce, co, ee, eo, niveau_estime, remarque")
     .eq("dossier_id", params.id).order("numero");
@@ -32,9 +41,11 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 }
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  let u; try { u = await requireUser(req); } catch (e) {
-    if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false }, { status: 401 }); throw e;
-  }
+  const g = await garde(req); if (g instanceof NextResponse) return g;
+  const u = g;
+  // Le dossier doit exister (évite des lignes orphelines sur un id arbitraire).
+  const { data: dossierExiste } = await supabaseAdmin.from("dossiers").select("id").eq("id", params.id).maybeSingle();
+  if (!dossierExiste) return NextResponse.json({ ok: false, erreur: "Dossier introuvable." }, { status: 404 });
   let b: any; try { b = await req.json(); } catch { return NextResponse.json({ ok: false, erreur: "JSON invalide." }, { status: 400 }); }
 
   // 1) Examen blanc (upsert par numéro)
