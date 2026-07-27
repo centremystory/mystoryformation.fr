@@ -44,7 +44,11 @@ type Facture = {
   date_emission: string | null; type: string | null; designation: string | null;
 };
 type Remarque = { id: string; texte: string | null; auteur: string | null; horodatage: string | null };
-type Fiche = { stagiaire: Stagiaire; dossiers: Dossier[]; examens: Examen[]; remarques: Remarque[]; evaluations: Evaluation[]; factures: Facture[]; seancesAccueil?: { total: number; presents: number } };
+type ImpFormation = { id: string; date_inscription: string | null; agence_vente: string | null; formule_label: string | null; heures: number | null; montant_eur: number | null; statut: string | null; fond_propre: boolean | null; vendu_par: string | null; commentaire: string | null };
+type ImpExamen = { id: string; date_inscription: string | null; type_examen: string | null; sous_type: string | null; date_examen: string | null; horaire: string | null; lieu_examen: string | null; agence_vente: string | null; statut_paiement: string | null; montant_eur: number | null; reste_a_payer_eur: number | null; num_attestation: string | null; inscrit_cci: boolean | null; vendu_par: string | null };
+type ImpEdof = { id: string; numero_dossier: string | null; intitule_formation: string | null; code_certif: string | null; date_debut: string | null; date_fin: string | null; statut_dossier: string | null; taux_realisation: number | null; montant_facturable: number | null; origine_fonds: string | null; annee: number | null };
+type Importe = { formations: ImpFormation[]; examens: ImpExamen[]; edof: ImpEdof[] };
+type Fiche = { stagiaire: Stagiaire; dossiers: Dossier[]; examens: Examen[]; remarques: Remarque[]; evaluations: Evaluation[]; factures: Facture[]; seancesAccueil?: { total: number; presents: number }; importe?: Importe };
 
 function dateFr(iso: string | null): string {
   if (!iso) return "—";
@@ -320,6 +324,85 @@ export default function PageFiche() {
           </div>
         )}
       </section>
+
+      {/* Historique importé (archives Sheets + EDOF) — lecture seule, hors BPF/conformité */}
+      {fiche.importe && (fiche.importe.formations.length > 0 || fiche.importe.examens.length > 0 || fiche.importe.edof.length > 0) && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+            Historique importé
+            <span className="ml-2 badge bg-gray-100 text-gray-500 font-normal normal-case">archives · lecture seule</span>
+          </h2>
+
+          {fiche.importe.formations.length > 0 && (
+            <div className="card overflow-hidden">
+              <div className="px-3 pt-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Ventes formation ({fiche.importe.formations.length})</div>
+              <table className="table w-full text-sm">
+                <thead><tr className="text-left text-gray-500">
+                  <th className="px-3 py-2">Date</th><th className="px-3 py-2">Formule</th><th className="px-3 py-2">Heures</th>
+                  <th className="px-3 py-2">Montant</th><th className="px-3 py-2">Statut</th><th className="px-3 py-2">Agence</th><th className="px-3 py-2">Vendu par</th>
+                </tr></thead>
+                <tbody>{fiche.importe.formations.map((f) => (
+                  <tr key={f.id} className="border-t border-gray-100">
+                    <td className="px-3 py-2 text-gray-600">{dateFr(f.date_inscription)}</td>
+                    <td className="px-3 py-2 font-medium text-gray-800">{f.formule_label ?? "—"}{f.fond_propre ? <span className="ml-1 badge bg-gray-100 text-gray-500">fonds propres</span> : null}</td>
+                    <td className="px-3 py-2 text-gray-600">{f.heures ?? "—"} h</td>
+                    <td className="px-3 py-2 text-gray-700">{euro(f.montant_eur)}</td>
+                    <td className="px-3 py-2 text-gray-600">{f.statut ?? "—"}</td>
+                    <td className="px-3 py-2 text-gray-600">{f.agence_vente ?? "—"}</td>
+                    <td className="px-3 py-2 text-gray-500">{f.vendu_par ?? "—"}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          )}
+
+          {fiche.importe.examens.length > 0 && (
+            <div className="card overflow-hidden">
+              <div className="px-3 pt-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Examens ({fiche.importe.examens.length})</div>
+              <table className="table w-full text-sm">
+                <thead><tr className="text-left text-gray-500">
+                  <th className="px-3 py-2">Date examen</th><th className="px-3 py-2">Type</th><th className="px-3 py-2">Lieu</th>
+                  <th className="px-3 py-2">Paiement</th><th className="px-3 py-2">Reste</th><th className="px-3 py-2">CCI</th><th className="px-3 py-2">Attestation</th>
+                </tr></thead>
+                <tbody>{fiche.importe.examens.map((e) => (
+                  <tr key={e.id} className="border-t border-gray-100">
+                    <td className="px-3 py-2 text-gray-600">{dateFr(e.date_examen)}{e.horaire ? " · " + e.horaire : ""}</td>
+                    <td className="px-3 py-2 font-medium text-gray-800">{e.type_examen ?? "—"}{e.sous_type ? " · " + e.sous_type : ""}</td>
+                    <td className="px-3 py-2 text-gray-600">{e.lieu_examen ?? e.agence_vente ?? "—"}</td>
+                    <td className="px-3 py-2 text-gray-600">{e.statut_paiement ?? "—"}{e.montant_eur != null ? " · " + euro(e.montant_eur) : ""}</td>
+                    <td className="px-3 py-2 text-gray-600">{e.reste_a_payer_eur ? euro(e.reste_a_payer_eur) : "—"}</td>
+                    <td className="px-3 py-2">{e.inscrit_cci ? <span className="badge bg-emerald-50 text-emerald-700">inscrit</span> : <span className="text-gray-400">—</span>}</td>
+                    <td className="px-3 py-2 text-gray-500">{e.num_attestation ?? "—"}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          )}
+
+          {fiche.importe.edof.length > 0 && (
+            <div className="card overflow-hidden">
+              <div className="px-3 pt-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Dossiers EDOF ({fiche.importe.edof.length})</div>
+              <table className="table w-full text-sm">
+                <thead><tr className="text-left text-gray-500">
+                  <th className="px-3 py-2">N° dossier</th><th className="px-3 py-2">Formation</th><th className="px-3 py-2">Période</th>
+                  <th className="px-3 py-2">Statut</th><th className="px-3 py-2">Réalisation</th><th className="px-3 py-2">Facturable</th>
+                </tr></thead>
+                <tbody>{fiche.importe.edof.map((d) => (
+                  <tr key={d.id} className="border-t border-gray-100">
+                    <td className="px-3 py-2 font-medium text-gray-800">{d.numero_dossier ?? "—"}</td>
+                    <td className="px-3 py-2 text-gray-600">{d.intitule_formation ?? d.code_certif ?? "—"}</td>
+                    <td className="px-3 py-2 text-gray-600">{dateFr(d.date_debut)} → {dateFr(d.date_fin)}</td>
+                    <td className="px-3 py-2 text-gray-600">{d.statut_dossier ?? "—"}</td>
+                    <td className="px-3 py-2 text-gray-600">{d.taux_realisation != null ? Math.round(Number(d.taux_realisation)) + " %" : "—"}</td>
+                    <td className="px-3 py-2 text-gray-700">{euro(d.montant_facturable)}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          )}
+          <p className="text-xs text-gray-400">Données reprises des fichiers de vente (formations/examens) et de l&apos;export EDOF. Archives de référence — elles ne comptent pas dans le BPF ni la conformité (qui s&apos;appuient sur les dossiers opérationnels ci-dessus).</p>
+        </section>
+      )}
 
       {/* Facturation (synthèse) */}
       <section className="space-y-3">

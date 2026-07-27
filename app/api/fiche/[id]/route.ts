@@ -113,7 +113,28 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     presents: (accueil ?? []).filter((s) => s.present).length,
   };
 
-  return NextResponse.json({ ok: true, stagiaire, dossiers: dossiers ?? [], examens, remarques, evaluations, factures, seancesAccueil });
+  // 8) Historique IMPORTÉ (Sheets ventes + examens + export EDOF) — rattaché par stagiaire_id.
+  //    Affiché à part des dossiers opérationnels : ne compte JAMAIS dans le BPF/la conformité.
+  const [{ data: formationsImportees }, { data: examensImportes }, { data: edof }] = await Promise.all([
+    supabaseAdmin.from("ventes_formation")
+      .select("id, date_inscription, agence_vente, formule_label, heures, montant_eur, statut, fond_propre, vendu_par, commentaire")
+      .eq("stagiaire_id", id).order("date_inscription", { ascending: false }),
+    supabaseAdmin.from("examens")
+      .select("id, date_inscription, type_examen, sous_type, date_examen, horaire, lieu_examen, agence_vente, statut_paiement, montant_eur, reste_a_payer_eur, num_attestation, inscrit_cci, vendu_par")
+      .eq("stagiaire_id", id).order("date_examen", { ascending: false, nullsFirst: false }),
+    supabaseAdmin.from("dossiers_edof")
+      .select("id, numero_dossier, intitule_formation, code_certif, date_debut, date_fin, statut_dossier, taux_realisation, montant_facturable, origine_fonds, annee")
+      .eq("stagiaire_id", id).order("date_debut", { ascending: false, nullsFirst: false }),
+  ]);
+
+  return NextResponse.json({
+    ok: true, stagiaire, dossiers: dossiers ?? [], examens, remarques, evaluations, factures, seancesAccueil,
+    importe: {
+      formations: formationsImportees ?? [],
+      examens: examensImportes ?? [],
+      edof: edof ?? [],
+    },
+  });
 }
 
 /**
