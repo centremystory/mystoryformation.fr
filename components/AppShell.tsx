@@ -20,8 +20,11 @@ import { SITES, COOKIE_SITE, siteValide } from "@/lib/sites";
 
 const PAGES_SANS_NAV = ["/connexion", "/qcm", "/positionnement", "/suivi", "/evaluation", "/fiche-besoin", "/emargement/signer", "/satisfaction", "/formateur-questionnaire", "/contact", "/partenaire", "/test"];
 
-type Lien = { href: string; label: string; icon: LucideIcon };
-type Entree = { type: "link"; href: string; label: string; icon: LucideIcon } | { type: "menu"; label: string; icon: LucideIcon; items: Lien[] };
+// `membres` = pages fusionnées derrière ce lien (accessibles via sous-onglets de la page).
+// Le lien s'affiche si l'utilisateur accède à href OU à un membre ; il pointe alors vers
+// la 1ʳᵉ page accessible → aucune perte d'accès lors d'une fusion.
+type Lien = { href: string; label: string; icon: LucideIcon; membres?: string[] };
+type Entree = { type: "link"; href: string; label: string; icon: LucideIcon; membres?: string[] } | { type: "menu"; label: string; icon: LucideIcon; items: Lien[] };
 
 const NAV: Entree[] = [
   { type: "link", href: "/", label: "Accueil", icon: Home },
@@ -40,8 +43,7 @@ const NAV: Entree[] = [
       { href: "/emargement", label: "Suivi des cours", icon: ClipboardCheck },
       { href: "/calendrier", label: "Planning", icon: CalendarDays },
       { href: "/contenu-pedagogique", label: "Pédagogie", icon: BookOpen },
-      { href: "/satisfaction-cours", label: "Satisfaction", icon: Star },
-      { href: "/bilan-satisfaction", label: "Bilan satisfaction", icon: BarChart3 },
+      { href: "/satisfaction-cours", label: "Satisfaction", icon: Star, membres: ["/bilan-satisfaction"] },
       { href: "/tests/a-noter", label: "Tests à noter", icon: ClipboardList },
       { href: "/tests/banque", label: "Banque de tests", icon: ScrollText },
     ],
@@ -58,11 +60,8 @@ const NAV: Entree[] = [
   },
   {
     type: "menu", label: "RH", icon: Users, items: [
-      { href: "/equipe", label: "Équipe", icon: Users },
-      { href: "/formateurs", label: "Formateurs", icon: UserCog },
-      { href: "/confidentialite", label: "Confidentialité", icon: ShieldCheck },
+      { href: "/equipe", label: "Équipe", icon: Users, membres: ["/formateurs", "/confidentialite", "/planning-employes", "/pointage"] },
       { href: "/conges", label: "Congés", icon: Plane },
-      { href: "/planning-employes", label: "Planning équipe", icon: CalendarRange },
       { href: "/rapport-hebdo", label: "Rapport hebdo", icon: Clock },
     ],
   },
@@ -95,7 +94,8 @@ const NAV: Entree[] = [
   },
 ];
 
-const TOUS_HREFS: string[] = NAV.flatMap((e) => (e.type === "link" ? [e.href] : e.items.map((i) => i.href)));
+const TOUS_HREFS: string[] = NAV.flatMap((e) =>
+  e.type === "link" ? [e.href, ...(e.membres ?? [])] : e.items.flatMap((i) => [i.href, ...(i.membres ?? [])]));
 
 /** Sous-pages regroupées sous une entrée de menu (pour le surlignage du menu). */
 const ACTIONS_RAPIDES: { href: string; label: string; icone: LucideIcon }[] = [
@@ -136,13 +136,16 @@ function hrefActifDe(pathname: string): string {
   return best;
 }
 const estActif = (pathname: string, href: string) => href === hrefActifDe(pathname);
+/** Un lien fusionné est actif si le chemin courant correspond à href OU à l'une de ses pages membres. */
+const estActifLien = (pathname: string, l: { href: string; membres?: string[] }) =>
+  estActif(pathname, l.href) || (l.membres ?? []).some((m) => pathname === m || pathname.startsWith(m + "/"));
 
 /** Titre de page dérivé du chemin courant (pour la topbar). */
 function titreDe(pathname: string): string {
   for (const e of NAV) {
-    if (e.type === "link" && estActif(pathname, e.href)) return e.label;
+    if (e.type === "link" && estActifLien(pathname, e)) return e.label;
     if (e.type === "menu") {
-      const it = e.items.find((i) => estActif(pathname, i.href));
+      const it = e.items.find((i) => estActifLien(pathname, i));
       if (it) return it.label;
     }
   }
@@ -172,15 +175,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     setSite(siteValide(m ? decodeURIComponent(m.split("=").slice(1).join("=")) : ""));
   }, []);
 
-  const navVisible = useMemo(() => NAV
-    .map((e) => (e.type === "menu" ? { ...e, items: e.items.filter((i) => accesPage(roles ?? role, email, i.href)) } : e))
-    .filter((e) => (e.type === "link" ? accesPage(roles ?? role, email, e.href) : e.items.length > 0)), [role, roles, email]);
+  const navVisible = useMemo(() => {
+    const acces = (href: string) => accesPage(roles ?? role, email, href);
+    // Un lien fusionné est visible si href OU un membre est accessible ; il pointe alors vers la 1ʳᵉ page accessible.
+    const visible = (l: { href: string; membres?: string[] }) => acces(l.href) || (l.membres ?? []).some(acces);
+    const resolu = <T extends { href: string; membres?: string[] }>(l: T): T => ({ ...l, href: [l.href, ...(l.membres ?? [])].find(acces) ?? l.href });
+    return NAV
+      .map((e) => (e.type === "menu" ? { ...e, items: e.items.filter(visible).map(resolu) } : e))
+      .filter((e) => (e.type === "link" ? visible(e) : (e as { items: Lien[] }).items.length > 0))
+      .map((e) => (e.type === "link" ? resolu(e) : e));
+  }, [role, roles, email]);
 
   const actionsRapides = useMemo(() => ACTIONS_RAPIDES.filter((a) => accesPage(roles ?? role, email, a.href)), [role, roles, email]);
 
   // Ouvre automatiquement le groupe contenant la page active.
   useEffect(() => {
-    const actifs = navVisible.filter((e) => e.type === "menu" && (e as any).items.some((i: Lien) => estActif(pathname, i.href))).map((e) => e.label);
+    const actifs = navVisible.filter((e) => e.type === "menu" && (e as any).items.some((i: Lien) => estActifLien(pathname, i))).map((e) => e.label);
     if (actifs.length) setOuverts((g) => Array.from(new Set([...g, ...actifs])));
   }, [pathname, navVisible]);
 
@@ -213,7 +223,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
       {navVisible.map((e) => {
         if (e.type === "link") {
-          const actif = estActif(pathname, e.href);
+          const actif = estActifLien(pathname, e);
           const Icone = e.icon;
           return (
             <Link key={e.href} href={e.href} onClick={onNavigate}
@@ -225,7 +235,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           );
         }
         const ouvert = ouverts.includes(e.label);
-        const grpActif = e.items.some((i) => estActif(pathname, i.href));
+        const grpActif = e.items.some((i) => estActifLien(pathname, i));
         const Icone = e.icon;
         return (
           <div key={e.label}>
@@ -238,7 +248,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             {ouvert && (
               <div className="mt-0.5 space-y-0.5 pl-3">
                 {e.items.map((i) => {
-                  const actif = estActif(pathname, i.href);
+                  const actif = estActifLien(pathname, i);
                   const SousIcone = i.icon;
                   return (
                     <Link key={i.href} href={i.href} onClick={onNavigate}
