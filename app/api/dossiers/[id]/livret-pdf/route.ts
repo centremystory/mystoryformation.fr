@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireUser, UnauthorizedError } from "@/lib/auth";
 import { renderPdf } from "@/lib/renderPdf";
+import { CHECKLIST_JOUR_J } from "@/lib/suivi";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,7 +26,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   const { data: d } = await supabaseAdmin
     .from("dossiers")
-    .select("id, certif, financement, niveau_initial, niveau_vise, niveau_atteint, objectif_formation, objectif_professionnel, date_debut, date_fin, heures_prevues, statut, stagiaires:stagiaire_id ( civilite, nom, prenom, date_naissance, agence, email, telephone )")
+    .select("id, certif, financement, niveau_initial, niveau_vise, niveau_atteint, objectif_formation, objectif_professionnel, date_debut, date_fin, heures_prevues, statut, checklist_jour_j, stagiaires:stagiaire_id ( civilite, nom, prenom, date_naissance, agence, email, telephone )")
     .eq("id", params.id).maybeSingle();
   if (!d) return NextResponse.json({ ok: false, erreur: "Dossier introuvable." }, { status: 404 });
   const s: any = Array.isArray((d as any).stagiaires) ? (d as any).stagiaires[0] : (d as any).stagiaires;
@@ -43,6 +44,16 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     <td class="c">${x.emarge_le ? "✓ présent" : x.absence ? "absent" : "—"}</td>
     <td>${esc(x.contenu ?? "")}</td></tr>`).join("");
   const heuresFaites = (seances ?? []).filter((x: any) => x.emarge_le).reduce((t: number, x: any) => t + Number(x.heures_realisees ?? x.heures ?? 0), 0);
+
+  const { data: blancs } = await supabaseAdmin
+    .from("examens_blancs").select("numero, date_passage, ce, co, ee, eo, niveau_estime")
+    .eq("dossier_id", params.id).order("numero");
+  const lignesBlancs = (blancs ?? []).map((b: any) => `<tr>
+    <td class="c">${b.numero}</td><td class="c">${dateFr(b.date_passage)}</td>
+    <td class="c">${b.ce ?? "—"}</td><td class="c">${b.co ?? "—"}</td><td class="c">${b.ee ?? "—"}</td><td class="c">${b.eo ?? "—"}</td>
+    <td class="c">${esc(b.niveau_estime ?? "—")}</td></tr>`).join("");
+  const checklist = ((d as any).checklist_jour_j ?? {}) as Record<string, boolean>;
+  const checklistHtml = CHECKLIST_JOUR_J.map((it) => `<li>${checklist[it.cle] ? "☑" : "☐"} ${esc(it.label)}</li>`).join("");
 
   const nom = `${esc(s?.civilite ?? "")} ${esc(s?.prenom ?? "")} ${esc(s?.nom ?? "")}`.trim();
 
@@ -62,6 +73,7 @@ td, th { border:1px solid #e6ebf4; padding:1.4mm 2mm; vertical-align:top; } th {
 .bloc b { display:block; font-size:12pt; color:#2F72DE; }
 .niveau { background:#2F72DE; color:#fff; border-radius:2mm; text-align:center; padding:2.5mm; font-size:12pt; font-weight:bold; margin:2mm 0; }
 .attente { background:#FFFAEB; border:1px solid #FEDF89; color:#B54708; border-radius:2mm; padding:2.5mm; font-size:8.5pt; }
+.checklist { list-style:none; margin:2mm 0 0 1mm; padding:0; } .checklist li { margin:1.2mm 0; font-size:9pt; }
 .obj { background:#f8fafc; border-left:3px solid #2F72DE; padding:2mm 3mm; margin:1.5mm 0; }
 .footer { margin-top:6mm; font-size:7pt; color:#9aa1ad; text-align:center; }
 </style></head><body>
@@ -96,10 +108,12 @@ ${pos.remarques ? `<p style="font-size:8.5pt;color:#475467;">Remarques : ${esc(p
 ${lignesSeances ? `<table><tr><th>#</th><th>Date</th><th>Demi-j.</th><th>Présence</th><th>Contenu</th></tr>${lignesSeances}</table>` : `<div class="attente">Aucune séance enregistrée.</div>`}
 
 <h2>4. Examens blancs (scores /699 par épreuve)</h2>
-<div class="attente">Section à compléter par la formatrice (saisie CRM — Phase 2).</div>
+${lignesBlancs
+  ? `<table><tr><th>N°</th><th>Date</th><th>CE</th><th>CO</th><th>EE</th><th>EO</th><th>Niveau estimé</th></tr>${lignesBlancs}</table>`
+  : `<div class="attente">Aucun examen blanc saisi.</div>`}
 
 <h2>5. Checklist jour J</h2>
-<div class="attente">Section à compléter (saisie CRM — Phase 2).</div>
+<ul class="checklist">${checklistHtml}</ul>
 
 <h2>6. Résultat final &amp; suite</h2>
 <div class="grid">
