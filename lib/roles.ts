@@ -128,6 +128,7 @@ export const PAGE_PERMISSIONS: Record<string, Role[]> = {
   "/programmes": ["direction", "manager", "formatrice"],
   "/contenu-pedagogique": ["direction", "manager", "formatrice"],
   "/suivi-eleves": ["direction", "manager", "formatrice"],
+  "/tests/tous": ["direction", "manager", "formatrice", "back_office"],
   "/tests/a-noter": ["direction", "manager", "formatrice", "back_office"],
   "/tests/banque": ["direction", "manager", "formatrice"],
   "/satisfaction-cours": ["direction", "manager", "formatrice"],
