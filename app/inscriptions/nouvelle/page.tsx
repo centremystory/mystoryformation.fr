@@ -3,8 +3,8 @@
 // Le bouton Enregistrer reste grisé tant que le dossier n'est pas 100 % conforme.
 import { useEffect, useMemo, useState } from "react";
 import {
-  CATALOGUE, CRENEAUX, CodeFormule, Creneau, SeanceInput,
-  validerInscription, validerPlanning, proposerPlanning,
+  CATALOGUE, CRENEAUX, CodeFormule, Creneau, SeanceInput, Offre, OFFRES, formulesDeLOffre,
+  validerInscription, validerPlanning, proposerPlanning, type InscriptionInput,
 } from "@/lib/inscriptions/regles";
 
 const BLEU = "#2F72DE";
@@ -19,7 +19,7 @@ export default function NouvelleInscription() {
     adresse: "", cp: "", ville: "", dateNaissance: "", villeNaissance: "",
     certification: "TEF_IRN" as const, financement: "CPF" as const,
     numeroEdof: "", dateCommandeValidee: "",
-    formule: "18H" as CodeFormule, niveauVise: "B1" as const,
+    offre: "B1" as Offre, formule: "B1_21H" as CodeFormule, niveauVise: "B1" as string,
     agenceInscription: "GAGNY" as const, resteAChargeAccepte: false,
     declencherContractualisation: true, formatriceId: "", formatriceLibre: "",
     remise: 0, remiseMotif: "", venduPar: "",
@@ -47,7 +47,7 @@ export default function NouvelleInscription() {
   const f = CATALOGUE[form.formule];
   const cpf = form.financement === "CPF";
 
-  const vIns = useMemo(() => validerInscription({ ...form, numeroEdof: form.numeroEdof || null, dateCommandeValidee: form.dateCommandeValidee || null }), [form]);
+  const vIns = useMemo(() => validerInscription({ ...form, niveauVise: form.niveauVise as InscriptionInput["niveauVise"], numeroEdof: form.numeroEdof || null, dateCommandeValidee: form.dateCommandeValidee || null }), [form]);
   const vPlan = useMemo(() => validerPlanning(form.formule, seances, cpf ? form.dateCommandeValidee || null : null), [form.formule, seances, form.dateCommandeValidee, cpf]);
   const totalH = seances.reduce((s, x) => s + CRENEAUX[x.creneau].heures, 0);
   const conforme = vIns.ok && vPlan.ok && !!form.formatriceId;
@@ -120,9 +120,17 @@ export default function NouvelleInscription() {
         <div><label className={label}>Certification</label>
           <select className={champ} value={form.certification} onChange={e => set("certification", e.target.value)}>
             <option value="TEF_IRN">TEF IRN</option><option value="LEVELTEL">LEVELTEL</option></select></div>
+        <div><label className={label}>Offre *</label>
+          <select className={champ} value={form.offre} onChange={e => {
+            const o = e.target.value as Offre;
+            const prem = formulesDeLOffre(o)[0];
+            setForm(f => ({ ...f, offre: o, formule: prem.code, niveauVise: OFFRES.find(x => x.code === o)?.niveauVise || f.niveauVise }));
+            setSeances([]);
+          }}>
+            {OFFRES.map(o => <option key={o.code} value={o.code}>{o.label}</option>)}</select></div>
         <div><label className={label}>Formule *</label>
           <select className={champ} value={form.formule} onChange={e => { set("formule", e.target.value); setSeances([]); }}>
-            {Object.values(CATALOGUE).map(x => <option key={x.code} value={x.code}>{x.libelle}</option>)}</select></div>
+            {formulesDeLOffre(form.offre).map(x => <option key={x.code} value={x.code}>{x.nomFormule} — {x.libelle}</option>)}</select></div>
         <div><label className={label}>Niveau visé</label>
           <select className={champ} value={form.niveauVise} onChange={e => set("niveauVise", e.target.value)}>
             <option>A1</option><option>A2</option><option>B1</option><option>B2</option></select></div>

@@ -1,10 +1,27 @@
 // lib/inscriptions/regles.ts — Règles de conformité MYSTORY (inscriptions formation)
 // Source de vérité unique : catalogue, décompositions de séances, délai d'accès, validations.
 
-export type CodeFormule = "6H" | "18H" | "30H" | "42H";
+// Catalogue v6 (28/07/2026) : 4 OFFRES × formules. Barème = 150 € (examen inclus) + heures × taux
+// dégressif (45 €/h ≤15h, 40 € de 18 à 27h, 35 € au-delà, 30 € pour 45h). Durées multiples de 3h.
+export type Offre = "A2" | "B1" | "B2" | "INTENSIF";
+
+export const OFFRES: { code: Offre; label: string; niveauVise: string }[] = [
+  { code: "A2", label: "A2 — Français du quotidien et du travail (carte de séjour pluriannuelle)", niveauVise: "A2" },
+  { code: "B1", label: "B1 — Autonomie professionnelle (carte de résident)", niveauVise: "B1" },
+  { code: "B2", label: "B2 — Argumenter et évoluer (naturalisation)", niveauVise: "B2" },
+  { code: "INTENSIF", label: "Intensif — Stratégies & examens blancs", niveauVise: "" },
+];
+
+export type CodeFormule =
+  | "A2_12H" | "A2_24H" | "A2_36H"
+  | "B1_9H" | "B1_21H" | "B1_33H" | "B1_45H"
+  | "B2_15H" | "B2_27H" | "B2_39H"
+  | "INT_6H" | "INT_18H" | "INT_30H";
 
 export interface Formule {
   code: CodeFormule;
+  offre: Offre;
+  nomFormule: string;
   libelle: string;
   dureeHeures: number;
   prixEuros: number;
@@ -14,22 +31,38 @@ export interface Formule {
   descriptionFinale: string;
 }
 
-// Formules 2026 — durées multiples de 3h (séances de 3h, oral intégré à la dernière séance).
-// Prix alignés sur la grille CPF officielle (table public.formules) → dossiers conformes au gate CDC.
+const DESC = "Oral + simulation intégrés à la dernière séance";
+function f(code: CodeFormule, offre: Offre, nom: string, h: number, prix: number): Formule {
+  return { code, offre, nomFormule: nom, libelle: `${h} h – ${prix} €`, dureeHeures: h, prixEuros: prix, seances3h: h / 3, seanceFinaleHeures: 0, descriptionFinale: DESC };
+}
+
+// Prix v6 alignés sur le site + la table public.formules → dossiers conformes au gate CDC.
 export const CATALOGUE: Record<CodeFormule, Formule> = {
-  "6H":  { code: "6H",  libelle: "6 h – 400 €",   dureeHeures: 6,  prixEuros: 400,
-           seances3h: 2,  seanceFinaleHeures: 0,
-           descriptionFinale: "Oral + simulation intégrés à la dernière séance" },
-  "18H": { code: "18H", libelle: "18 h – 805 €",  dureeHeures: 18, prixEuros: 805,
-           seances3h: 6,  seanceFinaleHeures: 0,
-           descriptionFinale: "Oral + simulation intégrés à la dernière séance" },
-  "30H": { code: "30H", libelle: "30 h – 1150 €", dureeHeures: 30, prixEuros: 1150,
-           seances3h: 10, seanceFinaleHeures: 0,
-           descriptionFinale: "Oral + simulation intégrés à la dernière séance" },
-  "42H": { code: "42H", libelle: "42 h – 1435 €", dureeHeures: 42, prixEuros: 1435,
-           seances3h: 14, seanceFinaleHeures: 0,
-           descriptionFinale: "Oral + simulation intégrés à la dernière séance" },
+  A2_12H: f("A2_12H", "A2", "Consolidation", 12, 690),
+  A2_24H: f("A2_24H", "A2", "Standard", 24, 1110),
+  A2_36H: f("A2_36H", "A2", "Renforcée", 36, 1410),
+  B1_9H:  f("B1_9H", "B1", "Éclair", 9, 555),
+  B1_21H: f("B1_21H", "B1", "Consolidation", 21, 990),
+  B1_33H: f("B1_33H", "B1", "Standard", 33, 1305),
+  B1_45H: f("B1_45H", "B1", "Complète", 45, 1500),
+  B2_15H: f("B2_15H", "B2", "Consolidation", 15, 825),
+  B2_27H: f("B2_27H", "B2", "Standard", 27, 1230),
+  B2_39H: f("B2_39H", "B2", "Complète", 39, 1515),
+  INT_6H:  f("INT_6H", "INTENSIF", "Express", 6, 420),
+  INT_18H: f("INT_18H", "INTENSIF", "Complet", 18, 870),
+  INT_30H: f("INT_30H", "INTENSIF", "Sérénité", 30, 1200),
 };
+
+/** Formules d'une offre (pour le sélecteur en cascade Offre → Formule). */
+export function formulesDeLOffre(offre: Offre): Formule[] {
+  return Object.values(CATALOGUE).filter((x) => x.offre === offre);
+}
+
+/** Retrouve la formule v6 correspondant à une durée (les durées sont uniques dans le catalogue).
+ *  Sert à revalider un planning à partir des heures_prevues du dossier. */
+export function formuleParHeures(heures: number): CodeFormule | null {
+  return (Object.values(CATALOGUE).find((x) => x.dureeHeures === heures)?.code) ?? null;
+}
 
 export type Creneau = "MATIN" | "APRES_MIDI" | "FINALE_1H" | "FINALE_2H";
 
