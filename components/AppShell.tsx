@@ -66,7 +66,7 @@ const NAV: Entree[] = [
       { href: "/examens/liste-attente", label: "Liste d'attente", icon: Clock },
       { href: "/examens/corrections", label: "Résultats", icon: FileCheck },
       { href: "/examens/taux", label: "Taux & stats", icon: BarChart3 },
-      { href: "/examens/remboursements", label: "Remboursements", icon: RotateCcw },
+      { href: "/examens/remboursements", label: "Reports · remb. · annul.", icon: RotateCcw },
       { href: "/reclamations?type=examen", label: "Réclamations examen", icon: MessageCircle },
     ],
   },

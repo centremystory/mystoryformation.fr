@@ -20,7 +20,7 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
-const TYPES = ["report", "remboursement_total", "remboursement_partiel", "avoir"];
+const TYPES = ["report", "remboursement_total", "remboursement_partiel", "avoir", "annulation"];
 
 function aujourdHuiParisISO(): string {
   return new Intl.DateTimeFormat("fr-CA", { timeZone: "Europe/Paris" }).format(new Date());
@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   let q = supabaseAdmin
     .from("remboursements_examen")
-    .select("*, ventes_examen:vente_id (numero_attestation, montant, reste_a_payer, statut_paiement, agence, type_examen, stagiaires:candidat_id (nom, prenom), sessions_examen:session_id (date_examen, horaire))")
+    .select("*, ventes_examen:vente_id (numero_attestation, montant, reste_a_payer, statut_paiement, agence, type_examen, stagiaires:candidat_id (nom, prenom), sessions_examen:session_id (date_examen, horaire)), nouvelle_session:nouvelle_session_id (date_examen, horaire)")
     .order("cree_le", { ascending: false }).limit(300);
   const statut = sp.get("statut"); if (statut) q = q.eq("statut", statut);
   const type = sp.get("type"); if (type) q = q.eq("type", type);
@@ -118,12 +118,15 @@ export async function POST(req: NextRequest) {
     if (montant > dejaPaye + 0.001) return NextResponse.json({ ok: false, erreur: `Montant supérieur au déjà payé (${dejaPaye.toFixed(2)} €).` }, { status: 400 });
   }
 
+  // Report : session cible (facultative à la demande, appliquée à l'exécution pour reprogrammer).
+  const nouvelleSessionId = type === "report" && b?.nouvelleSessionId ? String(b.nouvelleSessionId) : null;
+
   const { data: ins, error } = await supabaseAdmin.from("remboursements_examen")
-    .insert({ vente_id: vente.id, type, montant, motif, override_7j: override, created_by: u.email ?? null })
+    .insert({ vente_id: vente.id, type, montant, motif, override_7j: override, nouvelle_session_id: nouvelleSessionId, created_by: u.email ?? null })
     .select("id").single();
   if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
 
-  await journal("ventes_examen", vente.id, "remboursement_demande", { type, montant, motif, override }, u.email ?? null);
+  await journal("ventes_examen", vente.id, "remboursement_demande", { type, montant, motif, override, nouvelle_session_id: nouvelleSessionId }, u.email ?? null);
   return NextResponse.json({ ok: true, id: (ins as any).id });
 }
 
@@ -187,7 +190,19 @@ export async function PATCH(req: NextRequest) {
   if (type === "remboursement_total") {
     await supabaseAdmin.from("ventes_examen").update({ statut_paiement: "Remboursé" }).eq("id", (r as any).vente_id);
   }
+  // Annulation → vente Annulé (libère la place ; le remboursement éventuel est une demande à part).
+  if (type === "annulation") {
+    await supabaseAdmin.from("ventes_examen").update({ statut_paiement: "Annulé" }).eq("id", (r as any).vente_id);
+  }
+  // Report → reprogramme la vente vers la session cible (si renseignée à la demande).
+  let reprogramme: string | null = null;
+  if (type === "report" && (r as any).nouvelle_session_id) {
+    const { error: eRep } = await supabaseAdmin.from("ventes_examen")
+      .update({ session_id: (r as any).nouvelle_session_id }).eq("id", (r as any).vente_id);
+    if (eRep) return NextResponse.json({ ok: false, erreur: `Reprogrammation impossible : ${eRep.message}` }, { status: 500 });
+    reprogramme = (r as any).nouvelle_session_id;
+  }
 
-  await journal("ventes_examen", (r as any).vente_id, "remboursement_effectue", { type, montant: (r as any).montant, avoir: maj.avoir_numero ?? null }, u.email ?? null);
+  await journal("ventes_examen", (r as any).vente_id, "remboursement_effectue", { type, montant: (r as any).montant, avoir: maj.avoir_numero ?? null, reprogramme }, u.email ?? null);
   return NextResponse.json({ ok: true, avoirNumero: maj.avoir_numero ?? null });
 }
