@@ -14,6 +14,7 @@ export const ONGLETS_SATISFACTION: Onglet[] = [
 export const ONGLETS_TESTS: Onglet[] = [
   { href: "/tests/tous", label: "Tous les tests" },
   { href: "/tests/a-noter", label: "À noter" },
+  { href: "/tests/relances", label: "Relances à distance" },
   { href: "/tests/banque", label: "Banque de tests" },
 ];
 
