@@ -18,7 +18,7 @@ export default function NouvelleInscription() {
     civilite: "", nom: "", prenom: "", email: "", telephone: "",
     adresse: "", cp: "", ville: "", dateNaissance: "", villeNaissance: "",
     certification: "TEF_IRN" as const, financement: "CPF" as const,
-    numeroEdof: "", dateCommandeValidee: "",
+    numeroEdof: "", dateCommandeValidee: "", participationReglee: false,
     offre: "B1" as Offre, formule: "B1_21H" as CodeFormule, niveauVise: "B1" as string,
     agenceInscription: "GAGNY" as const, resteAChargeAccepte: false,
     declencherContractualisation: true, formatriceId: "", formatriceLibre: "",
@@ -54,6 +54,10 @@ export default function NouvelleInscription() {
   // EDOF facultatif à la saisie : on peut enregistrer sans, mais on ne peut pas envoyer
   // la convention tant que le N° EDOF et la date de validation manquent (gate de conformité).
   const edofIncomplet = cpf && (!form.numeroEdof.trim() || !form.dateCommandeValidee);
+  // Participation forfaitaire non réglée à la saisie → convention bloquée (gate serveur).
+  const participationBloque = cpf && !form.participationReglee;
+  // La convention ne peut partir automatiquement que si EDOF complet ET participation réglée.
+  const contractBloque = edofIncomplet || participationBloque;
   const avertissements = [...vIns.avertissements, ...vPlan.avertissements];
 
   const genererPlan = () => {
@@ -71,7 +75,7 @@ export default function NouvelleInscription() {
       body: JSON.stringify({
         stagiaire: { civilite: form.civilite, adresse: form.adresse, cp: form.cp, ville: form.ville,
                      dateNaissance: form.dateNaissance, villeNaissance: form.villeNaissance },
-        inscription: { ...form, declencherContractualisation: form.declencherContractualisation && !edofIncomplet, confirmerDoublon }, seances,
+        inscription: { ...form, declencherContractualisation: form.declencherContractualisation && !contractBloque, confirmerDoublon }, seances,
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -174,6 +178,10 @@ export default function NouvelleInscription() {
           <div><label className={label}>N° dossier EDOF <span className="font-normal text-gray-500">(à compléter avant l'envoi de la convention)</span></label><input className={champ} value={form.numeroEdof} onChange={e => set("numeroEdof", e.target.value)} /></div>
           <div className="col-span-2"><label className={label}>Date validation commande EDOF <span className="font-normal text-gray-500">(à compléter avant la convention ; déclenche le délai d'accès)</span></label>
             <input type="date" className={champ} value={form.dateCommandeValidee} onChange={e => set("dateCommandeValidee", e.target.value)} /></div>
+          <label className="col-span-2 md:col-span-4 flex items-center gap-2 text-sm bg-emerald-50 border border-emerald-200 rounded px-3 py-2 cursor-pointer">
+            <input type="checkbox" checked={form.participationReglee} onChange={e => set("participationReglee", e.target.checked)} />
+            <span>💶 <b>Participation forfaitaire réglée à l'inscription</b> — cocher si le stagiaire l'a payée maintenant. Sinon il sera relancé, et la convention ne partira qu'une fois réglée (ou exonéré : demandeur d'emploi).</span>
+          </label>
         </>}
         <div className="col-span-2 md:col-span-4 text-sm text-gray-600">
           💶 {f.prixEuros} €{(!cpf && form.remise > 0) ? ` − ${form.remise} € remise = ${Math.max(0, f.prixEuros - form.remise)} € net` : ""} — {f.dureeHeures} h · {f.seances3h} × 3h{f.seanceFinaleHeures ? ` + finale ${f.seanceFinaleHeures}h` : ""} · {f.descriptionFinale}
@@ -281,13 +289,14 @@ export default function NouvelleInscription() {
         </section>
       )}
 
-      <label className={`flex items-center gap-2 rounded-lg p-3 text-sm ${edofIncomplet ? "bg-gray-100 border border-gray-200 text-gray-400 cursor-not-allowed" : "bg-blue-50 border border-blue-200 cursor-pointer"}`}>
-        <input type="checkbox" disabled={edofIncomplet}
-          checked={form.declencherContractualisation && !edofIncomplet}
+      <label className={`flex items-center gap-2 rounded-lg p-3 text-sm ${contractBloque ? "bg-gray-100 border border-gray-200 text-gray-400 cursor-not-allowed" : "bg-blue-50 border border-blue-200 cursor-pointer"}`}>
+        <input type="checkbox" disabled={contractBloque}
+          checked={form.declencherContractualisation && !contractBloque}
           onChange={e => set("declencherContractualisation", e.target.checked)} />
-        <span>🚀 <b>Envoyer la convention en signature dès l'enregistrement</b> — {edofIncomplet
-          ? "disponible une fois le N° EDOF et la date de validation complétés (la convention officielle exige l'EDOF)."
-          : "la validation EDOF étant faite, la convention + annexes partent automatiquement au stagiaire via DocuSeal. Décocher pour différer."}</span>
+        <span>🚀 <b>Envoyer la convention en signature dès l'enregistrement</b> — {
+          edofIncomplet ? "disponible une fois le N° EDOF et la date de validation complétés (la convention officielle exige l'EDOF)."
+          : participationBloque ? "disponible une fois la participation forfaitaire réglée (ou le stagiaire exonéré). Sans elle, la convention ne peut pas partir."
+          : "EDOF validé et participation réglée : la convention + annexes partent automatiquement au stagiaire via DocuSeal. Décocher pour différer."}</span>
       </label>
 
       <button disabled={!conforme || envoi === "loading"} onClick={() => enregistrer()}

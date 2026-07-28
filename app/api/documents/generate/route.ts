@@ -21,6 +21,7 @@ import { renderHtmlToPdf } from "@/lib/docuseal";
 import { requireUser, UnauthorizedError } from "@/lib/auth";
 import { getFiche, archiveDocument, setPieceStatus, getSignedUrl } from "@/lib/crm";
 import { genererFeuilleEmargementHtml } from "@/lib/emargement";
+import { participationCpfBloquante } from "@/lib/gates";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -101,6 +102,14 @@ export async function POST(req: NextRequest) {
       await setPieceStatus({ dossierId, piece: pieceType, status: "erreur_envoi", at: new Date().toISOString() });
       return NextResponse.json({ ok: false, dossierId, type, status: "erreur", error: String(e) }, { status: 502 });
     }
+  }
+
+  // Participation forfaitaire CPF : documents officiels (convocation, programme, règlement,
+  // planning, documents de fin) bloqués tant qu'elle n'est pas réglée ou le stagiaire exonéré.
+  // L'émargement (preuve du service fait) est traité plus haut et reste toujours générable.
+  const partBloque = await participationCpfBloquante(dossierId);
+  if (partBloque) {
+    return NextResponse.json({ ok: false, dossierId, type, status: "gate_ko", recap: [partBloque] }, { status: 409 });
   }
 
   // Gabarit programme : contenu juridique propre à chaque certification.
