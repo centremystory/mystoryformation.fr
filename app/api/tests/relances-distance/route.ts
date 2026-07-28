@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   // Les DEUX phases (initial + final) : un test final non passé doit aussi pouvoir être relancé.
   const { data, error } = await supabaseAdmin
     .from("evaluations")
-    .select("id, civilite, nom, prenom, email, phase, niveau_vise, cree_le, commentaire_suivi")
+    .select("id, civilite, nom, prenom, email, phase, niveau_vise, cree_le, commentaire_suivi, auteur")
     .eq("statut", "en_cours").not("email", "is", null)
     .order("cree_le", { ascending: true }).limit(200);
   if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
