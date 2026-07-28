@@ -53,11 +53,14 @@ export default function ReglagesPage() {
         <p className="page-subtitle">Paramètres pilotés par la Direction — modifiables directement, sans intervention technique.</p>
       </div>
 
-      {/* Sauvegarde du storage (PDF signés) — le PITR ne couvre pas le storage. Réservé au propriétaire (API 403 sinon). */}
+      {/* Sauvegardes (alternative gratuite au PITR). Réservé au propriétaire (API 403 sinon). */}
       <section className="card mb-4 p-4">
-        <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-mystory">Sauvegarde des documents</h2>
-        <p className="text-sm text-gray-600 mb-3">Télécharge une archive ZIP de tous les documents signés (conventions, attestations, avoirs, émargements). À garder hors Supabase (le PITR ne sauvegarde que la base). Réservé au propriétaire.</p>
-        <a href="/api/backup/documents" className="btn-primary inline-flex items-center gap-2">⬇️ Télécharger la sauvegarde (ZIP)</a>
+        <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-mystory">Sauvegardes</h2>
+        <p className="text-sm text-gray-600 mb-3">En plus des sauvegardes quotidiennes automatiques de Supabase, télécharge à tout moment une archive complète à conserver hors Supabase. Réservé au propriétaire.</p>
+        <div className="flex flex-wrap gap-2">
+          <a href="/api/backup/database" className="btn-primary inline-flex items-center gap-2">🗄️ Sauvegarde de la base (ZIP)</a>
+          <a href="/api/backup/documents" className="btn-ghost inline-flex items-center gap-2">📄 Sauvegarde des documents (ZIP)</a>
+        </div>
       </section>
 
       {charge ? (
