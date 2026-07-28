@@ -21,6 +21,11 @@ interface Facture {
 interface DossierAFacturer {
   dossierId: string; certif: string; montant: number; remise?: number; client: string;
   estCpf: boolean; facturable: boolean; motifBlocage: string | null;
+  terminee?: boolean; derniereSeance?: string | null;
+}
+interface Attestation {
+  id: string; numero: string; montant: number; client: string;
+  statut: string; date_emission: string; date_paiement: string | null; dossier_id: string | null; serie?: string | null;
 }
 interface VenteAFacturer {
   venteId: string; numeroAttestation: string; type: string; montant: number; client: string;
@@ -56,6 +61,17 @@ export default function PageFactures() {
   const [vue, setVue] = useState<"tous" | "formation" | "examen">("tous");
   const [avoirs, setAvoirs] = useState<Record<string, AvoirLigne[]>>({});
   const [avoirForm, setAvoirForm] = useState<{ factureId: string; numero: string; net: number; montant: string; motif: string } | null>(null);
+  const [modeAttestations, setModeAttestations] = useState(false);
+  const [attestations, setAttestations] = useState<Attestation[]>([]);
+  const [chargeAtt, setChargeAtt] = useState(false);
+
+  const ouvrirAttestations = useCallback(async () => {
+    setModeAttestations(true); setChargeAtt(true);
+    try {
+      const j = await fetch("/api/factures?attestations=1", { cache: "no-store" }).then((x) => x.json());
+      if (j.ok) setAttestations(j.attestations ?? []);
+    } finally { setChargeAtt(false); }
+  }, []);
 
   const recharger = useCallback(async () => {
     setErreur(null);
@@ -85,6 +101,8 @@ export default function PageFactures() {
   );
   const montrerFormation = vue !== "examen";
   const montrerExamen = vue !== "formation";
+  // Rappel « fin de formation » : dossiers CPF dont la dernière séance est passée, pas encore facturés.
+  const cpfTerminees = useMemo(() => aFacturer.filter((d) => d.estCpf && d.terminee), [aFacturer]);
 
   const totaux = useMemo(() => {
     const emis = facturesVue.reduce((s, f) => s + Number(f.montant || 0), 0);
@@ -162,17 +180,74 @@ export default function PageFactures() {
   return (
     <main className="max-w-5xl mx-auto px-4 md:px-6 py-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="page-title">Factures</h1>
-        <button
-          onClick={lancerRelances}
-          disabled={busy !== null}
-          className="btn-primary"
-        >
-          {busy === "relances" ? "Relances en cours…" : "Lancer les relances dues (J+7 / J+15)"}
-        </button>
+        <h1 className="page-title">{modeAttestations ? "Attestations de paiement" : "Factures"}</h1>
+        <div className="flex items-center gap-2 flex-wrap">
+          {modeAttestations ? (
+            <button onClick={() => setModeAttestations(false)} className="btn-ghost">← Retour aux factures</button>
+          ) : (
+            <>
+              <button onClick={ouvrirAttestations} className="btn-ghost">📄 Attestations de paiement</button>
+              <button onClick={lancerRelances} disabled={busy !== null} className="btn-primary">
+                {busy === "relances" ? "Relances en cours…" : "Lancer les relances dues (J+7 / J+15)"}
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
+      {/* Vue Attestations de paiement (J2) : toutes visibles, de tout le monde */}
+      {modeAttestations && (
+        <section className="mt-5">
+          <p className="text-sm text-gray-500 mb-3">Toutes les attestations de paiement émises — l&apos;attestation de chaque stagiaire est visible ici.</p>
+          {chargeAtt ? <p className="text-gray-500 text-sm">Chargement…</p> : attestations.length === 0 ? (
+            <p className="text-gray-500 text-sm">Aucune attestation de paiement pour le moment.</p>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border bg-white">
+              <table className="w-full text-sm">
+                <thead><tr className="text-left text-xs text-gray-500 border-b">
+                  <th className="px-3 py-2">N°</th><th className="px-3 py-2">Client</th><th className="px-3 py-2">Montant</th>
+                  <th className="px-3 py-2">Émise le</th><th className="px-3 py-2">Statut</th><th className="px-3 py-2"></th>
+                </tr></thead>
+                <tbody>
+                  {attestations.map((a) => (
+                    <tr key={a.id} className="border-b last:border-0">
+                      <td className="px-3 py-2 font-mono text-xs">{a.numero}</td>
+                      <td className="px-3 py-2">{a.client || "—"}</td>
+                      <td className="px-3 py-2">{Number(a.montant).toLocaleString("fr-FR")} €</td>
+                      <td className="px-3 py-2 text-gray-500">{dateFR(a.date_emission)}</td>
+                      <td className="px-3 py-2"><span className={`text-xs px-2 py-0.5 rounded border ${BADGE[a.statut] ?? "bg-gray-50 border-gray-200 text-gray-600"}`}>{LIBELLE_STATUT[a.statut] ?? a.statut}</span></td>
+                      <td className="px-3 py-2">{a.dossier_id && <a href={`/fiche/${a.dossier_id}`} className="text-mystory underline text-xs">Fiche</a>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="px-3 py-2 text-xs text-gray-400">{attestations.length} attestation(s).</div>
+            </div>
+          )}
+        </section>
+      )}
+      {!modeAttestations && cpfTerminees.length > 0 && (
+        <section className="mt-5 rounded-lg border border-amber-300 bg-amber-50 p-4">
+          <h2 className="font-semibold text-amber-900">🔔 Formations CPF terminées — à facturer ({cpfTerminees.length})</h2>
+          <p className="text-xs text-amber-800 mt-0.5 mb-2">Dernière séance passée : valider le service fait (EDOF) puis émettre la facture CPF — c&apos;est le moment d&apos;encaisser.</p>
+          <div className="space-y-1.5">
+            {cpfTerminees.map((d) => (
+              <div key={d.dossierId} className="flex items-center justify-between gap-3 flex-wrap rounded-md bg-white border border-amber-200 px-3 py-2">
+                <div className="text-sm">
+                  <span className="font-medium">{d.client || "(sans nom)"}</span>
+                  <span className="text-gray-500"> · {d.certif} · {Number(d.montant).toLocaleString("fr-FR")} €</span>
+                  {d.derniereSeance && <span className="text-gray-400"> · fin {dateFR(d.derniereSeance)}</span>}
+                  <span className="ml-2 text-xs text-orange-700">{d.facturable ? "✅ service fait validé — prête à facturer" : "⏳ service fait à valider (EDOF)"}</span>
+                </div>
+                <a href={`/fiche/${d.dossierId}`} className="text-mystory underline text-xs">Ouvrir la fiche</a>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Onglets : Tous / Formation·CPF / Examen */}
+      {!modeAttestations && <>
       <div className="flex gap-1.5 mt-4">
         {([
           ["tous", "Tous"],
@@ -379,6 +454,7 @@ export default function PageFactures() {
           Numérotation FAC-AAAA-NNNNN séquentielle sans trou, attribuée par le serveur — document comptable : aucune suppression possible.
         </p>
       </section>
+      </>}
     </main>
   );
 }
