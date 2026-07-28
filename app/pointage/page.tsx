@@ -69,38 +69,60 @@ export default function PagePointage() {
     finally { setBusy(false); }
   }
 
+  // Total travaillé aujourd'hui (somme des sessions du jour) — la pause déjeuner (l'écart entre
+  // deux sessions) n'est jamais comptée. `tick` force le recalcul chaque minute quand une session
+  // est ouverte. Fiable pour l'employé (ne voit que ses pointages) ; masqué en vue encadrement.
+  const todayISO = new Intl.DateTimeFormat("fr-CA", { timeZone: "Europe/Paris" }).format(new Date());
+  void tick;
+  const sessionsJour = pointages.filter((p) => p.jour === todayISO);
+  const totalMinJour = sessionsJour.reduce((s, p) => {
+    const fin = p.sortie_le ? new Date(p.sortie_le).getTime() : Date.now();
+    return s + Math.max(0, Math.round((fin - new Date(p.entree_le).getTime()) / 60000));
+  }, 0);
+  const totalJourFmt = `${Math.floor(totalMinJour / 60)}h${String(totalMinJour % 60).padStart(2, "0")}`;
+
   return (
     <main className="max-w-3xl mx-auto px-4 md:px-6 py-8">
       <header className="page-header">
         <div>
           <h1 className="page-title">Pointage</h1>
-          <p className="page-subtitle">{peutGerer ? "Pointe ton temps · suivi de l'équipe." : "Pointe ton entrée et ta sortie."}</p>
+          <p className="page-subtitle">{peutGerer ? "Pointe ton temps · suivi de l'équipe." : "Un geste : j'arrive → je pointe. Je pars (pause ou fin) → je pointe."}</p>
         </div>
       </header>
 
-      {/* Carte de pointage */}
-      <section className="border border-gray-200 rounded-xl bg-white p-5 mb-6">
+      {/* Carte de pointage — gros bouton, pensé téléphone */}
+      <section className="border border-gray-200 rounded-2xl bg-white p-5 mb-4">
+        {!peutGerer && (
+          <div className="mb-4 flex items-center justify-between rounded-xl bg-mystory-clair/60 px-4 py-2">
+            <span className="text-sm text-gray-600">Aujourd'hui <span className="text-gray-400">(hors pause déjeuner)</span></span>
+            <span className="text-xl font-bold text-mystory">{totalJourFmt}</span>
+          </div>
+        )}
         {session ? (
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex-1 min-w-[180px]">
-              <p className="text-sm text-gray-500">Entrée pointée à <span className="font-semibold text-gray-900">{heure(session.entree_le)}</span>{session.site ? ` · ${session.site}` : ""}</p>
-              <p className="text-2xl font-bold text-mystory mt-1">{duree(session.entree_le, null)}<span className="text-sm font-normal text-gray-400"> en cours{tick >= 0 ? "" : ""}</span></p>
+          <div className="space-y-3">
+            <div className="text-center">
+              <p className="text-sm text-gray-500">Entrée à <span className="font-semibold text-gray-900">{heure(session.entree_le)}</span>{session.site ? ` · ${session.site}` : ""}</p>
+              <p className="text-4xl font-bold text-mystory mt-1">{duree(session.entree_le, null)}<span className="text-base font-normal text-gray-400"> en cours</span></p>
             </div>
-            <button onClick={() => pointer("sortie")} disabled={busy} className="px-5 py-3 rounded-xl bg-gray-900 text-white text-sm font-semibold disabled:opacity-50">
-              {busy ? "…" : "Pointer ma sortie"}
+            <button onClick={() => pointer("sortie")} disabled={busy}
+              className="w-full py-5 rounded-2xl bg-gray-900 text-white text-lg font-bold active:scale-[0.99] transition disabled:opacity-50">
+              {busy ? "…" : "🚪 Je pointe ma sortie"}
             </button>
+            <p className="text-center text-xs text-gray-400">Tu pars déjeuner ? Pointe ta sortie, puis re-pointe en revenant — la pause n'est pas comptée.</p>
           </div>
         ) : (
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex-1 min-w-[180px]">
-              <p className="text-sm text-gray-500 mb-1">Aucune entrée en cours.</p>
-              <select value={site} onChange={(e) => setSite(e.target.value)} className="input">
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Où es-tu ?</label>
+              <select value={site} onChange={(e) => setSite(e.target.value)} className="input w-full text-base py-3">
                 {SITES.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
-            <button onClick={() => pointer("entree")} disabled={busy} className="btn-primary">
-              {busy ? "…" : "Pointer mon entrée"}
+            <button onClick={() => pointer("entree")} disabled={busy}
+              className="w-full py-5 rounded-2xl bg-mystory text-white text-lg font-bold active:scale-[0.99] transition disabled:opacity-50">
+              {busy ? "…" : "✅ Je pointe mon arrivée"}
             </button>
+            {sessionsJour.length > 0 && <p className="text-center text-xs text-gray-400">{sessionsJour.length} session(s) aujourd'hui · reviens de pause ? re-pointe simplement.</p>}
           </div>
         )}
       </section>
