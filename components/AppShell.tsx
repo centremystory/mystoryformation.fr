@@ -46,7 +46,7 @@ const NAV: Entree[] = [
       { href: "/calendrier", label: "Planning", icon: CalendarDays },
       { href: "/contenu-pedagogique", label: "Pédagogie", icon: BookOpen },
       { href: "/satisfaction-cours", label: "Satisfaction", icon: Star, membres: ["/bilan-satisfaction"] },
-      { href: "/tests/a-noter", label: "Tests", icon: ClipboardList, membres: ["/tests/banque"] },
+      { href: "/tests/tous", label: "Tests", icon: ClipboardList, membres: ["/tests/a-noter", "/tests/banque"] },
     ],
   },
   {
