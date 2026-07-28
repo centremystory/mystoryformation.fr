@@ -53,7 +53,7 @@ export default function MonRapportPage() {
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "8px 4px 60px" }}>
       <h1 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 2px" }}>Mon rapport de la semaine</h1>
-      <p style={{ color: "#667085", fontSize: 14, marginTop: 0 }}>Semaine du {lundiFr}. Remplis, pour chaque jour, ce que tu as fait le matin et l'après-midi.</p>
+      <p style={{ color: "#667085", fontSize: 14, marginTop: 0 }}>Semaine du {lundiFr}. Remplis, pour chaque jour, ce que tu as fait le matin et l'après-midi. Ta saisie remonte dans la <a href="/rapport-hebdo" style={{ color: BLEU, textDecoration: "underline" }}>synthèse hebdo</a> (visible par l'encadrement).</p>
 
       {!d ? <p style={{ color: "#98A2B3" }}>Chargement…</p> : (
         <>

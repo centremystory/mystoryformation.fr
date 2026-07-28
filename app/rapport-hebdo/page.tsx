@@ -25,7 +25,7 @@ export default function RapportHebdoPage() {
   const toast = useToast();
   const [lundi, setLundi] = useState<Date>(() => lundiDe(new Date()));
   const [employe, setEmploye] = useState<string>("");
-  const [data, setData] = useState<{ lignes: Ligne[]; taches: TacheFaite[]; employes: Employe[]; estEncadrement: boolean; dimanche: string } | null>(null);
+  const [data, setData] = useState<{ lignes: Ligne[]; taches: TacheFaite[]; employes: Employe[]; estEncadrement: boolean; dimanche: string; grilleJour?: { jour: string; creneau: string; activite: string }[] } | null>(null);
   const [activite, setActivite] = useState(""); const [duree, setDuree] = useState("");
   const [busy, setBusy] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -75,7 +75,11 @@ export default function RapportHebdoPage() {
     <div className="mx-auto max-w-3xl px-4 py-6">
       <div className="page-header">
         <h1 className="page-title">Rapport hebdomadaire</h1>
-        <p className="page-subtitle">Ce que tu as fait cette semaine et le temps passé. Les tâches que tu as clôturées s'ajoutent automatiquement.</p>
+        <p className="page-subtitle">Synthèse de la semaine : tâches clôturées + saisie quotidienne (page « Mon rapport ») + activités complémentaires. Tout remonte ici automatiquement.</p>
+      </div>
+
+      <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+        📌 La <b>saisie jour par jour</b> se fait dans <a href="/mon-rapport" className="underline font-medium">Mon rapport</a> — elle apparaît ci-dessous et se met à jour toute seule. Ajoute ici uniquement ce qui n'entre pas dans la grille (réunions, imprévus…).
       </div>
 
       <div className="card p-3 mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -121,6 +125,21 @@ export default function RapportHebdoPage() {
           <span className="text-sm font-semibold text-mystory">{heures(total)}</span>
         </div>
       </div>
+
+      {/* Saisie quotidienne (Mon rapport) — reflétée ici en lecture (fin de la désync). */}
+      {(data?.grilleJour?.length ?? 0) > 0 && (
+        <div className="card mt-4">
+          <div className="border-b p-3 text-sm font-semibold text-gray-700">Détail jour par jour <span className="font-normal text-gray-400">(saisi dans Mon rapport)</span></div>
+          <div className="divide-y">
+            {(data?.grilleJour ?? []).map((g, i) => (
+              <div key={i} className="flex items-start justify-between gap-3 p-3 text-sm">
+                <span className="w-40 shrink-0 text-gray-500">{fr(g.jour)} · {g.creneau === "matin" ? "Matin" : "Après-midi"}</span>
+                <span className="flex-1 text-gray-800">{g.activite}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {editable && (
         <div className="card p-3 mt-4 flex flex-wrap items-end gap-2">
