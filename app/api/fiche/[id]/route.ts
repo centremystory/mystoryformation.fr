@@ -177,6 +177,27 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ ok: true });
   }
 
+  // ── Coordonnées / identité éditables (toute l'équipe) ───────────────────
+  const CHAMPS_COORD = ["civilite", "adresse", "cp", "ville", "telephone", "email", "date_naissance", "ville_naissance"];
+  if (CHAMPS_COORD.some((c) => c in body)) {
+    let uu;
+    try { uu = await requireUser(req); }
+    catch (e) {
+      if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
+      throw e;
+    }
+    const maj: Record<string, unknown> = {};
+    for (const c of CHAMPS_COORD) {
+      if (!(c in body)) continue;
+      maj[c] = body[c] == null ? null : String(body[c]).trim() || null;
+    }
+    if ("civilite" in maj && maj.civilite && !["Madame", "Monsieur", "Autre"].includes(maj.civilite as string)) maj.civilite = null;
+    const { error } = await supabaseAdmin.from("stagiaires").update(maj).eq("id", params.id);
+    if (error) return NextResponse.json({ ok: false, erreur: "Enregistrement impossible." }, { status: 502 });
+    await journal("stagiaire", params.id, "coordonnees_maj", { champs: Object.keys(maj) }, uu.email ?? null);
+    return NextResponse.json({ ok: true });
+  }
+
   // ── Archiver / réactiver (Direction & Manager) ──────────────────────────
   let u;
   try { u = await requireRole(req, ["direction", "manager"]); }

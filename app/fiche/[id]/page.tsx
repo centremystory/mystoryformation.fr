@@ -205,6 +205,7 @@ export default function PageFiche() {
           <Info label="Adresse" valeur={[s.adresse, [s.cp, s.ville].filter(Boolean).join(" ")].filter(Boolean).join(", ") || "—"} />
           <Info label="Agence d'inscription" valeur={s.agence ?? "—"} />
         </dl>
+        <EditCoordonnees stagiaire={s} onMaj={(patch) => setFiche({ ...fiche, stagiaire: { ...fiche.stagiaire, ...patch } })} />
         <SuiviIdentite stagiaire={s} onMaj={(patch) => setFiche({ ...fiche, stagiaire: { ...fiche.stagiaire, ...patch } })} />
       </section>
 
@@ -428,7 +429,10 @@ export default function PageFiche() {
               <tbody>
                 {fiche.factures.map((f, i) => (
                   <tr key={(f.numero ?? "") + i} className="border-t border-gray-100">
-                    <td className="px-3 py-2 font-medium text-gray-800">{f.numero ?? "—"}</td>
+                    <td className="px-3 py-2 font-medium text-gray-800">
+                      {f.numero ?? "—"}
+                      {f.type === "attestation_paiement" && <span className="ml-1 badge bg-amber-50 text-amber-700 align-middle">Attestation de paiement</span>}
+                    </td>
                     <td className="px-3 py-2 text-gray-600">{f.designation ?? "—"}</td>
                     <td className="px-3 py-2 text-gray-700">{euro(f.montant)}</td>
                     <td className="px-3 py-2">
@@ -479,6 +483,49 @@ function Stat({ label, valeur, accent }: { label: string; valeur: string; accent
     <div className="card p-3">
       <p className="text-xs text-gray-400">{label}</p>
       <p className={`mt-1 text-lg font-semibold ${accent ? "text-amber-700" : "text-gray-900"}`}>{valeur}</p>
+    </div>
+  );
+}
+
+/** Édition des coordonnées client (adresse, cp, ville, tél, email, civilité) — toute l'équipe. */
+function EditCoordonnees({ stagiaire, onMaj }: { stagiaire: Stagiaire; onMaj: (patch: Partial<Stagiaire>) => void }) {
+  const [ouvert, setOuvert] = useState(false);
+  const [envoi, setEnvoi] = useState(false);
+  const [f, setF] = useState({
+    civilite: stagiaire.civilite ?? "", adresse: stagiaire.adresse ?? "", cp: stagiaire.cp ?? "",
+    ville: stagiaire.ville ?? "", telephone: stagiaire.telephone ?? "", email: stagiaire.email ?? "",
+  });
+  const set = (k: string, v: string) => setF((p) => ({ ...p, [k]: v }));
+  const champ = "border rounded px-2 py-1.5 w-full text-sm";
+  async function enregistrer() {
+    setEnvoi(true);
+    try {
+      const r = await fetch(`/api/fiche/${stagiaire.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(f) });
+      const j = await r.json();
+      if (j.ok) { onMaj(f as Partial<Stagiaire>); setOuvert(false); }
+    } finally { setEnvoi(false); }
+  }
+  if (!ouvert) return <button onClick={() => setOuvert(true)} className="mt-3 text-sm underline" style={{ color: BLEU }}>✏️ Modifier les coordonnées</button>;
+  return (
+    <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2 border-t pt-3">
+      <label className="text-xs text-gray-600">Civilité
+        <select className={champ} value={f.civilite} onChange={(e) => set("civilite", e.target.value)}>
+          <option value="">—</option><option>Madame</option><option>Monsieur</option><option>Autre</option>
+        </select></label>
+      <label className="text-xs text-gray-600 col-span-2 md:col-span-3">Adresse
+        <input className={champ} value={f.adresse} onChange={(e) => set("adresse", e.target.value)} /></label>
+      <label className="text-xs text-gray-600">Code postal
+        <input className={champ} value={f.cp} onChange={(e) => set("cp", e.target.value)} /></label>
+      <label className="text-xs text-gray-600">Ville
+        <input className={champ} value={f.ville} onChange={(e) => set("ville", e.target.value)} /></label>
+      <label className="text-xs text-gray-600">Téléphone
+        <input className={champ} value={f.telephone} onChange={(e) => set("telephone", e.target.value)} /></label>
+      <label className="text-xs text-gray-600">Email
+        <input className={champ} value={f.email} onChange={(e) => set("email", e.target.value)} /></label>
+      <div className="col-span-2 md:col-span-4 flex gap-2 mt-1">
+        <button onClick={enregistrer} disabled={envoi} className="btn-primary text-sm">{envoi ? "…" : "Enregistrer"}</button>
+        <button onClick={() => setOuvert(false)} className="text-sm text-gray-500 underline">Annuler</button>
+      </div>
     </div>
   );
 }
