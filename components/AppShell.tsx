@@ -19,7 +19,7 @@ import ReclamationsAlerte from "@/components/ReclamationsAlerte";
 import ConformiteAlerte from "@/components/ConformiteAlerte";
 import { SITES, COOKIE_SITE, siteValide } from "@/lib/sites";
 
-const PAGES_SANS_NAV = ["/connexion", "/qcm", "/positionnement", "/suivi", "/evaluation", "/fiche-besoin", "/emargement/signer", "/satisfaction", "/formateur-questionnaire", "/contact", "/partenaire", "/test"];
+const PAGES_SANS_NAV = ["/connexion", "/qcm", "/positionnement", "/suivi", "/evaluation", "/fiche-besoin", "/emargement/signer", "/satisfaction", "/avis-cours", "/formateur-questionnaire", "/contact", "/partenaire", "/test"];
 
 // `membres` = pages fusionnées derrière ce lien (accessibles via sous-onglets de la page).
 // Le lien s'affiche si l'utilisateur accède à href OU à un membre ; il pointe alors vers
