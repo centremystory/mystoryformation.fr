@@ -128,7 +128,7 @@ export async function checkConformite(dossierId: string): Promise<GateResult> {
   const list = (formules ?? []) as Array<{ prix_eur: number; financement: string }>;
   const ref = list.find((f) => f.financement === finDossier) ?? list.find((f) => f.financement === "cpf") ?? list[0];
   if (!ref) {
-    recap.push(`Aucune formule officielle pour ${d.heures_prevues} h (${(d as any).certif}). Formules valides : 6 h, 18 h, 30 h, 42 h.`);
+    recap.push(`Aucune formule officielle pour ${d.heures_prevues} h (${(d as any).certif}). Durées v6 valides : 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 45 h.`);
   } else if (isCpf && Number(ref.prix_eur) !== Number(d.montant)) {
     recap.push(`Tarif CPF non conforme : la formule ${d.heures_prevues} h doit être facturée ${ref.prix_eur} € (dossier : ${d.montant} €).`);
   } else if (!isCpf && Number(d.montant) > Number(ref.prix_eur)) {

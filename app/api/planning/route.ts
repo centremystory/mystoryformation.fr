@@ -9,7 +9,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireUser, UnauthorizedError } from "@/lib/auth";
-import { validerPlanning, type CodeFormule, type SeanceInput } from "@/lib/inscriptions/regles";
+import { validerPlanning, formuleParHeures, type SeanceInput } from "@/lib/inscriptions/regles";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -132,7 +132,7 @@ export async function PATCH(req: NextRequest) {
     seanceInput(p.id === id ? newDate : p.date_seance, p.id === id ? newDemi : p.demi_journee, Number(p.heures))
   );
 
-  const code = ({ 6: "6H", 18: "18H", 30: "30H", 42: "42H" } as Record<number, CodeFormule>)[Number(dossier.heures_prevues)];
+  const code = formuleParHeures(Number(dossier.heures_prevues));
   if (!code) return NextResponse.json({ ok: false, erreur: "Formule du dossier non reconnue." }, { status: 409 });
 
   const v = validerPlanning(code, reconstruit, dossier.date_validation_commande ?? null);
