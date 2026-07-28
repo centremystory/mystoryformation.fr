@@ -12,7 +12,7 @@ import {
   FileSpreadsheet, UserCog, MessageSquare, MessageCircle, Megaphone, Eye, HelpCircle, KeyRound, AlertTriangle,
   Workflow, ScrollText, LogOut, Menu, X, ChevronDown,
   Plus, FileCheck, RotateCcw, Trophy, UserPlus, Phone, ShieldCheck, BarChart3, TrendingUp, QrCode, Sparkles, } from "lucide-react";
-import { accesPage, ROLE_LABEL } from "@/lib/roles";
+import { accesPage, accesPageAvec, ROLE_LABEL } from "@/lib/roles";
 import TachesUrgentes from "@/components/TachesUrgentes";
 import RituelDuJour from "@/components/RituelDuJour";
 import ReclamationsAlerte from "@/components/ReclamationsAlerte";
@@ -100,6 +100,7 @@ const NAV: Entree[] = [
   {
     type: "menu", label: "Système", icon: Settings, items: [
       { href: "/comptes", label: "Comptes", icon: KeyRound },
+      { href: "/permissions", label: "Accès par rôle", icon: ShieldCheck },
       { href: "/incidents", label: "Incidents", icon: AlertTriangle },
       { href: "/automatisations", label: "Automatisations", icon: Workflow },
       { href: "/journal", label: "Journal", icon: ScrollText },
@@ -172,6 +173,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [role, setRole] = useState<string | null | undefined>(undefined);
   const [roles, setRoles] = useState<string[] | undefined>(undefined);
   const [email, setEmail] = useState<string | null | undefined>(undefined);
+  const [permMap, setPermMap] = useState<Record<string, string[]> | null>(null);
   const [site, setSite] = useState<string>("");
   const [drawer, setDrawer] = useState(false);
   const [ouverts, setOuverts] = useState<string[]>([]);
@@ -189,8 +191,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     setSite(siteValide(m ? decodeURIComponent(m.split("=").slice(1).join("=")) : ""));
   }, []);
 
+  // Permissions effectives (défauts + overrides self-service) pour la visibilité des onglets.
+  useEffect(() => {
+    let vivant = true;
+    fetch("/api/permissions/public").then((r) => r.json()).then((j) => { if (vivant && j?.ok) setPermMap(j.map ?? {}); }).catch(() => {});
+    return () => { vivant = false; };
+  }, []);
+
   const navVisible = useMemo(() => {
-    const acces = (href: string) => accesPage(roles ?? role, email, href);
+    const acces = (href: string) => (permMap ? accesPageAvec(roles ?? role, email, href, permMap) : accesPage(roles ?? role, email, href));
     // Un lien fusionné est visible si href OU un membre est accessible ; il pointe alors vers la 1ʳᵉ page accessible.
     const visible = (l: { href: string; membres?: string[] }) => acces(l.href) || (l.membres ?? []).some(acces);
     const resolu = <T extends { href: string; membres?: string[] }>(l: T): T => ({ ...l, href: [l.href, ...(l.membres ?? [])].find(acces) ?? l.href });
@@ -198,9 +207,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       .map((e) => (e.type === "menu" ? { ...e, items: e.items.filter(visible).map(resolu) } : e))
       .filter((e) => (e.type === "link" ? visible(e) : (e as { items: Lien[] }).items.length > 0))
       .map((e) => (e.type === "link" ? resolu(e) : e));
-  }, [role, roles, email]);
+  }, [role, roles, email, permMap]);
 
-  const actionsRapides = useMemo(() => ACTIONS_RAPIDES.filter((a) => accesPage(roles ?? role, email, a.href)), [role, roles, email]);
+  const actionsRapides = useMemo(() => ACTIONS_RAPIDES.filter((a) => (permMap ? accesPageAvec(roles ?? role, email, a.href, permMap) : accesPage(roles ?? role, email, a.href))), [role, roles, email, permMap]);
 
   // Ouvre automatiquement le groupe contenant la page active.
   useEffect(() => {

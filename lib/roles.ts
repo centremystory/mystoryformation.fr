@@ -97,6 +97,7 @@ export const PAGE_PERMISSIONS: Record<string, Role[]> = {
   "/assistant": ["direction", "manager"],
   // — Direction seule —
   "/comptes": ["direction"],
+  "/permissions": ["direction"],
   "/journal": ["direction"],
   "/bpf": ["direction"],
   "/classement": ["direction"],          // CA & primes globaux (vue par site -> multi-sites)
@@ -199,4 +200,66 @@ export function accesPage(
   const p = pathname.split("?")[0]; // ignore la query (ex. /reclamations?type=examen → /reclamations)
   if (pageEstProprietaire(p)) return estProprietaire(email); // finance = email exact, aucun filet
   return peutVoirPage(role, p);
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * PERMISSIONS SELF-SERVICE (overrides DB, tighten-only vs PAGE_PERMISSIONS).
+ * Édité dans /permissions ; propagé au middleware Edge via /api/permissions/public.
+ * Garde-fous : (1) finance/BPF hors matrice (verrou propriétaire) ; (2) /comptes hors
+ * matrice ; (3) la Direction n'est JAMAIS retirable d'une page (anti-lockout).
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/** Pages dont les accès sont ajustables en self-service (hors finance + /comptes). */
+export const PAGES_EDITABLES: string[] = Object.keys(PAGE_PERMISSIONS)
+  .filter((k) => !pageEstProprietaire(k) && k !== "/comptes");
+
+/** Libellés lisibles pour l'éditeur de permissions. */
+export const PAGE_LABELS: Record<string, string> = {
+  "/assistant": "Assistant IA", "/journal": "Journal", "/incidents": "Incidents",
+  "/factures": "Factures", "/examens/remboursements": "Reports · remb. · annul.", "/examens/croise": "Examens (croisé)",
+  "/inscriptions": "Inscrire un stagiaire", "/ventes-formation": "Ventes formation", "/cockpit-commercial": "Cockpit commercial",
+  "/messages": "Messages (prospects)", "/attestations-paiement": "Attestations de paiement", "/reclamations": "Réclamations",
+  "/anomalies": "Anomalies", "/dossiers/conformite": "Dossiers · conformité", "/dossiers/edof": "Dossiers · EDOF",
+  "/edof": "EDOF (import)", "/direction": "Direction (cockpit)", "/catalogue": "Catalogue & tarifs", "/reglages": "Réglages",
+  "/centres": "Centres", "/dossiers": "Dossiers", "/formation": "Tableau de bord Formation", "/programmes": "Programmes",
+  "/contenu-pedagogique": "Pédagogie", "/suivi-eleves": "Suivi élèves", "/tests/tous": "Tous les tests",
+  "/tests/a-noter": "Tests à noter", "/tests/banque": "Banque de tests", "/satisfaction-cours": "Satisfaction (cours)",
+  "/emargement": "Suivi des cours (émargement)", "/formateurs": "Formateurs", "/confidentialite": "Confidentialité",
+  "/planning-employes": "Planning équipe", "/pointage": "Pointage", "/equipe": "Équipe", "/automatisations": "Automatisations",
+};
+
+/** Fusionne les défauts (code) avec les overrides (DB). Tighten-only + Direction inamovible. */
+export function effectivePageRoles(overrides: Record<string, string[]>): Record<string, Role[]> {
+  const out: Record<string, Role[]> = {};
+  for (const [cle, def] of Object.entries(PAGE_PERMISSIONS)) {
+    const ov = overrides[cle];
+    if (!ov || pageEstProprietaire(cle) || cle === "/comptes") { out[cle] = def; continue; }
+    const restreint = def.filter((r) => ov.includes(r)); // ⊆ défaut (tighten-only)
+    if (def.includes("direction") && !restreint.includes("direction")) restreint.unshift("direction"); // anti-lockout
+    out[cle] = restreint as Role[];
+  }
+  return out;
+}
+
+/** Comme peutVoirPage, mais avec une map effective déjà résolue (middleware Edge / nav). */
+export function peutVoirPageAvec(role: string | string[] | undefined | null, pathname: string, map: Record<string, string[]>): boolean {
+  const rs = asRoles(role);
+  if (rs.length === 0 || rs.includes("staff")) return true;
+  const cles = Object.keys(map).sort((a, b) => b.length - a.length);
+  for (const cle of cles) {
+    if (pathname === cle || pathname.startsWith(cle + "/")) return rs.some((r) => map[cle].includes(r));
+  }
+  return true;
+}
+
+/** accesPage avec map effective (rôles + verrou propriétaire). Utilisé middleware + nav. */
+export function accesPageAvec(
+  role: string | string[] | undefined | null,
+  email: string | undefined | null,
+  pathname: string,
+  map: Record<string, string[]>,
+): boolean {
+  const p = pathname.split("?")[0];
+  if (pageEstProprietaire(p)) return estProprietaire(email);
+  return peutVoirPageAvec(role, p, map);
 }
