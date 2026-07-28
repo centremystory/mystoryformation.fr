@@ -7,7 +7,7 @@ const BLEU = "#2F72DE";
 type Test = {
   id: string; civilite: string | null; nom: string | null; prenom: string | null; email: string | null;
   phase: string | null; niveau_vise: string | null; cree_le: string | null; jours: number | null;
-  commentaire_suivi: string | null;
+  commentaire_suivi: string | null; auteur: string | null;
 };
 
 export default function RelancesTestsPage() {
@@ -70,6 +70,7 @@ export default function RelancesTestsPage() {
                       <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999, background: estFinal ? "#FEF3C7" : "#EAF1FC", color: estFinal ? "#B45309" : BLEU }}>
                         {estFinal ? "Test final" : "Test initial"}
                       </span>
+                      {t.auteur === "site" && <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999, background: "#DCFCE7", color: "#15803D" }} title="Lead venu du site vitrine — à convertir en formation">🌐 Site</span>}
                       {nom} {t.niveau_vise && <span style={{ color: "#98A2B3", fontWeight: 400 }}>· objectif {t.niveau_vise}</span>}
                     </div>
                     <div style={{ fontSize: 12, color: retard ? "#B54708" : "#98A2B3" }}>{t.email} · envoyé il y a {t.jours ?? "?"} j{retard ? " ⚠️" : ""}</div>

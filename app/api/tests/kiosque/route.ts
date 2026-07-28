@@ -43,7 +43,9 @@ export async function POST(req: NextRequest) {
 
   const source = String(body?.source ?? "") === "sur_place" ? "sur_place" : "distance";
   const accompagnant = body?.accompagnant ? String(body.accompagnant).trim().slice(0, 80) : null;
-  const auteurEval = source === "sur_place" ? `sur_place:${accompagnant ?? "conseiller"}` : "distance";
+  // Lead venu du site vitrine (?source=site) : tracé « site » pour le suivi commercial (à convertir).
+  const viaSite = String(body?.origine ?? "") === "site";
+  const auteurEval = viaSite ? "site" : source === "sur_place" ? `sur_place:${accompagnant ?? "conseiller"}` : "distance";
   const { data: ev, error } = await supabaseAdmin.from("evaluations").insert({
     test_id: t.id, phase: "initial", dossier_id: null,
     nom, prenom, email, telephone, civilite, niveau_vise, adresse, cp, ville, statut: "en_cours", auteur: auteurEval,

@@ -15,6 +15,8 @@ export default function AccueilTestPage() {
   const [f, setF] = useState({ civilite: "", prenom: "", nom: "", email: "", telephone: "", niveau_vise: "", accompagnant: "" });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // Origine du lead : ?source=site quand le test est lancé depuis le site vitrine (suivi commercial).
+  const origine = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("source") === "site" ? "site" : null;
 
   function set(k: string, v: string) { setF((p) => ({ ...p, [k]: v })); }
 
@@ -27,7 +29,7 @@ export default function AccueilTestPage() {
     try {
       const r = await fetch("/api/tests/kiosque", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...f, source: mode }),
+        body: JSON.stringify({ ...f, source: mode, origine }),
       });
       const j = await r.json();
       if (!j.ok) throw new Error(j.erreur ?? "Impossible de démarrer le test.");
