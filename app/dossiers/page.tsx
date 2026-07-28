@@ -133,6 +133,14 @@ export default function PageDossiers() {
   const [filtreTunnel, setFiltreTunnel] = useState<string>("tous");
   const [ouvert, setOuvert] = useState<string | null>(null);
   const [nbAffiche, setNbAffiche] = useState(100);
+  const [peutGerer, setPeutGerer] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/me", { cache: "no-store" }).then((r) => r.json()).then((j) => {
+      const roles: string[] = j?.user?.roles ?? (j?.user?.role ? [j.user.role] : []);
+      setPeutGerer(roles.length === 0 || roles.includes("direction") || roles.includes("manager") || roles.includes("staff"));
+    }).catch(() => {});
+  }, []);
 
   const charger = useCallback(async () => {
     try {
@@ -265,6 +273,7 @@ export default function PageDossiers() {
                   estOuvert={ouvert === d.id}
                   onToggle={() => setOuvert(ouvert === d.id ? null : d.id)}
                   recharger={charger}
+                  peutGerer={peutGerer}
                 />
               ))}
             </tbody>
@@ -476,10 +485,21 @@ function ClotureFormation({ dossierId, recharger }: { dossierId: string; recharg
 }
 
 function LigneDossier({
-  d, estOuvert, onToggle, recharger,
+  d, estOuvert, onToggle, recharger, peutGerer,
 }: {
-  d: Dossier; estOuvert: boolean; onToggle: () => void; recharger: () => Promise<void>;
+  d: Dossier; estOuvert: boolean; onToggle: () => void; recharger: () => Promise<void>; peutGerer?: boolean;
 }) {
+  const [suppr, setSuppr] = useState(false);
+  async function supprimer() {
+    if (!confirm(`Archiver ce dossier de ${d.stagiaires ? `${d.stagiaires.prenom ?? ""} ${d.stagiaires.nom}`.trim() : "ce stagiaire"} ?\n\nIl disparaît des listes mais rien n'est supprimé (réversible). OK ?`)) return;
+    setSuppr(true);
+    try {
+      const r = await fetch(`/api/dossiers/${d.id}`, { method: "DELETE" });
+      const j = await r.json();
+      if (!j.ok) { alert(j.erreur || "Échec."); setSuppr(false); return; }
+      await recharger();
+    } catch { alert("Échec de la suppression."); setSuppr(false); }
+  }
   const obligatoires = (d.pieces ?? []).filter((p) => !p.optionnelle);
   const faites = obligatoires.filter(pieceFaite).length;
   const pct = obligatoires.length ? Math.round((faites / obligatoires.length) * 100) : 0;
@@ -542,6 +562,14 @@ function LigneDossier({
             <PiecesActions d={d} recharger={recharger} />
             <ClotureFormation dossierId={d.id} recharger={recharger} />
             <SeancesAccueil dossierId={d.id} stagiaireId={d.stagiaire_id} />
+            {peutGerer && (
+              <div className="mt-3 flex items-center justify-end">
+                <button onClick={supprimer} disabled={suppr}
+                  className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50">
+                  {suppr ? "Archivage…" : "🗑 Archiver / supprimer ce dossier"}
+                </button>
+              </div>
+            )}
             <div className="mt-3 rounded-xl border border-gray-200 bg-white p-3 text-sm">
               <p className="mb-2 font-semibold text-gray-800">Tests &amp; évaluations</p>
               <div className="grid gap-1 sm:grid-cols-2">
