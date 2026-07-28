@@ -6,11 +6,12 @@ type R = {
   id: string; type: string; montant: number; motif: string; statut: string;
   override_7j: boolean; avoir_numero: string | null; avoir_url: string | null;
   created_by: string | null; cree_le: string; decided_by: string | null;
-  ventes_examen?: any;
+  ventes_examen?: any; nouvelle_session?: { date_examen: string; horaire: string | null } | null;
 };
+type Session = { id: string; date_examen: string; horaire: string | null; type: string; restantes?: number | null; centre_nom?: string | null };
 
 const TYPE_LABEL: Record<string, string> = {
-  report: "Report", remboursement_total: "Remb. total", remboursement_partiel: "Remb. partiel", avoir: "Avoir",
+  report: "Report", remboursement_total: "Remb. total", remboursement_partiel: "Remb. partiel", avoir: "Avoir", annulation: "Annulation",
 };
 const STATUT_BADGE: Record<string, string> = {
   demande: "bg-amber-100 text-amber-800", valide: "bg-blue-100 text-blue-700",
@@ -31,6 +32,15 @@ export default function PageRemboursements() {
   const [montant, setMontant] = useState("");
   const [motif, setMotif] = useState("");
   const [override, setOverride] = useState(false);
+  const [nouvelleSessionId, setNouvelleSessionId] = useState("");
+  const [sessions, setSessions] = useState<Session[]>([]);
+
+  // Sessions à venir (pour reprogrammer un report) — chargées quand on choisit « Report ».
+  useEffect(() => {
+    if (type !== "report" || sessions.length > 0) return;
+    fetch("/api/examens/sessions", { cache: "no-store" })
+      .then((r) => r.json()).then((j) => { if (j.ok) setSessions(j.sessions ?? []); }).catch(() => {});
+  }, [type, sessions.length]);
 
   const charger = useCallback(async () => {
     setCharge(true);
@@ -50,7 +60,7 @@ export default function PageRemboursements() {
     try {
       const r = await fetch("/api/examens/remboursements", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ numeroAttestation: numero.trim(), type, montant: montant ? Number(montant) : undefined, motif, override }),
+        body: JSON.stringify({ numeroAttestation: numero.trim(), type, montant: montant ? Number(montant) : undefined, motif, override, nouvelleSessionId: type === "report" ? (nouvelleSessionId || undefined) : undefined }),
       });
       const j = await r.json();
       if (!j.ok) {
@@ -58,7 +68,7 @@ export default function PageRemboursements() {
         if (j.besoinOverride) setOverride(true);
         return;
       }
-      setNumero(""); setMontant(""); setMotif(""); setOverride(false); setMsg("Demande créée ✅");
+      setNumero(""); setMontant(""); setMotif(""); setOverride(false); setNouvelleSessionId(""); setMsg("Demande créée ✅");
       await charger();
     } finally { setBusy(null); }
   }
@@ -79,8 +89,8 @@ export default function PageRemboursements() {
 
   return (
     <main className="max-w-4xl mx-auto px-4 md:px-6 py-8">
-      <h1 className="page-title">Reports & remboursements</h1>
-      <p className="text-sm text-gray-500 mb-5">Report, remboursement (total/partiel) et avoir — avec garde-fou des 7 jours.</p>
+      <h1 className="page-title">Reports · remboursements · annulations</h1>
+      <p className="text-sm text-gray-500 mb-5">Reprogrammer (report), rembourser (total/partiel), avoir ou annuler un examen — avec garde-fou des 7 jours.</p>
 
       {/* Création */}
       <section className="card mb-6">
@@ -91,9 +101,20 @@ export default function PageRemboursements() {
             <option value="remboursement_total">Remboursement total</option>
             <option value="remboursement_partiel">Remboursement partiel</option>
             <option value="avoir">Avoir</option>
-            <option value="report">Report</option>
+            <option value="report">Report (reprogrammer)</option>
+            <option value="annulation">Annulation</option>
           </select>
           {besoinMontant && <input value={montant} onChange={(e) => setMontant(e.target.value)} type="number" step="0.01" placeholder="Montant €" className="input" />}
+          {type === "report" && (
+            <select value={nouvelleSessionId} onChange={(e) => setNouvelleSessionId(e.target.value)} className="input sm:col-span-2">
+              <option value="">Nouvelle session (facultatif — reprogrammé à l'exécution)</option>
+              {sessions.map((s) => {
+                const d = new Date(s.date_examen + "T00:00:00").toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "short" });
+                const restantes = s.restantes != null ? ` · ${s.restantes} places` : "";
+                return <option key={s.id} value={s.id}>{d}{s.horaire ? ` ${s.horaire}` : ""} · {s.type}{s.centre_nom ? ` · ${s.centre_nom}` : ""}{restantes}</option>;
+              })}
+            </select>
+          )}
           <input value={motif} onChange={(e) => setMotif(e.target.value)} placeholder="Motif (obligatoire)" className="input sm:col-span-2" />
         </div>
         <label className="flex items-center gap-2 mt-3 text-sm text-gray-600">
@@ -140,6 +161,9 @@ export default function PageRemboursements() {
                   <span className="text-xs text-gray-400">{new Date(r.cree_le).toLocaleDateString("fr-FR")}</span>
                 </div>
                 <p className="text-sm text-gray-600 mt-1">{r.motif}</p>
+                {r.type === "report" && r.nouvelle_session && (
+                  <p className="text-xs text-blue-700 mt-1">→ reprogrammé au {new Date(r.nouvelle_session.date_examen + "T00:00:00").toLocaleDateString("fr-FR")}{r.nouvelle_session.horaire ? ` ${r.nouvelle_session.horaire}` : ""}</p>
+                )}
                 <div className="flex flex-wrap items-center gap-3 mt-2 text-sm">
                   {r.statut === "demande" && (
                     <>
