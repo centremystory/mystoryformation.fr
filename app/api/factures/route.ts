@@ -39,6 +39,19 @@ function peutFacturer(u: SessionUser): boolean {
 export async function GET(req: NextRequest) {
   const g = await garde(req); if (g instanceof NextResponse) return g;
 
+  // Vue « Attestations de paiement » : TOUTES les attestations (pas seulement les 50 dernières
+  // du registre mixte), pour que l'attestation de chacun soit visible.
+  if (new URL(req.url).searchParams.get("attestations") === "1") {
+    const { data: att, error: eAtt } = await supabaseAdmin
+      .from("factures")
+      .select("id, numero, montant, client, statut, date_emission, date_paiement, dossier_id, serie")
+      .eq("type", "attestation_paiement")
+      .order("date_emission", { ascending: false })
+      .limit(1000);
+    if (eAtt) return NextResponse.json({ ok: false, erreur: eAtt.message }, { status: 500 });
+    return NextResponse.json({ ok: true, attestations: att ?? [] });
+  }
+
   const { data: factures, error } = await supabaseAdmin
     .from("factures")
     .select("id, numero, montant, designation, client, statut, date_emission, date_paiement, dossier_id, vente_id, type, serie, facture_lignes ( designation, montant, quantite, prix_unitaire, ordre )")
@@ -78,6 +91,26 @@ export async function GET(req: NextRequest) {
         motifBlocage: estCpf && !d.service_fait_valide ? "CPF : en attente du service fait validé EDOF" : null,
       };
     });
+
+  // Rappel « fin de formation » : marque les dossiers CPF dont la dernière séance est passée
+  // (formation terminée) mais qui ne sont pas encore facturés → à valider le service fait + facturer.
+  const idsAFacturer = aFacturer.map((d: any) => d.dossierId);
+  if (idsAFacturer.length) {
+    const { data: pl } = await supabaseAdmin
+      .from("planning").select("dossier_id, date_seance").in("dossier_id", idsAFacturer);
+    const derniereParDossier = new Map<string, string>();
+    for (const p of (pl ?? []) as any[]) {
+      if (!p.date_seance) continue;
+      const cur = derniereParDossier.get(p.dossier_id);
+      if (!cur || p.date_seance > cur) derniereParDossier.set(p.dossier_id, p.date_seance);
+    }
+    const auj = new Intl.DateTimeFormat("fr-CA", { timeZone: "Europe/Paris" }).format(new Date());
+    for (const d of aFacturer as any[]) {
+      const derniere = derniereParDossier.get(d.dossierId) ?? null;
+      d.derniereSeance = derniere;
+      d.terminee = !!derniere && derniere < auj; // dernière séance passée
+    }
+  }
 
   // Ventes d'examen sans facture (rattrapage : la facturation est automatique à la vente).
   const { data: ventes } = await supabaseAdmin
