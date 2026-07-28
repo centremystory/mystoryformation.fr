@@ -84,6 +84,7 @@ export async function checkConformite(dossierId: string): Promise<GateResult> {
     .select(`
       certif, financement, montant, reste_a_charge_accepte, numero_edof,
       heures_prevues, heures_edof, date_validation_commande, formatrice_id,
+      participation_forfaitaire_reglee, participation_forfaitaire_exemptee,
       formatrice:formatrices!formatrice_id ( nom, justificatif_fle ),
       planning ( date_seance, heures )
     `)
@@ -95,6 +96,12 @@ export async function checkConformite(dossierId: string): Promise<GateResult> {
   // Plafond CPF
   if (d.financement === "CPF" && Number(d.montant) > 1500 && !d.reste_a_charge_accepte) {
     recap.push(`Plafond CPF dépassé (${d.montant} €) sans reste à charge accepté.`);
+  }
+
+  // Participation forfaitaire CPF (obligatoire depuis 2024) : convention + documents officiels
+  // bloqués tant qu'elle n'est pas encaissée OU le stagiaire exonéré (ex. demandeur d'emploi).
+  if (d.financement === "CPF" && !(d as any).participation_forfaitaire_reglee && !(d as any).participation_forfaitaire_exemptee) {
+    recap.push("Participation forfaitaire CPF non réglée — à encaisser ou à exonérer (demandeur d'emploi) avant l'envoi de la convention.");
   }
 
   // Heures prévues = Σ planning
@@ -158,4 +165,23 @@ export async function checkConformite(dossierId: string): Promise<GateResult> {
   }
 
   return { ok: recap.length === 0, recap };
+}
+
+/**
+ * Participation forfaitaire CPF bloquante pour la génération d'un document officiel ?
+ * Renvoie le message à afficher (409) si le dossier est CPF et que la participation n'est
+ * ni réglée ni exonérée ; null sinon. Partagé avec checkConformite pour une règle unique.
+ */
+export async function participationCpfBloquante(dossierId: string): Promise<string | null> {
+  const { data } = await supabaseAdmin
+    .from("dossiers")
+    .select("financement, participation_forfaitaire_reglee, participation_forfaitaire_exemptee")
+    .eq("id", dossierId)
+    .single();
+  if (!data) return null;
+  const d = data as any;
+  if (d.financement === "CPF" && !d.participation_forfaitaire_reglee && !d.participation_forfaitaire_exemptee) {
+    return "Participation forfaitaire CPF non réglée — à encaisser ou à exonérer (demandeur d'emploi) avant de générer ce document.";
+  }
+  return null;
 }

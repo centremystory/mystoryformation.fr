@@ -167,6 +167,8 @@ export async function POST(req: NextRequest) {
     const majDossier: Record<string, unknown> = {};
     if (remise > 0 && estDir) { majDossier.remise = remise; majDossier.remise_motif = remiseMotif; }
     if (formatriceLibre) majDossier.formatrice_libre = formatriceLibre; // intervenante indépendante (référente FLE conservée)
+    // Participation forfaitaire encaissée directement à l'inscription (CPF uniquement).
+    if (inscription.financement === "CPF" && inscription.participationReglee === true) majDossier.participation_forfaitaire_reglee = true;
     const venduPar = String(inscription.venduPar ?? "").trim().slice(0, 100) || null;
     if (venduPar) majDossier.vendu_par = venduPar; // vendeur (prénom) pour le classement global
     if (Object.keys(majDossier).length > 0) {
