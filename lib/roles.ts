@@ -196,6 +196,7 @@ export function accesPage(
   email: string | undefined | null,
   pathname: string,
 ): boolean {
-  if (pageEstProprietaire(pathname)) return estProprietaire(email); // finance = email exact, aucun filet
-  return peutVoirPage(role, pathname);
+  const p = pathname.split("?")[0]; // ignore la query (ex. /reclamations?type=examen → /reclamations)
+  if (pageEstProprietaire(p)) return estProprietaire(email); // finance = email exact, aucun filet
+  return peutVoirPage(role, p);
 }
