@@ -40,18 +40,26 @@ const badgeStatut: Record<Reclamation["statut"], string> = {
 };
 const libStatut: Record<Reclamation["statut"], string> = { ouverte: "Ouverte", en_cours: "En cours", resolue: "Résolue" };
 
+// Domaine passé par l'URL (?type=examen|formation) — les menus Examen/Formation pointent ici filtré.
+function domaineDeLURL(): "examen" | "formation" | null {
+  if (typeof window === "undefined") return null;
+  const t = new URLSearchParams(window.location.search).get("type");
+  return t === "examen" || t === "formation" ? t : null;
+}
+
 export default function PageReclamations() {
   const [items, setItems] = useState<Reclamation[]>([]);
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
-  const [fType, setFType] = useState<string>("tous");
+  const [domaineURL] = useState<"examen" | "formation" | null>(domaineDeLURL);
+  const [fType, setFType] = useState<string>(() => domaineDeLURL() ?? "tous");
   const [fStatut, setFStatut] = useState<string>("actives");
 
   const [ouvertForm, setOuvertForm] = useState(false);
   const [form, setForm] = useState({
-    type: "examen", candidat_prenom: "", candidat_nom: "", candidat_telephone: "", candidat_email: "",
+    type: (domaineDeLURL() ?? "examen") as string, candidat_prenom: "", candidat_nom: "", candidat_telephone: "", candidat_email: "",
     objet: "", detail: "", priorite: "normale", agence: "",
   });
 
@@ -110,8 +118,13 @@ export default function PageReclamations() {
             <MessageSquareWarning size={22} strokeWidth={1.75} />
           </div>
           <div>
-            <h1 className="page-title text-2xl">Réclamations</h1>
-            <p className="page-subtitle">Candidats à l&apos;examen et stagiaires en formation.</p>
+            <h1 className="page-title text-2xl">
+              {domaineURL === "examen" ? "Réclamations examen" : domaineURL === "formation" ? "Réclamations formation" : "Réclamations"}
+            </h1>
+            <p className="page-subtitle">
+              {domaineURL === "examen" ? "Candidats à l’examen." : domaineURL === "formation" ? "Stagiaires en formation." : "Candidats à l’examen et stagiaires en formation."}
+              {domaineURL && <> · <a href="/reclamations" className="text-mystory underline">voir toutes</a></>}
+            </p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">

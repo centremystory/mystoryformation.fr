@@ -45,6 +45,7 @@ const NAV: Entree[] = [
       { href: "/catalogue", label: "Catalogue & tarifs", icon: Receipt },
       { href: "/emargement", label: "Suivi des cours", icon: ClipboardCheck },
       { href: "/suivi-eleves", label: "Suivi élèves", icon: Users },
+      { href: "/reclamations?type=formation", label: "Réclamations formation", icon: MessageCircle },
       { href: "/calendrier", label: "Planning", icon: CalendarDays },
       { href: "/contenu-pedagogique", label: "Pédagogie", icon: BookOpen },
       { href: "/programmes", label: "Programmes", icon: BookOpen },
@@ -66,6 +67,7 @@ const NAV: Entree[] = [
       { href: "/examens/corrections", label: "Résultats", icon: FileCheck },
       { href: "/examens/taux", label: "Taux & stats", icon: BarChart3 },
       { href: "/examens/remboursements", label: "Remboursements", icon: RotateCcw },
+      { href: "/reclamations?type=examen", label: "Réclamations examen", icon: MessageCircle },
     ],
   },
   {
