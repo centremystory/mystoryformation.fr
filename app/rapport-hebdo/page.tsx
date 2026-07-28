@@ -21,6 +21,18 @@ function heures(min: number): string {
   return h > 0 ? (m > 0 ? `${h} h ${m}` : `${h} h`) : `${m} min`;
 }
 
+// Tâches courantes de l'équipe (activité + durée) — ajout en 1 clic.
+const PRESETS: { emoji: string; activite: string; minutes: number }[] = [
+  { emoji: "🎓", activite: "Cours / formation", minutes: 180 },
+  { emoji: "📝", activite: "Corrections de tests", minutes: 60 },
+  { emoji: "📞", activite: "Relances téléphoniques", minutes: 30 },
+  { emoji: "🧾", activite: "Inscription / vente", minutes: 30 },
+  { emoji: "🙋", activite: "Accueil & renseignements", minutes: 30 },
+  { emoji: "🗂️", activite: "Administratif / dossiers", minutes: 60 },
+  { emoji: "🎫", activite: "Examen (surveillance)", minutes: 120 },
+  { emoji: "👥", activite: "Réunion équipe", minutes: 60 },
+];
+
 export default function RapportHebdoPage() {
   const toast = useToast();
   const [lundi, setLundi] = useState<Date>(() => lundiDe(new Date()));
@@ -51,6 +63,20 @@ export default function RapportHebdoPage() {
       const j = await r.json();
       if (!j.ok) { setErreur(j.erreur || "Ajout impossible."); return; }
       setActivite(""); setDuree(""); await charger();
+    } finally { setBusy(false); }
+  }
+
+  // Ajout rapide : tâches courantes pré-remplies avec leur durée (1 clic, pensé salariés).
+  async function ajoutRapide(act: string, minutes: number) {
+    setBusy(true); setErreur(null);
+    try {
+      const r = await fetch("/api/rapport-hebdo", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ semaine: isoJour(lundi), activite: act, duree_minutes: minutes }),
+      });
+      const j = await r.json();
+      if (!j.ok) { setErreur(j.erreur || "Ajout impossible."); return; }
+      await charger();
     } finally { setBusy(false); }
   }
 
@@ -142,9 +168,19 @@ export default function RapportHebdoPage() {
       )}
 
       {editable && (
-        <div className="card p-3 mt-4 flex flex-wrap items-end gap-2">
+        <div className="card p-3 mt-4">
+          <p className="text-sm font-semibold text-gray-800 mb-2">⚡ Ajout rapide <span className="font-normal text-gray-400">(1 clic = activité + temps)</span></p>
+          <div className="flex flex-wrap gap-2 mb-3">
+            {PRESETS.map((p) => (
+              <button key={p.activite} onClick={() => ajoutRapide(p.activite, p.minutes)} disabled={busy}
+                className="rounded-full border border-mystory/30 bg-mystory-clair/50 px-3 py-1.5 text-sm text-mystory-fonce hover:bg-mystory-clair disabled:opacity-50">
+                {p.emoji} {p.activite} <span className="text-gray-400">· {heures(p.minutes)}</span>
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-end gap-2 border-t border-gray-100 pt-3">
           <label className="flex-1 min-w-[200px] text-sm">
-            <span className="text-gray-600">Activité</span>
+            <span className="text-gray-600">Autre activité</span>
             <input value={activite} onChange={(e) => setActivite(e.target.value)} placeholder="ex : relances dossiers CPF" className="input mt-1 w-full" />
           </label>
           <label className="text-sm w-28">
@@ -152,6 +188,7 @@ export default function RapportHebdoPage() {
             <input value={duree} onChange={(e) => setDuree(e.target.value)} inputMode="numeric" placeholder="ex : 90" className="input mt-1 w-full" />
           </label>
           <button onClick={ajouter} disabled={busy} className="btn-primary">{busy ? "Ajout…" : "Ajouter"}</button>
+          </div>
         </div>
       )}
     </div>
