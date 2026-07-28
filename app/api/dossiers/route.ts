@@ -30,6 +30,7 @@ export async function GET(req: NextRequest) {
            formatrices ( nom, prenom ),
            pieces ( type, statut, optionnelle, exige_signature, ordre, sign_url_integre )`
         )
+        .not("statut", "in", '("archive","annule")')
         .order("created_at", { ascending: false })
         .order("id");
       if (site) q = q.eq("stagiaires.agence", site);
