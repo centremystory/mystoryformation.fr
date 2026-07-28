@@ -53,6 +53,13 @@ export default function ReglagesPage() {
         <p className="page-subtitle">Paramètres pilotés par la Direction — modifiables directement, sans intervention technique.</p>
       </div>
 
+      {/* Sauvegarde du storage (PDF signés) — le PITR ne couvre pas le storage. Réservé au propriétaire (API 403 sinon). */}
+      <section className="card mb-4 p-4">
+        <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-mystory">Sauvegarde des documents</h2>
+        <p className="text-sm text-gray-600 mb-3">Télécharge une archive ZIP de tous les documents signés (conventions, attestations, avoirs, émargements). À garder hors Supabase (le PITR ne sauvegarde que la base). Réservé au propriétaire.</p>
+        <a href="/api/backup/documents" className="btn-primary inline-flex items-center gap-2">⬇️ Télécharger la sauvegarde (ZIP)</a>
+      </section>
+
       {charge ? (
         <p className="text-sm text-gray-400">Chargement…</p>
       ) : categories.map((cat) => (
