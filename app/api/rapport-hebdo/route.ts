@@ -64,9 +64,22 @@ export async function GET(req: NextRequest) {
       employes = data ?? [];
     }
 
+    // Saisie quotidienne (page « Mon rapport ») du même employé → la synthèse reflète
+    // automatiquement ce qui est saisi jour par jour (fin de la désync entre les 2 pages).
+    let grilleJour: Array<{ jour: string; creneau: string; activite: string }> = [];
+    const { data: cible } = await supabaseAdmin.from("utilisateurs").select("email").eq("id", cibleId).maybeSingle();
+    if ((cible as any)?.email) {
+      const { data: rj } = await supabaseAdmin
+        .from("rapports_jour").select("jour, creneau, activite")
+        .eq("utilisateur_email", (cible as any).email)
+        .gte("jour", lundi).lte("jour", dimanche)
+        .order("jour", { ascending: true });
+      grilleJour = ((rj ?? []) as any[]).filter((r) => String(r.activite ?? "").trim());
+    }
+
     return NextResponse.json({
       ok: true, semaine: lundi, dimanche, cibleId, estEncadrement: encadre,
-      lignes: lignes ?? [], taches: taches ?? [], employes,
+      lignes: lignes ?? [], taches: taches ?? [], employes, grilleJour,
     });
   } catch (e) {
     if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
