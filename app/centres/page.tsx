@@ -10,8 +10,8 @@ import { apiFetch } from "@/lib/apiFetch";
 import { useToast } from "@/components/ui/Toast";
 
 type Centre = {
-  code: string; nom: string; adresse: string; acces: string | null;
-  accueille_formation: boolean; accueille_examen: boolean; actif: boolean; ordre: number | string;
+  code: string; nom: string; adresse: string; acces: string | null; horaires: string | null;
+  accueille_formation: boolean; accueille_examen: boolean; point_de_vente: boolean; actif: boolean; ordre: number | string;
 };
 
 export default function CentresPage() {
@@ -49,7 +49,7 @@ export default function CentresPage() {
     <div className="mx-auto max-w-3xl px-4 py-6">
       <div className="page-header">
         <h1 className="page-title">Centres</h1>
-        <p className="page-subtitle">Adresse, accès et rôle de chaque centre. Un centre « accueille examen » devient sélectionnable pour les sessions d'examen (Gagny, Rosny…).</p>
+        <p className="page-subtitle">Adresse, accès, horaires et rôle de chaque centre : accueil formation, accueil examen, et/ou point de vente &amp; renseignements. Un centre « accueille examen » devient sélectionnable pour les sessions d'examen (Gagny, Rosny…).</p>
       </div>
 
       {charge ? (
@@ -69,12 +69,16 @@ export default function CentresPage() {
             <label className="block">Adresse
               <input value={String(val(c, "adresse"))} onChange={(e) => setVal(c.code, "adresse", e.target.value)} className="input mt-1 w-full" />
             </label>
-            <label className="block">Accès
-              <textarea value={String(val(c, "acces") ?? "")} onChange={(e) => setVal(c.code, "acces", e.target.value)} rows={2} className="input mt-1 w-full resize-y" />
+            <label className="block">Accès <span className="text-gray-400 font-normal">(transports, parking…)</span>
+              <textarea value={String(val(c, "acces") ?? "")} onChange={(e) => setVal(c.code, "acces", e.target.value)} rows={2} className="input mt-1 w-full resize-y" placeholder="ex. RER E Gagny (5 min à pied) · bus 613 arrêt Mairie · parking gratuit" />
+            </label>
+            <label className="block">Horaires d&apos;ouverture
+              <textarea value={String(val(c, "horaires") ?? "")} onChange={(e) => setVal(c.code, "horaires", e.target.value)} rows={2} className="input mt-1 w-full resize-y" placeholder="ex. Lun–Ven 9h30–18h · Sam 10h–13h" />
             </label>
             <div className="flex flex-wrap gap-x-5 gap-y-1 pt-1">
               <label className="inline-flex items-center gap-1.5"><input type="checkbox" checked={!!val(c, "accueille_formation")} onChange={(e) => setVal(c.code, "accueille_formation", e.target.checked)} /> Accueille formation</label>
               <label className="inline-flex items-center gap-1.5"><input type="checkbox" checked={!!val(c, "accueille_examen")} onChange={(e) => setVal(c.code, "accueille_examen", e.target.checked)} /> Accueille examen</label>
+              <label className="inline-flex items-center gap-1.5"><input type="checkbox" checked={!!val(c, "point_de_vente")} onChange={(e) => setVal(c.code, "point_de_vente", e.target.checked)} /> Point de vente &amp; renseignements</label>
               <label className="inline-flex items-center gap-1.5"><input type="checkbox" checked={!!val(c, "actif")} onChange={(e) => setVal(c.code, "actif", e.target.checked)} /> Actif</label>
             </div>
           </div>
