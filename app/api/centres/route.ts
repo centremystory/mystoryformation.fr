@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
   try { await requireUser(req); } catch (e) { const d = deny(e); if (d) return d; throw e; }
   const { data, error } = await supabaseAdmin
     .from("centres")
-    .select("code, nom, adresse, acces, accueille_formation, accueille_examen, actif, ordre")
+    .select("code, nom, adresse, acces, horaires, accueille_formation, accueille_examen, point_de_vente, actif, ordre")
     .order("ordre").order("nom");
   if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
   return NextResponse.json({ ok: true, centres: data ?? [] });
@@ -35,8 +35,10 @@ function parseBody(body: any) {
     nom: String(body?.nom ?? "").trim(),
     adresse: String(body?.adresse ?? "").trim(),
     acces: body?.acces == null ? null : (String(body.acces).trim() || null),
+    horaires: body?.horaires == null ? null : (String(body.horaires).trim() || null),
     accueille_formation: body?.accueille_formation === true,
     accueille_examen: body?.accueille_examen === true,
+    point_de_vente: body?.point_de_vente === true,
     actif: body?.actif !== false,
     ordre: body?.ordre == null ? 0 : Number(body.ordre),
   };
