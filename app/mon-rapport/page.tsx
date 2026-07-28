@@ -74,7 +74,11 @@ export default function MonRapportPage() {
 
           {/* Grille jour × créneau */}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {jours.map((jr, i) => (
+            {jours.map((jr, i) => {
+              // Tâches réellement faites ce jour-là (auto, depuis le suivi des tâches) + temps saisi.
+              const tj = (d.faites || []).filter((t: any) => String(t.fait_le ?? "").slice(0, 10) === jr.date);
+              const minJour = tj.reduce((s: number, t: any) => s + (Number(t.temps_minutes) || 0), 0);
+              return (
               <div key={jr.date} style={{ border: "1px solid #E4E7EC", borderRadius: 12, padding: 12 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "#1D2939", marginBottom: 8 }}>{cap(jr.nom)} <span style={{ color: "#98A2B3", fontWeight: 400 }}>{dateFr(jr.date)}</span></div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -87,8 +91,15 @@ export default function MonRapportPage() {
                     <textarea style={{ ...inputS, minHeight: 44, resize: "vertical" }} value={jr.aprem} onChange={(e) => majCase(i, "aprem", e.target.value)} placeholder="Ce que j'ai fait…" />
                   </div>
                 </div>
+                {tj.length > 0 && (
+                  <div style={{ marginTop: 8, background: "#F5F8FE", border: "1px solid #E1EBFB", borderRadius: 8, padding: "6px 10px", fontSize: 12, color: "#475467" }}>
+                    ✅ <b style={{ color: BLEU }}>{tj.length}</b> tâche{tj.length > 1 ? "s" : ""} faite{tj.length > 1 ? "s" : ""}
+                    {minJour > 0 && <> · <b style={{ color: BLEU }}>{dureeFr(minJour)}</b></>}
+                    <span style={{ color: "#667085" }}> — {tj.map((t: any) => t.titre).filter(Boolean).join(", ")}</span>
+                  </div>
+                )}
               </div>
-            ))}
+            );})}
           </div>
 
           {/* Récap tâches (auto) */}

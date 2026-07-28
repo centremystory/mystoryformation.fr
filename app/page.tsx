@@ -334,6 +334,20 @@ async function conventionsListe() {
   } catch { return []; }
 }
 
+/** Réclamations candidats non résolues (Qualiopi : doivent être visibles pour être traitées). */
+async function reclamationsListe(site: SiteFiltre) {
+  try {
+    let q = supabaseAdmin
+      .from("reclamations")
+      .select("id, objet, candidat_nom, candidat_prenom, priorite, agence, cree_le")
+      .eq("actif", true).neq("statut", "resolue")
+      .order("cree_le", { ascending: false }).limit(8);
+    if (site) q = q.eq("agence", site);
+    const { data } = await q;
+    return (data ?? []) as { id: string; objet: string | null; candidat_nom: string | null; candidat_prenom: string | null; priorite: string | null; agence: string | null; cree_le: string | null }[];
+  } catch { return []; }
+}
+
 /** Ancienneté en jours d'un envoi (pour l'affichage « il y a N j »). */
 function joursDepuis(iso: string | null): number | null {
   if (!iso) return null;
@@ -419,9 +433,9 @@ export default async function Accueil() {
   const voir = (href: string) => peutVoirPage(role, href);
   const estDirection = role === "direction" || role === "manager" || role === "staff" || !role;
 
-  const [c, t, cf, ex, cl, tk, an, testsDist, convListe, dir] = await Promise.all([
+  const [c, t, cf, ex, cl, tk, an, testsDist, convListe, reclaListe, dir] = await Promise.all([
     compter(site), aTraiter(site), conformiteFormateurs(), examenSemaine(site), classementAccueil(), tachesAccueil(site),
-    anomaliesAccueil(site), testsADistanceCount(), conventionsListe(),
+    anomaliesAccueil(site), testsADistanceCount(), conventionsListe(), reclamationsListe(site),
     estDirection ? cockpitDirection(site) : Promise.resolve(null),
   ]);
 
@@ -550,6 +564,40 @@ export default async function Accueil() {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Réclamations candidats à traiter — mini-liste (Qualiopi) */}
+      {reclaListe.length > 0 && (
+        <div className="mb-8">
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+              <MessageSquareWarning size={16} strokeWidth={1.9} className="text-orange-500" />
+              Réclamations à traiter
+            </h2>
+            <Link href="/reclamations" className="text-xs text-mystory underline">Voir tout</Link>
+          </div>
+          <div className="card !p-0 divide-y divide-gray-100">
+            {reclaListe.map((r) => {
+              const urgent = /haute|urgent|elev|élev/i.test(String(r.priorite ?? ""));
+              const nom = `${r.candidat_prenom ?? ""} ${r.candidat_nom ?? ""}`.trim();
+              const j = joursDepuis(r.cree_le);
+              return (
+                <Link key={r.id} href="/reclamations"
+                  className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-gray-50">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-gray-900">{r.objet || nom || "Réclamation"}</p>
+                    <p className="truncate text-xs text-gray-500">{nom || "—"}{r.agence ? ` · ${r.agence}` : ""}</p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {urgent && <span className="badge bg-red-50 text-red-700">prioritaire</span>}
+                    <span className="text-xs text-gray-400">{j == null ? "" : j === 0 ? "aujourd'hui" : `il y a ${j} j`}</span>
+                    <ChevronRight size={16} className="text-gray-300" />
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         </div>
       )}
