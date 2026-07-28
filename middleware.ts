@@ -1,7 +1,26 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { verifySession } from "@/lib/auth";
-import { accesPage } from "@/lib/roles";
+import { accesPage, accesPageAvec } from "@/lib/roles";
+
+/**
+ * Permissions effectives (défauts code + overrides DB) — le middleware Edge n'a pas d'accès
+ * DB, il lit donc la map via l'endpoint PUBLIC /api/permissions/public. Cache module 30 s
+ * (par instance Edge) + Cache-Control côté endpoint. Fallback = défauts code (accesPage).
+ */
+let _permCache: { at: number; map: Record<string, string[]> } | null = null;
+async function mapPermissions(origin: string): Promise<Record<string, string[]> | null> {
+  const now = Date.now();
+  if (_permCache && now - _permCache.at < 30000) return _permCache.map;
+  try {
+    const r = await fetch(`${origin}/api/permissions/public`, { cache: "no-store" });
+    if (r.ok) {
+      const j = await r.json();
+      if (j?.ok && j.map) { _permCache = { at: now, map: j.map }; return j.map; }
+    }
+  } catch { /* réseau indispo → on retombe sur le cache ou les défauts */ }
+  return _permCache?.map ?? null;
+}
 
 /**
  * MYSTORY — Garde d'accès global (v2, harmonisée avec lib/auth.ts).
@@ -26,6 +45,7 @@ const CHEMINS_PUBLICS = [
   "/api/satisfaction",      // dépôt de la réponse (jeton vérifié côté serveur)
   "/avis-cours",            // satisfaction à chaud du cours (stagiaire, jeton de séance)
   "/api/satisfaction-cours/repondre", // dépôt de l'avis à chaud (jeton vérifié côté serveur)
+  "/api/permissions/public", // map effective des permissions (lue par le middleware lui-même)
   "/emargement/signer",     // signature d'émargement par le stagiaire (jeton/QR)
   "/api/emargement/signer", // dépôt de signature (jeton stagiaire OU session formatrice)
   "/formateur-questionnaire",     // questionnaire formateur en ligne (jeton)
@@ -74,11 +94,17 @@ export async function middleware(req: NextRequest) {
   if (utilisateur) {
     // Gating par page selon le rôle. Pages uniquement : les API gardent leurs propres
     // contrôles peut(). Filet de transition : rôle "staff"/absent = accès complet.
-    if (!pathname.startsWith("/api/") && !accesPage(utilisateur.roles ?? utilisateur.role, utilisateur.email, pathname)) {
-      const url = req.nextUrl.clone();
-      url.pathname = "/acces-refuse";
-      url.search = "";
-      return NextResponse.redirect(url);
+    if (!pathname.startsWith("/api/")) {
+      const map = await mapPermissions(req.nextUrl.origin);
+      const autorise = map
+        ? accesPageAvec(utilisateur.roles ?? utilisateur.role, utilisateur.email, pathname, map)
+        : accesPage(utilisateur.roles ?? utilisateur.role, utilisateur.email, pathname);
+      if (!autorise) {
+        const url = req.nextUrl.clone();
+        url.pathname = "/acces-refuse";
+        url.search = "";
+        return NextResponse.redirect(url);
+      }
     }
     return NextResponse.next();
   }
