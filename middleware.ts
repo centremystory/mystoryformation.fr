@@ -24,6 +24,8 @@ const CHEMINS_PUBLICS = [
   "/fiche-besoin",
   "/satisfaction",          // questionnaire de satisfaction en ligne (jeton)
   "/api/satisfaction",      // dépôt de la réponse (jeton vérifié côté serveur)
+  "/avis-cours",            // satisfaction à chaud du cours (stagiaire, jeton de séance)
+  "/api/satisfaction-cours/repondre", // dépôt de l'avis à chaud (jeton vérifié côté serveur)
   "/emargement/signer",     // signature d'émargement par le stagiaire (jeton/QR)
   "/api/emargement/signer", // dépôt de signature (jeton stagiaire OU session formatrice)
   "/formateur-questionnaire",     // questionnaire formateur en ligne (jeton)

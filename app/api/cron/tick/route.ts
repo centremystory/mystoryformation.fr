@@ -23,6 +23,7 @@ const CIBLES = [
   "/api/cron/anomalies",
   "/api/cron/relances-anomalie",
   "/api/dossiers/relances-satisfaction",
+  "/api/satisfaction-cours/envoyer",
   "/api/formation/relances-identite",
   "/api/formation/relances-sans-venue",
   "/api/prospects/relances",

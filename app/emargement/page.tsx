@@ -44,7 +44,16 @@ export default function EmargementDuJour() {
   const [scan, setScan] = useState<{ url: string | null; nom: string | null; depose_le: string | null } | null>(null);
   const [scanBusy, setScanBusy] = useState(false);
   const [recherche, setRecherche] = useState("");
+  const [satisf, setSatisf] = useState<string | null>(null);
   const scanInputRef = useRef<HTMLInputElement>(null);
+
+  async function envoyerSatisfaction() {
+    setSatisf("...");
+    try {
+      const j = await fetch("/api/satisfaction-cours/envoyer", { method: "POST" }).then((r) => r.json());
+      setSatisf(j.ok ? (j.envoyes > 0 ? `✅ ${j.envoyes} avis envoyé(s)` : "Aucun présent à solliciter (déjà fait ou pas d'email)") : (j.erreur || "Échec"));
+    } catch { setSatisf("Échec réseau"); }
+  }
 
   const chargerScan = useCallback(async () => {
     try {
@@ -137,6 +146,16 @@ export default function EmargementDuJour() {
           ))}
         </div>
         <span className="ml-auto text-sm text-gray-500">{totaux.faits}/{totaux.total} émargés</span>
+      </div>
+
+      {/* Satisfaction à chaud : envoi aux présents (émargés) du jour. Auto chaque soir (cron) ; ce bouton = envoi immédiat. */}
+      <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2">
+        <span className="text-sm text-gray-700">😊 Satisfaction à chaud — envoyée automatiquement chaque soir aux présents.</span>
+        <button onClick={envoyerSatisfaction} disabled={satisf === "..."}
+          className="ml-auto rounded-lg bg-mystory px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50">
+          {satisf === "..." ? "Envoi…" : "Envoyer maintenant aux présents"}
+        </button>
+        {satisf && satisf !== "..." && <span className="text-xs text-gray-600 w-full sm:w-auto">{satisf}</span>}
       </div>
 
       {/* Feuille d'émargement papier (fallback présentiel) */}
