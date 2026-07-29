@@ -72,12 +72,15 @@ export default function AssistantWidget() {
 
   return (
     <>
+      {/* Quand le panneau est ouvert, on décale le contenu du CRM vers la gauche (desktop). */}
+      {ouvert && <style>{`@media (min-width: 1024px){ main { padding-right: 400px !important; transition: padding-right .2s; } }`}</style>}
+
       {/* Bulle */}
       <button
         onClick={() => setOuvert((o) => !o)}
         aria-label="Assistant IA"
         style={{
-          position: "fixed", left: 20, bottom: 20, zIndex: 60,
+          position: "fixed", right: 20, bottom: 20, zIndex: 60,
           width: 56, height: 56, borderRadius: "50%", border: "none", cursor: "pointer",
           background: "linear-gradient(135deg,#2F72DE,#1F56B0)", color: "#fff", fontSize: 24,
           boxShadow: "0 8px 24px rgba(47,114,222,.45)", display: "flex", alignItems: "center", justifyContent: "center",
@@ -90,7 +93,7 @@ export default function AssistantWidget() {
       {/* Panneau */}
       {ouvert && (
         <div style={{
-          position: "fixed", left: 20, bottom: 88, zIndex: 60,
+          position: "fixed", right: 20, bottom: 88, zIndex: 60,
           width: "min(380px, calc(100vw - 40px))", height: "min(560px, calc(100vh - 130px))",
           background: "#fff", borderRadius: 16, border: "1px solid #E4E7EC",
           boxShadow: "0 20px 60px rgba(16,24,40,.24)", display: "flex", flexDirection: "column", overflow: "hidden",
