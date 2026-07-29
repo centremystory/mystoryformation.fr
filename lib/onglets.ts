@@ -21,6 +21,32 @@ export const ONGLETS_TESTS: Onglet[] = [
 export const ONGLETS_REGLAGES: Onglet[] = [
   { href: "/reglages", label: "Réglages" },
   { href: "/centres", label: "Centres" },
+  { href: "/catalogue", label: "Catalogue & tarifs" },
+];
+
+// Communication — messagerie d'équipe + prospects regroupée en un hub.
+export const ONGLETS_MESSAGERIE: Onglet[] = [
+  { href: "/equipe-messages", label: "Fil d'équipe" },
+  { href: "/interne", label: "Questions internes" },
+  { href: "/messages", label: "Messages prospects" },
+];
+
+// Commercial — cockpit + liste des ventes formation.
+export const ONGLETS_COMMERCIAL: Onglet[] = [
+  { href: "/cockpit-commercial", label: "Cockpit" },
+  { href: "/ventes-formation", label: "Ventes formation" },
+];
+
+// Système — comptes & accès par rôle.
+export const ONGLETS_COMPTES: Onglet[] = [
+  { href: "/comptes", label: "Comptes" },
+  { href: "/permissions", label: "Accès par rôle" },
+];
+
+// Système — journal & incidents techniques.
+export const ONGLETS_JOURNAL: Onglet[] = [
+  { href: "/journal", label: "Journal" },
+  { href: "/incidents", label: "Incidents" },
 ];
 
 export const ONGLETS_RH: Onglet[] = [

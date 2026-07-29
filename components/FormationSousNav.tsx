@@ -21,11 +21,13 @@ const GROUPES: { cle: string; onglets: { href: string; label: string }[] }[] = [
     { href: "/dossiers/conformite", label: "Conformité" },
     { href: "/dossiers/edof", label: "Fiche EDOF" },
     { href: "/edof", label: "Import EDOF" },
+    { href: "/identites", label: "Identités" },
   ] },
   { cle: "suivi", onglets: [
     { href: "/emargement", label: "Émargement" },
     { href: "/suivi-eleves", label: "Suivi élèves" },
-    { href: "/planning", label: "Planning" },
+    { href: "/calendrier", label: "Calendrier" },
+    { href: "/planning", label: "Planning (édition)" },
   ] },
   { cle: "pedagogie", onglets: [
     { href: "/contenu-pedagogique", label: "Espace pédagogique" },
