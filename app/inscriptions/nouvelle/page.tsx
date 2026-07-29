@@ -34,6 +34,12 @@ export default function NouvelleInscription() {
     fetch("/api/equipe/commerciaux").then(r => r.json())
       .then(d => setCommerciaux((d.commerciaux ?? []).filter((c: any) => c.actif))).catch(() => {});
   }, []);
+  // Catalogue "live" (offres_formules éditable via /catalogue) : noms + prix reflètent les modifs.
+  const [live, setLive] = useState<Record<string, { nom: string; prix: number; offreIntitule: string; niveauVise: string }>>({});
+  useEffect(() => {
+    fetch("/api/inscriptions/catalogue").then(r => r.json())
+      .then(d => { if (d.ok) setLive(d.catalogue ?? {}); }).catch(() => {});
+  }, []);
   useEffect(() => {
     try { const a = localStorage.getItem("mystory_auteur"); if (a) setForm(f => ({ ...f, venduPar: a })); } catch {}
   }, []);
@@ -45,6 +51,8 @@ export default function NouvelleInscription() {
 
   const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
   const f = CATALOGUE[form.formule];
+  // Prix affiché = catalogue live (offres_formules) si dispo, sinon le prix codé en dur.
+  const prixLive = live[form.formule]?.prix ?? f.prixEuros;
   const cpf = form.financement === "CPF";
 
   const vIns = useMemo(() => validerInscription({ ...form, niveauVise: form.niveauVise as InscriptionInput["niveauVise"], numeroEdof: form.numeroEdof || null, dateCommandeValidee: form.dateCommandeValidee || null }), [form]);
@@ -134,7 +142,12 @@ export default function NouvelleInscription() {
             {OFFRES.map(o => <option key={o.code} value={o.code}>{o.label}</option>)}</select></div>
         <div><label className={label}>Formule *</label>
           <select className={champ} value={form.formule} onChange={e => { set("formule", e.target.value); setSeances([]); }}>
-            {formulesDeLOffre(form.offre).map(x => <option key={x.code} value={x.code}>{x.nomFormule} — {x.libelle}</option>)}</select></div>
+            {formulesDeLOffre(form.offre).map(x => {
+              const l = live[x.code];
+              const nom = l?.nom ?? x.nomFormule;
+              const lib = l?.prix != null ? `${x.dureeHeures} h – ${l.prix} €` : x.libelle;
+              return <option key={x.code} value={x.code}>{nom} — {lib}</option>;
+            })}</select></div>
         <div><label className={label}>Niveau visé</label>
           <select className={champ} value={form.niveauVise} onChange={e => set("niveauVise", e.target.value)}>
             <option>A1</option><option>A2</option><option>B1</option><option>B2</option></select></div>
@@ -184,7 +197,7 @@ export default function NouvelleInscription() {
           </label>
         </>}
         <div className="col-span-2 md:col-span-4 text-sm text-gray-600">
-          💶 {f.prixEuros} €{(!cpf && form.remise > 0) ? ` − ${form.remise} € remise = ${Math.max(0, f.prixEuros - form.remise)} € net` : ""} — {f.dureeHeures} h · {f.seances3h} × 3h{f.seanceFinaleHeures ? ` + finale ${f.seanceFinaleHeures}h` : ""} · {f.descriptionFinale}
+          💶 {prixLive} €{(!cpf && form.remise > 0) ? ` − ${form.remise} € remise = ${Math.max(0, prixLive - form.remise)} € net` : ""} — {f.dureeHeures} h · {f.seances3h} × 3h{f.seanceFinaleHeures ? ` + finale ${f.seanceFinaleHeures}h` : ""} · {f.descriptionFinale}
         </div>
       </section>
 
