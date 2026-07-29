@@ -5,6 +5,7 @@
  */
 import { supabaseAdmin } from "./supabaseAdmin";
 import { getParamNumber } from "./parametres";
+import { prixLiveParHeures } from "./catalogueLive";
 
 export interface GateResult {
   ok: boolean;
@@ -120,26 +121,19 @@ export async function checkConformite(dossierId: string): Promise<GateResult> {
     recap.push(`Heures EDOF (${d.heures_edof} h) ≠ heures prévues (${d.heures_prevues} h).`);
   }
 
-  // Cohérence FORMULE (source unique : table public.formules) — heures/prix officiels.
-  // Garantit l'impossibilité d'un écart prix ↔ EDOF (durée et prix verrouillés ensemble).
-  // Financement du dossier -> grille correspondante. CPF = contrôle STRICT (tarif officiel = ce qui
-  // est facturé et déclaré CDC). Fonds propres / OPCO = remises autorisées (prix libre <= référence).
+  // Cohérence FORMULE — prix officiel = catalogue ÉDITABLE (offres_formules, via prixLiveParHeures),
+  // même source que le montant du dossier → les modifications de /catalogue se répercutent ici aussi.
+  // CPF = contrôle STRICT (tarif officiel = ce qui est facturé/déclaré CDC). Fonds propres / OPCO =
+  // remises autorisées (prix libre <= référence). Repli sur le catalogue codé en dur si besoin.
   const finDossier = String((d as any).financement ?? "").toLowerCase();
   const isCpf = finDossier === "cpf" || finDossier === "";
-  const { data: formules } = await supabaseAdmin
-    .from("formules")
-    .select("prix_eur, financement")
-    .eq("certif", (d as any).certif)
-    .eq("heures", Number(d.heures_prevues))
-    .eq("actif", true);
-  const list = (formules ?? []) as Array<{ prix_eur: number; financement: string }>;
-  const ref = list.find((f) => f.financement === finDossier) ?? list.find((f) => f.financement === "cpf") ?? list[0];
-  if (!ref) {
+  const prixRef = await prixLiveParHeures(Number(d.heures_prevues));
+  if (prixRef == null) {
     recap.push(`Aucune formule officielle pour ${d.heures_prevues} h (${(d as any).certif}). Durées v6 valides : 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 45 h.`);
-  } else if (isCpf && Number(ref.prix_eur) !== Number(d.montant)) {
-    recap.push(`Tarif CPF non conforme : la formule ${d.heures_prevues} h doit être facturée ${ref.prix_eur} € (dossier : ${d.montant} €).`);
-  } else if (!isCpf && Number(d.montant) > Number(ref.prix_eur)) {
-    recap.push(`Tarif ${finDossier || "hors CPF"} au-dessus du tarif de référence (${ref.prix_eur} € pour ${d.heures_prevues} h ; dossier : ${d.montant} €).`);
+  } else if (isCpf && Number(prixRef) !== Number(d.montant)) {
+    recap.push(`Tarif CPF non conforme : la formule ${d.heures_prevues} h doit être facturée ${prixRef} € (dossier : ${d.montant} €).`);
+  } else if (!isCpf && Number(d.montant) > Number(prixRef)) {
+    recap.push(`Tarif ${finDossier || "hors CPF"} au-dessus du tarif de référence (${prixRef} € pour ${d.heures_prevues} h ; dossier : ${d.montant} €).`);
   }
 
   // FLE — formatrice référent

@@ -6,6 +6,7 @@ import {
   CATALOGUE, CRENEAUX, CodeFormule, Creneau,
   validerInscription, validerPlanning,
 } from "@/lib/inscriptions/regles";
+import { prixLive } from "@/lib/catalogueLive";
 import { requireUser, UnauthorizedError } from "@/lib/auth";
 import { estDirection } from "@/lib/roles";
 
@@ -76,6 +77,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, erreurs }, { status: 422 });
 
   const f = CATALOGUE[inscription.formule as CodeFormule];
+  // Prix officiel = catalogue live (offres_formules éditable), sinon prix codé en dur.
+  const prix = await prixLive(inscription.formule as CodeFormule);
 
   // Remise hors CPF (montant en €). Bloquée sur CPF, plafonnée au montant de la formation.
   const remiseBrute = Number(inscription.remise ?? 0);
@@ -83,7 +86,7 @@ export async function POST(req: NextRequest) {
   const remiseMotif = String(inscription.remiseMotif ?? "").trim() || null;
   if (remise > 0 && inscription.financement === "CPF")
     return NextResponse.json({ ok: false, erreurs: ["Remise impossible sur un financement CPF."] }, { status: 422 });
-  if (remise > f.prixEuros)
+  if (remise > prix)
     return NextResponse.json({ ok: false, erreurs: ["La remise ne peut pas dépasser le montant de la formation."] }, { status: 422 });
 
   // 2) Anti-doublon : même email + même certif avec dossier non annulé.
@@ -132,7 +135,7 @@ export async function POST(req: NextRequest) {
     p_dossier: {
       certif: inscription.certification,
       financement: inscription.financement,
-      montant: f.prixEuros,
+      montant: prix,
       reste_a_charge_accepte: inscription.resteAChargeAccepte ?? false,
       numero_edof: inscription.numeroEdof ?? null,
       niveau_vise: inscription.niveauVise,
