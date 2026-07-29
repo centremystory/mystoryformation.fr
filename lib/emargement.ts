@@ -247,3 +247,70 @@ export async function genererFeuillePapierJourHtml(date: string): Promise<{ html
 </body></html>`;
   return { html, nb: rows.length };
 }
+
+/**
+ * Feuille d'émargement VIERGE d'UN DOSSIER (fallback papier : ordinateur/wifi en panne).
+ * Liste les séances PLANIFIÉES du stagiaire (date + demi-journée) avec des cases à signer
+ * vides — à imprimer, faire signer en présentiel, puis importer le scan.
+ * Rien n'est pré-signé ni pré-daté : le stagiaire et le formateur signent chaque séance suivie.
+ */
+export async function genererFeuilleEmargementViergeDossierHtml(dossierId: string): Promise<{ html: string; nb: number } | null> {
+  const { data: d } = await supabaseAdmin
+    .from("dossiers")
+    .select(`certif, stagiaire:stagiaires!stagiaire_id ( civilite, prenom, nom ), formatrice:formatrices!formatrice_id ( nom ),
+             planning ( date_seance, demi_journee )`)
+    .eq("id", dossierId).maybeSingle();
+  if (!d) return null;
+  const dd = d as any;
+  const st = dd.stagiaire;
+  const nomStagiaire = st ? `${st.civilite ?? ""} ${st.prenom ?? ""} ${st.nom ?? ""}`.trim() : "—";
+  const formatrice = dd.formatrice?.nom ?? "…………………………";
+  const seances = ((dd.planning ?? []) as any[])
+    .filter((p) => p.date_seance)
+    .sort((a, b) => String(a.date_seance).localeCompare(String(b.date_seance)) || String(a.demi_journee).localeCompare(String(b.demi_journee)));
+
+  const ligne = (dateTxt: string, dmLabel: string, horaire: string) =>
+    `<tr><td>${esc(dateTxt)}</td><td>${esc(dmLabel)}<br><span class="muted">${esc(horaire)}</span></td><td class="sigc"></td><td class="sigc"></td></tr>`;
+  const lignes = seances.map((p) => {
+    const dm = DEMI[p.demi_journee] ?? { label: p.demi_journee ?? "", horaire: "" };
+    return ligne(frDate(p.date_seance), dm.label, dm.horaire);
+  }).join("");
+  // Lignes vierges supplémentaires (séances ajoutées à la main / imprévues).
+  const vides = Array.from({ length: seances.length > 0 ? 3 : 12 })
+    .map(() => `<tr><td class="bl">&nbsp;</td><td></td><td class="sigc"></td><td class="sigc"></td></tr>`).join("");
+
+  const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; color:#0f172a; font-size:12px; margin:0; padding:26px 30px; }
+  .head { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid ${BLEU}; padding-bottom:10px; }
+  .brand { color:${BLEU}; font-size:24px; font-weight:800; letter-spacing:.5px; }
+  .muted { color:#64748b; font-size:10px; }
+  h1 { font-size:16px; margin:16px 0 2px; }
+  .sub { color:#334155; font-size:12px; margin:2px 0 12px; }
+  table { width:100%; border-collapse:collapse; }
+  th { background:${BLEU}; color:#fff; font-size:11px; text-align:left; padding:7px 8px; }
+  td { border:1px solid #cbd5e1; padding:9px 8px; height:38px; vertical-align:middle; }
+  td.sigc { background:#fafbfd; }
+  td.bl { color:#cbd5e1; }
+  .note { margin-top:18px; font-size:10px; color:#64748b; line-height:1.5; border-top:1px solid #e2e8f0; padding-top:10px; }
+</style></head><body>
+  <div class="head">
+    <div><div class="brand">MYSTORY</div>
+      <div class="muted">Organisme de formation — NDA 11756521775 (ne vaut pas agrément de l'État)</div></div>
+    <div class="muted" style="text-align:right">Lieu de formation<br><b style="color:#0f172a">Gagny</b><br>3 bis av. de Gagny, 93220</div>
+  </div>
+  <h1>Feuille d'émargement — ${esc(nomStagiaire)}</h1>
+  <div class="sub">Formation : <b>${esc(dd.certif ?? "")}</b> &nbsp;·&nbsp; Formateur(s) : <b>${esc(formatrice)}</b></div>
+  <div class="muted">Feuille papier (secours). Le stagiaire ET le formateur signent chaque demi-journée réellement suivie. Aucune signature ni date n'est pré-remplie.</div>
+  <table style="margin-top:10px">
+    <thead><tr><th style="width:26%">Date</th><th style="width:26%">Demi-journée</th><th style="width:24%">Signature stagiaire</th><th style="width:24%">Signature formateur</th></tr></thead>
+    <tbody>${lignes}${vides}</tbody>
+  </table>
+  <div class="note">
+    À signer <b>en présentiel</b>. Conserver l'original signé et l'importer dans le CRM (fiche du dossier → pièce « Feuille d'émargement » → « Importer (papier signé) »).
+    Feuille générée le ${frDateTime(new Date().toISOString())} (Europe/Paris).
+  </div>
+</body></html>`;
+  return { html, nb: seances.length };
+}

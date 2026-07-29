@@ -1177,6 +1177,13 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
               <span className={`inline-block px-2 py-0.5 rounded-full text-xs ${s.classes}`}>{s.label}</span>
               <span className="flex items-center gap-1.5 flex-wrap">
                 {boutons(p)}
+                {p.type === "feuille_emargement" && (
+                  <a href={`/api/documents/emargement-vierge?dossier=${d.id}`} target="_blank" rel="noreferrer"
+                     title="Panne d'ordinateur ou de wifi ? Imprimez cette feuille vierge, faites signer en présentiel, puis « Importer (papier signé) »."
+                     className="px-3 py-1 rounded-lg text-xs border border-gray-300 text-gray-700 bg-white hover:border-mystory hover:text-mystory">
+                    🖨️ Feuille vierge (papier)
+                  </a>
+                )}
                 {IMPORTABLES.has(p.type) && (
                   <button onClick={() => ouvrirImport(p.type)} disabled={busy === p.type}
                           title="Fait à la main : imprimer, faire signer sur papier, puis importer le PDF scanné (il fera foi)."
