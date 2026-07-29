@@ -143,8 +143,15 @@ export async function bpfSynthese(annee: number): Promise<BpfSynthese> {
   const anomalies: BpfSynthese["anomalies"] = [];
   const ecarts: BpfSynthese["ecarts"] = [];
   if (depot) {
-    const cpfCrm = produitsParOrigine.get("CPF_CDC") ?? 0;
+    const somme = (...origines: string[]) => origines.reduce((t, o) => t + (produitsParOrigine.get(o) ?? 0), 0);
+    const cpfCrm = somme("CPF_CDC");
+    // Détail par poste Cerfa (mapping origines CRM → lignes du dépôt) — un écart sur un poste
+    // précis (ex. OPCO/Entreprises) est ainsi visible, pas seulement noyé dans le total.
     ecarts.push({ poste: "Produits CPF / CDC", crm: cpfCrm, depose: depot.cpf, ecart: cpfCrm - depot.cpf });
+    ecarts.push({ poste: "Entreprises + OPCO", crm: somme("Entreprise", "OPCO"), depose: depot.entreprises, ecart: somme("Entreprise", "OPCO") - depot.entreprises });
+    ecarts.push({ poste: "Pouvoirs publics (France Travail / Région)", crm: somme("France_Travail", "Region_Etat"), depose: depot.plan_autres, ecart: somme("France_Travail", "Region_Etat") - depot.plan_autres });
+    ecarts.push({ poste: "Autres OF (sous-traitance reçue)", crm: somme("Autre_OF"), depose: depot.autres_of, ecart: somme("Autre_OF") - depot.autres_of });
+    ecarts.push({ poste: "Particuliers + autres produits", crm: somme("Particulier", "Autre"), depose: depot.autres_produits, ecart: somme("Particulier", "Autre") - depot.autres_produits });
     ecarts.push({ poste: "Total produits", crm: totalProduits, depose: depot.total_produits, ecart: totalProduits - depot.total_produits });
     ecarts.push({ poste: "Achats de prestations (sous-traitance)", crm: sousTraitanceTotal, depose: depot.achats_prestations, ecart: sousTraitanceTotal - depot.achats_prestations });
     for (const e of ecarts) {
