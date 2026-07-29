@@ -48,7 +48,8 @@ type ImpFormation = { id: string; date_inscription: string | null; agence_vente:
 type ImpExamen = { id: string; date_inscription: string | null; type_examen: string | null; sous_type: string | null; date_examen: string | null; horaire: string | null; lieu_examen: string | null; agence_vente: string | null; statut_paiement: string | null; montant_eur: number | null; reste_a_payer_eur: number | null; num_attestation: string | null; inscrit_cci: boolean | null; vendu_par: string | null };
 type ImpEdof = { id: string; numero_dossier: string | null; intitule_formation: string | null; code_certif: string | null; date_debut: string | null; date_fin: string | null; statut_dossier: string | null; taux_realisation: number | null; montant_facturable: number | null; origine_fonds: string | null; annee: number | null };
 type Importe = { formations: ImpFormation[]; examens: ImpExamen[]; edof: ImpEdof[] };
-type Fiche = { stagiaire: Stagiaire; dossiers: Dossier[]; examens: Examen[]; remarques: Remarque[]; evaluations: Evaluation[]; factures: Facture[]; seancesAccueil?: { total: number; presents: number }; importe?: Importe };
+type Doc = { dossier_id: string; piece_type: string; variant: string; generated_at: string | null };
+type Fiche = { stagiaire: Stagiaire; dossiers: Dossier[]; examens: Examen[]; remarques: Remarque[]; evaluations: Evaluation[]; factures: Facture[]; seancesAccueil?: { total: number; presents: number }; importe?: Importe; documents?: Doc[] };
 
 function dateFr(iso: string | null): string {
   if (!iso) return "—";
@@ -96,6 +97,37 @@ function PdfEvalButton({ dossierId, phase }: { dossierId: string; phase: string 
       </button>
       {err && <span className="text-xs text-red-600">{err}</span>}
     </div>
+  );
+}
+
+const LABEL_PIECE: Record<string, string> = {
+  fiche_analyse_besoin: "Fiche d'analyse du besoin", evaluation_initiale: "Évaluation initiale",
+  convention: "Convention", programme: "Programme", reglement_interieur: "Règlement intérieur",
+  planning: "Planning", convocation: "Convocation", feuille_emargement: "Feuille d'émargement",
+  evaluation_finale: "Évaluation finale", satisfaction_chaud: "Satisfaction (à chaud)",
+  attestation_fin: "Attestation de fin", certificat_realisation: "Certificat de réalisation",
+  justificatif_participation: "Justificatif participation", justificatif_examen: "Justificatif examen",
+};
+
+/** Ouvre un document archivé du dossier (URL signée 1 h via /api/documents/url). */
+function DocButton({ dossierId, piece, variant }: { dossierId: string; piece: string; variant: string }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  async function ouvrir() {
+    setBusy(true); setErr(null);
+    try {
+      const r = await fetch(`/api/documents/url?dossier=${dossierId}&piece=${piece}`, { cache: "no-store" });
+      const j = await r.json();
+      if (!j.ok || !j.url) { setErr(j.erreur || "Indisponible."); return; }
+      window.open(j.url, "_blank", "noreferrer");
+    } catch (e: any) { setErr(e?.message || "Erreur."); }
+    finally { setBusy(false); }
+  }
+  return (
+    <button onClick={ouvrir} disabled={busy}
+      className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 hover:border-mystory hover:text-mystory disabled:opacity-50">
+      📄 {LABEL_PIECE[piece] ?? piece}{variant === "signe" ? " ✍️" : ""}{busy ? " …" : ""}{err ? ` — ${err}` : ""}
+    </button>
   );
 }
 
@@ -325,6 +357,18 @@ export default function PageFiche() {
           </div>
         )}
       </section>
+
+      {/* Documents du dossier : accès direct à toutes les pièces archivées (signées prioritaires). */}
+      {fiche.documents && fiche.documents.length > 0 && (
+        <section className="mt-6">
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">📁 Documents du dossier ({fiche.documents.length})</h2>
+          <div className="flex flex-wrap gap-2">
+            {fiche.documents.map((doc, i) => (
+              <DocButton key={i} dossierId={doc.dossier_id} piece={doc.piece_type} variant={doc.variant} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Historique importé (archives Sheets + EDOF) — lecture seule, hors BPF/conformité */}
       {fiche.importe && (fiche.importe.formations.length > 0 || fiche.importe.examens.length > 0 || fiche.importe.edof.length > 0) && (

@@ -42,6 +42,25 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     .order("created_at", { ascending: false });
   const dossierIds = (dossiers ?? []).map((d: any) => d.id);
 
+  // Documents archivés de TOUS les dossiers du client (métadonnées ; l'URL signée se demande
+  // via /api/documents/url?dossier=X&piece=Y). Permet d'accéder à toutes les pièces depuis la fiche.
+  let documents: any[] = [];
+  if (dossierIds.length) {
+    const { data: arch } = await supabaseAdmin
+      .from("archives")
+      .select("dossier_id, piece_type, variant, generated_at")
+      .in("dossier_id", dossierIds)
+      .order("generated_at", { ascending: false });
+    // Meilleure variante par pièce (signe > genere) pour éviter les doublons.
+    const parPiece = new Map<string, any>();
+    for (const a of (arch ?? []) as any[]) {
+      const k = `${a.dossier_id}|${a.piece_type}`;
+      const cur = parPiece.get(k);
+      if (!cur || (a.variant === "signe" && cur.variant !== "signe")) parPiece.set(k, a);
+    }
+    documents = [...parPiece.values()];
+  }
+
   // 3) Examens : ventes + session + résultat (requêtes séparées, robustes)
   const { data: ventes } = await supabaseAdmin
     .from("ventes_examen")
@@ -128,7 +147,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   ]);
 
   return NextResponse.json({
-    ok: true, stagiaire, dossiers: dossiers ?? [], examens, remarques, evaluations, factures, seancesAccueil,
+    ok: true, stagiaire, dossiers: dossiers ?? [], examens, remarques, evaluations, factures, seancesAccueil, documents,
     importe: {
       formations: formationsImportees ?? [],
       examens: examensImportes ?? [],
