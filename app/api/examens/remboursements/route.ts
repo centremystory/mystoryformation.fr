@@ -15,6 +15,40 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { journal } from "@/lib/examens";
 import { getSignedUrl } from "@/lib/crm";
 import { renderHtmlToPdf } from "@/lib/docuseal";
+import { envoyerEmail, gabaritEmail } from "@/lib/email";
+
+/**
+ * Une place vient de se libérer sur une session (remboursement total / annulation) :
+ * propose la place au 1er candidat « en attente » de cette session et le prévient par email.
+ * Best-effort : ne jette jamais (ne doit pas bloquer le remboursement).
+ */
+async function proposerPlaceLibre(sessionId: string | null | undefined, auteur: string | null): Promise<void> {
+  if (!sessionId) return;
+  try {
+    const { data: c } = await supabaseAdmin
+      .from("liste_attente_examen")
+      .select("id, nom, prenom, email, sessions_examen:session_id (type, date_examen, horaire)")
+      .eq("session_id", sessionId).eq("statut", "en_attente")
+      .order("created_at", { ascending: true }).limit(1).maybeSingle();
+    if (!c) return;
+    const cand = c as any;
+    await supabaseAdmin.from("liste_attente_examen").update({ statut: "place_proposee" }).eq("id", cand.id);
+    await journal("liste_attente_examen", cand.id, "liste_attente_place_proposee", { session_id: sessionId, source: "place_liberee" }, auteur);
+    if (cand.email) {
+      const s = cand.sessions_examen;
+      const quand = s ? `${s.type ?? "l'examen"}${s.date_examen ? ` du ${new Date(s.date_examen + "T12:00:00Z").toLocaleDateString("fr-FR")}` : ""}${s.horaire ? ` (${s.horaire})` : ""}` : "l'examen demandé";
+      const corps = `<p>Bonjour ${cand.prenom ?? ""} ${cand.nom ?? ""},</p>
+        <p>Une place vient de se libérer pour <strong>${quand}</strong>, pour laquelle vous étiez en liste d'attente.</p>
+        <p>Pour confirmer votre inscription, contactez-nous rapidement au 06 81 43 16 54 ou à contact@mystoryformation.fr — la place est proposée en priorité mais n'est pas garantie.</p>
+        <p>L'équipe MYSTORY</p>`;
+      await envoyerEmail({
+        a: cand.email, objet: "Une place s'est libérée pour votre examen — MYSTORY",
+        html: gabaritEmail("Une place s'est libérée", corps),
+        entite: "liste_attente_examen", entiteId: cand.id, auteur,
+      });
+    }
+  } catch { /* best-effort : ne bloque jamais le remboursement */ }
+}
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -186,13 +220,19 @@ export async function PATCH(req: NextRequest) {
 
   await supabaseAdmin.from("remboursements_examen").update(maj).eq("id", id);
 
-  // Remboursement total → libère la place (vente Remboursé).
-  if (type === "remboursement_total") {
-    await supabaseAdmin.from("ventes_examen").update({ statut_paiement: "Remboursé" }).eq("id", (r as any).vente_id);
-  }
-  // Annulation → vente Annulé (libère la place ; le remboursement éventuel est une demande à part).
-  if (type === "annulation") {
-    await supabaseAdmin.from("ventes_examen").update({ statut_paiement: "Annulé" }).eq("id", (r as any).vente_id);
+  // Remboursement total / annulation → libère la place puis propose au 1er de la liste d'attente.
+  let placeProposee = false;
+  if (type === "remboursement_total" || type === "annulation") {
+    const nouveauStatut = type === "remboursement_total" ? "Remboursé" : "Annulé";
+    const { data: v } = await supabaseAdmin.from("ventes_examen").select("session_id").eq("id", (r as any).vente_id).maybeSingle();
+    await supabaseAdmin.from("ventes_examen").update({ statut_paiement: nouveauStatut }).eq("id", (r as any).vente_id);
+    const sessionId = (v as any)?.session_id ?? null;
+    if (sessionId) {
+      const { count } = await supabaseAdmin.from("liste_attente_examen")
+        .select("id", { count: "exact", head: true }).eq("session_id", sessionId).eq("statut", "en_attente");
+      await proposerPlaceLibre(sessionId, u.email ?? null);
+      placeProposee = !!count && count > 0;
+    }
   }
   // Report → reprogramme la vente vers la session cible (si renseignée à la demande).
   let reprogramme: string | null = null;
@@ -203,6 +243,6 @@ export async function PATCH(req: NextRequest) {
     reprogramme = (r as any).nouvelle_session_id;
   }
 
-  await journal("ventes_examen", (r as any).vente_id, "remboursement_effectue", { type, montant: (r as any).montant, avoir: maj.avoir_numero ?? null, reprogramme }, u.email ?? null);
-  return NextResponse.json({ ok: true, avoirNumero: maj.avoir_numero ?? null });
+  await journal("ventes_examen", (r as any).vente_id, "remboursement_effectue", { type, montant: (r as any).montant, avoir: maj.avoir_numero ?? null, reprogramme, place_proposee: placeProposee }, u.email ?? null);
+  return NextResponse.json({ ok: true, avoirNumero: maj.avoir_numero ?? null, placeProposee });
 }
