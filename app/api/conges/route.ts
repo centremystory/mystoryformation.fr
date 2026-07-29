@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser, UnauthorizedError } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { journal } from "@/lib/examens";
+import { getParamNumber } from "@/lib/parametres";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,7 +41,38 @@ export async function GET(req: NextRequest) {
   if (statut) q = q.eq("statut", statut);
   const { data, error } = await q;
   if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true, peutValider: valid, demandes: data ?? [] });
+  const demandes = data ?? [];
+
+  // Liste des employés (pour le menu « remplacé par ») — visible par les valideurs.
+  let employes: Array<{ id: string; nom: string }> = [];
+  if (valid) {
+    const { data: us } = await supabaseAdmin.from("utilisateurs")
+      .select("id, nom, prenom").eq("actif", true).order("nom");
+    employes = (us ?? []).map((u: any) => ({ id: u.id, nom: [u.prenom, u.nom].filter(Boolean).join(" ") || "—" }));
+  }
+
+  // Solde de congés payés : quota annuel (paramètre éditable) − jours ouvrés déjà APPROUVÉS cette année.
+  const quotaCp = await getParamNumber("conges_payes_quota_jours", 25);
+  const annee = new Intl.DateTimeFormat("fr-CA", { timeZone: "Europe/Paris" }).format(new Date()).slice(0, 4);
+  const soldes: Record<string, number> = {}; // utilisateur_id → jours ouvrés de CP approuvés cette année
+  for (const d of demandes as any[]) {
+    if (d.type !== "conges_payes" || d.statut !== "approuve") continue;
+    if (String(d.date_debut).slice(0, 4) !== annee) continue;
+    soldes[d.utilisateur_id] = (soldes[d.utilisateur_id] ?? 0) + joursOuvres(d.date_debut, d.date_fin);
+  }
+
+  return NextResponse.json({ ok: true, peutValider: valid, demandes, employes, quotaCp, soldes, moiId: u.id ?? null });
+}
+
+/** Jours ouvrés (lun–ven) inclusifs entre deux dates ISO. */
+function joursOuvres(debut: string, fin: string): number {
+  const d = new Date(debut + "T12:00:00Z"), f = new Date(fin + "T12:00:00Z");
+  let n = 0;
+  for (let x = new Date(d); x <= f; x.setUTCDate(x.getUTCDate() + 1)) {
+    const j = x.getUTCDay();
+    if (j !== 0 && j !== 6) n++;
+  }
+  return n;
 }
 
 export async function POST(req: NextRequest) {
