@@ -168,7 +168,9 @@ export async function bpfSynthese(annee: number): Promise<BpfSynthese> {
   }
   for (const l of lignesST) {
     if (!l.contrat_ref || !l.attestation) {
-      anomalies.push({ niveau: "info", message: `Sous-traitant « ${l.prestataire} » : ${!l.contrat_ref ? "contrat manquant" : ""}${!l.contrat_ref && !l.attestation ? " · " : ""}${!l.attestation ? "attestation anti-démarchage manquante" : ""}.` });
+      // Bloquant : un sous-traitant sans contrat + attestation anti-démarchage ne doit pas
+      // figurer au BPF déposé (exigence Qualiopi / anti-démarchage). À compléter avant dépôt.
+      anomalies.push({ niveau: "bloquant", message: `Sous-traitant « ${l.prestataire} » : ${!l.contrat_ref ? "contrat manquant" : ""}${!l.contrat_ref && !l.attestation ? " · " : ""}${!l.attestation ? "attestation anti-démarchage manquante" : ""} — à compléter avant le dépôt du BPF.` });
     }
   }
   if (sansHeures > 0) {

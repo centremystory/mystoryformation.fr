@@ -11,6 +11,13 @@ import { requireUser, UnauthorizedError } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { journal } from "@/lib/examens";
 import { getParamNumber } from "@/lib/parametres";
+import { envoyerEmail, gabaritEmail } from "@/lib/email";
+
+function dateFrCourt(iso: string | null): string {
+  if (!iso) return "—";
+  try { return new Date(iso + "T12:00:00Z").toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" }); }
+  catch { return iso; }
+}
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -122,7 +129,7 @@ export async function PATCH(req: NextRequest) {
   if (!id) return NextResponse.json({ ok: false, erreur: "id requis." }, { status: 400 });
 
   const { data: demande, error: eDem } = await supabaseAdmin
-    .from("conges").select("id, utilisateur_id, statut").eq("id", id).single();
+    .from("conges").select("id, utilisateur_id, statut, type, date_debut, date_fin, utilisateurs(nom, prenom, email)").eq("id", id).single();
   if (eDem || !demande) return NextResponse.json({ ok: false, erreur: "Demande introuvable." }, { status: 404 });
   const d = demande as any;
 
@@ -137,6 +144,15 @@ export async function PATCH(req: NextRequest) {
     const { error } = await supabaseAdmin.from("conges").update(maj).eq("id", id);
     if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
     await journal("conges", id, action === "approuver" ? "conges_approuve" : "conges_refuse", { commentaire, remplace_par: action === "approuver" ? remplacePar : null }, u.email ?? null);
+    // Notifie le salarié de la décision (best-effort, ne bloque pas).
+    const emp = d.utilisateurs;
+    if (emp?.email) {
+      const period = `${dateFrCourt(d.date_debut)} → ${dateFrCourt(d.date_fin)}`;
+      const corps = action === "approuver"
+        ? `<p>Bonjour ${emp.prenom ?? ""} ${emp.nom ?? ""},</p><p>Votre demande de congés (<strong>${period}</strong>) a été <strong>approuvée</strong>.${commentaire ? ` Note : ${commentaire}.` : ""}${remplacePar ? ` Remplacement assuré par ${remplacePar}.` : ""}</p><p>L'équipe MYSTORY</p>`
+        : `<p>Bonjour ${emp.prenom ?? ""} ${emp.nom ?? ""},</p><p>Votre demande de congés (<strong>${period}</strong>) n'a pas pu être approuvée.${commentaire ? ` Motif : ${commentaire}.` : ""} N'hésitez pas à en discuter avec la direction.</p><p>L'équipe MYSTORY</p>`;
+      await envoyerEmail({ a: emp.email, objet: `Vos congés (${period}) — ${action === "approuver" ? "approuvés" : "réponse"}`, html: gabaritEmail("Décision sur vos congés", corps), entite: "conges", entiteId: id, auteur: u.email ?? null }).catch(() => {});
+    }
     return NextResponse.json({ ok: true });
   }
 
