@@ -60,6 +60,22 @@ export async function PATCH(req: NextRequest) {
     }
   }
 
+  // Heures RÉELLEMENT réalisées — saisie manuelle quand l'émargement n'est pas fait à temps
+  // (débloque attestation / certificat). Doit refléter la réalité (contrôlée à la validation
+  // du service fait : écart prévu/réalisé = motif obligatoire). "" ou null efface.
+  if ("heures_realisees" in body) {
+    const v = body.heures_realisees;
+    if (v == null || String(v).trim() === "") {
+      maj.heures_realisees = null;
+    } else {
+      const n = Number(v);
+      if (!Number.isFinite(n) || n < 0 || n > 2000) {
+        return NextResponse.json({ ok: false, erreur: "Heures réalisées invalides (0 à 2000)." }, { status: 422 });
+      }
+      maj.heures_realisees = Math.round(n);
+    }
+  }
+
   // Cohérence début/fin si les deux sont posés dans la requête.
   if (typeof maj.date_debut === "string" && typeof maj.date_fin === "string" && maj.date_fin < maj.date_debut) {
     return NextResponse.json({ ok: false, erreur: "La date de fin ne peut pas précéder la date de début." }, { status: 422 });
