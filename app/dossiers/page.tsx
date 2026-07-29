@@ -884,6 +884,12 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
         bloques.push({ piece: p.type, raison: e?.message ?? "erreur réseau" });
       }
     }
+    // Rappel : la convention suit un circuit de signature distinct (DocuSeal) — elle n'est
+    // pas incluse dans la génération auto. On le signale pour éviter un dossier sans convention.
+    const conv = pieces.find((p) => p.type === "convention");
+    if (conv && !["signee", "envoye_a_signer", "signature_en_cours"].includes(conv.statut)) {
+      bloques.push({ piece: "convention", raison: "à envoyer séparément — bouton « Envoyer à signer ✍️ » (ou « Importer (papier signé) »)" });
+    }
     setBatch({ done, total: cibles.length, bloques });
     setBusy(null);
     await recharger();
@@ -1074,8 +1080,15 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
     }
 
     if (GENERABLES[p.type]) {
+      const docFin = p.type === "attestation_fin" || p.type === "certificat_realisation";
+      const heuresManquantes = docFin && d.heures_realisees == null;
       return (
         <>
+          {heuresManquantes && (p.statut === "manquant" || p.statut === "erreur_envoi") && (
+            <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">
+              ⚠️ Renseigne d'abord les <b>heures réalisées</b> (en haut de la fiche) — requis pour ce document de fin.
+            </span>
+          )}
           {(p.statut === "manquant" || p.statut === "erreur_envoi") && (
             <button onClick={() => generer(p)} disabled={occupé}
                     className="px-3 py-1 rounded-lg text-xs text-white bg-mystory disabled:opacity-50">
