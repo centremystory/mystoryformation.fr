@@ -41,12 +41,19 @@ export default function AccueilTestPage() {
     <main className="min-h-screen bg-gradient-to-b from-[#293A4A] to-[#1c2b3a] px-4 py-10">
       <div className="mx-auto max-w-xl">
         <header className="text-center text-white">
-          <div className="text-2xl font-extrabold tracking-widest text-[#7FA6E8]">MYSTORY</div>
-          <h1 className="mt-2 text-3xl font-extrabold">Test de positionnement</h1>
-          <p className="mt-2 text-sm text-blue-100/80">
-            Gratuit · ~1 h · 4 épreuves (compréhension et expression, écrites et orales).<br />
-            Résultat de compréhension immédiat, niveau complet et conseils par email sous 48 h.
+          <div className="text-2xl font-extrabold tracking-[0.25em] text-[#7FA6E8]">MYSTORY</div>
+          <p className="mt-1 text-[11px] uppercase tracking-widest text-blue-100/50">Votre histoire, notre fierté</p>
+          <h1 className="mt-4 text-3xl font-extrabold leading-tight sm:text-4xl">Évaluez votre niveau de français</h1>
+          <p className="mx-auto mt-3 max-w-md text-sm text-blue-100/80">
+            En 45 minutes, on situe votre niveau sur les 4 compétences et on vous conseille le bon parcours — sans engagement.
           </p>
+          <div className="mt-5 flex flex-wrap justify-center gap-2">
+            {[["✅", "100 % gratuit"], ["⏱️", "45 minutes"], ["📊", "4 compétences"], ["⚡", "Résultat immédiat"]].map(([e, l]) => (
+              <span key={l} className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-blue-50 ring-1 ring-white/15 backdrop-blur">
+                <span>{e}</span>{l}
+              </span>
+            ))}
+          </div>
         </header>
 
         {/* Choix du parcours */}
