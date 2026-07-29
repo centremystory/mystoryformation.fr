@@ -11,7 +11,7 @@ import {
   ClipboardList, Users, Plane, CalendarRange, Clock, Settings, Receipt, CheckCircle2,
   FileSpreadsheet, UserCog, MessageSquare, MessageCircle, Megaphone, Eye, HelpCircle, KeyRound,
   Workflow, ScrollText, LogOut, Menu, X, ChevronDown,
-  Plus, FileCheck, RotateCcw, Trophy, UserPlus, Phone, ShieldCheck, BarChart3, QrCode, Sparkles, } from "lucide-react";
+  Plus, FileCheck, RotateCcw, Trophy, UserPlus, Phone, ShieldCheck, BarChart3, QrCode, } from "lucide-react";
 import { accesPage, accesPageAvec, ROLE_LABEL } from "@/lib/roles";
 import TachesUrgentes from "@/components/TachesUrgentes";
 import RituelDuJour from "@/components/RituelDuJour";
@@ -31,7 +31,6 @@ type Entree = { type: "link"; href: string; label: string; icon: LucideIcon; mem
 const NAV: Entree[] = [
   { type: "link", href: "/", label: "Accueil", icon: Home },
   { type: "link", href: "/mon-rapport", label: "Mon rapport et mes tâches", icon: Clock },
-  { type: "link", href: "/assistant", label: "Assistant IA", icon: Sparkles },
   { type: "link", href: "/recherche", label: "Rechercher", icon: Search },
   { type: "link", href: "/direction", label: "Cockpit Direction", icon: LayoutGrid },
   { type: "link", href: "/cockpit-commercial", label: "Cockpit Commercial", icon: BarChart3, membres: ["/ventes-formation"] },

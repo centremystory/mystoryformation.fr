@@ -3,6 +3,7 @@
 // Ajout (agence + intitulé + échéance), coche « fait », archive. Filtre/groupement par agence.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { SITES } from "@/lib/sites";
+import TempsTacheModal from "@/components/TempsTacheModal";
 
 const BLEU = "#2F72DE";
 const AGENCES = SITES; // source unique (lib/sites)
@@ -43,6 +44,7 @@ export default function PageTaches() {
   const [assigneAjout, setAssigneAjout] = useState<string>("");
   const [monEmail, setMonEmail] = useState<string | null>(null);
   const [mesTaches, setMesTaches] = useState(false);
+  const [tacheAValider, setTacheAValider] = useState<string | null>(null); // modale « temps passé »
 
   useEffect(() => {
     fetch("/api/utilisateurs").then((r) => r.json()).then((j) => { if (j.ok) setPersonnes(j.utilisateurs); }).catch(() => {});
@@ -136,6 +138,11 @@ export default function PageTaches() {
 
   return (
     <main className="max-w-3xl mx-auto px-4 md:px-6 py-8">
+      <TempsTacheModal
+        ouvert={!!tacheAValider}
+        onValider={(min) => { const id = tacheAValider; setTacheAValider(null); if (id) patch(id, "fait", `t-${id}`, min || null); }}
+        onAnnuler={() => setTacheAValider(null)}
+      />
       <header className="page-header">
         <div>
           <h1 className="page-title">Tâches par agence</h1>
@@ -216,10 +223,7 @@ export default function PageTaches() {
                     <input type="checkbox" checked={t.fait} disabled={busy === `t-${t.id}`}
                            onChange={() => {
                              if (t.fait) { patch(t.id, "repris", `t-${t.id}`); return; }
-                             const saisie = window.prompt("Temps passé sur cette tâche ? (en minutes — laisser vide si non suivi)", "");
-                             if (saisie === null) return; // annulé
-                             const min = saisie.trim() === "" ? null : Math.max(0, Math.round(Number(saisie)));
-                             patch(t.id, "fait", `t-${t.id}`, Number.isFinite(min as number) ? min : null);
+                             setTacheAValider(t.id); // ouvre la modale « temps passé »
                            }}
                            className="h-4 w-4 accent-[#2F72DE] cursor-pointer" />
                     <span className={`flex-1 text-sm ${t.fait ? "line-through text-gray-400" : "text-gray-900"}`}>

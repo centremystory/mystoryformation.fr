@@ -3,6 +3,7 @@
 // Le rapport se remplit avec des TÂCHES + le TEMPS réalisé (pas du texte libre), horodatées à la saisie.
 // Contient : pointage · grille de la semaine (matin/après-midi) · mes tâches à faire · tâches par agence.
 import { useCallback, useEffect, useState } from "react";
+import TempsTacheModal from "@/components/TempsTacheModal";
 
 const BLEU = "#2F72DE";
 const AGENCES = ["Gagny", "Sarcelles", "Rosny"];
@@ -78,15 +79,16 @@ export default function MonRapportPage() {
     finally { setBusy(false); }
   }
 
-  async function marquerFaite(id: string, reloadAgence = false) {
-    const rep = window.prompt("Temps passé sur cette tâche ? (en minutes)", "30");
-    if (rep == null) return;
-    const minutes = Math.round(Number(rep));
-    if (!Number.isFinite(minutes) || minutes < 0) return;
+  // Marquer une tâche faite → ouvre la modale « temps passé » (fini le window.prompt natif).
+  const [tacheAValider, setTacheAValider] = useState<{ id: string; reloadAgence: boolean } | null>(null);
+  function marquerFaite(id: string, reloadAgence = false) { setTacheAValider({ id, reloadAgence }); }
+  async function validerTemps(minutes: number) {
+    const t = tacheAValider; setTacheAValider(null);
+    if (!t) return;
     setBusy(true);
     try {
-      await fetch("/api/taches", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, action: "fait", temps_minutes: minutes }) });
-      await charger(); if (reloadAgence) await chargerAgence(agence);
+      await fetch("/api/taches", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: t.id, action: "fait", temps_minutes: minutes }) });
+      await charger(); if (t.reloadAgence) await chargerAgence(agence);
     } finally { setBusy(false); }
   }
 
@@ -95,6 +97,7 @@ export default function MonRapportPage() {
 
   return (
     <div style={{ maxWidth: 960, margin: "0 auto", padding: "8px 4px 60px" }}>
+      <TempsTacheModal ouvert={!!tacheAValider} onValider={validerTemps} onAnnuler={() => setTacheAValider(null)} />
       <h1 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 2px" }}>Mon rapport et mes tâches</h1>
       <p style={{ color: "#667085", fontSize: 14, marginTop: 0 }}>Semaine du {lundiFr}. Ajoute tes tâches <b>avec le temps passé</b> : elles s'horodatent à la saisie et remplissent ton rapport.</p>
 
