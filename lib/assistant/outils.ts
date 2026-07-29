@@ -101,7 +101,7 @@ export const OUTILS: Record<string, Outil> = {
       if (!q) return { erreur: "Recherche vide." };
       const { data, error } = await supabaseAdmin
         .from("examens")
-        .select("nom,prenom,type_examen,sous_type,date_examen,horaire,agence_vente,vendu_par,montant_eur,mode_paiement,statut_paiement,reste_a_payer_eur,statut_reglement,inscrit_cci")
+        .select("nom,prenom,telephone,email,type_examen,sous_type,date_examen,horaire,agence_vente,vendu_par,montant_eur,mode_paiement,statut_paiement,reste_a_payer_eur,statut_reglement,inscrit_cci")
         .eq("actif", true).or(`nom.ilike.%${q}%,prenom.ilike.%${q}%`).limit(20);
       if (error) return { erreur: error.message };
       if (!data || !data.length) return { resultat: `Aucun candidat examen trouvé pour « ${q} ».` };

@@ -34,7 +34,6 @@ const NAV: Entree[] = [
   { type: "link", href: "/recherche", label: "Rechercher", icon: Search },
   { type: "link", href: "/direction", label: "Cockpit Direction", icon: LayoutGrid },
   { type: "link", href: "/cockpit-commercial", label: "Cockpit Commercial", icon: BarChart3, membres: ["/ventes-formation"] },
-  { type: "link", href: "/reglages", label: "Réglages", icon: Settings, membres: ["/centres", "/catalogue"] },
   {
     type: "menu", label: "Formation", icon: GraduationCap, items: [
       { href: "/formation", label: "Tableau de bord", icon: LayoutGrid },
@@ -82,6 +81,7 @@ const NAV: Entree[] = [
   },
   {
     type: "menu", label: "Système", icon: Settings, items: [
+      { href: "/reglages", label: "Réglages", icon: Settings, membres: ["/centres", "/catalogue"] },
       { href: "/comptes", label: "Comptes & accès", icon: KeyRound, membres: ["/permissions"] },
       { href: "/automatisations", label: "Automatisations", icon: Workflow },
       { href: "/journal", label: "Journal & incidents", icon: ScrollText, membres: ["/incidents"] },
