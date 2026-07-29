@@ -186,10 +186,12 @@ export default function FicheFormateurPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  {d?.sign_url && d.statut !== "signe" && (
+                  {d?.sign_url && d.statut !== "signee" && (
                     <a href={d.sign_url} target="_blank" className="text-xs text-blue-600 underline">Lien de signature</a>
                   )}
-                  {d?.statut !== "signe" && (
+                  {d?.statut === "signee" ? (
+                    <span className="text-xs font-semibold text-emerald-700">Signé ✓</span>
+                  ) : (
                     <button onClick={() => envoyerDoc(t)} disabled={busy === t}
                       className="rounded-lg bg-blue-600 text-white text-xs font-semibold px-3 py-1.5 disabled:opacity-50">
                       {busy === t ? "…" : d ? "Relancer" : "Envoyer"}
