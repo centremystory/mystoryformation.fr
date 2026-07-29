@@ -5,7 +5,7 @@
 import Link from "next/link";
 import { cookies, headers } from "next/headers";
 import {
-  GraduationCap, ClipboardList, Users, Receipt, ListChecks,
+  GraduationCap, ClipboardList, Receipt, ListChecks,
   Plus, ArrowRight, CheckCircle2, AlertTriangle, Send, FileSignature, ChevronRight, MessageSquareWarning, BookOpen,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -458,7 +458,6 @@ export default async function Accueil() {
 
   // Tuiles transverses, filtrées selon le rôle.
   const tuiles: { href: string; icone: LucideIcon; titre: string; desc: string }[] = [
-    { href: "/equipe", icone: Users, titre: "Équipe", desc: "Formateurs (justificatifs FLE) et commerciaux." },
     { href: "/reclamations", icone: MessageSquareWarning, titre: "Réclamations", desc: "Candidats examen & stagiaires formation." },
     { href: "/attestations-paiement", icone: Receipt, titre: "Attestation de paiement", desc: "Retrouver un candidat : paiement, attestation, report, réclamation." },
     { href: "/faq", icone: BookOpen, titre: "FAQ & Guides", desc: "FAQ, Guide Vendeurs, Guide Formatrices." },
@@ -675,12 +674,12 @@ export default async function Accueil() {
                   <div key={ag} className="card">
                     <p className="mb-2 text-xs font-semibold text-gray-500">{ag}</p>
                     {items.slice(0, 5).map((it) => (
-                      <div key={it.id} className="flex items-center justify-between gap-2 py-0.5 text-sm">
+                      <Link key={it.id} href="/taches" className="-mx-1 flex items-center justify-between gap-2 rounded px-1 py-0.5 text-sm hover:bg-mystory-clair/40">
                         <span className="truncate text-gray-700">{it.titre}</span>
                         {it.echeance && (
                           <span className={`shrink-0 text-xs ${it.echeance < auj ? "font-medium text-red-600" : "text-gray-400"}`}>{frJour(it.echeance)}</span>
                         )}
-                      </div>
+                      </Link>
                     ))}
                     {items.length > 5 && <p className="mt-1 text-xs text-gray-400">+{items.length - 5} autre(s)</p>}
                   </div>
