@@ -22,6 +22,7 @@ import { requireUser, UnauthorizedError } from "@/lib/auth";
 import { getFiche, archiveDocument, setPieceStatus, getSignedUrl } from "@/lib/crm";
 import { genererFeuilleEmargementHtml } from "@/lib/emargement";
 import { participationCpfBloquante } from "@/lib/gates";
+import { referentHandicapExtras } from "@/lib/referentHandicap";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -132,8 +133,9 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Fusion (lieu = Gagny forcé) ; champs requis manquants -> 409 + recap
-  const merge = mergeTemplate(templateId, fiche);
+  // Fusion (lieu = Gagny forcé) ; champs requis manquants -> 409 + recap.
+  // Référent handicap (Qualiopi 26) injecté depuis /reglages pour le règlement intérieur.
+  const merge = mergeTemplate(templateId, fiche, await referentHandicapExtras());
   if (merge.missing.length > 0) {
     return NextResponse.json(
       { ok: false, dossierId, type, status: "champs_manquants", recap: merge.missing.map((m) => `Champ requis manquant : ${m}`) },
