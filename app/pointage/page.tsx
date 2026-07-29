@@ -114,11 +114,17 @@ export default function PagePointage() {
               <p className="text-sm text-gray-500">Entrée à <span className="font-semibold text-gray-900">{heure(session.entree_le)}</span>{session.site ? ` · ${session.site}` : ""}</p>
               <p className="text-4xl font-bold text-mystory mt-1">{duree(session.entree_le, null)}<span className="text-base font-normal text-gray-400"> en cours</span></p>
             </div>
-            <button onClick={() => pointer("sortie")} disabled={busy}
-              className="w-full py-5 rounded-2xl bg-gray-900 text-white text-lg font-bold active:scale-[0.99] transition disabled:opacity-50">
-              {busy ? "…" : "🚪 Je pointe ma sortie"}
-            </button>
-            <p className="text-center text-xs text-gray-400">Tu pars déjeuner ? Pointe ta sortie, puis re-pointe en revenant — la pause n'est pas comptée.</p>
+            <div className="grid grid-cols-2 gap-3">
+              <button onClick={() => pointer("sortie")} disabled={busy}
+                className="py-5 rounded-2xl bg-amber-500 text-white text-base font-bold active:scale-[0.99] transition disabled:opacity-50">
+                {busy ? "…" : "☕ Je prends une pause"}
+              </button>
+              <button onClick={() => pointer("sortie")} disabled={busy}
+                className="py-5 rounded-2xl bg-gray-900 text-white text-base font-bold active:scale-[0.99] transition disabled:opacity-50">
+                {busy ? "…" : "🏁 Fin de journée"}
+              </button>
+            </div>
+            <p className="text-center text-xs text-gray-400">Pause déjeuner ou pause dans la journée : « Je prends une pause », puis « Je reprends » en revenant — la pause n'est jamais comptée.</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -129,10 +135,10 @@ export default function PagePointage() {
               </select>
             </div>
             <button onClick={() => pointer("entree")} disabled={busy}
-              className="w-full py-5 rounded-2xl bg-mystory text-white text-lg font-bold active:scale-[0.99] transition disabled:opacity-50">
-              {busy ? "…" : "✅ Je pointe mon arrivée"}
+              className={`w-full py-5 rounded-2xl text-white text-lg font-bold active:scale-[0.99] transition disabled:opacity-50 ${sessionsJour.length > 0 ? "bg-emerald-600" : "bg-mystory"}`}>
+              {busy ? "…" : sessionsJour.length > 0 ? "▶️ Je reprends (fin de pause)" : "✅ Je pointe mon arrivée"}
             </button>
-            {sessionsJour.length > 0 && <p className="text-center text-xs text-gray-400">{sessionsJour.length} session(s) aujourd'hui · reviens de pause ? re-pointe simplement.</p>}
+            {sessionsJour.length > 0 && <p className="text-center text-xs text-gray-400">{sessionsJour.length} session(s) aujourd'hui · {totalJourFmt} travaillé{pauseMin > 0 ? ` · ${pauseFmt} de pause` : ""}.</p>}
           </div>
         )}
       </section>
