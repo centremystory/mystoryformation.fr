@@ -46,6 +46,7 @@ export default function PagePlanningEmployes() {
   const [heureFin, setHeureFin] = useState("");
   const [site, setSite] = useState("Gagny");
   const [note, setNote] = useState("");
+  const [editId, setEditId] = useState<string | null>(null); // créneau en cours de modification
   const formRef = useRef<HTMLDivElement>(null);
 
   const jours = useMemo(() => Array.from({ length: 7 }, (_, i) => addJours(lundi, i)), [lundi]);
@@ -75,15 +76,32 @@ export default function PagePlanningEmployes() {
     if (!dateJour) { setErr("Choisis une date."); return; }
     setBusy(true); setErr(null);
     try {
-      const j = await fetch("/api/planning-employes", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ utilisateurId, dateJour, heureDebut, heureFin, site, note }),
-      }).then((r) => r.json());
-      if (!j.ok) { setErr(j.erreur || "Affectation impossible."); return; }
-      setNote(""); setHeureDebut(""); setHeureFin("");
+      // Édition d'un créneau existant → PATCH (champs) ; sinon création → POST.
+      const j = editId
+        ? await fetch("/api/planning-employes", {
+            method: "PATCH", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: editId, site, note, heureDebut, heureFin }),
+          }).then((r) => r.json())
+        : await fetch("/api/planning-employes", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ utilisateurId, dateJour, heureDebut, heureFin, site, note }),
+          }).then((r) => r.json());
+      if (!j.ok) { setErr(j.erreur || "Enregistrement impossible."); return; }
+      annulerEdition();
       await charger();
-    } catch (e: any) { setErr(e?.message || "Affectation impossible."); }
+    } catch (e: any) { setErr(e?.message || "Enregistrement impossible."); }
     finally { setBusy(false); }
+  }
+
+  function modifier(c: Creneau) {
+    if (!peutGerer) return;
+    setEditId(c.id); setUtilisateurId(c.utilisateur_id); setDateJour(c.date_jour);
+    setHeureDebut(hhmm(c.heure_debut)); setHeureFin(hhmm(c.heure_fin));
+    setSite(c.site || "Gagny"); setNote(c.note ?? "");
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+  function annulerEdition() {
+    setEditId(null); setNote(""); setHeureDebut(""); setHeureFin("");
   }
 
   async function supprimer(id: string) {
@@ -188,6 +206,7 @@ export default function PagePlanningEmployes() {
                             <div className="font-semibold">{c.site}</div>
                             {(c.heure_debut || c.heure_fin) && <div>{hhmm(c.heure_debut)}{c.heure_fin ? `–${hhmm(c.heure_fin)}` : ""}</div>}
                             {c.note && <div className="text-gray-500 truncate" title={c.note}>{c.note}</div>}
+                            {peutGerer && <button onClick={(e) => { e.stopPropagation(); modifier(c); }} className="text-[10px] text-gray-400 hover:text-mystory">modifier</button>}
                             {peutGerer && <button onClick={(e) => { e.stopPropagation(); supprimer(c.id); }} className="text-[10px] text-gray-400 hover:text-red-600">retirer</button>}
                           </div>
                         ))}
@@ -215,6 +234,7 @@ export default function PagePlanningEmployes() {
                     {(c.heure_debut || c.heure_fin) && <span className="text-sm text-gray-600">{hhmm(c.heure_debut)}{c.heure_fin ? `–${hhmm(c.heure_fin)}` : ""}</span>}
                     {c.note && <span className="text-sm text-gray-500">· {c.note}</span>}
                     <span className="flex-1" />
+                    {peutGerer && <button onClick={() => modifier(c)} className="text-xs text-gray-400 hover:text-mystory">Modifier</button>}
                     {peutGerer && <button onClick={() => supprimer(c.id)} className="text-xs text-gray-400 hover:text-red-600">Retirer</button>}
                   </div>
                 ))}
@@ -226,7 +246,7 @@ export default function PagePlanningEmployes() {
 
       {peutGerer && (
         <section ref={formRef} className="card mt-6">
-          <h2 className="text-sm font-semibold text-gray-800 mb-3">Affecter un créneau {dateJour && <span className="text-mystory">· {dateLongue(dateJour)}</span>}</h2>
+          <h2 className="text-sm font-semibold text-gray-800 mb-3">{editId ? "Modifier le créneau" : "Affecter un créneau"} {dateJour && <span className="text-mystory">· {dateLongue(dateJour)}</span>}</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <select value={utilisateurId} onChange={(e) => setUtilisateurId(e.target.value)} className="input">
               <option value="">— Employé —</option>
@@ -242,7 +262,11 @@ export default function PagePlanningEmployes() {
             </div>
           </div>
           <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (poste, tâche…)" className="w-full input mt-2" />
-          <button onClick={affecter} disabled={busy} className="btn-primary mt-3">{busy ? "Ajout…" : "Affecter"}</button>
+          {editId && <p className="mt-2 text-xs text-gray-400">Modification d'un créneau existant (employé et jour figés — retire-le et recrée pour les changer).</p>}
+          <div className="flex items-center gap-2 mt-3">
+            <button onClick={affecter} disabled={busy} className="btn-primary">{busy ? "Enregistrement…" : editId ? "Enregistrer les modifications" : "Affecter"}</button>
+            {editId && <button onClick={annulerEdition} className="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 text-sm">Annuler</button>}
+          </div>
         </section>
       )}
     </main>
