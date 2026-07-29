@@ -29,6 +29,12 @@ const LIBELLE_PIECE: Record<string, string> = {
 
 // Pièces déposées (fichier externe → archives du dossier). Affichées même si absentes en base.
 const DEPOSABLES = new Set(["justificatif_participation", "justificatif_examen"]);
+// Pièces qu'on peut faire à la main (imprimer → signer → scanner → importer le PDF).
+const IMPORTABLES = new Set([
+  "fiche_analyse_besoin", "convention", "programme", "reglement_interieur",
+  "planning", "convocation", "feuille_emargement", "satisfaction_chaud",
+  "attestation_fin", "certificat_realisation",
+]);
 
 const STATUT_PIECE: Record<string, { label: string; classes: string }> = {
   manquant: { label: "À faire", classes: "bg-gray-100 text-gray-600" },
@@ -74,6 +80,7 @@ type Dossier = {
   token: string;
   heures_prevues: number | null;
   heures_hebdo: number | null;
+  heures_realisees: number | null;
   service_fait_valide: boolean;
   satisfaction_froid_envoyee_le: string | null;
   niveau_initial: string | null;
@@ -703,6 +710,13 @@ function TunnelControl({ d, recharger }: { d: Dossier; recharger: () => Promise<
             defaultValue={d.heures_hebdo ?? ""} onBlur={(e) => patch({ heures_hebdo: e.target.value })}
             className="input ml-1 w-16 py-1 text-xs" /> h/sem
         </label>
+        <label title="Heures réellement effectuées. À saisir si l'émargement n'est pas encore fait, pour débloquer l'attestation et le certificat. Doit refléter la réalité.">
+          Heures réalisées :
+          <input type="number" min={0} max={2000} step={0.5} disabled={busy}
+            defaultValue={d.heures_realisees ?? ""} onBlur={(e) => patch({ heures_realisees: e.target.value })}
+            className="input ml-1 w-16 py-1 text-xs" /> h
+          <span className="ml-1 text-gray-400">/ {d.heures_prevues ?? "—"} prévues</span>
+        </label>
         {(() => {
           const hebdo = Number(d.heures_hebdo) || 0;
           const prevues = Number(d.heures_prevues) || 0;
@@ -730,6 +744,7 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
   const [envoiMsg, setEnvoiMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cibleDepotRef = useRef<string | null>(null);
+  const endpointDepotRef = useRef<string>("/api/documents/justificatif");
   const formRef = useRef<HTMLDivElement>(null);
 
   // Le formulaire « à compléter » se rend en bas de la carte (après la liste des pièces) :
@@ -748,6 +763,15 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
 
   function ouvrirDepot(pieceType: string) {
     cibleDepotRef.current = pieceType;
+    endpointDepotRef.current = "/api/documents/justificatif";
+    fileInputRef.current?.click();
+  }
+
+  // Import d'un document fait à la main (imprimé, signé sur papier, scanné) → devient la
+  // version qui fait foi et passe la pièce en « signée ». Alternative à Générer / DocuSeal.
+  function ouvrirImport(pieceType: string) {
+    cibleDepotRef.current = pieceType;
+    endpointDepotRef.current = "/api/documents/importer";
     fileInputRef.current?.click();
   }
 
@@ -762,7 +786,7 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
       fd.append("dossierId", d.id);
       fd.append("piece", pieceType);
       fd.append("fichier", fichier);
-      const r = await fetch("/api/documents/justificatif", { method: "POST", body: fd });
+      const r = await fetch(endpointDepotRef.current, { method: "POST", body: fd });
       const j = await r.json();
       if (!j.ok) { setErreurs([j.erreur || "Échec du dépôt."]); return; }
       await recharger();
@@ -1151,7 +1175,16 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
                 {p.optionnelle && <span className="text-gray-400 text-xs"> (optionnelle)</span>}
               </span>
               <span className={`inline-block px-2 py-0.5 rounded-full text-xs ${s.classes}`}>{s.label}</span>
-              <span className="flex items-center gap-1.5">{boutons(p)}</span>
+              <span className="flex items-center gap-1.5 flex-wrap">
+                {boutons(p)}
+                {IMPORTABLES.has(p.type) && (
+                  <button onClick={() => ouvrirImport(p.type)} disabled={busy === p.type}
+                          title="Fait à la main : imprimer, faire signer sur papier, puis importer le PDF scanné (il fera foi)."
+                          className="px-3 py-1 rounded-lg text-xs border border-dashed border-gray-300 text-gray-500 hover:text-mystory hover:border-mystory disabled:opacity-50">
+                    ⬆️ Importer (papier signé)
+                  </button>
+                )}
+              </span>
             </li>
           );
         })}
