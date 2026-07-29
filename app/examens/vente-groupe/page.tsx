@@ -133,7 +133,8 @@ export default function PageVenteGroupe() {
           doublon_motif: forcerDoublon ? motifDoublon.trim() : "",
         }),
       });
-      const j = await r.json();
+      const j = await r.json().catch(() => null);
+      if (!r.ok || !j) { setErreurs([`Le serveur a renvoyé une erreur (${r.status}). L'inscription n'est pas enregistrée — réessaie, et vérifie si le paiement a bien été pris en compte.`]); return; }
       if (!j.ok) { setErreurs(j.recap ?? [j.erreur || "Échec de l'inscription."]); return; }
       try { if (vendeur.vendu_par.trim()) localStorage.setItem("mystory_auteur", vendeur.vendu_par.trim()); } catch {}
       setResultat(j);
