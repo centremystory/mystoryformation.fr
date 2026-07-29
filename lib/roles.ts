@@ -175,7 +175,9 @@ export function rolesAutorisesPage(pathname: string): Role[] {
  * Les automates de confiance (n8n/cron, token de service) restent autorisés côté API
  * pour alimenter le brief cash — géré dans requireProprietaire (lib/auth).
  * ──────────────────────────────────────────────────────────────────────── */
-export const EMAIL_PROPRIETAIRE = "arudhan@mystoryformation.fr";
+// Paramétrable via l'env EMAIL_PROPRIETAIRE (ex. changement d'adresse) ; repli sur la
+// valeur historique si non défini → aucun risque de verrouillage des pages finance.
+export const EMAIL_PROPRIETAIRE = (process.env.EMAIL_PROPRIETAIRE || "arudhan@mystoryformation.fr").trim().toLowerCase();
 
 /** Préfixes de pages FINANCE réservées au propriétaire (email), sans exception de rôle. */
 export const PAGES_PROPRIETAIRE = ["/bpf", "/direction", "/classement", "/finances", "/activite"] as const;

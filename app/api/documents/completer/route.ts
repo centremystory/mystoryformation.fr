@@ -16,6 +16,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { mergeTemplate, FicheStagiaire } from "@/lib/mergeEngine";
+import { referentHandicapExtras } from "@/lib/referentHandicap";
 import { renderHtmlToPdf, createFicheBesoinSubmissionFromHtml } from "@/lib/docuseal";
 import { requireUser, UnauthorizedError, type SessionUser } from "@/lib/auth";
 import { peut } from "@/lib/roles";
@@ -267,7 +268,7 @@ export async function POST(req: NextRequest) {
     .upsert({ dossier_id: dossierId, piece_type: type, champs: champsValides, auteur }, { onConflict: "dossier_id,piece_type" });
   if (compErr) return NextResponse.json({ ok: false, erreur: compErr.message }, { status: 500 });
 
-  const merge = mergeTemplate(type, fiche, extras);
+  const merge = mergeTemplate(type, fiche, { ...(await referentHandicapExtras()), ...extras });
   if (merge.missing.length > 0) {
     return NextResponse.json(
       { ok: false, status: "champs_manquants", recap: merge.missing.map((m) => `Champ requis manquant : ${m}`) },
