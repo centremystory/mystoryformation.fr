@@ -31,7 +31,9 @@ function nomDemandeur(d: Demande): string {
   return [u.prenom, u.nom].filter(Boolean).join(" ") || u.email || "—";
 }
 
-function Carte({ d, peutValider, onAction }: { d: Demande; peutValider: boolean; onAction: (id: string, action: string, extra?: Record<string, unknown>) => void }) {
+type Employe = { id: string; nom: string };
+
+function Carte({ d, peutValider, employes, onAction }: { d: Demande; peutValider: boolean; employes: Employe[]; onAction: (id: string, action: string, extra?: Record<string, unknown>) => void }) {
   const st = STATUT[d.statut] ?? { label: d.statut, cls: "bg-gray-100 text-gray-600" };
   const [remplacant, setRemplacant] = useState(d.remplace_par ?? "");
   const editable = peutValider && (d.statut === "en_attente" || d.statut === "approuve");
@@ -50,12 +52,14 @@ function Carte({ d, peutValider, onAction }: { d: Demande; peutValider: boolean;
 
       {editable && (
         <div className="flex items-center gap-2 mt-2">
-          <input
+          <select
             value={remplacant}
             onChange={(e) => setRemplacant(e.target.value)}
-            placeholder="Remplacé·e par (nom)"
             className="border border-gray-300 rounded-lg px-2 py-1 text-xs flex-1 bg-white"
-          />
+          >
+            <option value="">Remplacé·e par… (optionnel)</option>
+            {employes.map((e) => <option key={e.id} value={e.nom}>{e.nom}</option>)}
+          </select>
           {d.statut === "approuve" && (
             <button onClick={() => onAction(d.id, "remplacant", { remplacePar: remplacant })}
                     className="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 text-xs whitespace-nowrap">
@@ -83,6 +87,10 @@ function Carte({ d, peutValider, onAction }: { d: Demande; peutValider: boolean;
 export default function PageConges() {
   const [demandes, setDemandes] = useState<Demande[]>([]);
   const [peutValider, setPeutValider] = useState(false);
+  const [employes, setEmployes] = useState<Employe[]>([]);
+  const [quotaCp, setQuotaCp] = useState(25);
+  const [soldes, setSoldes] = useState<Record<string, number>>({});
+  const [moiId, setMoiId] = useState<string | null>(null);
   const [charge, setCharge] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -100,13 +108,27 @@ export default function PageConges() {
       const j = await r.json();
       if (!j.ok) { setErr(j.erreur || "Erreur de chargement."); return; }
       setDemandes(j.demandes); setPeutValider(j.peutValider);
+      setEmployes(j.employes ?? []); setQuotaCp(j.quotaCp ?? 25); setSoldes(j.soldes ?? {}); setMoiId(j.moiId ?? null);
     } catch (e: any) { setErr(e?.message || "Erreur de chargement."); }
     finally { setCharge(false); }
   }, []);
   useEffect(() => { charger(); }, [charger]);
 
+  function joursOuvres(debut: string, fin: string): number {
+    const d = new Date(debut + "T12:00:00Z"), f = new Date(fin + "T12:00:00Z");
+    let n = 0;
+    for (const x = new Date(d); x <= f; x.setUTCDate(x.getUTCDate() + 1)) { const j = x.getUTCDay(); if (j !== 0 && j !== 6) n++; }
+    return n;
+  }
+
   async function demander() {
     if (!dateDebut || !dateFin) { setErr("Indique les dates de début et de fin."); return; }
+    // Garde-fou souple : prévient si la demande de CP dépasse le solde restant (n'empêche pas).
+    if (type === "conges_payes" && dateFin >= dateDebut) {
+      const pris = (moiId && soldes[moiId]) || 0;
+      const demande = joursOuvres(dateDebut, dateFin);
+      if (pris + demande > quotaCp && !window.confirm(`Cette demande (${demande} j) dépasse ton solde de congés payés (${quotaCp - pris} j restants). L'envoyer quand même ? La Direction validera.`)) return;
+    }
     setBusy(true); setErr(null);
     try {
       const r = await fetch("/api/conges", {
@@ -153,6 +175,16 @@ export default function PageConges() {
           <label className="text-sm text-gray-600 flex items-center gap-2">Au <input type="date" value={dateFin} onChange={(e) => setDateFin(e.target.value)} className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm flex-1" /></label>
         </div>
         <input value={motif} onChange={(e) => setMotif(e.target.value)} placeholder="Motif (optionnel)" className="w-full input mt-2" />
+        {(() => {
+          const pris = (moiId && soldes[moiId]) || 0;
+          const reste = quotaCp - pris;
+          return (
+            <p className="mt-2 text-xs text-gray-500">
+              Congés payés cette année : <b className="text-gray-700">{pris} j</b> approuvés sur {quotaCp} · reste{" "}
+              <b className={reste <= 0 ? "text-danger-600" : "text-emerald-700"}>{reste} j</b>
+            </p>
+          );
+        })()}
         <button onClick={demander} disabled={busy} className="btn-primary mt-3">
           {busy ? "Envoi…" : "Demander"}
         </button>
@@ -165,13 +197,13 @@ export default function PageConges() {
           {peutValider && enAttente.length > 0 && (
             <section className="mb-6">
               <h2 className="text-sm font-semibold text-gray-800 mb-2">À valider ({enAttente.length})</h2>
-              <div className="space-y-2">{enAttente.map((d) => <Carte key={d.id} d={d} peutValider={peutValider} onAction={action} />)}</div>
+              <div className="space-y-2">{enAttente.map((d) => <Carte key={d.id} d={d} peutValider={peutValider} employes={employes} onAction={action} />)}</div>
             </section>
           )}
           <section>
             <h2 className="text-sm font-semibold text-gray-800 mb-2">{peutValider ? "Toutes les demandes" : "Mes demandes"}</h2>
             {autres.length === 0 ? <p className="text-gray-500 text-sm">Aucune demande pour l'instant.</p> : (
-              <div className="space-y-2">{autres.map((d) => <Carte key={d.id} d={d} peutValider={peutValider} onAction={action} />)}</div>
+              <div className="space-y-2">{autres.map((d) => <Carte key={d.id} d={d} peutValider={peutValider} employes={employes} onAction={action} />)}</div>
             )}
           </section>
         </>
