@@ -29,7 +29,7 @@ type Entree = { type: "link"; href: string; label: string; icon: LucideIcon; mem
 
 const NAV: Entree[] = [
   { type: "link", href: "/", label: "Accueil", icon: Home },
-  { type: "link", href: "/mon-rapport", label: "Mon rapport", icon: Clock },
+  { type: "link", href: "/mon-rapport", label: "Mon rapport et mes tâches", icon: Clock },
   { type: "link", href: "/assistant", label: "Assistant IA", icon: Sparkles },
   { type: "link", href: "/recherche", label: "Rechercher", icon: Search },
   { type: "link", href: "/direction", label: "Cockpit Direction", icon: LayoutGrid },
@@ -62,7 +62,6 @@ const NAV: Entree[] = [
     type: "menu", label: "RH", icon: Users, items: [
       { href: "/equipe", label: "Équipe", icon: Users, membres: ["/formateurs", "/confidentialite", "/planning-employes", "/pointage"] },
       { href: "/conges", label: "Congés", icon: Plane },
-      { href: "/rapport-hebdo", label: "Rapport hebdo", icon: Clock },
     ],
   },
   {

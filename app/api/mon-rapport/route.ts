@@ -1,5 +1,8 @@
-// app/api/mon-rapport/route.ts — Rapport hebdo PERSONNEL : grille par jour × créneau (matin/aprem)
-// avec horaires personnalisables par salarié, + tâches faites de la semaine, + compte-rendu libre.
+// app/api/mon-rapport/route.ts — « Mon rapport et mes tâches » (page unique).
+// Le rapport = des ENTRÉES d'activité avec le TEMPS réalisé (pas du texte libre) et
+// l'heure de saisie (cree_le, anti-triche), rangées par jour × créneau (matin/aprem).
+// GET agrège : entrées de la semaine + tâches faites (assignées) + tâches à faire (à moi)
+//              + horaires perso. POST ajoute/supprime une entrée.
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, UnauthorizedError } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
@@ -19,84 +22,106 @@ function lundiCourant(): string {
   const idx: Record<string, number> = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
   return ajouterJours(ajd, -((idx[jc] || 1) - 1));
 }
-async function monId(email?: string): Promise<string | null> {
-  if (!email) return null;
-  const { data } = await supabaseAdmin.from("utilisateurs").select("id").eq("email", email).maybeSingle();
-  return data?.id ?? null;
-}
 
 export async function GET(req: NextRequest) {
   let user; try { user = await requireUser(req); } catch (e) {
     if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false }, { status: 401 }); throw e;
   }
-  const lundi = lundiCourant();
-  const id = await monId(user.email);
   const email = user.email ?? "";
+  const id = user.id ?? null;
+  const lundi = lundiCourant();
+  const dimanche = ajouterJours(lundi, 6);
+  const dates = JOURS_FR.map((_, i) => ajouterJours(lundi, i));
 
-  // Tâches faites / à faire (via l'assignation)
-  let faites: any[] = [];
+  // Entrées d'activité de la semaine (temps réalisé + heure de saisie), par jour/créneau.
+  let entrees: any[] = [];
+  if (id) {
+    const { data } = await supabaseAdmin.from("rapports_hebdo")
+      .select("id, jour, creneau, activite, duree_minutes, cree_le")
+      .eq("utilisateur_id", id).eq("actif", true).not("jour", "is", null)
+      .gte("jour", lundi).lte("jour", dimanche)
+      .order("cree_le", { ascending: true });
+    entrees = data ?? [];
+  }
+
+  // Tâches ASSIGNÉES faites cette semaine (comptent aussi dans le rapport).
+  let tachesFaites: any[] = [];
   if (id) {
     const { data } = await supabaseAdmin.from("taches")
       .select("id, titre, agence, temps_minutes, fait_le")
-      .eq("assignee", id).eq("fait", true).eq("actif", true).gte("fait_le", lundi)
-      .order("fait_le", { ascending: false }).limit(200);
-    faites = data ?? [];
+      .eq("assignee", id).eq("fait", true).eq("actif", true)
+      .gte("fait_le", `${lundi}T00:00:00`).lte("fait_le", `${dimanche}T23:59:59`)
+      .order("fait_le", { ascending: true });
+    tachesFaites = data ?? [];
   }
-  const totalMinutes = faites.reduce((s, t) => s + (Number(t.temps_minutes) || 0), 0);
 
-  // Horaires perso
-  const { data: u } = await supabaseAdmin.from("utilisateurs").select("horaire_matin, horaire_aprem").eq("email", email).maybeSingle();
+  // Mes tâches À FAIRE (assignées à moi, non faites).
+  let mesTaches: any[] = [];
+  if (id) {
+    const { data } = await supabaseAdmin.from("taches")
+      .select("id, titre, agence, echeance, cree_le")
+      .eq("assignee", id).eq("fait", false).eq("actif", true)
+      .order("echeance", { ascending: true, nullsFirst: false }).limit(100);
+    mesTaches = data ?? [];
+  }
+
+  const totalMinutes =
+    entrees.reduce((s, e) => s + (Number(e.duree_minutes) || 0), 0) +
+    tachesFaites.reduce((s, t) => s + (Number(t.temps_minutes) || 0), 0);
+
+  // Horaires perso (contexte matin/après-midi).
+  const { data: u } = await supabaseAdmin.from("utilisateurs")
+    .select("horaire_matin, horaire_aprem").eq("email", email).maybeSingle();
   const horaires = { matin: u?.horaire_matin ?? "9h30-12h30", aprem: u?.horaire_aprem ?? "14h-17h" };
 
-  // Grille de la semaine (lundi→vendredi) × créneaux
-  const dates = JOURS_FR.map((_, i) => ajouterJours(lundi, i));
-  const { data: rj } = await supabaseAdmin.from("rapports_jour")
-    .select("jour, creneau, activite").eq("utilisateur_email", email).in("jour", dates);
-  const parCle = new Map((rj ?? []).map((r: any) => [`${r.jour}|${r.creneau}`, r.activite ?? ""]));
-  const jours = JOURS_FR.map((nom, i) => {
-    const date = dates[i];
-    return { nom, date, matin: parCle.get(`${date}|matin`) ?? "", aprem: parCle.get(`${date}|aprem`) ?? "" };
+  return NextResponse.json({
+    ok: true, identifie: !!id, semaine: lundi,
+    jours: JOURS_FR.map((nom, i) => ({ nom, date: dates[i] })),
+    entrees, tachesFaites, mesTaches, totalMinutes, horaires,
   });
-
-  // Compte-rendu libre
-  const { data: rap } = await supabaseAdmin.from("rapports_hebdo").select("contenu").eq("utilisateur_email", email).eq("semaine", lundi).maybeSingle();
-
-  return NextResponse.json({ ok: true, semaine: lundi, identifie: !!id, faites, nbFaites: faites.length, totalMinutes, horaires, jours, contenu: rap?.contenu ?? "" });
 }
 
 export async function POST(req: NextRequest) {
   let user; try { user = await requireUser(req); } catch (e) {
     if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false }, { status: 401 }); throw e;
   }
-  const email = user.email;
-  if (!email) return NextResponse.json({ ok: false, erreur: "Compte sans email." }, { status: 400 });
+  if (!user.id) return NextResponse.json({ ok: false, erreur: "Connecte-toi avec ton compte individuel." }, { status: 403 });
   let b: any; try { b = await req.json(); } catch { return NextResponse.json({ ok: false, erreur: "JSON invalide." }, { status: 400 }); }
 
-  // 1) Horaires perso
+  // Horaires perso (facultatif).
   if (typeof b.horaire_matin === "string" || typeof b.horaire_aprem === "string") {
     const maj: any = {};
     if (typeof b.horaire_matin === "string") maj.horaire_matin = String(b.horaire_matin).slice(0, 40);
     if (typeof b.horaire_aprem === "string") maj.horaire_aprem = String(b.horaire_aprem).slice(0, 40);
-    await supabaseAdmin.from("utilisateurs").update(maj).eq("email", email);
+    if (Object.keys(maj).length && user.email) await supabaseAdmin.from("utilisateurs").update(maj).eq("email", user.email);
+    return NextResponse.json({ ok: true });
   }
 
-  // 2) Grille jour × créneau
-  if (Array.isArray(b.jours)) {
-    const lignes = b.jours
-      .filter((j: any) => j && j.jour && (j.creneau === "matin" || j.creneau === "aprem"))
-      .map((j: any) => ({ utilisateur_email: email, jour: String(j.jour).slice(0, 10), creneau: j.creneau, activite: String(j.activite ?? "").slice(0, 2000), maj_le: new Date().toISOString() }));
-    if (lignes.length) {
-      const { error } = await supabaseAdmin.from("rapports_jour").upsert(lignes, { onConflict: "utilisateur_email,jour,creneau" });
-      if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
-    }
+  const action = String(b.action ?? "ajouter");
+
+  if (action === "supprimer") {
+    const id = String(b.id ?? "").trim();
+    if (!id) return NextResponse.json({ ok: false, erreur: "id requis." }, { status: 400 });
+    const { error } = await supabaseAdmin.from("rapports_hebdo").update({ actif: false })
+      .eq("id", id).eq("utilisateur_id", user.id); // chacun ne supprime que le sien
+    if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
   }
 
-  // 3) Compte-rendu libre (optionnel)
-  if (typeof b.contenu === "string") {
-    await supabaseAdmin.from("rapports_hebdo").upsert(
-      { utilisateur_email: email, semaine: lundiCourant(), contenu: String(b.contenu).slice(0, 5000), maj_le: new Date().toISOString() },
-      { onConflict: "utilisateur_email,semaine" });
-  }
+  // Ajouter une entrée : tâche faite AVEC le temps réalisé (l'heure de saisie fait foi).
+  const jour = String(b.jour ?? "").slice(0, 10);
+  const creneau = b.creneau === "aprem" ? "aprem" : b.creneau === "matin" ? "matin" : null;
+  const activite = String(b.activite ?? "").trim();
+  const duree = Math.max(0, Math.round(Number(b.duree_minutes ?? 0)));
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(jour)) return NextResponse.json({ ok: false, erreur: "Jour invalide." }, { status: 422 });
+  if (!creneau) return NextResponse.json({ ok: false, erreur: "Créneau requis (matin/aprem)." }, { status: 422 });
+  if (!activite) return NextResponse.json({ ok: false, erreur: "Décris la tâche réalisée." }, { status: 400 });
+  if (!Number.isFinite(duree) || duree <= 0) return NextResponse.json({ ok: false, erreur: "Indique le temps passé (minutes)." }, { status: 422 });
 
-  return NextResponse.json({ ok: true });
+  const { data, error } = await supabaseAdmin.from("rapports_hebdo").insert({
+    utilisateur_id: user.id, utilisateur_email: user.email ?? null, semaine: lundiCourant(),
+    jour, creneau, activite: activite.slice(0, 500), duree_minutes: duree, auteur: user.email ?? null,
+  }).select("id, jour, creneau, activite, duree_minutes, cree_le").single();
+  if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true, entree: data });
 }
