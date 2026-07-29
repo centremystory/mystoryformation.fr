@@ -420,6 +420,27 @@ async function cockpitDirection(site: SiteFiltre) {
   }
 }
 
+/** Tests initiaux passés par des prospects SANS dossier (sans suite) — à relancer/convertir. */
+async function testsInitiauxSansSuiteCount(): Promise<number> {
+  try {
+    const { count } = await supabaseAdmin.from("evaluations")
+      .select("id", { count: "exact", head: true })
+      .eq("phase", "initial").is("dossier_id", null);
+    return count ?? 0;
+  } catch { return 0; }
+}
+
+/** Tâches assignées à la personne connectée, non faites. */
+async function mesTachesCount(userId?: string): Promise<number> {
+  if (!userId) return 0;
+  try {
+    const { count } = await supabaseAdmin.from("taches")
+      .select("id", { count: "exact", head: true })
+      .eq("assignee", userId).eq("fait", false).eq("actif", true);
+    return count ?? 0;
+  } catch { return 0; }
+}
+
 export default async function Accueil() {
   const site = siteValide(cookies().get(COOKIE_SITE)?.value);
 
@@ -433,13 +454,16 @@ export default async function Accueil() {
   const voir = (href: string) => peutVoirPage(role, href);
   const estDirection = role === "direction" || role === "manager" || role === "staff" || !role;
 
-  const [c, t, cf, ex, cl, tk, an, testsDist, convListe, reclaListe, dir] = await Promise.all([
+  const [c, t, cf, ex, cl, tk, an, testsDist, convListe, reclaListe, dir, testsSansSuite, mesTaches] = await Promise.all([
     compter(site), aTraiter(site), conformiteFormateurs(), examenSemaine(site), classementAccueil(), tachesAccueil(site),
     anomaliesAccueil(site), testsADistanceCount(), conventionsListe(), reclamationsListe(site),
     estDirection ? cockpitDirection(site) : Promise.resolve(null),
+    testsInitiauxSansSuiteCount(), mesTachesCount(user?.id),
   ]);
 
   const actions = [
+    { label: "🎯 Mes tâches à faire", n: mesTaches, href: "/taches" },
+    { label: "🔁 Tests initiaux sans suite (à relancer)", n: testsSansSuite, href: "/tests/tous" },
     { label: "Liens de paiement à traiter", n: ex.liens, href: "/examens/preinscriptions" },
     { label: "Réclamations à traiter", n: t.reclamations, href: "/reclamations" },
     { label: "Tâches d'agence à faire", n: tk.length, href: "/taches" },
