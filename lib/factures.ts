@@ -385,11 +385,37 @@ export async function envoyerFacture(
     entite: "factures", entiteId: factureId, auteur: auteur ?? null,
   });
 
-  if (envoi.ok && (mode === "relance_1" || mode === "relance_2")) {
-    await supabaseAdmin.from("factures").update({ statut: mode, updated_at: new Date().toISOString() }).eq("id", factureId);
-    await journal("factures", factureId, `facture_${mode}`, { numero }, auteur ?? null);
+  if (envoi.ok) {
+    // Trace l'envoi réussi (permet la relance auto des emails de facture échoués).
+    const maj: Record<string, unknown> = { email_envoye_le: new Date().toISOString(), updated_at: new Date().toISOString() };
+    if (mode === "relance_1" || mode === "relance_2") maj.statut = mode;
+    await supabaseAdmin.from("factures").update(maj).eq("id", factureId);
+    if (mode === "relance_1" || mode === "relance_2") await journal("factures", factureId, `facture_${mode}`, { numero }, auteur ?? null);
   }
   return envoi;
+}
+
+/**
+ * Factures dont l'email n'a JAMAIS été envoyé avec succès (émission échouée) → à renvoyer.
+ * Exclut CPF (payeur = CDC, pas d'email), payées, et sans email destinataire.
+ * Le renvoi est un simple appel à envoyerFacture(mode:"emission").
+ */
+export async function facturesEmailEchoue(): Promise<string[]> {
+  const { data } = await supabaseAdmin
+    .from("factures")
+    .select("id, statut, email_envoye_le, dossier_id, vente_id")
+    .is("email_envoye_le", null)
+    .neq("statut", "payée")
+    .neq("statut", "annulée");
+  const out: string[] = [];
+  for (const f of (data ?? []) as any[]) {
+    const ctx = await chargerFacture(f.id);
+    if (!ctx) continue;
+    if (ctx.estCpf) continue;              // payeur CDC → jamais d'email au stagiaire
+    if (!ctx.destinataire?.email) continue; // pas d'adresse → rien à renvoyer
+    out.push(f.id);
+  }
+  return out;
 }
 
 /**

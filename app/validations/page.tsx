@@ -113,9 +113,9 @@ export default function ValidationsPage() {
         body: JSON.stringify({ id, action, commentaire }),
       });
       const j = await r.json();
-      if (!j.ok) throw new Error(j.erreur ?? "Action impossible.");
+      if (!j.ok) throw new Error((j.erreur ?? "Action impossible.") + (action === "approuver" ? " La demande reste à valider — tu peux réessayer." : ""));
       await charger();
-    } catch (e: any) { setErreur(e?.message ?? String(e)); }
+    } catch (e: any) { setErreur(e?.message ?? String(e)); await charger(); }
     finally { setBusy(false); }
   }
 
