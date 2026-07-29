@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
   // CPF uniquement après service fait validé (verrou art. L.6323-12).
   const { data: dossiers } = await supabaseAdmin
     .from("dossiers")
-    .select("id, certif, montant, remise, financement, origine_fonds, service_fait_valide, stagiaires:stagiaire_id (civilite, prenom, nom)");
+    .select("id, certif, montant, remise, financement, origine_fonds, service_fait_valide, date_fin, stagiaires:stagiaire_id (civilite, prenom, nom)");
   const { data: deja } = await supabaseAdmin.from("factures").select("dossier_id, vente_id");
   const { data: lignesRef } = await supabaseAdmin.from("facture_lignes").select("ref_type, ref_id");
   const dossiersFactures = new Set((deja ?? []).map((f: any) => f.dossier_id).filter(Boolean));
@@ -83,6 +83,7 @@ export async function GET(req: NextRequest) {
       return {
         dossierId: d.id,
         certif: d.certif,
+        dateFin: d.date_fin ?? null,
         montant: Math.max(0, brut - remise), // net après remise (hors CPF)
         remise: remise || 0,
         client: `${d.stagiaires?.civilite ?? ""} ${d.stagiaires?.prenom ?? ""} ${d.stagiaires?.nom ?? ""}`.trim(),
@@ -108,7 +109,9 @@ export async function GET(req: NextRequest) {
     for (const d of aFacturer as any[]) {
       const derniere = derniereParDossier.get(d.dossierId) ?? null;
       d.derniereSeance = derniere;
-      d.terminee = !!derniere && derniere < auj; // dernière séance passée
+      // Terminé = dernière séance émargée passée, OU (repli, dossier sans planning)
+      // date de fin renseignée à la main et passée → sinon jamais relancé pour facturer.
+      d.terminee = (!!derniere && derniere < auj) || (!derniere && !!d.dateFin && d.dateFin < auj);
     }
   }
 
