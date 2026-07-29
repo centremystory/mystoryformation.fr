@@ -192,10 +192,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const actionsRapides = useMemo(() => ACTIONS_RAPIDES.filter((a) => (permMap ? accesPageAvec(roles ?? role, email, a.href, permMap) : accesPage(roles ?? role, email, a.href))), [role, roles, email, permMap]);
 
-  // Ouvre automatiquement le groupe contenant la page active.
+  // Accordéon : seul le groupe de la page active reste ouvert (les autres se replient).
   useEffect(() => {
     const actifs = navVisible.filter((e) => e.type === "menu" && (e as any).items.some((i: Lien) => estActifLien(pathname, i))).map((e) => e.label);
-    if (actifs.length) setOuverts((g) => Array.from(new Set([...g, ...actifs])));
+    if (actifs.length) setOuverts([actifs[0]]);
   }, [pathname, navVisible]);
 
   const estPublic = PAGES_SANS_NAV.some((p) => pathname === p || pathname.startsWith(p + "/"));
@@ -212,7 +212,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     router.push("/connexion");
   }
   function toggleGroupe(label: string) {
-    setOuverts((g) => (g.includes(label) ? g.filter((x) => x !== label) : [...g, label]));
+    // Accordéon : ouvrir un menu referme les autres.
+    setOuverts((g) => (g.includes(label) ? [] : [label]));
   }
   function lancerRecherche(e: React.FormEvent) {
     e.preventDefault();
