@@ -17,6 +17,7 @@ import TachesUrgentes from "@/components/TachesUrgentes";
 import RituelDuJour from "@/components/RituelDuJour";
 import ReclamationsAlerte from "@/components/ReclamationsAlerte";
 import ConformiteAlerte from "@/components/ConformiteAlerte";
+import AssistantWidget from "@/components/AssistantWidget";
 import { SITES, COOKIE_SITE, siteValide } from "@/lib/sites";
 
 const PAGES_SANS_NAV = ["/connexion", "/qcm", "/positionnement", "/suivi", "/evaluation", "/fiche-besoin", "/emargement/signer", "/satisfaction", "/avis-cours", "/formateur-questionnaire", "/contact", "/partenaire", "/test"];
@@ -369,6 +370,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
         <main className="mx-auto w-full max-w-7xl px-4 py-6 md:px-6 md:py-7"><RituelDuJour /><TachesUrgentes /><ReclamationsAlerte /><ConformiteAlerte />{children}</main>
       </div>
+      <AssistantWidget />
     </div>
   );
 }
