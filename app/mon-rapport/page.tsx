@@ -1,126 +1,212 @@
 "use client";
-// app/mon-rapport/page.tsx — Rapport hebdo : grille par jour (matin/aprem), horaires perso, tâches + compte-rendu.
-import { useEffect, useState } from "react";
+// app/mon-rapport/page.tsx — « Mon rapport et mes tâches » (page unique, fusion Mon rapport + Rapport hebdo).
+// Le rapport se remplit avec des TÂCHES + le TEMPS réalisé (pas du texte libre), horodatées à la saisie.
+// Contient : pointage · grille de la semaine (matin/après-midi) · mes tâches à faire · tâches par agence.
+import { useCallback, useEffect, useState } from "react";
 
 const BLEU = "#2F72DE";
-const dureeFr = (min: number) => { const h = Math.floor(min / 60), m = min % 60; return h ? `${h}h${m ? String(m).padStart(2, "0") : ""}` : `${m} min`; };
-
-type Jour = { nom: string; date: string; matin: string; aprem: string };
-type Etat = {
-  ok: boolean; semaine: string; identifie: boolean;
-  faites: any[]; nbFaites: number; totalMinutes: number;
-  horaires: { matin: string; aprem: string }; jours: Jour[]; contenu: string;
-};
-
-const inputS = { border: "1px solid #D0D5DD", borderRadius: 8, padding: "5px 8px", fontSize: 13, width: "100%" } as const;
+const AGENCES = ["Gagny", "Sarcelles", "Rosny"];
+const dureeFr = (min: number) => { const h = Math.floor(min / 60), m = Math.round(min % 60); return h ? `${h}h${m ? String(m).padStart(2, "0") : ""}` : `${m} min`; };
+const heureFr = (iso: string) => { try { return new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" }); } catch { return ""; } };
+const dateFr = (s: string) => new Date(s + "T12:00:00Z").toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+const inputS = { border: "1px solid #D0D5DD", borderRadius: 8, padding: "6px 9px", fontSize: 13 } as const;
+
+type Entree = { id: string; jour: string; creneau: "matin" | "aprem"; activite: string; duree_minutes: number; cree_le: string };
+type TacheFaite = { id: string; titre: string; agence: string; temps_minutes: number | null; fait_le: string };
+type MaTache = { id: string; titre: string; agence: string; echeance: string | null; cree_le: string };
+type Etat = {
+  ok: boolean; identifie: boolean; semaine: string;
+  jours: { nom: string; date: string }[];
+  entrees: Entree[]; tachesFaites: TacheFaite[]; mesTaches: MaTache[]; totalMinutes: number;
+  horaires: { matin: string; aprem: string };
+};
 
 export default function MonRapportPage() {
   const [d, setD] = useState<Etat | null>(null);
-  const [horaires, setHoraires] = useState({ matin: "", aprem: "" });
-  const [jours, setJours] = useState<Jour[]>([]);
-  const [contenu, setContenu] = useState("");
-  const [enreg, setEnreg] = useState<"" | "..." | "ok" | "err">("");
+  const [ptg, setPtg] = useState<{ sessionOuverte: any } | null>(null);
+  const [site, setSite] = useState("Gagny");
+  // Formulaire d'ajout d'une tâche+temps ouvert pour un créneau donné : "date|creneau".
+  const [ajout, setAjout] = useState<string | null>(null);
+  const [aTitre, setATitre] = useState(""); const [aMin, setAMin] = useState("");
+  const [busy, setBusy] = useState(false);
+  // Tâches par agence
+  const [agence, setAgence] = useState("Gagny");
+  const [tachesAgence, setTachesAgence] = useState<any[]>([]);
 
-  useEffect(() => {
-    fetch("/api/mon-rapport", { cache: "no-store" }).then((r) => r.json()).then((j) => {
-      if (j.ok) { setD(j); setHoraires(j.horaires); setJours(j.jours); setContenu(j.contenu || ""); }
-    }).catch(() => {});
+  const charger = useCallback(async () => {
+    const [r, p] = await Promise.all([
+      fetch("/api/mon-rapport", { cache: "no-store" }).then((x) => x.json()).catch(() => null),
+      fetch("/api/pointage", { cache: "no-store" }).then((x) => x.json()).catch(() => null),
+    ]);
+    if (r?.ok) setD(r);
+    if (p?.ok) setPtg({ sessionOuverte: p.sessionOuverte });
   }, []);
+  useEffect(() => { charger(); }, [charger]);
 
-  const majCase = (i: number, creneau: "matin" | "aprem", val: string) =>
-    setJours((prev) => prev.map((jr, k) => (k === i ? { ...jr, [creneau]: val } : jr)));
+  const chargerAgence = useCallback(async (ag: string) => {
+    const j = await fetch(`/api/taches?agence=${encodeURIComponent(ag)}`, { cache: "no-store" }).then((x) => x.json()).catch(() => null);
+    if (j?.ok) setTachesAgence((j.taches ?? []).filter((t: any) => !t.fait));
+  }, []);
+  useEffect(() => { chargerAgence(agence); }, [agence, chargerAgence]);
 
-  async function enregistrer() {
-    setEnreg("...");
+  async function pointer(action: "entree" | "sortie") {
+    setBusy(true);
     try {
-      const corps = {
-        horaire_matin: horaires.matin, horaire_aprem: horaires.aprem, contenu,
-        jours: jours.flatMap((jr) => [
-          { jour: jr.date, creneau: "matin", activite: jr.matin },
-          { jour: jr.date, creneau: "aprem", activite: jr.aprem },
-        ]),
-      };
-      const r = await fetch("/api/mon-rapport", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corps) });
-      const j = await r.json();
-      setEnreg(j.ok ? "ok" : "err"); if (j.ok) setTimeout(() => setEnreg(""), 1600);
-    } catch { setEnreg("err"); }
+      await fetch("/api/pointage", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, site }) });
+      await charger();
+    } finally { setBusy(false); }
   }
 
-  const lundiFr = d ? new Date(d.semaine).toLocaleDateString("fr-FR", { day: "2-digit", month: "long" }) : "";
-  const dateFr = (s: string) => new Date(s).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
+  async function ajouterEntree(jour: string, creneau: "matin" | "aprem") {
+    const minutes = Math.round(Number(aMin));
+    if (!aTitre.trim() || !Number.isFinite(minutes) || minutes <= 0) return;
+    setBusy(true);
+    try {
+      const r = await fetch("/api/mon-rapport", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "ajouter", jour, creneau, activite: aTitre.trim(), duree_minutes: minutes }),
+      });
+      const j = await r.json();
+      if (j.ok) { setAjout(null); setATitre(""); setAMin(""); await charger(); }
+    } finally { setBusy(false); }
+  }
+
+  async function supprimerEntree(id: string) {
+    setBusy(true);
+    try { await fetch("/api/mon-rapport", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "supprimer", id }) }); await charger(); }
+    finally { setBusy(false); }
+  }
+
+  async function marquerFaite(id: string, reloadAgence = false) {
+    const rep = window.prompt("Temps passé sur cette tâche ? (en minutes)", "30");
+    if (rep == null) return;
+    const minutes = Math.round(Number(rep));
+    if (!Number.isFinite(minutes) || minutes < 0) return;
+    setBusy(true);
+    try {
+      await fetch("/api/taches", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, action: "fait", temps_minutes: minutes }) });
+      await charger(); if (reloadAgence) await chargerAgence(agence);
+    } finally { setBusy(false); }
+  }
+
+  const lundiFr = d ? new Date(d.semaine + "T12:00:00Z").toLocaleDateString("fr-FR", { day: "2-digit", month: "long" }) : "";
+  const so = ptg?.sessionOuverte;
 
   return (
-    <div style={{ maxWidth: 900, margin: "0 auto", padding: "8px 4px 60px" }}>
-      <h1 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 2px" }}>Mon rapport de la semaine</h1>
-      <p style={{ color: "#667085", fontSize: 14, marginTop: 0 }}>Semaine du {lundiFr}. Remplis, pour chaque jour, ce que tu as fait le matin et l'après-midi. Ta saisie remonte dans la <a href="/rapport-hebdo" style={{ color: BLEU, textDecoration: "underline" }}>synthèse hebdo</a> (visible par l'encadrement).</p>
+    <div style={{ maxWidth: 960, margin: "0 auto", padding: "8px 4px 60px" }}>
+      <h1 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 2px" }}>Mon rapport et mes tâches</h1>
+      <p style={{ color: "#667085", fontSize: 14, marginTop: 0 }}>Semaine du {lundiFr}. Ajoute tes tâches <b>avec le temps passé</b> : elles s'horodatent à la saisie et remplissent ton rapport.</p>
 
       {!d ? <p style={{ color: "#98A2B3" }}>Chargement…</p> : (
         <>
-          {!d.identifie && <div style={{ background: "#FFFAEB", border: "1px solid #FEDF89", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#B54708", margin: "10px 0" }}>Connecte-toi avec ton compte individuel pour tes tâches personnelles.</div>}
+          {!d.identifie && <div style={{ background: "#FFFAEB", border: "1px solid #FEDF89", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#B54708", margin: "10px 0" }}>Connecte-toi avec ton compte individuel pour pointer et suivre tes tâches.</div>}
 
-          {/* Mes horaires */}
-          <div style={{ border: "1px solid #E4E7EC", borderRadius: 12, padding: 14, margin: "14px 0" }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "#344054", marginBottom: 8 }}>⏰ Mes horaires (adapte-les à ton planning)</div>
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-              <label style={{ fontSize: 12, color: "#667085" }}>Matin
-                <input style={{ ...inputS, width: 160 }} value={horaires.matin} onChange={(e) => setHoraires((h) => ({ ...h, matin: e.target.value }))} placeholder="9h30-12h30" />
-              </label>
-              <label style={{ fontSize: 12, color: "#667085" }}>Après-midi
-                <input style={{ ...inputS, width: 160 }} value={horaires.aprem} onChange={(e) => setHoraires((h) => ({ ...h, aprem: e.target.value }))} placeholder="14h-17h" />
-              </label>
-            </div>
+          {/* Pointage */}
+          <div style={{ border: "1px solid #E4E7EC", borderRadius: 12, padding: 14, margin: "14px 0", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 20 }}>⏱️</span>
+            {so ? (
+              <>
+                <span style={{ fontSize: 14, color: "#344054" }}>Entrée pointée à <b>{heureFr(so.entree_le)}</b>{so.site ? ` · ${so.site}` : ""}</span>
+                <button onClick={() => pointer("sortie")} disabled={busy} style={{ background: "#B42318", color: "#fff", border: "none", borderRadius: 10, padding: "9px 18px", fontSize: 14, fontWeight: 600, cursor: "pointer", marginLeft: "auto" }}>Pointer la sortie</button>
+              </>
+            ) : (
+              <>
+                <span style={{ fontSize: 14, color: "#344054" }}>Pas d'entrée en cours.</span>
+                <select value={site} onChange={(e) => setSite(e.target.value)} style={{ ...inputS, marginLeft: "auto" }}>
+                  {["Gagny", "Sarcelles", "Rosny", "Télétravail", "Autre"].map((s) => <option key={s}>{s}</option>)}
+                </select>
+                <button onClick={() => pointer("entree")} disabled={busy} style={{ background: "#12B76A", color: "#fff", border: "none", borderRadius: 10, padding: "9px 18px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Je pointe mon entrée</button>
+              </>
+            )}
           </div>
 
-          {/* Grille jour × créneau */}
+          {/* Grille de la semaine */}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {jours.map((jr, i) => {
-              // Tâches réellement faites ce jour-là (auto, depuis le suivi des tâches) + temps saisi.
-              const tj = (d.faites || []).filter((t: any) => String(t.fait_le ?? "").slice(0, 10) === jr.date);
-              const minJour = tj.reduce((s: number, t: any) => s + (Number(t.temps_minutes) || 0), 0);
+            {d.jours.map((jr) => {
+              const tjFaites = d.tachesFaites.filter((t) => String(t.fait_le ?? "").slice(0, 10) === jr.date);
+              const minTaches = tjFaites.reduce((s, t) => s + (Number(t.temps_minutes) || 0), 0);
+              const minEntrees = d.entrees.filter((e) => e.jour === jr.date).reduce((s, e) => s + (Number(e.duree_minutes) || 0), 0);
+              const totalJour = minTaches + minEntrees;
               return (
-              <div key={jr.date} style={{ border: "1px solid #E4E7EC", borderRadius: 12, padding: 12 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#1D2939", marginBottom: 8 }}>{cap(jr.nom)} <span style={{ color: "#98A2B3", fontWeight: 400 }}>{dateFr(jr.date)}</span></div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <div>
-                    <div style={{ fontSize: 11, color: "#2F72DE", fontWeight: 600, marginBottom: 3 }}>Matin · {horaires.matin || "—"}</div>
-                    <textarea style={{ ...inputS, minHeight: 44, resize: "vertical" }} value={jr.matin} onChange={(e) => majCase(i, "matin", e.target.value)} placeholder="Ce que j'ai fait…" />
+                <div key={jr.date} style={{ border: "1px solid #E4E7EC", borderRadius: 12, padding: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "#1D2939" }}>{cap(jr.nom)} <span style={{ color: "#98A2B3", fontWeight: 400 }}>{dateFr(jr.date)}</span></span>
+                    {totalJour > 0 && <span style={{ fontSize: 12, color: BLEU, fontWeight: 600 }}>{dureeFr(totalJour)}</span>}
                   </div>
-                  <div>
-                    <div style={{ fontSize: 11, color: "#2F72DE", fontWeight: 600, marginBottom: 3 }}>Après-midi · {horaires.aprem || "—"}</div>
-                    <textarea style={{ ...inputS, minHeight: 44, resize: "vertical" }} value={jr.aprem} onChange={(e) => majCase(i, "aprem", e.target.value)} placeholder="Ce que j'ai fait…" />
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                    {(["matin", "aprem"] as const).map((cr) => {
+                      const cle = `${jr.date}|${cr}`;
+                      const items = d.entrees.filter((e) => e.jour === jr.date && e.creneau === cr);
+                      return (
+                        <div key={cr} style={{ background: "#FCFCFD", border: "1px solid #EEF0F3", borderRadius: 8, padding: 8 }}>
+                          <div style={{ fontSize: 11, color: BLEU, fontWeight: 600, marginBottom: 5 }}>{cr === "matin" ? "Matin" : "Après-midi"} · {cr === "matin" ? d.horaires.matin : d.horaires.aprem}</div>
+                          {items.map((e) => (
+                            <div key={e.id} style={{ display: "flex", alignItems: "baseline", gap: 6, fontSize: 12, color: "#344054", marginBottom: 3 }}>
+                              <b style={{ color: BLEU }}>{dureeFr(e.duree_minutes)}</b>
+                              <span style={{ flex: 1 }}>{e.activite}</span>
+                              <span style={{ color: "#98A2B3", fontSize: 10 }} title="Heure de saisie">🕒{heureFr(e.cree_le)}</span>
+                              <button onClick={() => supprimerEntree(e.id)} title="Supprimer" style={{ border: "none", background: "none", color: "#D0D5DD", cursor: "pointer", fontSize: 13 }}>✕</button>
+                            </div>
+                          ))}
+                          {ajout === cle ? (
+                            <div style={{ marginTop: 4, display: "flex", flexDirection: "column", gap: 5 }}>
+                              <input autoFocus value={aTitre} onChange={(e) => setATitre(e.target.value)} placeholder="Tâche réalisée…" style={{ ...inputS, width: "100%" }} />
+                              <div style={{ display: "flex", gap: 5 }}>
+                                <input type="number" min={1} value={aMin} onChange={(e) => setAMin(e.target.value)} placeholder="min" style={{ ...inputS, width: 64 }} />
+                                <button onClick={() => ajouterEntree(jr.date, cr)} disabled={busy} style={{ background: BLEU, color: "#fff", border: "none", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Ajouter</button>
+                                <button onClick={() => { setAjout(null); setATitre(""); setAMin(""); }} style={{ border: "none", background: "none", color: "#98A2B3", cursor: "pointer", fontSize: 12 }}>Annuler</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button onClick={() => { setAjout(cle); setATitre(""); setAMin(""); }} style={{ border: "1px dashed #D0D5DD", background: "none", color: "#667085", borderRadius: 8, padding: "4px 8px", fontSize: 12, cursor: "pointer", width: "100%", marginTop: 2 }}>➕ Ajouter une tâche + temps</button>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
+                  {tjFaites.length > 0 && (
+                    <div style={{ marginTop: 8, background: "#F5F8FE", border: "1px solid #E1EBFB", borderRadius: 8, padding: "6px 10px", fontSize: 12, color: "#475467" }}>
+                      ✅ {tjFaites.length} tâche{tjFaites.length > 1 ? "s" : ""} assignée{tjFaites.length > 1 ? "s" : ""} clôturée{tjFaites.length > 1 ? "s" : ""}{minTaches > 0 ? ` · ${dureeFr(minTaches)}` : ""} — {tjFaites.map((t) => t.titre).filter(Boolean).join(", ")}
+                    </div>
+                  )}
                 </div>
-                {tj.length > 0 && (
-                  <div style={{ marginTop: 8, background: "#F5F8FE", border: "1px solid #E1EBFB", borderRadius: 8, padding: "6px 10px", fontSize: 12, color: "#475467" }}>
-                    ✅ <b style={{ color: BLEU }}>{tj.length}</b> tâche{tj.length > 1 ? "s" : ""} faite{tj.length > 1 ? "s" : ""}
-                    {minJour > 0 && <> · <b style={{ color: BLEU }}>{dureeFr(minJour)}</b></>}
-                    <span style={{ color: "#667085" }}> — {tj.map((t: any) => t.titre).filter(Boolean).join(", ")}</span>
-                  </div>
-                )}
-              </div>
-            );})}
+              );
+            })}
           </div>
 
-          {/* Récap tâches (auto) */}
-          <div style={{ display: "flex", gap: 16, margin: "16px 0 8px", fontSize: 13, color: "#667085" }}>
-            <span><b style={{ color: BLEU }}>{d.nbFaites}</b> tâche(s) faite(s)</span>
-            <span><b style={{ color: BLEU }}>{dureeFr(d.totalMinutes)}</b> saisi sur les tâches</span>
+          <div style={{ margin: "14px 0 4px", fontSize: 14, color: "#344054", fontWeight: 600 }}>
+            Total de la semaine : <span style={{ color: BLEU }}>{dureeFr(d.totalMinutes)}</span>
           </div>
 
-          {/* Compte-rendu libre */}
-          <h2 style={{ fontSize: 14, fontWeight: 600, color: "#344054", margin: "14px 0 6px" }}>Note de la semaine (optionnel)</h2>
-          <textarea value={contenu} onChange={(e) => setContenu(e.target.value)} rows={3}
-            placeholder="Difficultés, points à signaler, ce qui est prévu la semaine prochaine…"
-            style={{ ...inputS, fontSize: 14, minHeight: 60 }} />
+          {/* Mes tâches à faire */}
+          <h2 style={{ fontSize: 15, fontWeight: 700, color: "#1D2939", margin: "22px 0 8px" }}>📋 Mes tâches à faire</h2>
+          {d.mesTaches.length === 0 ? <p style={{ color: "#98A2B3", fontSize: 13 }}>Aucune tâche à faire assignée. 🎉</p> : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {d.mesTaches.map((t) => (
+                <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 10, border: "1px solid #E4E7EC", borderRadius: 10, padding: "8px 12px" }}>
+                  <span style={{ flex: 1, fontSize: 13, color: "#344054" }}>{t.titre} <span style={{ color: "#98A2B3", fontSize: 11 }}>· {t.agence}{t.echeance ? ` · échéance ${dateFr(t.echeance)}` : ""}</span></span>
+                  <button onClick={() => marquerFaite(t.id)} disabled={busy} style={{ background: "#12B76A", color: "#fff", border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>✓ Fait (avec temps)</button>
+                </div>
+              ))}
+            </div>
+          )}
 
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12 }}>
-            <button onClick={enregistrer} disabled={enreg === "..."}
-              style={{ background: enreg === "ok" ? "#12B76A" : BLEU, color: "#fff", border: "none", borderRadius: 10, padding: "10px 22px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
-              {enreg === "..." ? "Enregistrement…" : enreg === "ok" ? "✓ Enregistré" : "Enregistrer mon rapport"}
-            </button>
-            {enreg === "err" && <span style={{ color: "#B42318", fontSize: 13 }}>Échec — réessaie.</span>}
+          {/* Tâches par agence */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "22px 0 8px" }}>
+            <h2 style={{ fontSize: 15, fontWeight: 700, color: "#1D2939", margin: 0 }}>🏢 Tâches de l'agence</h2>
+            <select value={agence} onChange={(e) => setAgence(e.target.value)} style={{ ...inputS }}>{AGENCES.map((a) => <option key={a}>{a}</option>)}</select>
           </div>
+          {tachesAgence.length === 0 ? <p style={{ color: "#98A2B3", fontSize: 13 }}>Aucune tâche à faire pour {agence}.</p> : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {tachesAgence.map((t) => (
+                <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 10, border: "1px solid #E4E7EC", borderRadius: 10, padding: "8px 12px" }}>
+                  <span style={{ flex: 1, fontSize: 13, color: "#344054" }}>{t.titre} <span style={{ color: "#98A2B3", fontSize: 11 }}>{t.assignee_nom ? `· ${t.assignee_nom}` : "· non assignée"}{t.echeance ? ` · échéance ${dateFr(t.echeance)}` : ""}</span></span>
+                  <button onClick={() => marquerFaite(t.id, true)} disabled={busy} style={{ background: "#12B76A", color: "#fff", border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>✓ Fait (avec temps)</button>
+                </div>
+              ))}
+            </div>
+          )}
         </>
       )}
     </div>

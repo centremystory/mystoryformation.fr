@@ -56,5 +56,4 @@ export const ONGLETS_RH: Onglet[] = [
   { href: "/pointage", label: "Pointage" },
   { href: "/conges", label: "Congés" },
   { href: "/confidentialite", label: "Confidentialité" },
-  { href: "/rapport-hebdo", label: "Rapport hebdo" },
 ];
