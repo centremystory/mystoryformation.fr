@@ -80,6 +80,16 @@ export default function PagePointage() {
     return s + Math.max(0, Math.round((fin - new Date(p.entree_le).getTime()) / 60000));
   }, 0);
   const totalJourFmt = `${Math.floor(totalMinJour / 60)}h${String(totalMinJour % 60).padStart(2, "0")}`;
+  // Pause déduite = amplitude (1re entrée → dernière sortie) − temps travaillé, quand ≥ 2 sessions closes.
+  const sessionsClose = sessionsJour.filter((p) => p.sortie_le);
+  let pauseMin = 0;
+  if (sessionsClose.length >= 2) {
+    const debuts = sessionsClose.map((p) => new Date(p.entree_le).getTime());
+    const fins = sessionsClose.map((p) => new Date(p.sortie_le as string).getTime());
+    const amplitude = Math.round((Math.max(...fins) - Math.min(...debuts)) / 60000);
+    pauseMin = Math.max(0, amplitude - totalMinJour);
+  }
+  const pauseFmt = pauseMin >= 60 ? `${Math.floor(pauseMin / 60)}h${String(pauseMin % 60).padStart(2, "0")}` : `${pauseMin} min`;
 
   return (
     <main className="max-w-3xl mx-auto px-4 md:px-6 py-8">
@@ -94,7 +104,7 @@ export default function PagePointage() {
       <section className="border border-gray-200 rounded-2xl bg-white p-5 mb-4">
         {!peutGerer && (
           <div className="mb-4 flex items-center justify-between rounded-xl bg-mystory-clair/60 px-4 py-2">
-            <span className="text-sm text-gray-600">Aujourd'hui <span className="text-gray-400">(hors pause déjeuner)</span></span>
+            <span className="text-sm text-gray-600">Aujourd'hui <span className="text-gray-400">(hors pause déjeuner)</span>{pauseMin > 0 && <span className="text-gray-400"> · pause déduite {pauseFmt}</span>}</span>
             <span className="text-xl font-bold text-mystory">{totalJourFmt}</span>
           </div>
         )}

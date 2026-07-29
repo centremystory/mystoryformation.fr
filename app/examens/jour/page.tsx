@@ -101,6 +101,7 @@ export default function PageJourJ() {
   }
 
   async function envoyerTous() {
+    if (!window.confirm("Envoyer par email les résultats à TOUS les candidats du jour ? Cette action est définitive.")) return;
     setBusy("envoi"); setMessage(null); setErreur(null);
     try {
       const r = await fetch("/api/examens/resultats", {
