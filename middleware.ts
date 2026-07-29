@@ -59,6 +59,7 @@ const CHEMINS_PUBLICS = [
   "/politique-confidentialite",   // politique de confidentialité publique (RGPD art. 13)
   "/test",                        // test initial : accueil, inscription candidat, passation par jeton
   "/api/tests/kiosque",           // auto-enregistrement candidat (rate-limité)
+  "/api/tests/code",              // résolution code court → jeton (test final, rate-limité)
   "/api/tests/passation",         // passation par jeton (capability)
   "/api/tests/oral",              // dépôt des audios (jeton)
   "/api/tests/audio",             // upload audio (jeton)

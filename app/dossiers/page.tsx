@@ -1603,10 +1603,12 @@ function FormulaireCompletion({
 function LienTestFinal({ dossierId }: { dossierId: string }) {
   const [id, setId] = useState<string | null>(null);
   const [lien, setLien] = useState<string | null>(null);
+  const [code, setCode] = useState<string | null>(null);
   const [qr, setQr] = useState<string | null>(null);
   const [creation, setCreation] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [copie, setCopie] = useState(false);
+  const [copieCode, setCopieCode] = useState(false);
   const [mail, setMail] = useState<string | null>(null);
   const [envoiMail, setEnvoiMail] = useState(false);
 
@@ -1618,7 +1620,7 @@ function LienTestFinal({ dossierId }: { dossierId: string }) {
         body: JSON.stringify({ dossier_id: dossierId, phase: "final" }),
       });
       const j = await r.json();
-      if (j.ok) { setId(j.id); setLien(j.url); setQr(j.qr ?? null); } else setErreur(j.erreur || "Création impossible.");
+      if (j.ok) { setId(j.id); setLien(j.url); setCode(j.code ?? null); setQr(j.qr ?? null); } else setErreur(j.erreur || "Création impossible.");
     } catch { setErreur("Création impossible."); }
     finally { setCreation(false); }
   }
@@ -1651,6 +1653,15 @@ function LienTestFinal({ dossierId }: { dossierId: string }) {
               <button onClick={envoyer} disabled={envoiMail} className="btn-primary !py-1 !text-xs">{envoiMail ? "Envoi…" : "Envoyer par mail"}</button>
             </div>
             {mail && <p className="text-xs text-success-700">{mail}</p>}
+            {code && (
+              <div className="mt-1 rounded-lg border border-dashed border-mystory/40 bg-mystory/5 p-2.5">
+                <p className="text-[11px] text-gray-500">Ou dictez ce code au stagiaire — il le saisit sur <span className="font-medium">test.mystoryformation.fr</span> → «&nbsp;test final&nbsp;» :</p>
+                <div className="mt-1 flex items-center gap-2">
+                  <span className="select-all font-mono text-lg font-bold tracking-widest text-mystory">{code}</span>
+                  <button onClick={() => { navigator.clipboard?.writeText(code); setCopieCode(true); setTimeout(() => setCopieCode(false), 1500); }} className="btn-ghost !py-0.5 !text-xs">{copieCode ? "Copié ✓" : "Copier"}</button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       ) : (

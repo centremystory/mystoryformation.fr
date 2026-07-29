@@ -10,12 +10,20 @@ import { useRouter } from "next/navigation";
 export default function TestFinaleAccueil() {
   const [code, setCode] = useState("");
   const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const router = useRouter();
 
-  function ouvrir() {
+  async function ouvrir() {
     const c = code.trim();
     if (!c) { setErr("Saisissez le code remis par votre formatrice."); return; }
-    router.push(`/test/${encodeURIComponent(c)}`);
+    setBusy(true); setErr(null);
+    try {
+      // Le code court est résolu vers le jeton du test (le stagiaire ne tape pas l'URL longue).
+      const j = await fetch(`/api/tests/code?c=${encodeURIComponent(c)}`).then((r) => r.json());
+      if (j.ok && j.token) { router.push(`/test/${j.token}`); return; }
+      setErr(j.erreur || "Code invalide. Vérifiez le code remis par votre formatrice.");
+    } catch { setErr("Impossible de vérifier le code. Réessayez."); }
+    finally { setBusy(false); }
   }
 
   return (
@@ -57,8 +65,8 @@ export default function TestFinaleAccueil() {
               placeholder="Ex. ABCD-1234"
               className="flex-1 rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm outline-none transition focus:border-mystory focus:ring-2 focus:ring-mystory/20"
             />
-            <button onClick={ouvrir} className="rounded-lg bg-mystory px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-mystory-fonce">
-              Commencer →
+            <button onClick={ouvrir} disabled={busy} className="rounded-lg bg-mystory px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-mystory-fonce disabled:opacity-50">
+              {busy ? "Vérification…" : "Commencer →"}
             </button>
           </div>
           {err && <p className="mt-2 text-sm text-red-600">{err}</p>}
