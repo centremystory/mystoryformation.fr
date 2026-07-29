@@ -28,6 +28,7 @@ const CIBLES = [
   "/api/formation/relances-sans-venue",
   "/api/prospects/relances",
   "/api/factures/relances",
+  "/api/factures/renvoyer-echouees",
 ] as const;
 
 function baseUrl(): string | null {
