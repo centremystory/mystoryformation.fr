@@ -1,10 +1,6 @@
 // lib/onglets.ts — Groupes d'onglets partagés (fusion de pages liées en hubs).
 import type { Onglet } from "@/components/Onglets";
 
-export const ONGLETS_CATALOGUE: Onglet[] = [
-  { href: "/catalogue", label: "Tarifs & formations" },
-  { href: "/catalogue/offres", label: "Offres & formules (v6)" },
-];
 
 export const ONGLETS_SATISFACTION: Onglet[] = [
   { href: "/satisfaction-cours", label: "Saisie (à chaud)" },
@@ -22,6 +18,7 @@ export const ONGLETS_REGLAGES: Onglet[] = [
   { href: "/reglages", label: "Réglages" },
   { href: "/centres", label: "Centres" },
   { href: "/catalogue", label: "Catalogue & tarifs" },
+  { href: "/catalogue/offres", label: "Offres & formules" },
 ];
 
 // Communication — messagerie d'équipe + prospects regroupée en un hub.
@@ -35,6 +32,7 @@ export const ONGLETS_MESSAGERIE: Onglet[] = [
 export const ONGLETS_COMMERCIAL: Onglet[] = [
   { href: "/cockpit-commercial", label: "Cockpit" },
   { href: "/ventes-formation", label: "Ventes formation" },
+  { href: "/examens/candidats", label: "Ventes examens" },
 ];
 
 // Système — comptes & accès par rôle.
