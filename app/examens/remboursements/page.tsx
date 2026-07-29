@@ -172,7 +172,7 @@ export default function PageRemboursements() {
                     </>
                   )}
                   {r.statut === "valide" && (
-                    <button onClick={() => agir(r.id, "effectuer")} disabled={busy === r.id} className="text-green-700 underline disabled:opacity-50">Effectuer</button>
+                    <button onClick={() => { if (window.confirm("Marquer ce remboursement / report comme EFFECTUÉ ? Action définitive.")) agir(r.id, "effectuer"); }} disabled={busy === r.id} className="text-green-700 underline disabled:opacity-50">Effectuer</button>
                   )}
                   {r.avoir_url && <a href={r.avoir_url} target="_blank" rel="noreferrer" className="text-mystory underline">📄 Avoir {r.avoir_numero}</a>}
                 </div>
