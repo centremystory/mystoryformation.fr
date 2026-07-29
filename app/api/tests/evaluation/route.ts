@@ -46,8 +46,22 @@ export async function POST(req: NextRequest) {
     if (st) identite = { nom: st.nom ?? null, prenom: st.prenom ?? null, email: st.email ?? null };
   }
 
+  // Code court à remettre au stagiaire (saisie manuelle sur /test/finale) — unique parmi les tests en cours.
+  const ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // sans 0/O/1/I/L ambigus
+  const genCode = () => {
+    let s = "";
+    for (let i = 0; i < 8; i++) s += ALPHABET[Math.floor(Math.random() * ALPHABET.length)];
+    return s.slice(0, 4) + "-" + s.slice(4);
+  };
+  let code = genCode();
+  for (let i = 0; i < 5; i++) {
+    const { data: exist } = await supabaseAdmin.from("evaluations").select("id").eq("code", code).eq("statut", "en_cours").maybeSingle();
+    if (!exist) break;
+    code = genCode();
+  }
+
   const { data: ev, error } = await supabaseAdmin.from("evaluations").insert({
-    test_id, phase, dossier_id,
+    test_id, phase, dossier_id, code,
     nom: identite.nom, prenom: identite.prenom, email: identite.email,
     statut: "en_cours", auteur: u.email ?? null,
   }).select("id, token").maybeSingle();
@@ -59,5 +73,5 @@ export async function POST(req: NextRequest) {
   const url = `${origin}/test/${ev.token}`;
   let qr: string | null = null;
   try { qr = await QRCode.toDataURL(url, { width: 220, margin: 1 }); } catch { qr = null; }
-  return NextResponse.json({ ok: true, id: ev.id, token: ev.token, url, qr });
+  return NextResponse.json({ ok: true, id: ev.id, token: ev.token, code, url, qr });
 }
