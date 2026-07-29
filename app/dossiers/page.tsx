@@ -397,6 +397,7 @@ function ClotureFormation({ dossierId, recharger }: { dossierId: string; recharg
   const [msg, setMsg] = useState<string | null>(null);
   const [niveau, setNiveau] = useState<string>("");
   const [ecartOk, setEcartOk] = useState(false);
+  const [motifEcart, setMotifEcart] = useState<string>("");
   const [busy, setBusy] = useState(false);
 
   const charger = useCallback(async () => {
@@ -418,11 +419,14 @@ function ClotureFormation({ dossierId, recharger }: { dossierId: string; recharg
     try {
       const r = await fetch("/api/cloture", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dossierId, niveauAtteint: niveau || undefined, ecartConfirme: ecartOk }),
+        body: JSON.stringify({ dossierId, niveauAtteint: niveau || undefined, ecartConfirme: ecartOk, motifEcart: motifEcart || undefined }),
       });
       const j = await r.json();
       if (!j.ok) { setErr(j.erreur || "Clôture impossible."); await charger(); return; }
-      setMsg(`Formation clôturée : fin le ${dateFr(j.dateFinReelle)}, ${j.heuresRealisees} h réalisées, niveau atteint ${j.niveauAtteint}.`);
+      setMsg(
+        `Formation clôturée : fin le ${dateFr(j.dateFinReelle)}, ${j.heuresRealisees} h réalisées, niveau atteint ${j.niveauAtteint}.`
+        + (j.edofAvertissement ? `\n⚠️ ${j.edofAvertissement}` : "")
+      );
       await charger(); await recharger();
     } catch (e: any) { setErr(e?.message || "Clôture impossible."); }
     finally { setBusy(false); }
@@ -464,14 +468,29 @@ function ClotureFormation({ dossierId, recharger }: { dossierId: string; recharg
       )}
 
       {a.ecart && (
-        <label className="mt-3 flex items-start gap-2 text-sm text-gray-700">
-          <input type="checkbox" checked={ecartOk} onChange={(e) => setEcartOk(e.target.checked)} className="mt-0.5" />
-          <span>J'atteste l'écart entre heures prévues ({a.heuresPrevues} h) et réalisées ({a.heuresRealisees} h).</span>
-        </label>
+        <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50/60 p-3">
+          <label className="flex items-start gap-2 text-sm text-gray-700">
+            <input type="checkbox" checked={ecartOk} onChange={(e) => setEcartOk(e.target.checked)} className="mt-0.5" />
+            <span>J'atteste l'écart entre heures prévues ({a.heuresPrevues} h) et réalisées ({a.heuresRealisees} h) — <strong>service fait partiel</strong>.</span>
+          </label>
+          <div className="mt-2">
+            <label className="block text-xs font-medium text-gray-600 mb-1">Motif de l'écart <span className="text-amber-700">(obligatoire — exigé en cas de contrôle CDC)</span></label>
+            <select value={motifEcart} onChange={(e) => setMotifEcart(e.target.value)} className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm bg-white">
+              <option value="">— choisir le motif —</option>
+              <option value="Abandon en cours de formation">Abandon en cours de formation</option>
+              <option value="Sortie anticipée (emploi trouvé)">Sortie anticipée (emploi trouvé)</option>
+              <option value="Absences / arrêt maladie">Absences / arrêt maladie</option>
+              <option value="Interruption à la demande du stagiaire">Interruption à la demande du stagiaire</option>
+              <option value="Objectifs atteints avant terme">Objectifs atteints avant terme</option>
+              <option value="Force majeure">Force majeure</option>
+            </select>
+            <p className="mt-1 text-[11px] text-amber-700">Pensez à ajuster en conséquence les heures déclarées sur EDOF avant la validation du service fait.</p>
+          </div>
+        </div>
       )}
 
       {err && <div className="mt-3 text-sm text-red-700">{err}</div>}
-      {msg && <div className="mt-3 px-3 py-2 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800 text-sm">{msg}</div>}
+      {msg && <div className="mt-3 whitespace-pre-line px-3 py-2 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800 text-sm">{msg}</div>}
 
       <button onClick={cloturer} disabled={busy || a.nbSeancesEmargees === 0}
         className="btn-primary mt-3">
