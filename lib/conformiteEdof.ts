@@ -47,7 +47,9 @@ export async function scannerConformiteEdof(): Promise<DossierRisque[]> {
     .from("dossiers")
     .select(`
       id, certif, financement, origine_fonds, statut, numero_edof,
-      heures_prevues, date_validation_commande, date_debut, formatrice_id,
+      heures_prevues, heures_realisees, heures_edof, service_fait_valide,
+      ecart_heures_confirme, motif_ecart_heures,
+      date_validation_commande, date_debut, formatrice_id,
       stagiaire:stagiaires!inner (nom, prenom, agence),
       formatrice:formatrices!formatrice_id (nom, justificatif_fle),
       pieces ( type, statut, optionnelle, exige_signature )
@@ -96,6 +98,18 @@ export async function scannerConformiteEdof(): Promise<DossierRisque[]> {
     // 6) Formatrice référente sans justificatif FLE
     if (d.formatrice_id && d.formatrice && !d.formatrice.justificatif_fle) {
       anomalies.push({ code: "fle_manquant", gravite: "haute", label: `Formatrice ${d.formatrice.nom} sans justificatif FLE` });
+    }
+
+    // 7) Heures déclarées EDOF > heures réellement réalisées → risque de trop-perçu CDC.
+    if (d.heures_edof != null && d.heures_realisees != null && Number(d.heures_edof) > Number(d.heures_realisees)) {
+      anomalies.push({ code: "edof_surdeclare", gravite: "haute", label: `Heures déclarées EDOF (${d.heures_edof} h) > réalisées (${d.heures_realisees} h) : corriger le dépôt EDOF` });
+    }
+
+    // 8) Service fait partiel sans motif documenté (exigé en cas de contrôle CDC).
+    if (d.service_fait_valide && d.heures_realisees != null && d.heures_prevues != null
+        && Number(d.heures_realisees) !== Number(d.heures_prevues)
+        && !String(d.motif_ecart_heures ?? "").trim()) {
+      anomalies.push({ code: "ecart_sans_motif", gravite: "haute", label: `Service fait partiel (${d.heures_realisees}/${d.heures_prevues} h) sans motif d'écart documenté` });
     }
 
     if (anomalies.length > 0) {

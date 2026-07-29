@@ -130,11 +130,19 @@ export async function POST(req: NextRequest) {
     niveauAtteint = saisi; // correction explicite autorisée
   }
 
-  // Écart prévu / réalisé → confirmation obligatoire.
+  // Écart prévu / réalisé → confirmation ET motif documenté obligatoires (conformité CDC :
+  // un service fait partiel doit être justifié — abandon, sortie anticipée, maladie…).
   const ecart = d.heures_prevues != null && calc.heuresRealisees !== Number(d.heures_prevues);
+  const motifEcart = String(b?.motifEcart ?? "").trim();
   if (ecart && b?.ecartConfirme !== true) {
     return NextResponse.json(
-      { ok: false, status: "ecart_a_confirmer", erreur: `Écart d'heures : prévues ${d.heures_prevues} h ≠ réalisées ${calc.heuresRealisees} h. Confirmation requise.`, heuresPrevues: d.heures_prevues, heuresRealisees: calc.heuresRealisees },
+      { ok: false, status: "ecart_a_confirmer", erreur: `Écart d'heures : prévues ${d.heures_prevues} h ≠ réalisées ${calc.heuresRealisees} h. Confirmation et motif requis.`, heuresPrevues: d.heures_prevues, heuresRealisees: calc.heuresRealisees },
+      { status: 409 },
+    );
+  }
+  if (ecart && motifEcart.length < 3) {
+    return NextResponse.json(
+      { ok: false, status: "motif_requis", erreur: `Service fait partiel (${calc.heuresRealisees} h sur ${d.heures_prevues} h prévues) : indiquez le motif de l'écart (abandon, sortie anticipée, maladie…) — exigé en cas de contrôle CDC.`, heuresPrevues: d.heures_prevues, heuresRealisees: calc.heuresRealisees },
       { status: 409 },
     );
   }
@@ -144,7 +152,11 @@ export async function POST(req: NextRequest) {
     date_fin: calc.dateFinReelle,
     niveau_atteint: niveauAtteint,
   };
-  if (ecart) patch.ecart_heures_confirme = true;
+  if (ecart) { patch.ecart_heures_confirme = true; patch.motif_ecart_heures = motifEcart; }
+
+  // Garde-fou déclaratif CDC : si les heures déjà déclarées à EDOF dépassent les heures
+  // réellement réalisées, le dépôt EDOF doit être corrigé (sinon trop-perçu à la clôture).
+  const edofAAjuster = d.heures_edof != null && Number(d.heures_edof) > calc.heuresRealisees;
 
   const { error } = await supabaseAdmin.from("dossiers").update(patch).eq("id", dossierId);
   if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
@@ -154,6 +166,8 @@ export async function POST(req: NextRequest) {
     heures_prevues: d.heures_prevues,
     heures_realisees: calc.heuresRealisees,
     ecart,
+    motif_ecart: ecart ? motifEcart : null,
+    edof_a_ajuster: edofAAjuster,
     niveau_vise: d.niveau_vise,
     niveau_atteint: niveauAtteint,
     seances_emargees: calc.nbSeancesEmargees,
@@ -166,6 +180,11 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     ok: true, dateFinReelle: calc.dateFinReelle, heuresRealisees: calc.heuresRealisees, niveauAtteint, ecart,
+    motifEcart: ecart ? motifEcart : null,
+    edofAAjuster,
+    edofAvertissement: edofAAjuster
+      ? `Heures déclarées EDOF (${d.heures_edof} h) supérieures aux heures réalisées (${calc.heuresRealisees} h) : corrigez le dépôt EDOF avant validation du service fait.`
+      : undefined,
     attestationEnvoyee: attestation.ok, attestationErreur: attestation.ok ? undefined : attestation.erreur,
   });
 }

@@ -9,6 +9,7 @@
 import { supabaseAdmin } from "./supabaseAdmin";
 import { journal } from "./examens";
 import { genererEtEnvoyerDocFin } from "./documentsAuto";
+import { consignerIncident } from "./incidents";
 
 // En-têtes exacts de l'export CDC (Export_<SIRET>_<date>.csv ; séparateur « ; »).
 const COL = {
@@ -208,13 +209,25 @@ export async function importerEdof(
       // → on ouvre le verrou (mirroir fidèle d'EDOF, jamais re-fermé). L'émission de la facture reste un clic humain.
       const estCpf = d.origine_fonds === "CPF_CDC" || d.financement === "CPF";
       if (estCpf && r.statut_dossier === "Service fait validé" && !d.service_fait_valide) {
-        await supabaseAdmin.from("dossiers").update({ service_fait_valide: true }).eq("id", d.id);
-        await journal("dossiers", String(d.id), "service_fait_valide_edof",
-          { source: "import_edof", statut_edof: r.statut_dossier, numero_edof: r.numero_dossier }, opts.auteur ?? null);
-        servicesFaitOuverts++;
-        // Certificat de réalisation : généré + envoyé au stagiaire dès le service fait validé
-        // côté EDOF (sa copie ; le dépôt EDOF qui déclenche le paiement reste un acte humain).
-        try { await genererEtEnvoyerDocFin(String(d.id), "certificat_realisation", opts.auteur ?? null); } catch { /* best-effort */ }
+        // Le trigger DB `mystory_gate_service_fait` refuse l'ouverture si les heures ne sont pas
+        // renseignées, ou si un écart n'est ni confirmé ni motivé (dossier non clôturé côté CRM).
+        // On ne laisse PAS cet échec casser le lot d'import : on le rend visible pour traitement humain.
+        const { error: eSf } = await supabaseAdmin.from("dossiers").update({ service_fait_valide: true }).eq("id", d.id);
+        if (eSf) {
+          await consignerIncident("systeme",
+            `Service fait EDOF reçu mais non validable (dossier ${r.numero_dossier})`,
+            eSf.message,
+            { dossier_id: d.id, numero_edof: r.numero_dossier, statut_edof: r.statut_dossier, action: "Clôturer le dossier côté CRM (heures réalisées + motif d'écart) avant de rejouer l'import." });
+          await journal("dossiers", String(d.id), "service_fait_edof_bloque",
+            { source: "import_edof", raison: eSf.message, numero_edof: r.numero_dossier }, opts.auteur ?? null);
+        } else {
+          await journal("dossiers", String(d.id), "service_fait_valide_edof",
+            { source: "import_edof", statut_edof: r.statut_dossier, numero_edof: r.numero_dossier }, opts.auteur ?? null);
+          servicesFaitOuverts++;
+          // Certificat de réalisation : généré + envoyé au stagiaire dès le service fait validé
+          // côté EDOF (sa copie ; le dépôt EDOF qui déclenche le paiement reste un acte humain).
+          try { await genererEtEnvoyerDocFin(String(d.id), "certificat_realisation", opts.auteur ?? null); } catch { /* best-effort */ }
+        }
       }
     }
     await supabaseAdmin.from("imports_edof").insert({
