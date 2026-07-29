@@ -8,6 +8,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireUser, UnauthorizedError } from "@/lib/auth";
 import { journal } from "@/lib/examens";
 import QRCode from "qrcode";
+import { randomInt } from "crypto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -48,9 +49,11 @@ export async function POST(req: NextRequest) {
 
   // Code court à remettre au stagiaire (saisie manuelle sur /test/finale) — unique parmi les tests en cours.
   const ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // sans 0/O/1/I/L ambigus
+  // Le code est une capacité d'accès (il ouvre le test d'un stagiaire) → RNG cryptographique,
+  // randomInt évite aussi le biais de modulo de randomBytes % n.
   const genCode = () => {
     let s = "";
-    for (let i = 0; i < 8; i++) s += ALPHABET[Math.floor(Math.random() * ALPHABET.length)];
+    for (let i = 0; i < 8; i++) s += ALPHABET[randomInt(ALPHABET.length)];
     return s.slice(0, 4) + "-" + s.slice(4);
   };
   let code = genCode();
