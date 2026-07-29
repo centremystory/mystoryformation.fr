@@ -81,6 +81,7 @@ export default function PageRemboursements() {
       });
       const j = await r.json();
       if (!j.ok) setMsg(j.erreur || "Erreur.");
+      else if (j.placeProposee) setMsg("Place libérée → proposée au 1er candidat en liste d'attente (email envoyé). ✅");
       await charger();
     } finally { setBusy(null); }
   }
