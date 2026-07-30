@@ -254,6 +254,8 @@ function resolveBalises(fiche: FicheStagiaire, cfg: TemplateConfig): Record<stri
     montant:          formatEuro(fiche.montant),
     // Financement CPF (défaut si non renseigné) → affiche la CDC comme financeur/partie.
     finance_cpf:      String(fiche.financement ?? "CPF").toUpperCase().includes("CPF") ? "oui" : null,
+    // Financement personnel (hors CPF) → active les modalités de paiement art. L.6353-6.
+    finance_perso:    String(fiche.financement ?? "CPF").toUpperCase().includes("CPF") ? null : "oui",
     certif_intitule:  certif.intitule,
     certif_code:      certif.code,
     // Identité légale éditable (/reglages > Identité) — prêtes pour les gabarits PDF.
