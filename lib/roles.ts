@@ -93,8 +93,8 @@ export function peutAgir(role: string | string[] | undefined | null, action: Act
  * Le scoping fin (commercial = SES stats, manager = SON site) arrive avec la brique multi-sites.
  */
 export const PAGE_PERMISSIONS: Record<string, Role[]> = {
-  // — Assistant IA (données live, lecture seule) —
-  "/assistant": ["direction", "manager"],
+  // — Assistant IA (données live, lecture seule) — ouvert à toute l'équipe.
+  "/assistant": ["direction", "manager", "commercial", "formatrice", "back_office"],
   // — Direction seule —
   "/comptes": ["direction"],
   "/permissions": ["direction"],
@@ -230,15 +230,20 @@ export const PAGE_LABELS: Record<string, string> = {
   "/planning-employes": "Planning équipe", "/pointage": "Pointage", "/equipe": "Équipe", "/automatisations": "Automatisations",
 };
 
-/** Fusionne les défauts (code) avec les overrides (DB). Tighten-only + Direction inamovible. */
+/**
+ * Fusionne les défauts (code) avec les overrides (DB). Contrôle TOTAL : l'override REMPLACE
+ * le défaut (on peut accorder un accès en plus, ou en retirer), limité aux rôles valides.
+ * Garde-fous : finance (propriétaire) et /comptes ignorent tout override ; la Direction est
+ * toujours réinjectée (anti-lockout).
+ */
 export function effectivePageRoles(overrides: Record<string, string[]>): Record<string, Role[]> {
   const out: Record<string, Role[]> = {};
   for (const [cle, def] of Object.entries(PAGE_PERMISSIONS)) {
     const ov = overrides[cle];
     if (!ov || pageEstProprietaire(cle) || cle === "/comptes") { out[cle] = def; continue; }
-    const restreint = def.filter((r) => ov.includes(r)); // ⊆ défaut (tighten-only)
-    if (def.includes("direction") && !restreint.includes("direction")) restreint.unshift("direction"); // anti-lockout
-    out[cle] = restreint as Role[];
+    const roles = (ROLES as readonly Role[]).filter((r) => ov.includes(r)); // ⊆ rôles valides
+    const effectif = roles.includes("direction") ? [...roles] : (["direction", ...roles] as Role[]); // anti-lockout
+    out[cle] = effectif;
   }
   return out;
 }
