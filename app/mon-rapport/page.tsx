@@ -25,7 +25,7 @@ type Etat = {
 
 export default function MonRapportPage() {
   const [d, setD] = useState<Etat | null>(null);
-  const [ptg, setPtg] = useState<{ sessionOuverte: any } | null>(null);
+  const [ptg, setPtg] = useState<{ sessionOuverte: any; pointages: any[] } | null>(null);
   const [site, setSite] = useState("Gagny");
   // Formulaire d'ajout d'une tâche+temps ouvert pour un créneau donné : "date|creneau".
   const [ajout, setAjout] = useState<string | null>(null);
@@ -41,7 +41,7 @@ export default function MonRapportPage() {
       fetch("/api/pointage", { cache: "no-store" }).then((x) => x.json()).catch(() => null),
     ]);
     if (r?.ok) setD(r);
-    if (p?.ok) setPtg({ sessionOuverte: p.sessionOuverte });
+    if (p?.ok) setPtg({ sessionOuverte: p.sessionOuverte, pointages: p.pointages ?? [] });
   }, []);
   useEffect(() => { charger(); }, [charger]);
 
@@ -123,6 +123,30 @@ export default function MonRapportPage() {
               </>
             )}
           </div>
+
+          {/* Pointages du jour (détail des entrées/sorties + total travaillé) */}
+          {(() => {
+            const auj = new Intl.DateTimeFormat("fr-CA", { timeZone: "Europe/Paris" }).format(new Date());
+            const jour = (ptg?.pointages ?? []).filter((p) => p.jour === auj)
+              .sort((a, b) => String(a.entree_le).localeCompare(String(b.entree_le)));
+            if (jour.length === 0) return null;
+            const totalMin = jour.reduce((s, p) => {
+              const fin = p.sortie_le ? new Date(p.sortie_le).getTime() : Date.now();
+              return s + Math.max(0, Math.round((fin - new Date(p.entree_le).getTime()) / 60000));
+            }, 0);
+            return (
+              <div style={{ margin: "0 0 14px", padding: "10px 14px", background: "#FCFCFD", border: "1px solid #EEF0F3", borderRadius: 10, fontSize: 13 }}>
+                <div style={{ fontWeight: 600, color: "#344054", marginBottom: 5 }}>🕒 Mes pointages du jour · <span style={{ color: BLEU }}>{dureeFr(totalMin)}</span> travaillé</div>
+                {jour.map((p, i) => (
+                  <div key={i} style={{ color: "#475467", display: "flex", gap: 8, padding: "1px 0" }}>
+                    <span>🟢 {heureFr(p.entree_le)}</span><span style={{ color: "#98A2B3" }}>→</span>
+                    <span>{p.sortie_le ? `🔴 ${heureFr(p.sortie_le)}` : "⏳ en cours"}</span>
+                    {p.site && <span style={{ color: "#98A2B3" }}>· {p.site}</span>}
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
 
           {/* Grille de la semaine */}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
