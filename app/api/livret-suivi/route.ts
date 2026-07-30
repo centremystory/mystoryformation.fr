@@ -21,7 +21,11 @@ export async function GET(req: NextRequest) {
   const dossierId = (req.nextUrl.searchParams.get("dossier") ?? "").trim();
   if (!dossierId) return NextResponse.json({ ok: false, erreur: "Paramètre « dossier » requis." }, { status: 400 });
   const { data } = await supabaseAdmin.from("livrets_suivi").select("donnees").eq("dossier_id", dossierId).maybeSingle();
-  return NextResponse.json({ ok: true, donnees: (data as any)?.donnees ?? {} });
+  // Séances du planning (pour afficher dates + créneaux dans la saisie « ce que j'ai travaillé »).
+  const { data: seances } = await supabaseAdmin.from("planning")
+    .select("date_seance, demi_journee").eq("dossier_id", dossierId)
+    .order("date_seance", { ascending: true }).order("demi_journee", { ascending: true });
+  return NextResponse.json({ ok: true, donnees: (data as any)?.donnees ?? {}, seances: seances ?? [] });
 }
 
 export async function PUT(req: NextRequest) {
