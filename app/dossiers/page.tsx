@@ -1224,10 +1224,15 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
             title="Télécharge le dossier conforme du stagiaire (toutes les pièces archivées, numérotées dans l'ordre) en un ZIP">
             📦 Dossier conforme (ZIP)
           </a>
-          <a href={`/api/documents/livret-suivi?dossier=${d.id}`} target="_blank" rel="noreferrer"
+          <Link href={`/livret/${d.id}`}
             className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-mystory text-mystory bg-white hover:bg-mystory hover:text-white"
-            title="Génère le livret de suivi TEF IRN (PDF), pré-rempli depuis le CRM : couverture, positionnement, séances, résultats. La formatrice complète les évaluations de séquence et examens blancs.">
-            📔 Livret de suivi (PDF)
+            title="Remplir le livret (examens blancs, évaluations de séquence, checklist, bilan) — le reste est pré-rempli.">
+            ✏️ Remplir le livret
+          </Link>
+          <a href={`/api/documents/livret-suivi?dossier=${d.id}`} target="_blank" rel="noreferrer"
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-gray-300 text-gray-700 bg-white hover:border-mystory hover:text-mystory"
+            title="Génère le livret de suivi TEF IRN (PDF), pré-rempli depuis le CRM + la saisie formatrice.">
+            📔 Livret (PDF)
           </a>
         </div>
       </div>

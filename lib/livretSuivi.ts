@@ -63,6 +63,10 @@ export async function genererLivretSuiviHtml(dossierId: string): Promise<string 
     .order("complete_le", { ascending: false, nullsFirst: false }).limit(1).maybeSingle();
   const ev = (evData ?? {}) as Ev;
 
+  // Champs saisis par la formatrice (incrément 2) — garnissent les sections « à compléter ».
+  const { data: livretRow } = await supabaseAdmin.from("livrets_suivi").select("donnees").eq("dossier_id", dossierId).maybeSingle();
+  const D: any = (livretRow as any)?.donnees ?? {};
+
   const offre = offreParHeures(fiche.heuresPrevues);
   const nom = `${fiche.prenom ?? ""} ${fiche.nom ?? ""}`.trim();
   const objectifCoche = (k: string) => box(fiche.niveauVise === k);
@@ -147,7 +151,7 @@ export async function genererLivretSuiviHtml(dossierId: string): Promise<string 
     <h2>Mes évaluations de séquence</h2>
     <table>
       <thead><tr><th style="width:6%">N°</th><th style="width:16%">Date</th><th style="width:18%">Résultat</th><th>Mes points forts</th><th>À travailler</th></tr></thead>
-      <tbody>${[1, 2, 3, 4, 5, 6].map((n) => `<tr><td class="c">${n}</td><td></td><td></td><td></td><td></td></tr>`).join("")}</tbody>
+      <tbody>${[0, 1, 2, 3, 4, 5].map((i) => { const e = (D.evals ?? [])[i] ?? {}; return `<tr><td class="c">${i + 1}</td><td>${esc(e.date)}</td><td>${esc(e.res)}</td><td>${esc(e.forts)}</td><td>${esc(e.trav)}</td></tr>`; }).join("")}</tbody>
     </table>
   </div>
 
@@ -157,25 +161,25 @@ export async function genererLivretSuiviHtml(dossierId: string): Promise<string 
     <div style="font-size:8.5pt;color:#475569;margin-bottom:3px">Conditions réelles, scores par épreuve (A2 : 200-299 · B1 : 300-399 · B2 : 400-499).</div>
     <table>
       <thead><tr><th style="width:6%">N°</th><th style="width:16%">Date</th><th class="c">CE /699</th><th class="c">CO /699</th><th class="c">EE /699</th><th class="c">EO /699</th><th>Niveau projeté</th></tr></thead>
-      <tbody>${[1, 2, 3, 4, 5].map((n) => `<tr><td class="c">${n}</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`).join("")}</tbody>
+      <tbody>${[0, 1, 2, 3, 4].map((i) => { const x = (D.blancs ?? [])[i] ?? {}; return `<tr><td class="c">${i + 1}</td><td>${esc(x.date)}</td><td class="c">${n699(x.ce)}</td><td class="c">${n699(x.co)}</td><td class="c">${n699(x.ee)}</td><td class="c">${n699(x.eo)}</td><td>${esc(x.niv)}</td></tr>`; }).join("")}</tbody>
     </table>
-    <div style="font-size:9pt">Remédiation prioritaire : ☐ CE ☐ CO ☐ EE ☐ EO &nbsp;·&nbsp; Avant l'examen, je me sens : ☹ 😐 ☺ 😀</div>
+    <div style="font-size:9pt">Remédiation prioritaire : ${box(!!D.remed?.ce)} CE ${box(!!D.remed?.co)} CO ${box(!!D.remed?.ee)} EE ${box(!!D.remed?.eo)} EO &nbsp;·&nbsp; Avant l'examen, je me sens : ${["☹", "😐", "☺", "😀"].map((e, i) => (D.ressenti === i ? `<b>[${e}]</b>` : e)).join(" ")}</div>
   </div>
 
   <!-- JOUR J -->
   <div class="sec">
     <h2>Mon examen TEF IRN — le jour J</h2>
-    <div class="box"><b>Date de l'examen :</b> <span class="fill">……………</span> &nbsp; <b>Heure :</b> <span class="fill">………</span><br>
+    <div class="box"><b>Date de l'examen :</b> ${dateFr(D.jourJ?.date) || '<span class="fill">……………</span>'} &nbsp; <b>Heure :</b> ${esc(D.jourJ?.heure) || '<span class="fill">………</span>'}<br>
     Lieu : <b>MYSTORY — 3 bis avenue de Gagny, 93220 Gagny</b> (centre d'examen agréé). Inscription faite par MYSTORY, coût compris dans la formation.</div>
     <table>
       <thead><tr><th>Ma checklist du jour J</th><th style="width:14%" class="c">Fait ✓</th></tr></thead>
       <tbody>
-        <tr><td>Pièce d'identité en cours de validité (obligatoire)</td><td></td></tr>
-        <tr><td>Ma convocation</td><td></td></tr>
-        <tr><td>J'arrive 30 minutes en avance</td><td></td></tr>
-        <tr><td>J'ai bien dormi et mangé</td><td></td></tr>
-        <tr><td>Je connais le déroulement (1 h 30, 4 épreuves, adaptatif)</td><td></td></tr>
-        <tr><td>Je lis bien chaque consigne avant de répondre</td><td></td></tr>
+        <tr><td>Pièce d'identité en cours de validité (obligatoire)</td><td class="c">${box(!!D.jourJ?.c1)}</td></tr>
+        <tr><td>Ma convocation</td><td class="c">${box(!!D.jourJ?.c2)}</td></tr>
+        <tr><td>J'arrive 30 minutes en avance</td><td class="c">${box(!!D.jourJ?.c3)}</td></tr>
+        <tr><td>J'ai bien dormi et mangé</td><td class="c">${box(!!D.jourJ?.c4)}</td></tr>
+        <tr><td>Je connais le déroulement (1 h 30, 4 épreuves, adaptatif)</td><td class="c">${box(!!D.jourJ?.c5)}</td></tr>
+        <tr><td>Je lis bien chaque consigne avant de répondre</td><td class="c">${box(!!D.jourJ?.c6)}</td></tr>
       </tbody>
     </table>
   </div>
@@ -186,19 +190,19 @@ export async function genererLivretSuiviHtml(dossierId: string): Promise<string 
     <table>
       <thead><tr><th>Épreuve</th><th style="width:24%" class="c">Mon score</th><th style="width:24%" class="c">Niveau atteint</th></tr></thead>
       <tbody>
-        <tr><td>Compréhension écrite</td><td></td><td></td></tr>
-        <tr><td>Compréhension orale</td><td></td><td></td></tr>
-        <tr><td>Expression écrite</td><td></td><td></td></tr>
-        <tr><td>Expression orale</td><td></td><td></td></tr>
-        <tr><td><b>Niveau global attesté</b></td><td class="c" colspan="2">${esc(fiche.niveauAtteint) || '<span class="fill">…………</span>'}</td></tr>
+        <tr><td>Compréhension écrite</td><td class="c">${esc(D.res?.ceS)}</td><td class="c">${esc(D.res?.ceN)}</td></tr>
+        <tr><td>Compréhension orale</td><td class="c">${esc(D.res?.coS)}</td><td class="c">${esc(D.res?.coN)}</td></tr>
+        <tr><td>Expression écrite</td><td class="c">${esc(D.res?.eeS)}</td><td class="c">${esc(D.res?.eeN)}</td></tr>
+        <tr><td>Expression orale</td><td class="c">${esc(D.res?.eoS)}</td><td class="c">${esc(D.res?.eoN)}</td></tr>
+        <tr><td><b>Niveau global attesté</b></td><td class="c" colspan="2">${esc(D.res?.global || fiche.niveauAtteint) || '<span class="fill">…………</span>'}</td></tr>
       </tbody>
     </table>
     <div class="box">
       <b>Et maintenant ?</b><br>
-      ☐ J'ai atteint mon niveau visé — attestation remise à la préfecture 🎉<br>
-      ☐ Il me manque quelques points — repassage possible après 20 jours (165 €) ou consolidation<br>
-      ☐ Je continue vers le niveau supérieur — test de positionnement offert<br>
-      Bilan de fin de parcours — Date : <span class="fill">………</span> · Signatures : stagiaire <span class="fill">………</span> / MYSTORY <span class="fill">………</span>
+      ${box(D.suite === "atteint")} J'ai atteint mon niveau visé — attestation remise à la préfecture 🎉<br>
+      ${box(D.suite === "repassage")} Il me manque quelques points — repassage possible après 20 jours (165 €) ou consolidation<br>
+      ${box(D.suite === "superieur")} Je continue vers le niveau supérieur — test de positionnement offert<br>
+      Bilan de fin de parcours — Date : ${dateFr(D.bilan?.date) || '<span class="fill">………</span>'}${D.bilan?.retiens ? ` · Ce que je retiens : ${esc(D.bilan.retiens)}` : ""} · Signatures : stagiaire <span class="fill">………</span> / MYSTORY <span class="fill">………</span>
     </div>
   </div>
 
