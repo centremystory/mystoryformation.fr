@@ -29,6 +29,7 @@ function periodes() {
   const finMoisDernier = new Date(now.getFullYear(), now.getMonth(), 0);
   const debutAnnee = new Date(now.getFullYear(), 0, 1);
   return {
+    jour: { label: "Aujourd'hui", debut: iso(now), fin: iso(now) },
     mois: { label: "Ce mois", debut: iso(debutMois), fin: iso(now) },
     mois_dernier: { label: "Mois dernier", debut: iso(debutMoisDernier), fin: iso(finMoisDernier) },
     annee: { label: "Cette année", debut: iso(debutAnnee), fin: iso(now) },
@@ -65,6 +66,8 @@ function Bloc({ titre, children }: { titre: string; children: React.ReactNode })
 export default function DirectionPage() {
   const P = useMemo(periodes, []);
   const [periode, setPeriode] = useState<keyof ReturnType<typeof periodes>>("mois");
+  const [perso, setPerso] = useState(false);
+  const [d1, setD1] = useState(""); const [d2, setD2] = useState("");
   const [agence, setAgence] = useState<string>("");
   const [data, setData] = useState<Donnees | null>(null);
   const [chargement, setChargement] = useState(true);
@@ -74,8 +77,11 @@ export default function DirectionPage() {
     setChargement(true);
     setErreur(null);
     try {
-      const p = P[periode];
-      const qs = new URLSearchParams({ debut: p.debut, fin: p.fin });
+      const debut = perso ? d1 : P[periode].debut;
+      const fin = perso ? d2 : P[periode].fin;
+      const qs = new URLSearchParams();
+      if (debut) qs.set("debut", debut);
+      if (fin) qs.set("fin", fin);
       if (agence) qs.set("agence", agence);
       const r = await fetch(`/api/direction?${qs.toString()}`, { cache: "no-store" });
       const j = await r.json();
@@ -86,7 +92,7 @@ export default function DirectionPage() {
     } finally {
       setChargement(false);
     }
-  }, [P, periode, agence]);
+  }, [P, periode, perso, d1, d2, agence]);
   useEffect(() => {
     charger();
   }, [charger]);
@@ -101,13 +107,22 @@ export default function DirectionPage() {
       </header>
 
       <div className="flex flex-wrap items-center gap-3 mb-5">
-        <div className="flex gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           {(Object.keys(P) as (keyof typeof P)[]).map((k) => (
-            <button key={k} onClick={() => setPeriode(k)}
+            <button key={k} onClick={() => { setPeriode(k); setPerso(false); }}
               className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
-                periode === k ? "bg-mystory text-white border-mystory" : "bg-white text-gray-600 border-gray-300 hover:border-mystory hover:text-mystory"
+                !perso && periode === k ? "bg-mystory text-white border-mystory" : "bg-white text-gray-600 border-gray-300 hover:border-mystory hover:text-mystory"
               }`}>{P[k].label}</button>
           ))}
+          <button onClick={() => setPerso(true)}
+            className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${perso ? "bg-mystory text-white border-mystory" : "bg-white text-gray-600 border-gray-300 hover:border-mystory hover:text-mystory"}`}>Période</button>
+          {perso && (
+            <>
+              <input type="date" value={d1} onChange={(e) => setD1(e.target.value)} className="border border-gray-300 rounded-lg px-2 py-1 text-xs" />
+              <span className="text-gray-400">→</span>
+              <input type="date" value={d2} onChange={(e) => setD2(e.target.value)} className="border border-gray-300 rounded-lg px-2 py-1 text-xs" />
+            </>
+          )}
         </div>
         <div className="flex gap-1.5">
           {([["", "Toutes agences"], ...SITES.map((s) => [s, s])] as [string, string][]).map(([v, l]) => (
