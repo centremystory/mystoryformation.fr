@@ -25,20 +25,23 @@ const TYPES_ACCEPTES: Record<string, string> = {
   "image/png": "png",
 };
 
-// Pièces du dossier réalisables à la main (ordre = pour créer la ligne si absente).
+// Pièces du dossier réalisables à la main. NB : l'ordre réel est imposé par le trigger
+// pieces_before() depuis piece_catalogue() ; ces valeurs ne servent qu'à autoriser le type.
 const PIECES: Record<string, number> = {
   fiche_analyse_besoin: 1,
-  evaluation_initiale: 2,
-  convention: 3,
-  programme: 4,
-  reglement_interieur: 5,
-  planning: 6,
-  convocation: 7,
-  feuille_emargement: 8,
-  evaluation_finale: 9,
-  satisfaction_chaud: 10,
-  attestation_fin: 11,
-  certificat_realisation: 12,
+  test_positionnement: 2,
+  evaluation_initiale: 3,
+  convention: 4,
+  programme: 5,
+  reglement_interieur: 6,
+  planning: 7,
+  convocation: 8,
+  feuille_emargement: 9,
+  test_final: 10,
+  evaluation_finale: 11,
+  satisfaction_chaud: 12,
+  attestation_fin: 13,
+  certificat_realisation: 14,
 };
 
 export async function POST(req: NextRequest) {

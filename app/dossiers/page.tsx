@@ -11,14 +11,16 @@ import { SITES } from "@/lib/sites";
 
 const LIBELLE_PIECE: Record<string, string> = {
   fiche_analyse_besoin: "Fiche d'analyse du besoin",
-  evaluation_initiale: "Évaluation initiale (test de positionnement)",
+  test_positionnement: "Test de positionnement (initial)",
+  evaluation_initiale: "Évaluation initiale (résumé du test)",
   convention: "Convention (+ annexes)",
   programme: "Programme (annexe 1)",
   reglement_interieur: "Règlement intérieur (annexe 2)",
   planning: "Planning (annexe 3)",
   convocation: "Convocation",
   feuille_emargement: "Feuille d'émargement",
-  evaluation_finale: "Évaluation finale (test final)",
+  test_final: "Test final (avant examen)",
+  evaluation_finale: "Évaluation finale (résumé du test)",
   satisfaction_chaud: "Satisfaction à chaud",
   attestation_fin: "Attestation de fin",
   certificat_realisation: "Certificat de réalisation",
@@ -33,8 +35,8 @@ const DEPOSABLES = new Set(["justificatif_examen"]);
 const ANNEXES_CONVENTION = new Set(["programme", "reglement_interieur", "planning"]);
 // Pièces qu'on peut faire à la main (imprimer → signer → scanner → importer le PDF).
 const IMPORTABLES = new Set([
-  "fiche_analyse_besoin", "convention", "programme", "reglement_interieur",
-  "planning", "convocation", "feuille_emargement", "satisfaction_chaud",
+  "fiche_analyse_besoin", "test_positionnement", "convention", "programme", "reglement_interieur",
+  "planning", "convocation", "feuille_emargement", "test_final", "satisfaction_chaud",
   "attestation_fin", "certificat_realisation",
 ]);
 
