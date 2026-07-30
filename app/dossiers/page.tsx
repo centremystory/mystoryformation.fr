@@ -67,6 +67,8 @@ const COMPLETABLES = new Set(["fiche_analyse_besoin", "evaluation_finale"]);
 
 // Pièces remplies AUTOMATIQUEMENT depuis le moteur de tests (route /api/documents/evaluation).
 const EVAL_DEPUIS_TEST = new Set(["evaluation_initiale"]);
+// Pièces « Test » = QCM corrigé détaillé, généré depuis le moteur (route /api/documents/test).
+const TEST_DEPUIS_MOTEUR = new Set(["test_positionnement", "test_final"]);
 
 type Piece = { type: string; statut: string; optionnelle: boolean; exige_signature: boolean; ordre: number; sign_url_integre?: string | null };
 type Dossier = {
@@ -895,6 +897,29 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
     }
   }
 
+  // Pièce « Test » : QCM corrigé détaillé depuis le moteur (test_positionnement / test_final).
+  async function genererTestCorrige(piece: Piece) {
+    setBusy(piece.type); setErreurs([]);
+    try {
+      const phase = piece.type === "test_final" ? "final" : "initial";
+      const r = await fetch("/api/documents/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dossierId: d.id, phase }),
+      });
+      const j = await r.json();
+      if (!j.ok) {
+        setErreurs([j.erreur || "Aucun test exploitable (le bénéficiaire doit l'avoir passé en ligne) — sinon importe le scan."]);
+        return;
+      }
+      await recharger();
+    } catch (e: any) {
+      setErreurs([e?.message || "Erreur lors de la génération."]);
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function genererTout() {
     // Génère en une fois toutes les pièces auto-générables encore à faire.
     // On exclut la feuille d'émargement (produite à partir des signatures réelles, jamais anticipée).
@@ -1088,6 +1113,16 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
             </button>
           )}
         </>
+      );
+    }
+
+    if (TEST_DEPUIS_MOTEUR.has(p.type)) {
+      return (
+        <button onClick={() => genererTestCorrige(p)} disabled={occupé}
+                title="Génère le QCM corrigé détaillé (question par question) à partir du test passé en ligne par le bénéficiaire"
+                className="px-3 py-1 rounded-lg text-xs text-white bg-mystory disabled:opacity-50">
+          {occupé ? "Génération…" : (p.statut === "manquant" || p.statut === "erreur_envoi" ? "Générer le corrigé" : "Regénérer le corrigé")}
+        </button>
       );
     }
 
