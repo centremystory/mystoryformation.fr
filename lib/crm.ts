@@ -50,7 +50,7 @@ export async function getFiche(dossierId: string): Promise<FicheStagiaire | null
     formatrice, niveauAtteint: d.niveau_atteint, niveauVise: d.niveau_vise, niveauInitial: d.niveau_initial,
     heuresPrevues: d.heures_prevues, heuresRealisees: d.heures_realisees,
     dateDebut: d.date_debut, dateFin: d.date_fin,
-    montant: d.montant,
+    montant: d.montant, financement: d.financement,
     planning: (d.planning ?? []).map((p: any) => ({ date: p.date_seance, demiJournee: p.demi_journee, heures: Number(p.heures) })),
   } as unknown as FicheStagiaire;
 }

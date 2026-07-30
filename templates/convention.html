@@ -89,6 +89,10 @@
       <td class="lbl">Bénéficiaire</td>
       <td><strong>{{civilite}} {{prenom}} {{nom}}</strong> · né(e) le {{date_naissance}} à {{lieu_naissance}} · {{adresse_complete}} · {{email}} · {{telephone}}</td>
     </tr>
+    {{#if finance_cpf}}<tr>
+      <td class="lbl">Financeur</td>
+      <td><strong>Caisse des Dépôts et Consignations</strong> — Mon Compte Formation, 56 rue de Lille, 75356 Paris 07 SP — en subrogation de paiement au titre du Compte personnel de formation (CPF) du Bénéficiaire.</td>
+    </tr>{{/if}}
   </table>
 
   <p class="intro">Il est conclu, entre les parties ci-dessus, le présent contrat de formation professionnelle régi par les articles L.6353-1 et suivants du Code du travail.</p>
@@ -98,6 +102,7 @@
     <tr><td class="k">Intitulé</td><td class="v">Préparer son test d'évaluation de français — TEF IRN</td></tr>
     <tr><td class="k">Certification</td><td class="v">{{certif_intitule}} — Répertoire spécifique {{certif_code}} (CCI Paris Île-de-France)</td></tr>
     <tr><td class="k">Nature</td><td class="v">Action de formation (art. L.6313-1, 1° du Code du travail)</td></tr>
+    <tr><td class="k">Public visé</td><td class="v">Personne étrangère ou non francophone en situation régulière (art. L.6313-3 du Code du travail) ; aucune qualification préalable requise, niveau d'entrée vérifié au positionnement.</td></tr>
     <tr><td class="k">Durée · Période</td><td class="v">{{duree_heures}} heures · du {{date_debut}} au {{date_fin}}</td></tr>
     <tr><td class="k">Modalité · Lieu</td><td class="v">100 % présentiel · Gagny — 3 bis av. de Gagny, 93220 Gagny</td></tr>
     <tr><td class="k">Programme</td><td class="v">Détaillé en Annexe 1 (objectifs, contenu, moyens, évaluation)</td></tr>

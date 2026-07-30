@@ -37,6 +37,7 @@ export interface FicheStagiaire {
   ville?: string;
   email?: string;
   telephone?: string;
+  financement?: string;
   numeroDossier?: string;
   sessionEdof?: string;
   formatrice?: string;
@@ -251,6 +252,8 @@ function resolveBalises(fiche: FicheStagiaire, cfg: TemplateConfig): Record<stri
     date_debut:       formatDateFR(fiche.dateDebut),
     date_fin:         computeDateFin(fiche),
     montant:          formatEuro(fiche.montant),
+    // Financement CPF (défaut si non renseigné) → affiche la CDC comme financeur/partie.
+    finance_cpf:      String(fiche.financement ?? "CPF").toUpperCase().includes("CPF") ? "oui" : null,
     certif_intitule:  certif.intitule,
     certif_code:      certif.code,
     // Identité légale éditable (/reglages > Identité) — prêtes pour les gabarits PDF.
