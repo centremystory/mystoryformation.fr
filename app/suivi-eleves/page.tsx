@@ -205,13 +205,19 @@ export default function PageSuiviEleves() {
         <div className="space-y-2">
           {filtres.map((e) => {
             const pct = e.heures_prevues > 0 ? Math.min(100, Math.round((e.heures_faites / e.heures_prevues) * 100)) : 0;
+            const finProche = e.statut === "incomplet" && !e.date_fin && e.heures_prevues > 0 && e.heures_faites >= 0.8 * e.heures_prevues;
             return (
-              <div key={e.dossier_id} className="card !px-4 !py-3">
+              <div key={e.dossier_id} className={`card !px-4 !py-3 ${finProche ? "border-amber-300 bg-amber-50/40" : ""}`}>
                 <div className="flex items-center gap-3">
                   <span className="flex-1 min-w-0">
                     <span className="font-medium text-gray-900">{e.stagiaire}</span>
                     <span className="text-gray-400 text-sm"> · {CERTIF[e.certif ?? ""] ?? e.certif}</span>
                   </span>
+                  {finProche && (
+                    <span className="shrink-0 text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 font-semibold">
+                      ⚠️ Fin proche — à finaliser
+                    </span>
+                  )}
                   {e.agence && <span className="shrink-0 text-xs px-2 py-0.5 rounded-full bg-mystory-clair text-mystory">{e.agence}</span>}
                   {e.nb_absences > 0 && (
                     <span className="shrink-0 text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200">

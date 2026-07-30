@@ -442,7 +442,7 @@ export default function PageCandidatsExamen() {
                       </thead>
                       <tbody>
                         {g.items.map((c) => (
-                          <tr key={c.id} className="border-t border-gray-100">
+                          <tr key={c.id} className={`border-t border-gray-100 ${Number(c.reste_a_payer) > 0 ? "bg-red-50" : ""}`} title={Number(c.reste_a_payer) > 0 ? `Reste à payer : ${c.reste_a_payer} €` : undefined}>
                             <td data-label="Date" className="px-4 py-2 whitespace-nowrap text-gray-700">{dateFr(c.date_examen)}{c.a_confirmer && <span className="ml-2 text-xs text-amber-700">⏳</span>}</td>
                             <td data-label="Type" className="px-4 py-2 text-gray-600">
                               {TYPE_LABEL[c.type_norm] ?? c.type_norm}{c.source === "vente" && <span className="ml-1 text-xs text-emerald-700">•</span>}
@@ -514,7 +514,7 @@ export default function PageCandidatsExamen() {
                       </thead>
                       <tbody>
                         {g.items.map((c) => (
-                          <tr key={c.id} className="border-t border-gray-100">
+                          <tr key={c.id} className={`border-t border-gray-100 ${Number(c.reste_a_payer) > 0 ? "bg-red-50" : ""}`} title={Number(c.reste_a_payer) > 0 ? `Reste à payer : ${c.reste_a_payer} €` : undefined}>
                             <td data-label="Candidat" className="px-4 py-2 font-medium text-gray-900">
                               {c.civilite ? `${c.civilite} ` : ""}{c.prenom ? `${c.prenom} ` : ""}{c.nom}
                               <MentionBadge sousType={c.sous_type} civique={c.type_norm === "CIVIQUE"} />
