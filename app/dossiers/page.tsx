@@ -24,7 +24,7 @@ const LIBELLE_PIECE: Record<string, string> = {
   certificat_realisation: "Certificat de réalisation",
   satisfaction_froid: "Satisfaction à froid (3 mois)",
   justificatif_participation: "Justificatif participation forfaitaire",
-  justificatif_examen: "Justificatif de passage d'examen",
+  justificatif_examen: "Résultat de l'examen (TEF IRN)",
 };
 
 // Pièces déposées (fichier externe → archives du dossier). Affichées même si absentes en base.
