@@ -17,6 +17,7 @@
 import { readFileSync } from "fs";
 import path from "path";
 import { identiteLegale, piedLegal } from "@/lib/identiteLegale";
+import { programmeTefIrnAnnexe } from "@/lib/programmesTefIrn";
 
 // ---------------------------------------------------------------------------
 // 1. Types
@@ -304,6 +305,12 @@ export function merge(template: string, fiche: FicheStagiaire, cfg: TemplateConf
 
   // Annexe 3 — Planning : injection HTML brute (avant l'échappement des {{...}}).
   html = html.split("<!--PLANNING_ROWS-->").join(buildPlanningRows(fiche.planning));
+
+  // Annexe 1 — Programme adapté à l'offre (A2/B1/B2/Intensif), déduite des heures prévues.
+  //   Injection HTML brute AVANT l'échappement : les {{balises}} du fragment restent résolues.
+  html = html.split("<!--PROGRAMME_OFFRE-->").join(
+    programmeTefIrnAnnexe({ certif: fiche.certif, heuresPrevues: fiche.heuresPrevues }),
+  );
 
   // Feuille d'émargement : lignes par demi-journée (signatures vides).
   html = html.split("<!--EMARGEMENT_ROWS-->").join(buildEmargementRows(fiche.planning));
