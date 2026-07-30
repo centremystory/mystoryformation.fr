@@ -51,7 +51,7 @@ async function calculer(dossierId: string): Promise<Calc> {
 async function chargerDossier(dossierId: string) {
   const { data } = await supabaseAdmin
     .from("dossiers")
-    .select("id, statut, certif, heures_prevues, heures_realisees, niveau_vise, niveau_atteint, date_fin, ecart_heures_confirme")
+    .select("id, statut, certif, heures_prevues, heures_realisees, heures_edof, niveau_vise, niveau_atteint, date_fin, ecart_heures_confirme")
     .eq("id", dossierId)
     .maybeSingle();
   return data as any;
@@ -83,6 +83,11 @@ export async function GET(req: NextRequest) {
       dateFinActuelle: d.date_fin,
       nbSeancesEmargees: calc.nbSeancesEmargees,
       nbAbsences: calc.nbAbsences,
+      // Émargement papier (aucune séance numérique émargée) : la clôture passe par une saisie
+      // manuelle des heures + date de fin, à pré-remplir depuis le dossier si déjà renseignées.
+      emargementManuel: calc.nbSeancesEmargees === 0,
+      heuresRealiseesManuel: d.heures_realisees,
+      dateFinManuel: d.date_fin,
       niveauVise: d.niveau_vise,
       niveauAtteint: d.niveau_atteint, // prérempli (évaluation finale) ou null → saisie
       doitSaisirNiveau: !d.niveau_atteint,
@@ -111,11 +116,34 @@ export async function POST(req: NextRequest) {
   if (!d) return NextResponse.json({ ok: false, erreur: "Dossier introuvable." }, { status: 404 });
 
   const calc = await calculer(dossierId);
-  if (calc.nbSeancesEmargees === 0 || !calc.dateFinReelle) {
-    return NextResponse.json({ ok: false, erreur: "Aucune séance émargée : impossible de clôturer (pas d'émargement fictif, pas d'antidate)." }, { status: 409 });
-  }
-  if (calc.dateFinReelle > aujourdHuiParisISO()) {
-    return NextResponse.json({ ok: false, erreur: "La dernière séance émargée est dans le futur : incohérent." }, { status: 409 });
+
+  // Deux chemins vers le service fait :
+  //  - émargement NUMÉRIQUE : heures et date de fin calculées depuis les séances émargées ;
+  //  - émargement PAPIER (aucune séance numérique) : heures et date de fin saisies à la main,
+  //    justifiées par la feuille d'émargement signée importée dans le dossier.
+  let heuresRealisees: number;
+  let dateFinReelle: string;
+  const emargementManuel = !(calc.nbSeancesEmargees > 0 && calc.dateFinReelle);
+  if (!emargementManuel) {
+    if ((calc.dateFinReelle as string) > aujourdHuiParisISO()) {
+      return NextResponse.json({ ok: false, erreur: "La dernière séance émargée est dans le futur : incohérent." }, { status: 409 });
+    }
+    heuresRealisees = calc.heuresRealisees;
+    dateFinReelle = calc.dateFinReelle as string;
+  } else {
+    const hManuel = Number(b?.heuresRealiseesManuel);
+    const dManuel = String(b?.dateFinManuel ?? "").trim();
+    if (!Number.isFinite(hManuel) || hManuel <= 0) {
+      return NextResponse.json({ ok: false, status: "emargement_manuel_requis", erreur: "Aucun émargement numérique : renseigne les heures réellement réalisées (émargement papier) pour pouvoir clôturer." }, { status: 409 });
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dManuel)) {
+      return NextResponse.json({ ok: false, status: "emargement_manuel_requis", erreur: "Émargement papier : renseigne la date de fin réelle (AAAA-MM-JJ)." }, { status: 409 });
+    }
+    if (dManuel > aujourdHuiParisISO()) {
+      return NextResponse.json({ ok: false, erreur: "Date de fin dans le futur : incohérent (pas d'antidate)." }, { status: 409 });
+    }
+    heuresRealisees = hManuel;
+    dateFinReelle = dManuel;
   }
 
   // Niveau atteint : prérempli depuis le dossier (posé par l'évaluation finale) sinon saisi.
@@ -132,39 +160,39 @@ export async function POST(req: NextRequest) {
 
   // Écart prévu / réalisé → confirmation ET motif documenté obligatoires (conformité CDC :
   // un service fait partiel doit être justifié — abandon, sortie anticipée, maladie…).
-  const ecart = d.heures_prevues != null && calc.heuresRealisees !== Number(d.heures_prevues);
+  const ecart = d.heures_prevues != null && heuresRealisees !== Number(d.heures_prevues);
   const motifEcart = String(b?.motifEcart ?? "").trim();
   if (ecart && b?.ecartConfirme !== true) {
     return NextResponse.json(
-      { ok: false, status: "ecart_a_confirmer", erreur: `Écart d'heures : prévues ${d.heures_prevues} h ≠ réalisées ${calc.heuresRealisees} h. Confirmation et motif requis.`, heuresPrevues: d.heures_prevues, heuresRealisees: calc.heuresRealisees },
+      { ok: false, status: "ecart_a_confirmer", erreur: `Écart d'heures : prévues ${d.heures_prevues} h ≠ réalisées ${heuresRealisees} h. Confirmation et motif requis.`, heuresPrevues: d.heures_prevues, heuresRealisees },
       { status: 409 },
     );
   }
   if (ecart && motifEcart.length < 3) {
     return NextResponse.json(
-      { ok: false, status: "motif_requis", erreur: `Service fait partiel (${calc.heuresRealisees} h sur ${d.heures_prevues} h prévues) : indiquez le motif de l'écart (abandon, sortie anticipée, maladie…) — exigé en cas de contrôle CDC.`, heuresPrevues: d.heures_prevues, heuresRealisees: calc.heuresRealisees },
+      { ok: false, status: "motif_requis", erreur: `Service fait partiel (${heuresRealisees} h sur ${d.heures_prevues} h prévues) : indiquez le motif de l'écart (abandon, sortie anticipée, maladie…) — exigé en cas de contrôle CDC.`, heuresPrevues: d.heures_prevues, heuresRealisees },
       { status: 409 },
     );
   }
 
   const patch: Record<string, unknown> = {
-    heures_realisees: calc.heuresRealisees,
-    date_fin: calc.dateFinReelle,
+    heures_realisees: heuresRealisees,
+    date_fin: dateFinReelle,
     niveau_atteint: niveauAtteint,
   };
   if (ecart) { patch.ecart_heures_confirme = true; patch.motif_ecart_heures = motifEcart; }
 
   // Garde-fou déclaratif CDC : si les heures déjà déclarées à EDOF dépassent les heures
   // réellement réalisées, le dépôt EDOF doit être corrigé (sinon trop-perçu à la clôture).
-  const edofAAjuster = d.heures_edof != null && Number(d.heures_edof) > calc.heuresRealisees;
+  const edofAAjuster = d.heures_edof != null && Number(d.heures_edof) > heuresRealisees;
 
   const { error } = await supabaseAdmin.from("dossiers").update(patch).eq("id", dossierId);
   if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
 
   await journal("dossier", dossierId, "cloture_formation", {
-    date_fin: calc.dateFinReelle,
+    date_fin: dateFinReelle,
     heures_prevues: d.heures_prevues,
-    heures_realisees: calc.heuresRealisees,
+    heures_realisees: heuresRealisees,
     ecart,
     motif_ecart: ecart ? motifEcart : null,
     edof_a_ajuster: edofAAjuster,
@@ -172,6 +200,7 @@ export async function POST(req: NextRequest) {
     niveau_atteint: niveauAtteint,
     seances_emargees: calc.nbSeancesEmargees,
     absences: calc.nbAbsences,
+    emargement_manuel: emargementManuel,
   }, u.email ?? null);
 
   // Attestation de fin : générée + envoyée automatiquement au stagiaire à la clôture (best-effort).
@@ -179,11 +208,11 @@ export async function POST(req: NextRequest) {
   const attestation = await genererEtEnvoyerDocFin(dossierId, "attestation_fin", u.email ?? null);
 
   return NextResponse.json({
-    ok: true, dateFinReelle: calc.dateFinReelle, heuresRealisees: calc.heuresRealisees, niveauAtteint, ecart,
+    ok: true, dateFinReelle, heuresRealisees, niveauAtteint, ecart,
     motifEcart: ecart ? motifEcart : null,
     edofAAjuster,
     edofAvertissement: edofAAjuster
-      ? `Heures déclarées EDOF (${d.heures_edof} h) supérieures aux heures réalisées (${calc.heuresRealisees} h) : corrigez le dépôt EDOF avant validation du service fait.`
+      ? `Heures déclarées EDOF (${d.heures_edof} h) supérieures aux heures réalisées (${heuresRealisees} h) : corrigez le dépôt EDOF avant validation du service fait.`
       : undefined,
     attestationEnvoyee: attestation.ok, attestationErreur: attestation.ok ? undefined : attestation.erreur,
   });

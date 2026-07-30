@@ -408,6 +408,8 @@ function ClotureFormation({ dossierId, recharger }: { dossierId: string; recharg
   const [niveau, setNiveau] = useState<string>("");
   const [ecartOk, setEcartOk] = useState(false);
   const [motifEcart, setMotifEcart] = useState<string>("");
+  const [heuresManuel, setHeuresManuel] = useState<string>("");   // émargement papier : heures saisies
+  const [dateFinManuel, setDateFinManuel] = useState<string>(""); // émargement papier : date de fin saisie
   const [busy, setBusy] = useState(false);
 
   const charger = useCallback(async () => {
@@ -418,6 +420,8 @@ function ClotureFormation({ dossierId, recharger }: { dossierId: string; recharg
       if (!j.ok) { setErr(j.erreur || "Erreur de chargement."); return; }
       setApercu(j.apercu);
       setNiveau(j.apercu.niveauAtteint ?? "");
+      setHeuresManuel(j.apercu.heuresRealiseesManuel != null ? String(j.apercu.heuresRealiseesManuel) : "");
+      setDateFinManuel(j.apercu.dateFinManuel ?? "");
     } catch (e: any) { setErr(e?.message || "Erreur de chargement."); }
     finally { setCharge(false); }
   }, [dossierId]);
@@ -429,7 +433,11 @@ function ClotureFormation({ dossierId, recharger }: { dossierId: string; recharg
     try {
       const r = await fetch("/api/cloture", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dossierId, niveauAtteint: niveau || undefined, ecartConfirme: ecartOk, motifEcart: motifEcart || undefined }),
+        body: JSON.stringify({
+          dossierId, niveauAtteint: niveau || undefined, ecartConfirme: ecartOk, motifEcart: motifEcart || undefined,
+          heuresRealiseesManuel: apercu.emargementManuel && heuresManuel !== "" ? Number(heuresManuel) : undefined,
+          dateFinManuel: apercu.emargementManuel ? (dateFinManuel || undefined) : undefined,
+        }),
       });
       const j = await r.json();
       if (!j.ok) { setErr(j.erreur || "Clôture impossible."); await charger(); return; }
@@ -446,6 +454,10 @@ function ClotureFormation({ dossierId, recharger }: { dossierId: string; recharg
   if (err && !apercu) return <div className="mt-4 text-sm text-red-700">{err}</div>;
   if (!apercu) return null;
   const a = apercu;
+  // Heures effectives = émargement numérique, ou saisie manuelle (émargement papier).
+  const heuresEff = a.emargementManuel ? (heuresManuel !== "" ? Number(heuresManuel) : null) : a.heuresRealisees;
+  const ecartEff = a.heuresPrevues != null && heuresEff != null && heuresEff !== Number(a.heuresPrevues);
+  const peutCloturer = a.nbSeancesEmargees > 0 || (heuresManuel !== "" && Number(heuresManuel) > 0 && !!dateFinManuel);
 
   return (
     <div className="mt-4 card">
@@ -477,11 +489,31 @@ function ClotureFormation({ dossierId, recharger }: { dossierId: string; recharg
         </div>
       )}
 
-      {a.ecart && (
+      {a.emargementManuel && (
+        <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50/50 p-3">
+          <p className="text-sm font-medium text-gray-800">Émargement papier</p>
+          <p className="text-[11px] text-gray-500 mb-2">Aucune séance émargée dans le CRM : saisis les heures réellement réalisées et la date de fin (justifiées par la feuille d&apos;émargement signée importée). Aucune antidate — la date ne peut pas être dans le futur.</p>
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="text-xs text-gray-600">Heures réalisées
+              <input type="number" min={0.5} step={0.5} value={heuresManuel}
+                onChange={(e) => setHeuresManuel(e.target.value)}
+                className="block mt-1 w-24 border border-gray-300 rounded-lg px-2 py-1.5 text-sm bg-white" />
+            </label>
+            <label className="text-xs text-gray-600">Date de fin réelle
+              <input type="date" value={dateFinManuel}
+                onChange={(e) => setDateFinManuel(e.target.value)}
+                className="block mt-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm bg-white" />
+            </label>
+            <span className="text-xs text-gray-400">/ {a.heuresPrevues ?? "—"} h prévues</span>
+          </div>
+        </div>
+      )}
+
+      {ecartEff && (
         <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50/60 p-3">
           <label className="flex items-start gap-2 text-sm text-gray-700">
             <input type="checkbox" checked={ecartOk} onChange={(e) => setEcartOk(e.target.checked)} className="mt-0.5" />
-            <span>J'atteste l'écart entre heures prévues ({a.heuresPrevues} h) et réalisées ({a.heuresRealisees} h) — <strong>service fait partiel</strong>.</span>
+            <span>J'atteste l'écart entre heures prévues ({a.heuresPrevues} h) et réalisées ({heuresEff} h) — <strong>service fait partiel</strong>.</span>
           </label>
           <div className="mt-2">
             <label className="block text-xs font-medium text-gray-600 mb-1">Motif de l'écart <span className="text-amber-700">(obligatoire — exigé en cas de contrôle CDC)</span></label>
@@ -502,12 +534,12 @@ function ClotureFormation({ dossierId, recharger }: { dossierId: string; recharg
       {err && <div className="mt-3 text-sm text-red-700">{err}</div>}
       {msg && <div className="mt-3 whitespace-pre-line px-3 py-2 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800 text-sm">{msg}</div>}
 
-      <button onClick={cloturer} disabled={busy || a.nbSeancesEmargees === 0}
+      <button onClick={cloturer} disabled={busy || !peutCloturer}
         className="btn-primary mt-3">
         {busy ? "Clôture…" : "Clôturer la formation"}
       </button>
-      {a.nbSeancesEmargees === 0 && (
-        <p className="mt-2 text-xs text-gray-400">Aucune séance émargée : la clôture sera possible une fois l'émargement réalisé.</p>
+      {!peutCloturer && (
+        <p className="mt-2 text-xs text-gray-400">Émargement numérique ou saisie des heures + date de fin (émargement papier) requis pour clôturer.</p>
       )}
     </div>
   );
