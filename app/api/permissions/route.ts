@@ -1,8 +1,8 @@
 /**
  * MYSTORY — /api/permissions : éditeur des accès aux pages par rôle (Direction).
  *  GET → matrice (défauts + effectif + rôles + libellés + pages éditables).
- *  PUT { overrides: { page_cle: role[] } } → enregistre (tighten-only : ⊆ défaut ; Direction
- *        toujours conservée ; finance/BPF et /comptes hors périmètre). Journalisé.
+ *  PUT { overrides: { page_cle: role[] } } → enregistre (contrôle total : accorder ou retirer
+ *        tout rôle valide ; Direction toujours conservée ; finance/BPF et /comptes hors périmètre). Journalisé.
  * Le résultat est propagé au middleware Edge via /api/permissions/public.
  */
 import { NextRequest, NextResponse } from "next/server";
@@ -47,9 +47,10 @@ export async function PUT(req: NextRequest) {
   for (const [cle, demandes] of Object.entries(overrides)) {
     if (!editables.has(cle) || !Array.isArray(demandes)) continue;
     const def = PAGE_PERMISSIONS[cle];
-    // Tighten-only : ⊆ défaut. Direction toujours conservée si elle est au défaut (anti-lockout).
-    let allowed = def.filter((r) => (demandes as string[]).includes(r));
-    if (def.includes("direction") && !allowed.includes("direction")) allowed = ["direction", ...allowed];
+    // Contrôle total : tout rôle VALIDE (accorder ou retirer), pas seulement ⊆ défaut.
+    // Direction toujours conservée (anti-lockout).
+    let allowed = ROLES.filter((r) => (demandes as string[]).includes(r)) as string[];
+    if (!allowed.includes("direction")) allowed = ["direction", ...allowed];
     // Override inutile (= défaut) → on supprime la ligne pour garder la table minimale.
     const identiqueAuDefaut = allowed.length === def.length && def.every((r) => allowed.includes(r));
     if (identiqueAuDefaut) {

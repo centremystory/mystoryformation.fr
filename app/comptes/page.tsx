@@ -178,7 +178,11 @@ export default function PageComptes() {
       {/* Matrice rôles → restrictions */}
       <section>
         <h2 className="text-sm font-semibold text-gray-800 mb-2">Rôles & restrictions</h2>
-        <p className="text-xs text-gray-500 mb-2">Tout le reste (inscriptions, génération de documents, planning, tâches, envoi du dossier, examens, consultation) est ouvert à tout staff connecté. Seules ces actions sont restreintes :</p>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-mystory/30 bg-mystory-clair/40 px-4 py-3">
+          <span className="text-sm text-gray-700">Choisir quels <b>onglets</b> chaque rôle peut voir (accorder / retirer) :</span>
+          <a href="/permissions" className="btn-primary shrink-0">🔑 Accès aux onglets par rôle</a>
+        </div>
+        <p className="text-xs text-gray-500 mb-2">Ci-dessous les <b>actions sensibles</b> restreintes par rôle (lecture seule). Tout le reste (inscriptions, génération de documents, planning, tâches, envoi du dossier, examens, consultation) est ouvert à tout staff connecté :</p>
         <div className="border border-gray-200 rounded-xl bg-white divide-y divide-gray-100 text-sm">
           {(Object.keys(PERMISSIONS) as (keyof typeof PERMISSIONS)[]).map((a) => (
             <div key={a} className="flex flex-wrap items-center gap-2 px-4 py-2.5">

@@ -1,7 +1,7 @@
 "use client";
 // app/permissions/page.tsx — Éditeur des accès aux onglets par rôle (Direction).
-// Tighten-only : on ne peut que RETIRER un rôle d'une page (jamais dépasser le défaut).
-// La Direction est toujours cochée + verrouillée (anti-lockout). Finance/BPF hors périmètre.
+// Contrôle total : on peut ACCORDER ou RETIRER n'importe quel rôle sur une page.
+// La Direction est toujours cochée + verrouillée (anti-lockout). Finance/BPF + /comptes hors périmètre.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ShieldCheck, Save } from "lucide-react";
 
@@ -30,8 +30,8 @@ export default function PagePermissions() {
   }, []);
   useEffect(() => { charger(); }, [charger]);
 
-  function toggle(cle: string, role: string, defaut: string[]) {
-    if (role === "direction" || !defaut.includes(role)) return; // Direction verrouillée ; hors défaut = interdit
+  function toggle(cle: string, role: string, _defaut: string[]) {
+    if (role === "direction") return; // Direction verrouillée (anti-lockout) ; tout autre rôle librement accordable/retirable
     setSel((prev) => {
       const cur = new Set(prev[cle] ?? []);
       cur.has(role) ? cur.delete(role) : cur.add(role);
@@ -64,7 +64,7 @@ export default function PagePermissions() {
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-mystory-clair text-mystory-fonce"><ShieldCheck size={22} /></div>
           <div>
             <h1 className="page-title text-2xl">Accès par rôle</h1>
-            <p className="page-subtitle">Choisis quels onglets chaque rôle peut voir. On ne peut que <b>retirer</b> un accès (jamais dépasser le rôle prévu). La Direction garde tout. Finance/BPF restent réservés au propriétaire.</p>
+            <p className="page-subtitle">Choisis quels onglets chaque rôle peut voir : <b>coche pour accorder</b>, décoche pour retirer. La Direction garde tout (verrouillée). Finance/BPF et Comptes restent réservés au propriétaire.</p>
           </div>
         </div>
         <button onClick={enregistrer} disabled={!modifie || busy} className="btn-primary disabled:opacity-40">
@@ -91,16 +91,13 @@ export default function PagePermissions() {
                     const auDefaut = p.defaut.includes(r.code);
                     const coche = (sel[p.cle] ?? new Set()).has(r.code);
                     const verrou = r.code === "direction";
+                    const accorde = coche && !auDefaut; // accès ajouté au-delà du défaut
                     return (
                       <td key={r.code} className="px-3 py-2 text-center">
-                        {auDefaut ? (
-                          <input type="checkbox" checked={coche} disabled={verrou}
-                            onChange={() => toggle(p.cle, r.code, p.defaut)}
-                            title={verrou ? "La Direction garde toujours l'accès" : coche ? "Retirer l'accès" : "Redonner l'accès"}
-                            className={verrou ? "opacity-60 cursor-not-allowed" : "cursor-pointer"} />
-                        ) : (
-                          <span className="text-gray-200" title="Ce rôle n'a pas cet accès par défaut">—</span>
-                        )}
+                        <input type="checkbox" checked={coche} disabled={verrou}
+                          onChange={() => toggle(p.cle, r.code, p.defaut)}
+                          title={verrou ? "La Direction garde toujours l'accès" : coche ? (accorde ? "Accès accordé (hors défaut) — décoche pour retirer" : "Retirer l'accès") : "Accorder l'accès à ce rôle"}
+                          className={verrou ? "opacity-60 cursor-not-allowed" : accorde ? "cursor-pointer accent-emerald-600" : "cursor-pointer"} />
                       </td>
                     );
                   })}
@@ -110,7 +107,7 @@ export default function PagePermissions() {
           </table>
         </div>
       )}
-      <p className="mt-3 text-xs text-gray-400">« — » = ce rôle n'a jamais eu cet accès (non ajoutable ici). Décoche pour masquer un onglet à un rôle. La Direction est verrouillée pour éviter de se bloquer soi-même.</p>
+      <p className="mt-3 text-xs text-gray-400">Coche pour donner l'accès à un rôle, décoche pour le masquer. Les cases <span className="text-emerald-600">vertes</span> sont des accès accordés au-delà du défaut. La Direction est verrouillée pour éviter de se bloquer soi-même ; Finance/BPF et Comptes ne sont pas modifiables ici (réservés au propriétaire).</p>
     </main>
   );
 }
