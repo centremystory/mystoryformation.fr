@@ -420,7 +420,7 @@ export default function PageFactures() {
                     <td className="px-3 py-2 whitespace-nowrap text-right">
                       {f.statut !== "payée" && (
                         <button
-                          onClick={() => action("/api/factures", { id: f.id, action: "payee" }, `p-${f.id}`, `Facture ${f.numero} marquée payée`)}
+                          onClick={() => { if (window.confirm(`Marquer la facture ${f.numero} comme PAYÉE ?\n\nCela appose le tampon « PAYÉE », régénère le PDF et notifie le client. Action à ne faire qu'après encaissement réel.`)) action("/api/factures", { id: f.id, action: "payee" }, `p-${f.id}`, `Facture ${f.numero} marquée payée`); }}
                           disabled={busy !== null}
                           className="px-2 py-1 rounded-md text-xs border border-green-300 text-green-700 hover:bg-green-50 disabled:opacity-40 mr-1"
                         >

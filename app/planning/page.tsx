@@ -3,6 +3,7 @@
 // Vue agenda groupée par date. Filtres : agence, période (à venir / tout), recherche.
 // Rappel : le lieu de formation des documents reste Gagny ; l'agence sert au suivi interne par site.
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { aujourdhuiParisISO } from "@/lib/dates";
 
 const CRENEAU: Record<string, string> = { matin: "Matin", apres_midi: "Après-midi" };
 const CERTIF: Record<string, string> = { TEF_IRN: "TEF IRN", LEVELTEL: "LEVELTEL" };
@@ -32,7 +33,8 @@ function dateLongueFr(iso: string): string {
     });
   } catch { return iso; }
 }
-const aujourdHui = () => new Date().toISOString().slice(0, 10);
+// « Aujourd'hui » en heure de Paris (sinon décalage d'un jour la nuit — filtre « à venir »).
+const aujourdHui = () => aujourdhuiParisISO();
 
 type Formatrice = { id: string; nom: string; prenom: string | null };
 type Edition = { id: string; date: string; demi: string; formatriceId: string };
