@@ -441,6 +441,16 @@ async function mesTachesCount(userId?: string): Promise<number> {
   } catch { return 0; }
 }
 
+/** Demandes de remboursement/report d'examen en attente (demandées ou validées, pas encore effectuées). */
+async function remboursementsEnAttenteCount(): Promise<number> {
+  try {
+    const { count } = await supabaseAdmin.from("remboursements_examen")
+      .select("id", { count: "exact", head: true })
+      .in("statut", ["demande", "valide"]);
+    return count ?? 0;
+  } catch { return 0; }
+}
+
 export default async function Accueil() {
   const site = siteValide(cookies().get(COOKIE_SITE)?.value);
 
@@ -454,12 +464,22 @@ export default async function Accueil() {
   const voir = (href: string) => peutVoirPage(role, href);
   const estDirection = role === "direction" || role === "manager" || role === "staff" || !role;
 
-  const [c, t, cf, ex, cl, tk, an, testsDist, convListe, reclaListe, dir, testsSansSuite, mesTaches] = await Promise.all([
+  const [c, t, cf, ex, cl, tk, an, testsDist, convListe, reclaListe, dir, testsSansSuite, mesTaches, remb] = await Promise.all([
     compter(site), aTraiter(site), conformiteFormateurs(), examenSemaine(site), classementAccueil(), tachesAccueil(site),
     anomaliesAccueil(site), testsADistanceCount(), conventionsListe(), reclamationsListe(site),
     estDirection ? cockpitDirection(site) : Promise.resolve(null),
-    testsInitiauxSansSuiteCount(), mesTachesCount(user?.id),
+    testsInitiauxSansSuiteCount(), mesTachesCount(user?.id), remboursementsEnAttenteCount(),
   ]);
+
+  // Notifications « à traiter » (réclamations, remboursements, messages, tâches agence + perso).
+  // Filtrées par rôle ; les tâches d'agence dépendent du site, « mes tâches » de la personne.
+  const notifs = [
+    { n: t.reclamations, href: "/reclamations", label: "réclamation", accent: "rouge" as const },
+    { n: remb, href: "/examens/remboursements", label: "demande examen (remb./report/annul.)", accent: "rouge" as const },
+    { n: t.messages, href: "/messages", label: "message prospect", accent: "bleu" as const },
+    { n: tk.length, href: "/taches", label: "tâche d'agence", accent: "ambre" as const },
+    { n: mesTaches, href: "/taches", label: "tâche pour moi", accent: "ambre" as const },
+  ].filter((x) => x.n > 0 && voir(x.href));
 
   const actions = [
     { label: "🎯 Mes tâches à faire", n: mesTaches, href: "/taches" },
@@ -525,6 +545,27 @@ export default async function Accueil() {
               <ChevronRight size={16} className="ml-auto shrink-0 text-mystory/60" />
             </Link>
           )}
+        </div>
+      )}
+
+      {/* Notifications « à traiter » — réclamations, remboursements/reports/annulations, messages, tâches (agence + perso) */}
+      {notifs.length > 0 && (
+        <div className="mb-6 rounded-xl border border-amber-200 bg-white px-4 py-3 shadow-sm">
+          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-800">
+            <AlertTriangle size={16} strokeWidth={1.9} className="text-amber-600" /> À traiter{site ? ` — ${site}` : ""}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {notifs.map((x) => (
+              <Link key={x.label} href={x.href}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium hover:brightness-95 ${
+                  x.accent === "rouge" ? "border-red-200 bg-red-50 text-red-800"
+                    : x.accent === "bleu" ? "border-blue-200 bg-blue-50 text-blue-800"
+                      : "border-amber-200 bg-amber-50 text-amber-900"}`}>
+                <strong>{x.n}</strong> {x.label}{x.n > 1 ? "s" : ""}
+                <ChevronRight size={13} className="opacity-60" />
+              </Link>
+            ))}
+          </div>
         </div>
       )}
 
