@@ -64,7 +64,7 @@
 
   <div class="to">
     <div class="who">{{civilite}} {{prenom}} {{nom}}</div>
-    {{email}} · {{telephone}}
+    {{#if adresse_complete}}{{adresse_complete}}<br>{{/if}}{{email}} · {{telephone}}
   </div>
 
   <p class="intro">{{civilite}} {{nom}}, nous avons le plaisir de vous convoquer à votre formation <strong>« Préparer son test d'évaluation de français — TEF IRN »</strong>. Vous trouverez ci-dessous les informations pratiques ainsi que le calendrier détaillé de vos séances. Nous vous remercions de vous présenter muni(e) d'une <strong>pièce d'identité</strong>.</p>
