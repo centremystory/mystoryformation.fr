@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <style>
-  @page { size: A4; margin: 14mm 14mm 20mm 14mm; }
+  @page { size: A4; margin: 14mm 14mm 26mm 14mm; }
   * { box-sizing: border-box; }
   body { font-family: "Helvetica Neue", Arial, sans-serif; color: #1c2433; font-size: 9.8pt; line-height: 1.42; margin: 0; }
   .brandbar { height: 5px; background: #2F72DE; border-radius: 3px; }
@@ -50,7 +50,7 @@
   table.plan tr:nth-child(even) td { background: #f7faff; }
   .plan-total { margin-top: 6px; font-size: 9.2pt; font-weight: 700; color: #2F72DE; }
   .accept-note { font-size: 7.8pt; color: #5b6472; font-style: italic; margin-top: 8px; border-left: 3px solid #d8e4fb; padding-left: 8px; }
-  footer { position: fixed; bottom: 0; left: 0; right: 0; border-top: 1px solid #e3e8f0; padding-top: 4px; font-size: 6.4pt; color: #7a8290; text-align: center; line-height: 1.3; }
+  footer { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #e3e8f0; padding: 4px 0 3mm; font-size: 6.4pt; color: #7a8290; text-align: center; line-height: 1.3; }
 </style>
 </head>
 <body>
@@ -72,7 +72,7 @@
     </div>
     <div class="doctype">
       <span class="tag">CONTRAT DE FORMATION</span>
-      <div class="ref">N° dossier EDOF : {{numero_dossier}}<br>{{certif_intitule}} ({{certif_code}})</div>
+      <div class="ref">{{certif_intitule}} ({{certif_code}})</div>
     </div>
   </header>
 
@@ -98,9 +98,8 @@
     <tr><td class="k">Intitulé</td><td class="v">Préparer son test d'évaluation de français — TEF IRN</td></tr>
     <tr><td class="k">Certification</td><td class="v">{{certif_intitule}} — Répertoire spécifique {{certif_code}} (CCI Paris Île-de-France)</td></tr>
     <tr><td class="k">Nature</td><td class="v">Action de formation (art. L.6313-1, 1° du Code du travail)</td></tr>
-    <tr><td class="k">N° de dossier EDOF</td><td class="v">{{numero_dossier}}</td></tr>
     <tr><td class="k">Durée · Période</td><td class="v">{{duree_heures}} heures · du {{date_debut}} au {{date_fin}}</td></tr>
-    <tr><td class="k">Modalité · Lieu</td><td class="v">100 % présentiel (taux de distanciel : 0 %) · Gagny — 3 bis av. de Gagny, 93220 Gagny</td></tr>
+    <tr><td class="k">Modalité · Lieu</td><td class="v">100 % présentiel · Gagny — 3 bis av. de Gagny, 93220 Gagny</td></tr>
     <tr><td class="k">Programme</td><td class="v">Détaillé en Annexe 1 (objectifs, contenu, moyens, évaluation)</td></tr>
   </table>
 
