@@ -38,6 +38,9 @@ const LABEL_PIECE: Record<string, string> = {
   certificat_realisation: "Certificat de réalisation",
 };
 
+// Annexes de la convention : générées avec elle, pas de pièce séparée à produire.
+const ANNEXES_CONVENTION = new Set(["programme", "reglement_interieur", "planning"]);
+
 function estCpf(d: any): boolean {
   return d.financement === "CPF" || d.origine_fonds === "CPF_CDC";
 }
@@ -63,9 +66,10 @@ export async function scannerConformiteEdof(): Promise<DossierRisque[]> {
     const anomalies: Anomalie[] = [];
     const pieces = (d.pieces ?? []) as any[];
 
-    // 1) Pièces obligatoires manquantes
+    // 1) Pièces obligatoires manquantes — hors annexes de la convention (programme, RI,
+    //    planning : générées AVEC la convention et couvertes par sa signature).
     const manquantes = pieces
-      .filter((p) => !p.optionnelle && p.statut === "manquant")
+      .filter((p) => !p.optionnelle && p.statut === "manquant" && !ANNEXES_CONVENTION.has(p.type))
       .map((p) => LABEL_PIECE[p.type] ?? p.type);
     if (manquantes.length > 0) {
       anomalies.push({ code: "pieces_manquantes", gravite: "haute", label: `Pièce(s) manquante(s) : ${manquantes.join(", ")}` });
