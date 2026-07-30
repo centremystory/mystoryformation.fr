@@ -131,11 +131,11 @@ export default function Banque() {
             .map((t) => (
             <div key={t.id} className="card flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <span className={`rounded-lg px-2.5 py-1.5 text-lg ${t.phase === "final" ? "bg-violet-50" : "bg-blue-50"}`}>{t.phase === "final" ? "🎓" : "📖"}</span>
+                <span className={`rounded-lg px-2.5 py-1.5 text-lg ${t.phase === "final" ? "bg-violet-50" : t.phase === "entrainement" ? "bg-emerald-50" : "bg-blue-50"}`}>{t.phase === "final" ? "🎓" : t.phase === "entrainement" ? "📚" : "📖"}</span>
                 <div>
                   <p className="font-semibold text-gray-900">{t.titre} {!t.actif && <span className="badge badge-neutral ml-1">archivé</span>}</p>
                   <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-gray-500">
-                    <span className={`badge ${t.phase === "final" ? "bg-violet-100 text-violet-700" : "bg-blue-100 text-blue-700"}`}>{t.phase === "final" ? "Test final" : "Test initial"}</span>
+                    <span className={`badge ${t.phase === "final" ? "bg-violet-100 text-violet-700" : t.phase === "entrainement" ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"}`}>{t.phase === "final" ? "Test final" : t.phase === "entrainement" ? "Carnet d'entraînement" : "Test initial"}</span>
                     {t.periode && <span className="badge bg-gray-100 text-gray-600">{t.periode}</span>}
                     <span className={`badge ${t.nb_questions > 0 ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>{t.nb_questions} question{t.nb_questions > 1 ? "s" : ""}</span>
                     <span className="text-gray-400">créé le {new Date(t.cree_le).toLocaleDateString("fr-FR")}</span>
