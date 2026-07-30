@@ -17,8 +17,7 @@ export const ONGLETS_TESTS: Onglet[] = [
 export const ONGLETS_REGLAGES: Onglet[] = [
   { href: "/reglages", label: "Réglages" },
   { href: "/centres", label: "Centres" },
-  { href: "/catalogue", label: "Catalogue & tarifs" },
-  { href: "/catalogue/offres", label: "Offres & formules" },
+  { href: "/catalogue/offres", label: "Catalogue" },
 ];
 
 // Communication — messagerie d'équipe + prospects regroupée en un hub.
