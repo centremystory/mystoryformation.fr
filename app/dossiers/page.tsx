@@ -620,9 +620,17 @@ function LigneDossier({
         <td className="px-4 py-3 text-right text-gray-400">{estOuvert ? "▴" : "▾"}</td>
       </tr>
       {estOuvert && (
-        <tr className="border-t border-gray-100 bg-gray-50/60">
-          <td colSpan={7} className="px-4 py-4">
-            <TunnelControl d={d} recharger={recharger} />
+        <tr>
+          <td colSpan={7} className="p-0">
+            {/* Modale plein écran scrollable — confort tablette / centre d'examen (au lieu d'une ligne dépliée qui sort de l'écran). */}
+            <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-2 sm:p-6" onClick={onToggle}>
+              <div className="relative mt-2 w-full max-w-3xl max-h-[92vh] overflow-y-auto rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-100 bg-white px-4 py-3">
+                  <span className="font-semibold text-gray-900">Fiche dossier — suivi</span>
+                  <button onClick={onToggle} className="rounded-lg px-2 py-1 text-lg text-gray-400 hover:bg-gray-100" title="Fermer">✕</button>
+                </div>
+                <div className="px-4 py-4">
+                  <TunnelControl d={d} recharger={recharger} />
             <PiecesActions d={d} recharger={recharger} />
             <ClotureFormation dossierId={d.id} recharger={recharger} />
             <SeancesAccueil dossierId={d.id} stagiaireId={d.stagiaire_id} />
@@ -680,7 +688,10 @@ function LigneDossier({
             >
               Ouvrir la page de suivi détaillée ↗
             </a>
-            <Remarques dossierId={d.id} />
+                  <Remarques dossierId={d.id} />
+                </div>
+              </div>
+            </div>
           </td>
         </tr>
       )}
