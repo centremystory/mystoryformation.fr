@@ -33,13 +33,10 @@ export async function GET(req: NextRequest) {
   const fiche = await getFiche(dossierId);
   if (!fiche) return NextResponse.json({ ok: false, erreur: "Dossier introuvable." }, { status: 404 });
 
+  // APERÇU : on rend TOUJOURS le PDF, même si des champs manquent — le moteur affiche
+  // « [À COMPLÉTER] » là où c'est vide. Un aperçu doit être visible (contrairement à l'envoi
+  // en signature, qui lui exige des champs complets).
   const merge = mergeTemplate("convention", fiche);
-  if (merge.missing.length > 0) {
-    return NextResponse.json(
-      { ok: false, status: "champs_manquants", recap: merge.missing.map((m) => `Champ requis manquant : ${m}`) },
-      { status: 409 },
-    );
-  }
 
   try {
     const { pdf } = await renderHtmlToPdf({ html: neutraliserSignature(merge.html), name: `Convention (aperçu) — ${fiche.prenom} ${fiche.nom}` });
