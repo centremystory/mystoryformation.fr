@@ -2,7 +2,7 @@
 // app/equipe-messages/page.tsx — Fil de messages d'équipe (annonces internes).
 // Simple : on poste un message, toute l'équipe le voit. Épingler pour garder en haut.
 import { useCallback, useEffect, useState } from "react";
-import { Megaphone, Pin, PinOff, Archive, Send } from "lucide-react";
+import { Megaphone, Pin, PinOff, Archive, Send, Search, X } from "lucide-react";
 
 type Msg = {
   id: string; auteur_id: string | null; auteur_email: string | null; auteur_nom: string;
@@ -20,15 +20,19 @@ export default function PageEquipeMessages() {
   const [chargement, setChargement] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [moi, setMoi] = useState<{ email: string | null; roles: string[] }>({ email: null, roles: [] });
+  const [q, setQ] = useState("");
+  const [recherche, setRecherche] = useState(false);
 
   const charger = useCallback(async () => {
     setChargement(true);
     try {
-      const j = await fetch("/api/equipe-messages", { cache: "no-store" }).then((r) => r.json());
-      if (j.ok) setMessages(j.messages ?? []);
+      const url = q.trim() ? `/api/equipe-messages?q=${encodeURIComponent(q.trim())}` : "/api/equipe-messages";
+      const j = await fetch(url, { cache: "no-store" }).then((r) => r.json());
+      if (j.ok) { setMessages(j.messages ?? []); setRecherche(!!j.recherche); }
     } finally { setChargement(false); }
-  }, []);
-  useEffect(() => { charger(); }, [charger]);
+  }, [q]);
+  // Debounce léger sur la recherche ; chargement immédiat quand le champ est vide.
+  useEffect(() => { const t = setTimeout(charger, q.trim() ? 300 : 0); return () => clearTimeout(t); }, [charger, q]);
   useEffect(() => {
     fetch("/api/me").then((r) => r.json()).then((j) => {
       if (j?.ok) setMoi({ email: j.user?.email ?? null, roles: j.user?.roles ?? [] });
@@ -83,10 +87,24 @@ export default function PageEquipeMessages() {
         </div>
       </div>
 
+      {/* Recherche */}
+      <div className="mt-6 relative">
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <input value={q} onChange={(e) => setQ(e.target.value)}
+          placeholder="Rechercher dans le fil (mots-clés)…"
+          className="input w-full pl-9 pr-8" />
+        {q && <button onClick={() => setQ("")} title="Effacer" className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><X size={15} /></button>}
+      </div>
+      <p className="mt-2 text-xs text-gray-400">
+        {recherche
+          ? <>Résultats dans tout le fil pour « <b>{q.trim()}</b> ».</>
+          : <>Le fil affiche la <b>semaine en cours</b> ; les messages plus anciens sont archivés — retrouve-les par la recherche. Les épinglés restent toujours visibles.</>}
+      </p>
+
       {/* Fil */}
-      <div className="mt-6 space-y-2">
+      <div className="mt-3 space-y-2">
         {chargement ? <p className="text-gray-500 text-sm">Chargement…</p> :
-          messages.length === 0 ? <p className="text-gray-500 text-sm">Aucun message pour le moment — lance le fil 👋</p> :
+          messages.length === 0 ? <p className="text-gray-500 text-sm">{recherche ? "Aucun message ne correspond à cette recherche." : "Aucun message cette semaine — lance le fil 👋"}</p> :
           messages.map((m) => {
             const mien = !!moi.email && m.auteur_email === moi.email;
             const peutGerer = mien || estDirection;
