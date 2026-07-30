@@ -20,18 +20,41 @@ function auteurDe(u: { id: string; nom?: string; email?: string; role?: string }
   return { auteur_id: u.id, auteur_nom: nom, auteur_email: u.email ?? null, auteur_role: u.role ?? null };
 }
 
+/** Lundi 00:00 (Europe/Paris) de la semaine en cours, en ISO — pour l'« archivage à la semaine ». */
+function lundiSemaineISO(): string {
+  const paris = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+  const jour = (paris.getDay() + 6) % 7; // 0 = lundi
+  paris.setHours(0, 0, 0, 0);
+  paris.setDate(paris.getDate() - jour);
+  return paris.toISOString();
+}
+
 export async function GET(req: NextRequest) {
   try {
     await requireUser(req);
-    const { data, error } = await supabaseAdmin
+    const q = (req.nextUrl.searchParams.get("q") ?? "").trim();
+    const depuis = lundiSemaineISO();
+
+    let query = supabaseAdmin
       .from("messages_equipe")
       .select("id, auteur_id, auteur_email, auteur_nom, auteur_role, contenu, epingle, cree_le")
-      .eq("actif", true)
-      .order("epingle", { ascending: false })
-      .order("cree_le", { ascending: false })
-      .limit(300);
+      .eq("actif", true);
+
+    if (q) {
+      // Recherche par mots-clés : sur TOUT le fil actif (toutes semaines), par contenu.
+      const motif = q.replace(/[%,]/g, " ").trim();
+      query = query.ilike("contenu", `%${motif}%`).order("cree_le", { ascending: false }).limit(200);
+    } else {
+      // Vue par défaut : semaine en cours (lundi 00:00 Paris) + messages épinglés (toujours visibles).
+      query = query.or(`epingle.eq.true,cree_le.gte.${depuis}`)
+        .order("epingle", { ascending: false })
+        .order("cree_le", { ascending: false })
+        .limit(300);
+    }
+
+    const { data, error } = await query;
     if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true, messages: data ?? [] });
+    return NextResponse.json({ ok: true, messages: data ?? [], recherche: !!q, depuis: q ? null : depuis });
   } catch (e) {
     if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
     throw e;
