@@ -177,7 +177,10 @@ export async function genererFeuilleEmargementHtml(dossierId: string): Promise<F
  * mais JAMAIS de signature ni de date pré-remplies (recueillies en présentiel, à la main).
  * Le scan signé est ensuite redéposé dans le CRM (table emargements_papier).
  */
-export async function genererFeuillePapierJourHtml(date: string): Promise<{ html: string; nb: number }> {
+export async function genererFeuillePapierJourHtml(
+  date: string,
+  demi?: "matin" | "apres_midi",
+): Promise<{ html: string; nb: number }> {
   const { data } = await supabaseAdmin
     .from("planning")
     .select(`
@@ -188,8 +191,11 @@ export async function genererFeuillePapierJourHtml(date: string): Promise<{ html
     .eq("date_seance", date);
   const rows = (data ?? []) as any[];
 
+  // Créneaux imprimés : celui sélectionné à l'écran, ou les deux si aucun n'est précisé.
+  const creneaux: readonly ("matin" | "apres_midi")[] = demi ? [demi] : (["matin", "apres_midi"] as const);
+
   const ligneVide = `<tr><td class="bl">&nbsp;</td><td></td><td class="sigc"></td></tr>`;
-  const sections = (["matin", "apres_midi"] as const).map((dm) => {
+  const sections = creneaux.map((dm) => {
     const dmi = DEMI[dm];
     const items = rows.filter((r) => r.demi_journee === dm).map((r: any) => ({
       nom: r.dossier?.stagiaire ? `${r.dossier.stagiaire.prenom ?? ""} ${r.dossier.stagiaire.nom ?? ""}`.trim() : "",
@@ -236,7 +242,7 @@ export async function genererFeuillePapierJourHtml(date: string): Promise<{ html
     <div class="muted" style="text-align:right">Lieu de formation<br><b style="color:#0f172a">Gagny</b><br>3 bis av. de Gagny, 93220</div>
   </div>
 
-  <h1>Feuille d'émargement — ${frDate(date)}</h1>
+  <h1>Feuille d'émargement — ${frDate(date)}${demi ? ` · ${DEMI[demi].label}` : ""}</h1>
   <div class="muted">Émargement présentiel (papier). Chaque stagiaire signe la (les) demi-journée(s) suivie(s). Lignes vierges pour les présences non planifiées.</div>
   ${sections}
   <div class="note">

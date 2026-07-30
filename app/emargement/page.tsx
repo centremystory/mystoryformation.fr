@@ -162,8 +162,10 @@ export default function EmargementDuJour() {
       <div className="mt-4 rounded-2xl border border-gray-200 bg-white p-4">
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-sm font-semibold text-gray-800">📄 Feuille papier</span>
+          <a href={`/api/emargement/jour/pdf?date=${date}&demi=${demi}`} target="_blank" rel="noreferrer"
+             className="rounded-lg bg-mystory px-3 py-1.5 text-sm font-semibold text-white">🖨️ Imprimer — {DEMI_LABEL[demi]}</a>
           <a href={`/api/emargement/jour/pdf?date=${date}`} target="_blank" rel="noreferrer"
-             className="rounded-lg bg-mystory px-3 py-1.5 text-sm font-semibold text-white">🖨️ Imprimer la feuille du jour</a>
+             className="text-sm underline text-gray-600 hover:text-mystory">Jour entier (matin + après-midi)</a>
           <button onClick={() => scanInputRef.current?.click()} disabled={scanBusy}
              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
             {scanBusy ? "Dépôt…" : scan ? "Remplacer le scan signé" : "Déposer le scan signé"}
