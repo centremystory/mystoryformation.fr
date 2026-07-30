@@ -341,12 +341,14 @@ export const TEMPLATES: Record<string, TemplateConfig> = {
   convocation: {
     id: "convocation",
     durationSource: "prevues",
-    required: ["civilite", "nom", "prenom", "email", "telephone", "duree_heures", "date_debut", "date_fin", "formateur"],
+    // Formatrice NON requise (pas d'obligation légale sur la convocation).
+    required: ["civilite", "nom", "prenom", "email", "telephone", "duree_heures", "date_debut", "date_fin"],
   },
   convention: {
     id: "convention",
     durationSource: "prevues",
-    required: ["civilite", "nom", "prenom", "adresse_complete", "numero_dossier", "duree_heures", "date_debut", "date_fin", "montant"],
+    // N° EDOF retiré de la convention → plus dans les champs requis.
+    required: ["civilite", "nom", "prenom", "adresse_complete", "duree_heures", "date_debut", "date_fin", "montant"],
   },
   emargement: {
     id: "emargement",

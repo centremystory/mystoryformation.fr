@@ -29,6 +29,9 @@ const LIBELLE_PIECE: Record<string, string> = {
 
 // Pièces déposées (fichier externe → archives du dossier). Affichées même si absentes en base.
 const DEPOSABLES = new Set(["justificatif_participation", "justificatif_examen"]);
+// Annexes de la convention : générées AVEC elle (signature de la convention = acceptation).
+// Pas de pièce séparée à générer/importer/compter → simplifie le dossier.
+const ANNEXES_CONVENTION = new Set(["programme", "reglement_interieur", "planning"]);
 // Pièces qu'on peut faire à la main (imprimer → signer → scanner → importer le PDF).
 const IMPORTABLES = new Set([
   "fiche_analyse_besoin", "convention", "programme", "reglement_interieur",
@@ -526,7 +529,7 @@ function LigneDossier({
       await recharger();
     } catch { alert("Échec de la suppression."); setSuppr(false); }
   }
-  const obligatoires = (d.pieces ?? []).filter((p) => !p.optionnelle);
+  const obligatoires = (d.pieces ?? []).filter((p) => !p.optionnelle && !ANNEXES_CONVENTION.has(p.type));
   const faites = obligatoires.filter(pieceFaite).length;
   const pct = obligatoires.length ? Math.round((faites / obligatoires.length) * 100) : 0;
   const nomStagiaire = d.stagiaires ? `${d.stagiaires.prenom ?? ""} ${d.stagiaires.nom}`.trim() : "—";
@@ -754,7 +757,9 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
     if (formOuvert) requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }));
   }, [formOuvert]);
 
-  const reelles = [...(d.pieces ?? [])].sort((a, b) => a.ordre - b.ordre);
+  // Les annexes (programme, RI, planning) ne sont pas affichées comme pièces séparées :
+  // elles sont incluses dans la convention (rappel sous la ligne « Convention »).
+  const reelles = [...(d.pieces ?? [])].filter((p) => !ANNEXES_CONVENTION.has(p.type)).sort((a, b) => a.ordre - b.ordre);
   const presentes = new Set(reelles.map((p) => p.type));
   const virtuelles: Piece[] = ["justificatif_participation", "justificatif_examen"]
     .filter((t) => !presentes.has(t))
@@ -1186,6 +1191,7 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
               <span className="text-sm text-gray-800 flex-1 min-w-[180px]">
                 {LIBELLE_PIECE[p.type] ?? p.type}
                 {p.optionnelle && <span className="text-gray-400 text-xs"> (optionnelle)</span>}
+                {p.type === "convention" && <span className="block text-gray-400 text-xs">Annexes incluses : Programme · Règlement intérieur · Planning</span>}
               </span>
               <span className={`inline-block px-2 py-0.5 rounded-full text-xs ${s.classes}`}>{s.label}</span>
               <span className="flex items-center gap-1.5 flex-wrap">
