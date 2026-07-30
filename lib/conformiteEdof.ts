@@ -53,11 +53,12 @@ export async function scannerConformiteEdof(): Promise<DossierRisque[]> {
     .select(`
       id, certif, financement, origine_fonds, statut, numero_edof,
       heures_prevues, heures_realisees, heures_edof, service_fait_valide,
-      ecart_heures_confirme, motif_ecart_heures,
+      ecart_heures_confirme, motif_ecart_heures, niveau_initial, niveau_atteint,
       date_validation_commande, date_debut, formatrice_id,
       stagiaire:stagiaires!inner (nom, prenom, agence),
       formatrice:formatrices!formatrice_id (nom, justificatif_fle),
-      pieces ( type, statut, optionnelle, exige_signature )
+      pieces ( type, statut, optionnelle, exige_signature ),
+      planning ( heures, absence )
     `)
     .not("statut", "in", "(\"annule\",\"archive\")");
   if (error || !data) return [];
@@ -116,6 +117,25 @@ export async function scannerConformiteEdof(): Promise<DossierRisque[]> {
         && Number(d.heures_realisees) !== Number(d.heures_prevues)
         && !String(d.motif_ecart_heures ?? "").trim()) {
       anomalies.push({ code: "ecart_sans_motif", gravite: "haute", label: `Service fait partiel (${d.heures_realisees}/${d.heures_prevues} h) sans motif d'écart documenté` });
+    }
+
+    // 9) Durée contractuelle incohérente avec le planning (heures prévues ≠ total des séances).
+    //    C'est l'écart qui a piégé le dossier HASNI (16 h contractuelles vs 6 séances de 3 h = 18 h).
+    const seances = (d.planning ?? []) as any[];
+    const heuresPlanning = seances.filter((p) => p.absence !== true).reduce((s: number, p) => s + Number(p.heures ?? 0), 0);
+    if (d.heures_prevues != null && heuresPlanning > 0 && Number(d.heures_prevues) !== heuresPlanning) {
+      const nb = seances.filter((p) => p.absence !== true).length;
+      anomalies.push({ code: "duree_incoherente", gravite: "haute", label: `Durée incohérente : ${d.heures_prevues} h contractuelles ≠ ${heuresPlanning} h au planning (${nb} séance(s))` });
+    }
+
+    // 10) Progression de niveau nulle (niveau atteint = niveau initial) → objet réel de la formation à justifier.
+    if (d.niveau_initial && d.niveau_atteint && d.niveau_initial === d.niveau_atteint) {
+      anomalies.push({ code: "progression_nulle", gravite: "moyenne", label: `Aucune progression de niveau (${d.niveau_initial} → ${d.niveau_atteint}) : objet de la formation à justifier` });
+    }
+
+    // 11) Positionnement non tracé (niveau initial absent) → cohérence durée/niveau invérifiable.
+    if (d.heures_prevues != null && !d.niveau_initial) {
+      anomalies.push({ code: "positionnement_absent", gravite: "moyenne", label: "Niveau initial non renseigné (positionnement non tracé) : cohérence durée/niveau invérifiable" });
     }
 
     if (anomalies.length > 0) {
