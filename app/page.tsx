@@ -451,6 +451,16 @@ async function remboursementsEnAttenteCount(): Promise<number> {
   } catch { return 0; }
 }
 
+/** Séances marquées ABSENT mais sans motif renseigné → à justifier (suivi des présences). */
+async function absencesAJustifierCount(): Promise<number> {
+  try {
+    const { count } = await supabaseAdmin.from("planning")
+      .select("id", { count: "exact", head: true })
+      .eq("absence", true).or("absence_motif.is.null,absence_motif.eq.");
+    return count ?? 0;
+  } catch { return 0; }
+}
+
 export default async function Accueil() {
   const site = siteValide(cookies().get(COOKIE_SITE)?.value);
 
@@ -464,11 +474,11 @@ export default async function Accueil() {
   const voir = (href: string) => peutVoirPage(role, href);
   const estDirection = role === "direction" || role === "manager" || role === "staff" || !role;
 
-  const [c, t, cf, ex, cl, tk, an, testsDist, convListe, reclaListe, dir, testsSansSuite, mesTaches, remb] = await Promise.all([
+  const [c, t, cf, ex, cl, tk, an, testsDist, convListe, reclaListe, dir, testsSansSuite, mesTaches, remb, absencesAJust] = await Promise.all([
     compter(site), aTraiter(site), conformiteFormateurs(), examenSemaine(site), classementAccueil(), tachesAccueil(site),
     anomaliesAccueil(site), testsADistanceCount(), conventionsListe(), reclamationsListe(site),
     estDirection ? cockpitDirection(site) : Promise.resolve(null),
-    testsInitiauxSansSuiteCount(), mesTachesCount(user?.id), remboursementsEnAttenteCount(),
+    testsInitiauxSansSuiteCount(), mesTachesCount(user?.id), remboursementsEnAttenteCount(), absencesAJustifierCount(),
   ]);
 
   // Notifications « à traiter » (réclamations, remboursements, messages, tâches agence + perso).
@@ -477,6 +487,7 @@ export default async function Accueil() {
     { n: t.reclamations, href: "/reclamations", label: "réclamation", accent: "rouge" as const },
     { n: remb, href: "/examens/remboursements", label: "demande examen (remb./report/annul.)", accent: "rouge" as const },
     { n: t.messages, href: "/messages", label: "message prospect", accent: "bleu" as const },
+    { n: absencesAJust, href: "/planning", label: "absence sans motif (à justifier)", accent: "rouge" as const },
     { n: tk.length, href: "/taches", label: "tâche d'agence", accent: "ambre" as const },
     { n: mesTaches, href: "/taches", label: "tâche pour moi", accent: "ambre" as const },
   ].filter((x) => x.n > 0 && voir(x.href));
