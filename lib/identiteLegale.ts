@@ -10,7 +10,7 @@ export type IdentiteLegale = {
 };
 
 const DEFAUT: IdentiteLegale = {
-  raison: "MYSTORY — SASU",
+  raison: "MYSTORY — SASU au capital de 1 000 €",
   siret: "913 423 083 00017",
   rcs: "RCS Paris 913 423 083",
   nda: "11756521775",
