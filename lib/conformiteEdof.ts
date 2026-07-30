@@ -25,7 +25,9 @@ export type DossierRisque = {
 
 const LABEL_PIECE: Record<string, string> = {
   fiche_analyse_besoin: "Fiche d'analyse de besoin",
-  evaluation_initiale: "Évaluation initiale (test de positionnement)",
+  test_positionnement: "Test de positionnement (initial)",
+  test_final: "Test final (avant examen)",
+  evaluation_initiale: "Évaluation initiale (résumé du test)",
   satisfaction_chaud: "Questionnaire de satisfaction (à chaud)",
   convention: "Convention",
   programme: "Programme (A1)",
@@ -33,7 +35,7 @@ const LABEL_PIECE: Record<string, string> = {
   planning: "Planning (A3)",
   convocation: "Convocation",
   feuille_emargement: "Feuille d'émargement",
-  evaluation_finale: "Évaluation finale (test final)",
+  evaluation_finale: "Évaluation finale (résumé du test)",
   attestation_fin: "Attestation de fin",
   certificat_realisation: "Certificat de réalisation",
 };

@@ -17,7 +17,7 @@ import { renderHtmlToPdf } from "@/lib/docuseal";
 import { journal } from "@/lib/examens";
 
 const PIECE = { initial: "evaluation_initiale", final: "evaluation_finale" } as const;
-const LIBELLE = { initial: "Évaluation initiale (test de positionnement)", final: "Évaluation finale (test final)" } as const;
+const LIBELLE = { initial: "Évaluation initiale (résumé du test)", final: "Évaluation finale (résumé du test)" } as const;
 type Phase = "initial" | "final";
 
 const LIBELLE_CERTIF: Record<string, string> = { TEF_IRN: "TEF IRN", LEVELTEL: "LEVELTEL FLE" };
