@@ -22,8 +22,10 @@ export async function GET(req: NextRequest) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return NextResponse.json({ ok: false, erreur: "Date invalide (YYYY-MM-DD)." }, { status: 400 });
   }
+  const demiParam = (req.nextUrl.searchParams.get("demi") ?? "").trim();
+  const demi = demiParam === "matin" || demiParam === "apres_midi" ? demiParam : undefined;
   try {
-    const { html } = await genererFeuillePapierJourHtml(date);
+    const { html } = await genererFeuillePapierJourHtml(date, demi);
     const pdf = await renderPdf(html);
     return new NextResponse(new Uint8Array(pdf), {
       status: 200,
