@@ -12,19 +12,22 @@ const EPR = [["ce", "CE"], ["co", "CO"], ["ee", "EE"], ["eo", "EO"]] as const;
 
 export default function LivretSaisie() {
   const { id } = useParams<{ id: string }>();
-  const [d, setD] = useState<D>({ evals: [], blancs: [], remed: {}, jourJ: {}, res: {}, bilan: {} });
+  const [d, setD] = useState<D>({ evals: [], blancs: [], remed: {}, jourJ: {}, res: {}, bilan: {}, seances: {} });
+  const [seancesList, setSeancesList] = useState<Array<{ date_seance: string; demi_journee: string }>>([]);
   const [chargement, setChargement] = useState(true);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/livret-suivi?dossier=${id}`, { cache: "no-store" }).then((r) => r.json())
-      .then((j) => { if (j.ok) setD({ evals: [], blancs: [], remed: {}, jourJ: {}, res: {}, bilan: {}, ...(j.donnees ?? {}) }); })
+      .then((j) => { if (j.ok) { setD({ evals: [], blancs: [], remed: {}, jourJ: {}, res: {}, bilan: {}, seances: {}, ...(j.donnees ?? {}) }); setSeancesList(j.seances ?? []); } })
       .finally(() => setChargement(false));
   }, [id]);
 
   const arr = (key: "evals" | "blancs", i: number, field: string, v: any) =>
     setD((p: D) => { const a = [...(p[key] ?? [])]; a[i] = { ...(a[i] ?? {}), [field]: v }; return { ...p, [key]: a }; });
+  const seance = (label: string, field: string, v: any) =>
+    setD((p: D) => ({ ...p, seances: { ...(p.seances ?? {}), [label]: { ...((p.seances ?? {})[label] ?? {}), [field]: v } } }));
   const obj = (key: "remed" | "jourJ" | "res" | "bilan", field: string, v: any) =>
     setD((p: D) => ({ ...p, [key]: { ...(p[key] ?? {}), [field]: v } }));
   const top = (key: string, v: any) => setD((p: D) => ({ ...p, [key]: v }));
@@ -62,6 +65,35 @@ export default function LivretSaisie() {
 
       {msg && <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{msg}</div>}
       <Link href="/dossiers" className="mb-4 inline-block text-xs text-mystory underline">← Retour aux dossiers</Link>
+
+      {/* Séances */}
+      <section className="card mb-6">
+        <h2 className="mb-2 text-sm font-semibold text-gray-800">Séances — ce que j'ai travaillé</h2>
+        <p className="mb-2 text-xs text-gray-500">Dates et émargement repris du planning. Complète le contenu et la production (facultatif).</p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead><tr><th className={th}>N°</th><th className={th}>Date</th><th className={th}>Ce que j'ai travaillé</th><th className={th}>Production du jour</th></tr></thead>
+            <tbody>
+              {seancesList.map((s, i) => { const label = String(i + 1); return (
+                <tr key={i}>
+                  <td className="px-2 py-1 text-center text-gray-500">{i + 1}</td>
+                  <td className="px-2 py-1 whitespace-nowrap text-gray-600">{s.date_seance?.split("-").reverse().join("/")} · {s.demi_journee === "matin" ? "Matin" : "Après-midi"}</td>
+                  <td className="px-2 py-1"><input className={inp} value={d.seances?.[label]?.t ?? ""} onChange={(e) => seance(label, "t", e.target.value)} /></td>
+                  <td className="px-2 py-1"><input className={inp} value={d.seances?.[label]?.p ?? ""} onChange={(e) => seance(label, "p", e.target.value)} /></td>
+                </tr>
+              ); })}
+              {["R/C 1", "R/C 2", "R/C 3", "R/C 4"].map((label) => (
+                <tr key={label}>
+                  <td className="px-2 py-1 text-center text-gray-400">{label}</td>
+                  <td className="px-2 py-1 text-gray-300">—</td>
+                  <td className="px-2 py-1"><input className={inp} value={d.seances?.[label]?.t ?? ""} onChange={(e) => seance(label, "t", e.target.value)} /></td>
+                  <td className="px-2 py-1"><input className={inp} value={d.seances?.[label]?.p ?? ""} onChange={(e) => seance(label, "p", e.target.value)} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       {/* Examens blancs */}
       <section className="card mb-6">

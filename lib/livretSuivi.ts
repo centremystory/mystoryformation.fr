@@ -39,16 +39,17 @@ const box = (coche: boolean) => (coche ? "☑" : "☐");
 
 type Ev = { ce_sur10?: number; co_sur10?: number; ee_sur10?: number; eo_sur10?: number; niveau_global?: string | null; remarques?: string | null; complete_le?: string | null; notateur?: string | null };
 
-function lignesSeances(planning: Array<{ date?: string; demiJournee?: string; heures: number }>, de: number, a: number, extra: string[] = []): string {
+function lignesSeances(planning: Array<{ date?: string; demiJournee?: string; heures: number }>, de: number, a: number, extra: string[], notes: Record<string, any>): string {
   const seances = [...planning].sort((x, y) => String(x.date ?? "").localeCompare(String(y.date ?? "")));
   const nums: (number | string)[] = [];
   for (let i = de; i <= a; i++) nums.push(i);
   extra.forEach((e) => nums.push(e));
-  return nums.map((num, idx) => {
+  return nums.map((num) => {
     const s = typeof num === "number" ? seances[num - 1] : undefined; // R/C non mappés au planning
     const demi = s?.demiJournee === "matin" ? "Matin" : s?.demiJournee === "apres_midi" ? "Après-midi" : "";
     const sig = s ? "✓ émargé" : "";
-    return `<tr><td class="c">${num}</td><td>${s ? dateFr(s.date) : ""}</td><td></td><td></td><td class="c" style="color:#2E7D4F;font-size:8pt">${s ? (demi ? demi + " · " : "") + sig : ""}</td></tr>`;
+    const note = (notes ?? {})[String(num)] ?? {};
+    return `<tr><td class="c">${num}</td><td>${s ? dateFr(s.date) : ""}</td><td>${esc(note.t)}</td><td>${esc(note.p)}</td><td class="c" style="color:#2E7D4F;font-size:8pt">${s ? (demi ? demi + " · " : "") + sig : ""}</td></tr>`;
   }).join("");
 }
 
@@ -141,7 +142,7 @@ export async function genererLivretSuiviHtml(dossierId: string): Promise<string 
     <h2>Mes séances</h2>
     <table>
       <thead><tr><th style="width:6%">N°</th><th style="width:16%">Date</th><th>Ce que j'ai travaillé</th><th>Ma production du jour</th><th style="width:20%">Émargement</th></tr></thead>
-      <tbody>${lignesSeances(planning, 1, 15, ["R/C 1", "R/C 2", "R/C 3", "R/C 4"])}</tbody>
+      <tbody>${lignesSeances(planning, 1, 15, ["R/C 1", "R/C 2", "R/C 3", "R/C 4"], D.seances ?? {})}</tbody>
     </table>
     <div class="intro" style="background:#F5F8FD;border-color:#c9d6ea">Séances de 3 h (matin 9h30–12h30 ou après-midi 14h–17h), groupe de 6 max. Les dates et l'émargement sont repris automatiquement du planning ; la formatrice complète « travaillé / production ». Lignes R/C = formules Renforcée/Complète.</div>
   </div>
