@@ -23,9 +23,21 @@ export async function GET(req: NextRequest) {
     throw e;
   }
 
+  // Période : plage [debut, fin] (YYYY-MM-DD) prioritaire ; sinon année pleine (repli historique).
+  const isDate = (s: string | null) => !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
+  const qDebut = req.nextUrl.searchParams.get("debut");
+  const qFin = req.nextUrl.searchParams.get("fin");
   const a = Number(req.nextUrl.searchParams.get("annee"));
   const annee = Number.isInteger(a) && a >= 2000 && a <= 2100 ? a : new Date().getFullYear();
-  const prefixe = String(annee);
+
+  const parPlage = isDate(qDebut) && isDate(qFin) && (qDebut as string) <= (qFin as string);
+  const debut = parPlage ? (qDebut as string) : `${annee}-01-01`;
+  const fin = parPlage ? (qFin as string) : `${annee}-12-31`;
+  const d10 = (v: unknown) => String(v ?? "").slice(0, 10);
+  const dansPlage = (v: unknown) => { const d = d10(v); return d >= debut && d <= fin; };
+  // Granularité du graphe de tendance : jour si période ≤ 92 j, sinon mois.
+  const spanJours = (Date.parse(fin) - Date.parse(debut)) / 86_400_000;
+  const granularite: "jour" | "mois" = spanJours <= 92 ? "jour" : "mois";
 
   let forms: any[], exams: any[];
   try {
@@ -41,9 +53,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, erreur: e?.message || "Erreur de lecture." }, { status: 500 });
   }
 
-  // Filtre année + exclusion des annulés/remboursés.
-  const fA = forms.filter((r) => String(r.date_inscription ?? "").startsWith(prefixe) && !estAnnule(r.statut));
-  const eA = exams.filter((r) => String(r.date_inscription ?? "").startsWith(prefixe)
+  // Filtre plage + exclusion des annulés/remboursés.
+  const fA = forms.filter((r) => dansPlage(r.date_inscription) && !estAnnule(r.statut));
+  const eA = exams.filter((r) => dansPlage(r.date_inscription)
     && r.actif !== false && !["Annulé", "Remboursé"].includes(String(r.statut_paiement ?? "")));
 
   const caFormation = fA.reduce((s, r) => s + num(r.montant_eur), 0);
@@ -60,17 +72,21 @@ export async function GET(req: NextRequest) {
   fA.forEach((r) => cAdd(r.agence_vente, "f", num(r.montant_eur)));
   eA.forEach((r) => cAdd(r.agence_vente, "e", num(r.montant_eur)));
 
-  // Par mois (YYYY-MM).
-  const mois = new Map<string, { formations: number; examens: number; ca: number }>();
-  const mAdd = (date: unknown, kind: "f" | "e", montant: number) => {
-    const m = String(date ?? "").slice(0, 7);
-    if (m.length !== 7) return;
-    const c = mois.get(m) ?? { formations: 0, examens: 0, ca: 0 };
+  // Tendance : bucket par jour (YYYY-MM-DD) ou par mois (YYYY-MM) selon la granularité.
+  const MOIS_FR = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
+  const buckets = new Map<string, { formations: number; examens: number; ca: number }>();
+  const label = (cle: string) => granularite === "jour"
+    ? `${cle.slice(8, 10)}/${cle.slice(5, 7)}`
+    : `${MOIS_FR[Number(cle.slice(5, 7)) - 1] ?? cle} ${cle.slice(2, 4)}`;
+  const bAdd = (date: unknown, kind: "f" | "e", montant: number) => {
+    const cle = granularite === "jour" ? d10(date) : String(date ?? "").slice(0, 7);
+    if (granularite === "jour" ? cle.length !== 10 : cle.length !== 7) return;
+    const c = buckets.get(cle) ?? { formations: 0, examens: 0, ca: 0 };
     if (kind === "f") c.formations++; else c.examens++;
-    c.ca += montant; mois.set(m, c);
+    c.ca += montant; buckets.set(cle, c);
   };
-  fA.forEach((r) => mAdd(r.date_inscription, "f", num(r.montant_eur)));
-  eA.forEach((r) => mAdd(r.date_inscription, "e", num(r.montant_eur)));
+  fA.forEach((r) => bAdd(r.date_inscription, "f", num(r.montant_eur)));
+  eA.forEach((r) => bAdd(r.date_inscription, "e", num(r.montant_eur)));
 
   // Par type d'examen.
   const typesExam = new Map<string, { nb: number; ca: number }>();
@@ -82,7 +98,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     ok: true,
-    annee,
+    annee, debut, fin, granularite,
     total: {
       ca: Math.round(caFormation + caExamen),
       caFormation: Math.round(caFormation),
@@ -94,7 +110,7 @@ export async function GET(req: NextRequest) {
     parCentre: [...centres.entries()]
       .map(([centre, v]) => ({ centre, ...v, ca: Math.round(v.caFormation + v.caExamen), caFormation: Math.round(v.caFormation), caExamen: Math.round(v.caExamen) }))
       .sort((x, y) => y.ca - x.ca),
-    parMois: [...mois.entries()].sort(([x], [y]) => x.localeCompare(y)).map(([m, v]) => ({ mois: m, ...v, ca: Math.round(v.ca) })),
+    parPeriode: [...buckets.entries()].sort(([x], [y]) => x.localeCompare(y)).map(([cle, v]) => ({ cle, label: label(cle), formations: v.formations, examens: v.examens, ca: Math.round(v.ca) })),
     parTypeExamen: [...typesExam.entries()].map(([type, v]) => ({ type, nb: v.nb, ca: Math.round(v.ca) })).sort((x, y) => y.ca - x.ca),
     topFormules: [...formules.entries()].map(([formule, v]) => ({ formule, nb: v.nb, ca: Math.round(v.ca) })).sort((x, y) => y.nb - x.nb).slice(0, 8),
   });
