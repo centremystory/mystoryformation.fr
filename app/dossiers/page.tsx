@@ -1197,11 +1197,18 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
               <span className="flex items-center gap-1.5 flex-wrap">
                 {boutons(p)}
                 {p.type === "feuille_emargement" && (
-                  <a href={`/api/documents/emargement-vierge?dossier=${d.id}`} target="_blank" rel="noreferrer"
-                     title="Panne d'ordinateur ou de wifi ? Imprimez cette feuille vierge, faites signer en présentiel, puis « Importer (papier signé) »."
-                     className="px-3 py-1 rounded-lg text-xs border border-gray-300 text-gray-700 bg-white hover:border-mystory hover:text-mystory">
-                    🖨️ Feuille vierge (papier)
-                  </a>
+                  <>
+                    <a href={`/api/emargement/feuille/pdf?dossier=${d.id}`} target="_blank" rel="noreferrer"
+                       title="Récap individuel des demi-journées émargées, avec les signatures recueillies. C'est la pièce du dossier CPF/CDC. Construit à partir du réel (aucune pré-signature) ; indisponible tant qu'aucune demi-journée n'est émargée."
+                       className="px-3 py-1 rounded-lg text-xs border border-mystory text-mystory bg-white hover:bg-mystory hover:text-white">
+                      📄 Feuille individuelle (pièce CDC)
+                    </a>
+                    <a href={`/api/documents/emargement-vierge?dossier=${d.id}`} target="_blank" rel="noreferrer"
+                       title="Panne d'ordinateur ou de wifi ? Imprimez cette feuille vierge, faites signer en présentiel, puis « Importer (papier signé) »."
+                       className="px-3 py-1 rounded-lg text-xs border border-gray-300 text-gray-700 bg-white hover:border-mystory hover:text-mystory">
+                      🖨️ Feuille vierge (papier)
+                    </a>
+                  </>
                 )}
                 {IMPORTABLES.has(p.type) && (
                   <button onClick={() => ouvrirImport(p.type)} disabled={busy === p.type}
