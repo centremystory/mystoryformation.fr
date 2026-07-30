@@ -85,7 +85,7 @@ export default function CatalogueOffresPage() {
 
   return (
     <div style={{ maxWidth: 1000, margin: "0 auto", padding: "8px 4px 60px" }}>
-      <h1 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 2px" }}>Catalogue — Offres & formules (v4)</h1>
+      <h1 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 2px" }}>Catalogue — Offres & formules</h1>
       <p style={{ color: "#667085", fontSize: 14, marginTop: 0 }}>
         Édite <strong>titres, finalités, niveaux</strong> (au niveau offre) et <strong>formules</strong> (nom, heures, prix). <strong>Barème v6 :</strong> 150€ (examen) + heures × taux — 6-15h=45€/h · 18-27h=40€/h · 30-39h=35€/h · 42-45h=30€/h. Plafond 1 500€ (max 1 515€).
       </p>
