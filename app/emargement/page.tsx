@@ -246,6 +246,8 @@ function WalkIn({ date, demiDefaut, onCreated }: { date: string; demiDefaut: "ma
   const [selection, setSelection] = useState<Set<string>>(new Set());
   const [demi, setDemi] = useState<"matin" | "apres_midi">(demiDefaut);
   const [heures, setHeures] = useState(3);
+  // Durées individuelles (retard/avance) — ne contient QUE les élèves dont la durée diffère du défaut.
+  const [heuresEleve, setHeuresEleve] = useState<Record<string, number>>({});
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -272,12 +274,13 @@ function WalkIn({ date, demiDefaut, onCreated }: { date: string; demiDefaut: "ma
       for (const id of Array.from(selection)) {
         const r = await fetch("/api/emargement/walk-in", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ dossierId: id, demi_journee: demi, heures }),
+          body: JSON.stringify({ dossierId: id, demi_journee: demi, heures: heuresEleve[id] ?? heures }),
         });
         const j = await r.json();
         if (!j.ok) echecs++;
       }
       setSelection(new Set());
+      setHeuresEleve({});
       if (echecs > 0) setErr(`${echecs} élève(s) n'ont pas pu être ajoutés (déjà présents ?).`);
       onCreated(demi);
     } catch { setErr("Échec de l'ajout."); }
@@ -295,23 +298,39 @@ function WalkIn({ date, demiDefaut, onCreated }: { date: string; demiDefaut: "ma
       <div className="mt-2 max-h-52 divide-y divide-gray-100 overflow-auto rounded-lg border border-gray-200 bg-white">
         {visibles.length === 0 ? (
           <p className="p-3 text-sm text-gray-400">Aucun élève.</p>
-        ) : visibles.map((d) => (
-          <label key={d.id} className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50">
-            <input type="checkbox" checked={selection.has(d.id)} onChange={() => toggle(d.id)} />
-            <span>{d.nom}{d.certif ? ` · ${d.certif}` : ""}</span>
-          </label>
-        ))}
+        ) : visibles.map((d) => {
+          const coche = selection.has(d.id);
+          return (
+            <div key={d.id} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50">
+              <label className="flex flex-1 cursor-pointer items-center gap-2">
+                <input type="checkbox" checked={coche} onChange={() => toggle(d.id)} />
+                <span>{d.nom}{d.certif ? ` · ${d.certif}` : ""}</span>
+              </label>
+              {coche && (
+                <div className="flex shrink-0 items-center gap-1" title="Durée pour cet élève (retard / avance)">
+                  <input type="number" min={0.5} step={0.5} value={heuresEleve[d.id] ?? heures}
+                    onChange={(e) => setHeuresEleve((m) => ({ ...m, [d.id]: Math.max(0, Number(e.target.value) || 0) }))}
+                    className="w-16 rounded border border-gray-300 px-2 py-1 text-sm bg-white" />
+                  <span className="text-xs text-gray-500">h</span>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
-      <div className="mt-2 flex gap-2">
+      <div className="mt-2 flex items-center gap-2">
         <select value={demi} onChange={(e) => setDemi(e.target.value as "matin" | "apres_midi")}
           className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white">
           <option value="matin">Matin</option><option value="apres_midi">Après-midi</option>
         </select>
-        <input type="number" min={0.5} step={0.5} value={heures} title="Heures"
+        <label className="text-xs text-gray-500">Défaut</label>
+        <input type="number" min={0.5} step={0.5} value={heures} title="Durée par défaut (h) — appliquée aux élèves dont la durée n'est pas ajustée"
           onChange={(e) => setHeures(Math.max(0, Number(e.target.value) || 0))}
           className="w-20 rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white" />
+        <span className="text-xs text-gray-500">h</span>
       </div>
+      <p className="mt-1 text-xs text-gray-400">Ajuste la durée à côté d'un élève s'il est arrivé en retard ou reparti en avance.</p>
 
       {err && <p className="mt-2 text-sm text-red-600">{err}</p>}
       <button onClick={ajouter} disabled={busy || selection.size === 0}
