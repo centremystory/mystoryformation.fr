@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/apiFetch";
 import { useToast } from "@/components/ui/Toast";
 import { LIEUX_TRAVAIL } from "@/lib/sites";
+import { aujourdhuiParisISO } from "@/lib/dates";
 
 type Creneau = {
   id: string; utilisateur_id: string; date_jour: string; heure_debut: string | null; heure_fin: string | null;
@@ -181,7 +182,7 @@ export default function PagePlanningEmployes() {
               <tr>
                 <th className="sticky left-0 z-10 bg-gray-50 border-b border-r border-gray-200 px-3 py-2 text-left text-xs text-gray-500 min-w-[130px]">Employé</th>
                 {jours.map((d, i) => {
-                  const est = iso(d) === iso(new Date());
+                  const est = iso(d) === aujourdhuiParisISO();
                   return <th key={i} className={`border-b border-gray-200 px-2 py-2 text-center text-xs ${est ? "bg-mystory-clair text-mystory font-bold" : "text-gray-500"}`}>{JOURS_LBL[i]}<br /><span className="font-normal">{d.getDate()}</span></th>;
                 })}
               </tr>
