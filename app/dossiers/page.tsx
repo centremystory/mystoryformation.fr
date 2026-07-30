@@ -23,12 +23,11 @@ const LIBELLE_PIECE: Record<string, string> = {
   attestation_fin: "Attestation de fin",
   certificat_realisation: "Certificat de réalisation",
   satisfaction_froid: "Satisfaction à froid (3 mois)",
-  justificatif_participation: "Justificatif participation forfaitaire",
   justificatif_examen: "Résultat de l'examen (TEF IRN)",
 };
 
 // Pièces déposées (fichier externe → archives du dossier). Affichées même si absentes en base.
-const DEPOSABLES = new Set(["justificatif_participation", "justificatif_examen"]);
+const DEPOSABLES = new Set(["justificatif_examen"]);
 // Annexes de la convention : générées AVEC elle (signature de la convention = acceptation).
 // Pas de pièce séparée à générer/importer/compter → simplifie le dossier.
 const ANNEXES_CONVENTION = new Set(["programme", "reglement_interieur", "planning"]);
@@ -791,9 +790,11 @@ function PiecesActions({ d, recharger }: { d: Dossier; recharger: () => Promise<
 
   // Les annexes (programme, RI, planning) ne sont pas affichées comme pièces séparées :
   // elles sont incluses dans la convention (rappel sous la ligne « Convention »).
-  const reelles = [...(d.pieces ?? [])].filter((p) => !ANNEXES_CONVENTION.has(p.type)).sort((a, b) => a.ordre - b.ordre);
+  const reelles = [...(d.pieces ?? [])].filter((p) => !ANNEXES_CONVENTION.has(p.type) && p.type !== "justificatif_participation").sort((a, b) => a.ordre - b.ordre);
   const presentes = new Set(reelles.map((p) => p.type));
-  const virtuelles: Piece[] = ["justificatif_participation", "justificatif_examen"]
+  // Justificatif de participation forfaitaire retiré : aucun justificatif n'est reçu ;
+  // la validation de la commande EDOF (dossier validé) fait foi de la participation payée.
+  const virtuelles: Piece[] = ["justificatif_examen"]
     .filter((t) => !presentes.has(t))
     .map((t, i) => ({ type: t, statut: "manquant", optionnelle: true, exige_signature: false, ordre: 90 + i }));
   const pieces = [...reelles, ...virtuelles];
