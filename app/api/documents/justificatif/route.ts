@@ -26,7 +26,8 @@ const TYPES_ACCEPTES: Record<string, string> = {
   "image/png": "png",
 };
 const DEPOSABLES: Record<string, { ordre: number; pdfOnly?: boolean }> = {
-  justificatif_participation: { ordre: 14 },
+  // justificatif_participation retiré : aucun justificatif reçu, la validation de la
+  // commande EDOF (dossier validé) fait foi de la participation forfaitaire payée.
   justificatif_examen: { ordre: 15 },
   // Évaluation initiale déposée en scan (test de positionnement passé sur papier) — PDF only.
   evaluation_initiale: { ordre: 6, pdfOnly: true },
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
 
   if (!dossierId || !DEPOSABLES[piece] || !(fichier instanceof File)) {
     return NextResponse.json(
-      { ok: false, erreur: "Paramètres requis : dossierId, piece (justificatif_participation | justificatif_examen) et fichier." },
+      { ok: false, erreur: "Paramètres requis : dossierId, piece (justificatif_examen | evaluation_initiale) et fichier." },
       { status: 400 },
     );
   }
