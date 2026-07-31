@@ -1,0 +1,274 @@
+{
+  "name": "Agent WhatsApp MYSTORY",
+  "nodes": [
+    {
+      "id": "wa-trigger-mystory",
+      "name": "Message WhatsApp reçu",
+      "type": "n8n-nodes-base.whatsAppTrigger",
+      "typeVersion": 1,
+      "position": [-460, 300],
+      "webhookId": "f3a1c2d4-5b6e-4f70-8a91-b2c3d4e5f607",
+      "parameters": {
+        "updates": ["messages"]
+      }
+    },
+    {
+      "id": "if-message-entrant",
+      "name": "Est-ce un message entrant ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-220, 300],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-messages-notempty",
+              "leftValue": "={{ $json.messages }}",
+              "rightValue": "",
+              "operator": {
+                "type": "array",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "set-normaliser",
+      "name": "Normaliser le message",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [20, 200],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "telephone",
+              "name": "telephone",
+              "value": "={{ $json.messages[0].from }}",
+              "type": "string"
+            },
+            {
+              "id": "nom",
+              "name": "nom",
+              "value": "={{ $json.contacts?.[0]?.profile?.name ?? \"Client\" }}",
+              "type": "string"
+            },
+            {
+              "id": "texte",
+              "name": "texte",
+              "value": "={{ $json.messages[0].text?.body ?? $json.messages[0].interactive?.button_reply?.title ?? $json.messages[0].button?.text ?? \"[Le client a envoyé un message vocal ou un média — demande-lui poliment de reformuler par écrit]\" }}",
+              "type": "string"
+            },
+            {
+              "id": "phoneNumberId",
+              "name": "phoneNumberId",
+              "value": "={{ $json.metadata.phone_number_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "agent-mystory",
+      "name": "Agent MYSTORY",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [240, 200],
+      "parameters": {
+        "promptType": "define",
+        "text": "=Message WhatsApp reçu de {{ $json.nom }} (numéro {{ $json.telephone }}), le {{ $now.setZone(\"Europe/Paris\").toFormat(\"dd/MM/yyyy à HH:mm\") }} :\n\n{{ $json.texte }}",
+        "options": {
+          "systemMessage": "Tu es l’assistant WhatsApp officiel de MYSTORY (mystoryformation.fr), organisme de formation de Français Langue Étrangère (FLE) certifié Qualiopi, situé à Gagny. Tu réponds aux prospects et élèves en français simple et chaleureux (beaucoup ne sont pas francophones natifs : phrases courtes, vocabulaire accessible). Tutoiement interdit : vouvoie toujours le client.\n\n=== RÈGLES DE RÉPONSE ===\n- Réponds UNIQUEMENT avec les informations ci-dessous. Si une information n’y figure pas, ne l’invente jamais : propose d’appeler le 06 81 43 16 54 ou d’écrire à contact@mystoryformation.fr.\n- Réponses courtes adaptées à WhatsApp : maximum 600 caractères environ, aère avec des sauts de ligne, quelques emojis sobres autorisés (📍📞✅). Jamais de tableaux ni de Markdown (pas de **, pas de #).\n- Sur le CPF : reste strictement factuel, jamais de promesse ni d’incitation commerciale (loi anti-démarchage CPF). Le tarif CPF n’est pas négociable. Les remises éventuelles ne concernent que les paiements sur fonds propres.\n- Si le client veut s’inscrire, être rappelé, a un litige, une réclamation, une question sur SON dossier personnel, ou si tu ne sais pas répondre après 2 échanges : utilise l’outil Alerter_equipe_MYSTORY pour prévenir l’équipe (avec nom, numéro, résumé), puis dis au client qu’un conseiller va le recontacter rapidement.\n- Ne communique jamais d’information personnelle sur d’autres clients. Ne traite aucune demande hors sujet MYSTORY (réponds poliment que tu es l’assistant de MYSTORY).\n\n=== MYSTORY EN BREF ===\n- MYSTORY Formation : centre de formation FLE certifié Qualiopi, centre d’examen TEF IRN agréé (habilité CCI Paris Île-de-France).\n- Baseline : « Votre histoire, notre fierté ». Plus de 550 stagiaires formés, 95 % de satisfaction, 90 % de réussite, note 4,9/5.\n- Site : mystoryformation.fr — Test de niveau gratuit en ligne : test.mystoryformation.fr\n\n=== COORDONNÉES ===\n- 📞 Téléphone : 06 81 43 16 54\n- ✉️ Email : contact@mystoryformation.fr\n- 📍 Centre principal (formations + examens) : 3 bis avenue de Gagny, 93220 Gagny (accessible PMR)\n- 📍 Point d’inscription Sarcelles : 18 avenue du 8 Mai 1945, 95200 Sarcelles\n- Accueil : lundi au samedi, 9h30 – 17h30\n\n=== FORMATIONS (prix nets, examen TEF IRN INCLUS) ===\nObjectif A2 — carte de séjour pluriannuelle :\n- Consolidation 12h : 690 € | Standard 24h : 1 110 € | Renforcée 36h : 1 410 €\nObjectif B1 — carte de résident :\n- Éclair 9h : 555 € | Consolidation 21h : 990 € | Standard 33h : 1 305 € | Complète 45h : 1 500 €\nObjectif B2 — naturalisation française :\n- Consolidation 15h : 825 € | Standard 27h : 1 230 € | Complète 39h : 1 515 €\nFormule Intensif — stratégies d’examen + examens blancs :\n- Express 6h : 420 € | Complet 18h : 870 € | Sérénité 30h : 1 200 €\n\n=== ORGANISATION DES COURS ===\n- Présentiel uniquement, à Gagny. Entrées et sorties libres : Matin 9h30–12h30, Après-midi 14h–17h. Émargement à chaque venue.\n- Prérequis : avoir au moins 16 ans, savoir lire des phrases simples en français. Le niveau d’entrée est vérifié par un test de positionnement gratuit (45 minutes).\n- Délai d’accès : minimum 11 jours ouvrés après validation de la commande (CPF/EDOF).\n- Examen TEF IRN passé à Gagny, généralement 2 à 4 semaines après la fin de la formation (sessions lundi et vendredi).\n\n=== FINANCEMENT ===\n- CPF (via Mon Compte Formation / EDOF), OPCO, France Travail, ou paiement personnel.\n- Pour vérifier son solde CPF : moncompteformation.gouv.fr\n\n=== PARCOURS D’INSCRIPTION (à proposer) ===\n1) Faire le test de niveau gratuit : test.mystoryformation.fr (ou au centre)\n2) Choisir la formule adaptée avec un conseiller\n3) Valider l’inscription (CPF ou autre financement)\n➡️ Pour toute inscription ou rappel : utilise l’outil Alerter_equipe_MYSTORY et confirme au client qu’un conseiller le recontactera.",
+          "maxIterations": 6
+        }
+      }
+    },
+    {
+      "id": "lm-openai",
+      "name": "Modèle OpenAI",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [120, 460],
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5.4",
+          "cachedResultName": "gpt-5.4"
+        },
+        "options": {
+          "temperature": 0.3
+        }
+      }
+    },
+    {
+      "id": "memoire-numero",
+      "name": "Mémoire par numéro",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [300, 460],
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Message WhatsApp reçu').item.json.messages[0].from }}",
+        "contextWindowLength": 10
+      }
+    },
+    {
+      "id": "gmail-alerte",
+      "name": "Alerter_equipe_MYSTORY",
+      "type": "n8n-nodes-base.gmailTool",
+      "typeVersion": 2.2,
+      "position": [480, 460],
+      "parameters": {
+        "sendTo": "contact@mystoryformation.fr",
+        "subject": "={{ $fromAI('sujet', 'Sujet court de l’alerte, ex: WhatsApp — demande de rappel de Amina (33612345678)', 'string') }}",
+        "emailType": "text",
+        "message": "={{ $fromAI('contenu', 'Résumé de la demande du client : nom, numéro WhatsApp, formation concernée, question posée, action attendue de l’équipe', 'string') }}",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "Agent WhatsApp MYSTORY"
+        }
+      }
+    },
+    {
+      "id": "wa-repondre",
+      "name": "Répondre sur WhatsApp",
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [560, 200],
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "phoneNumberId": "={{ $('Normaliser le message').item.json.phoneNumberId }}",
+        "recipientPhoneNumber": "={{ $('Normaliser le message').item.json.telephone }}",
+        "messageType": "text",
+        "textBody": "={{ $json.output }}"
+      }
+    },
+    {
+      "id": "sticky-config",
+      "name": "Note configuration",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-520, 40],
+      "parameters": {
+        "width": 480,
+        "height": 220,
+        "color": 4,
+        "content": "## ⚙️ Configuration requise\n1. **WhatsApp Trigger** : Client ID + Client Secret de votre app Meta WhatsApp Business\n2. **WhatsApp API** : Access Token + Business Account ID\n3. **OpenAI** : clé API pour le modèle\n\nL’outil email utilise le credential existant **Gmail secretariat** pour alerter contact@mystoryformation.fr quand un client veut s’inscrire ou être rappelé."
+      }
+    },
+    {
+      "id": "sticky-agent",
+      "name": "Note agent",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [140, 20],
+      "parameters": {
+        "width": 400,
+        "height": 160,
+        "color": 5,
+        "content": "## 🤖 Agent MYSTORY\nRépond en français simple : formations A2/B1/B2/Intensif, tarifs, TEF IRN, CPF, adresses, horaires.\nMémoire par numéro WhatsApp (10 échanges).\nEscalade email : inscription, rappel, litige, dossier personnel."
+      }
+    }
+  ],
+  "connections": {
+    "Message WhatsApp reçu": {
+      "main": [
+        [
+          {
+            "node": "Est-ce un message entrant ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Est-ce un message entrant ?": {
+      "main": [
+        [
+          {
+            "node": "Normaliser le message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Normaliser le message": {
+      "main": [
+        [
+          {
+            "node": "Agent MYSTORY",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agent MYSTORY": {
+      "main": [
+        [
+          {
+            "node": "Répondre sur WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Modèle OpenAI": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agent MYSTORY",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mémoire par numéro": {
+      "ai_memory": [
+        [
+          {
+            "node": "Agent MYSTORY",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alerter_equipe_MYSTORY": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent MYSTORY",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}
