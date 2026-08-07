@@ -108,6 +108,15 @@ export async function chargerFacture(factureId: string): Promise<{
   return { facture: f, destinataire: (v as any)?.stagiaires ?? null, reglement, estCpf: inclusCpf };
 }
 
+/** Régénère (et ré-archive) le PDF d'une facture par id — sert à la consultation à l'écran. */
+export async function pdfFacture(factureId: string): Promise<{ pdf: Buffer; numero: string } | null> {
+  const ctx = await chargerFacture(factureId);
+  if (!ctx) return null;
+  const adresse = ctx.destinataire ? adresseClient(ctx.destinataire) : "";
+  const pdf = await rendreEtArchiver(ctx.facture, adresse, ctx.reglement, ctx.estCpf);
+  return { pdf, numero: (ctx.facture as any).numero };
+}
+
 /**
  * Facture une VENTE D'EXAMEN (à la vente — règle du 05/06/2026).
  * Statut « Payé » à la vente → facture directement marquée payée (tampon PAYÉE).
