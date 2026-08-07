@@ -34,6 +34,10 @@ const CHAMPS: Array<{ id: string; libelle: string; groupe: string }> = [
 
 export default function PageCorrections() {
   const [numero, setNumero] = useState("MYS-2026-");
+  const [recherche, setRecherche] = useState("");
+  const [resultats, setResultats] = useState<any[]>([]);
+  const [busyRech, setBusyRech] = useState(false);
+  const [rechercheFaite, setRechercheFaite] = useState(false);
   const [vente, setVente] = useState<any>(null);
   const [historique, setHistorique] = useState<any[]>([]);
   const [champ, setChamp] = useState("");
@@ -56,15 +60,34 @@ export default function PageCorrections() {
       .catch(() => {});
   }, [champ, vente]);
 
-  async function chercher() {
+  async function chercher(num?: string) {
+    const q = (num ?? numero).trim();
     setBusy(true); setErreur(null); setVente(null); setResultat(null); setChamp(""); setValeur("");
     try {
-      const r = await fetch(`/api/examens/corrections?numero=${encodeURIComponent(numero.trim())}`);
+      const r = await fetch(`/api/examens/corrections?numero=${encodeURIComponent(q)}`);
       const j = await r.json();
       if (!j.ok) throw new Error(j.erreur);
       setVente(j.vente); setHistorique(j.historique);
     } catch (e: any) { setErreur(e?.message ?? "Vente introuvable."); }
     finally { setBusy(false); }
+  }
+
+  // Recherche par nom/prénom → liste de candidats à choisir (plus pratique que le n° d'attestation).
+  async function chercherParNom() {
+    const q = recherche.trim();
+    if (q.length < 2) { setResultats([]); setRechercheFaite(false); return; }
+    setBusyRech(true); setErreur(null);
+    try {
+      const r = await fetch(`/api/examens/corrections?recherche=${encodeURIComponent(q)}`);
+      const j = await r.json();
+      setResultats(j.ok ? j.resultats : []);
+    } catch { setResultats([]); }
+    finally { setBusyRech(false); setRechercheFaite(true); }
+  }
+
+  // Clic sur un résultat → charge la vente par son numéro (réutilise le flux existant).
+  function ouvrir(num: string) {
+    setNumero(num); setResultats([]); setRechercheFaite(false); chercher(num);
   }
 
   async function corriger() {
@@ -132,13 +155,46 @@ export default function PageCorrections() {
         <Link href="/examens/sessions" className="px-4 py-2 rounded-lg text-sm border border-gray-300 bg-white text-gray-700">← Sessions</Link>
       </div>
 
-      <div className="flex gap-2 mb-5">
-        <input value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="MYS-2026-01508"
-               className="input flex-1 font-mono" />
-        <button onClick={chercher} disabled={busy} className="px-4 py-2 rounded-lg text-sm text-white bg-mystory disabled:opacity-50">
-          {busy ? "…" : "Rechercher"}
-        </button>
+      {/* Recherche par NOM/PRÉNOM (principal — c'est ce que l'équipe a sous la main) */}
+      <div className="mb-3">
+        <label className="block text-sm font-medium text-gray-700 mb-1">Rechercher un candidat</label>
+        <div className="flex gap-2">
+          <input value={recherche} onChange={(e) => setRecherche(e.target.value)}
+                 onKeyDown={(e) => { if (e.key === "Enter") chercherParNom(); }}
+                 placeholder="Nom ou prénom du candidat…" className="input flex-1" autoFocus />
+          <button onClick={chercherParNom} disabled={busyRech} className="px-4 py-2 rounded-lg text-sm text-white bg-mystory disabled:opacity-50">
+            {busyRech ? "…" : "Rechercher"}
+          </button>
+        </div>
+        {resultats.length > 0 && (
+          <ul className="mt-2 border border-gray-200 rounded-lg divide-y max-h-72 overflow-auto bg-white shadow-sm">
+            {resultats.map((r: any) => (
+              <li key={r.numero_attestation}>
+                <button onClick={() => ouvrir(r.numero_attestation)} className="w-full text-left px-3 py-2 hover:bg-gray-50 text-sm">
+                  <strong>{r.prenom} {r.nom}</strong>
+                  <span className="text-gray-500"> · {r.type_examen === "TEF_IRN" ? "TEF IRN" : r.type_examen === "Examen_civique" ? "Examen civique" : "Plateforme"}{r.date_examen ? ` · ${r.date_examen}${r.horaire ? " " + r.horaire : ""}` : ""}</span>
+                  <span className="block text-xs text-gray-400 font-mono">{r.numero_attestation}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {rechercheFaite && resultats.length === 0 && (
+          <p className="mt-2 text-sm text-gray-500">Aucun candidat trouvé pour « {recherche} ».</p>
+        )}
       </div>
+
+      {/* Recherche secondaire par n° d'attestation (repliée) */}
+      <details className="mb-5">
+        <summary className="text-xs text-gray-500 cursor-pointer select-none">ou rechercher par n° d'attestation</summary>
+        <div className="flex gap-2 mt-2">
+          <input value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="MYS-2026-01508"
+                 className="input flex-1 font-mono" />
+          <button onClick={() => chercher()} disabled={busy} className="px-4 py-2 rounded-lg text-sm text-white bg-mystory disabled:opacity-50">
+            {busy ? "…" : "Rechercher"}
+          </button>
+        </div>
+      </details>
 
       {erreur && <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg px-4 py-2 text-sm mb-4">{erreur}</div>}
       {resultat && (
