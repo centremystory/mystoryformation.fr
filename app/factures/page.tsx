@@ -216,7 +216,10 @@ export default function PageFactures() {
                       <td className="px-3 py-2">{Number(a.montant).toLocaleString("fr-FR")} €</td>
                       <td className="px-3 py-2 text-gray-500">{dateFR(a.date_emission)}</td>
                       <td className="px-3 py-2"><span className={`text-xs px-2 py-0.5 rounded border ${BADGE[a.statut] ?? "bg-gray-50 border-gray-200 text-gray-600"}`}>{LIBELLE_STATUT[a.statut] ?? a.statut}</span></td>
-                      <td className="px-3 py-2">{a.dossier_id && <a href={`/fiche/${a.dossier_id}`} className="text-mystory underline text-xs">Fiche</a>}</td>
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        <a href={`/api/factures/pdf?id=${a.id}`} target="_blank" rel="noopener noreferrer" className="text-mystory underline text-xs mr-2">📄 PDF</a>
+                        {a.dossier_id && <a href={`/fiche/${a.dossier_id}`} className="text-mystory underline text-xs">Fiche</a>}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -418,6 +421,14 @@ export default function PageFactures() {
                       {f.statut === "payée" && f.date_paiement && <div className="text-xs text-gray-400 mt-0.5">le {dateFR(f.date_paiement)}</div>}
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap text-right">
+                      <a
+                        href={`/api/factures/pdf?id=${f.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block px-2 py-1 rounded-md text-xs border border-mystory/40 text-mystory hover:bg-blue-50 mr-1"
+                      >
+                        📄 PDF
+                      </a>
                       {f.statut !== "payée" && (
                         <button
                           onClick={() => { if (window.confirm(`Marquer la facture ${f.numero} comme PAYÉE ?\n\nCela appose le tampon « PAYÉE », régénère le PDF et notifie le client. Action à ne faire qu'après encaissement réel.`)) action("/api/factures", { id: f.id, action: "payee" }, `p-${f.id}`, `Facture ${f.numero} marquée payée`); }}

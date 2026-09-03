@@ -59,6 +59,35 @@ async function venteParNumero(numero: string) {
 
 export async function GET(req: NextRequest) {
   const refus = await garde(req); if (refus) return refus;
+
+  // Recherche par NOM/PRÉNOM (plus pratique que le n° d'attestation qu'on n'a jamais sous la main).
+  // Renvoie une liste de ventes à choisir ; le clic recharge ensuite par numéro (flux existant).
+  const recherche = req.nextUrl.searchParams.get("recherche")?.trim();
+  if (recherche !== undefined && recherche !== null && req.nextUrl.searchParams.has("recherche")) {
+    if (recherche.length < 2) return NextResponse.json({ ok: true, resultats: [] });
+    const tokens = recherche.split(/\s+/).map((t) => t.replace(/[(),.*]/g, "")).filter((t) => t.length >= 2);
+    if (tokens.length === 0) return NextResponse.json({ ok: true, resultats: [] });
+    const ors = tokens.flatMap((tk) => [`nom.ilike.%${tk}%`, `prenom.ilike.%${tk}%`]).join(",");
+    const { data: stagiaires } = await supabaseAdmin
+      .from("stagiaires").select("id").or(ors).limit(40);
+    const ids = (stagiaires ?? []).map((s: any) => s.id);
+    if (ids.length === 0) return NextResponse.json({ ok: true, resultats: [] });
+    const { data: ventes } = await supabaseAdmin
+      .from("ventes_examen")
+      .select("numero_attestation, type_examen, sous_type, created_at, stagiaires:candidat_id (nom, prenom), sessions_examen:session_id (date_examen, horaire)")
+      .in("candidat_id", ids)
+      .order("created_at", { ascending: false })
+      .limit(30);
+    const resultats = (ventes ?? []).map((v: any) => ({
+      numero_attestation: v.numero_attestation,
+      nom: v.stagiaires?.nom ?? "", prenom: v.stagiaires?.prenom ?? "",
+      type_examen: v.type_examen, sous_type: v.sous_type ?? null,
+      date_examen: v.sessions_examen?.date_examen ?? null,
+      horaire: v.sessions_examen?.horaire ?? null,
+    }));
+    return NextResponse.json({ ok: true, resultats });
+  }
+
   const numero = req.nextUrl.searchParams.get("numero")?.trim().toUpperCase();
   if (!numero) return NextResponse.json({ ok: false, erreur: "numero requis." }, { status: 400 });
   const vente = await venteParNumero(numero);

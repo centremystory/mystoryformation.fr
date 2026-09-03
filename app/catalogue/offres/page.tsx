@@ -87,10 +87,10 @@ export default function CatalogueOffresPage() {
     <div style={{ maxWidth: 1000, margin: "0 auto", padding: "8px 4px 60px" }}>
       <h1 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 2px" }}>Catalogue — Offres & formules</h1>
       <p style={{ color: "#667085", fontSize: 14, marginTop: 0 }}>
-        Édite <strong>titres, finalités, niveaux</strong> (au niveau offre) et <strong>formules</strong> (nom, heures, prix). <strong>Barème v6 :</strong> 150€ (examen) + heures × taux — 6-15h=45€/h · 18-27h=40€/h · 30-39h=35€/h · 42-45h=30€/h. Plafond 1 500€ (max 1 515€).
+        Édite <strong>titres, finalités, niveaux</strong> (au niveau offre) et <strong>formules</strong> (nom, heures, prix). <strong>Barème 2026 :</strong> 150€ (examen TEF IRN inclus) + heures × taux dégressif — 1-15h=40€/h · 16-30h=35€/h · au-delà de 30h=25€/h. Plafond 1 650€ = 1 500€ CPF + 150€ de ticket modérateur. Durées de 12h à 45h, multiples de 3h.
       </p>
-      <div style={{ background: "#FFFAEB", border: "1px solid #FEDF89", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#B54708", margin: "12px 0" }}>
-        ⚠️ <strong>Brouillon</strong> — offres en attente de validation du certificateur (Le français des affaires). Ne pas publier sur EDOF avant son retour.
+      <div style={{ background: "#ECFDF3", border: "1px solid #ABEFC6", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#067647", margin: "12px 0" }}>
+        ✅ <strong>Catalogue 2026 en vigueur</strong> — validé par le certificateur (Le français des affaires, 26/08/2026) et publié sur EDOF le 02/09/2026. Toute modification de prix doit rester conforme au barème ci-dessus, sinon la commande EDOF et la convention divergent.
       </div>
 
       {/* Historique / retour arrière */}

@@ -1,8 +1,13 @@
 // lib/inscriptions/regles.ts — Règles de conformité MYSTORY (inscriptions formation)
 // Source de vérité unique : catalogue, décompositions de séances, délai d'accès, validations.
 
-// Catalogue v6 (28/07/2026) : 4 OFFRES × formules. Barème = 150 € (examen inclus) + heures × taux
-// dégressif (45 €/h ≤15h, 40 € de 18 à 27h, 35 € au-delà, 30 € pour 45h). Durées multiples de 3h.
+// Catalogue TEF IRN 2026 (02/09/2026) — validé par la CCI Paris Île-de-France (Mme Mamert,
+// courriel du 26/08/2026) et publié sur EDOF le 02/09/2026.
+// 4 OFFRES × 3 formules = 12 formules CPF. Durées multiples de 3 h, de 12 h à 45 h.
+// Barème : 150 € (examen TEF IRN inclus) + heures × taux dégressif
+//          40 €/h de 1 à 15 h · 35 €/h de 16 à 30 h · 25 €/h au-delà de 30 h.
+// Plafond : 1 650 € = 1 500 € pris en charge par le CPF + 150 € de ticket modérateur.
+// Les modules courts 3/6/9 h (MODULES_COURTS) sont HORS CPF : fonds propres uniquement.
 export type Offre = "A2" | "B1" | "B2" | "INTENSIF";
 
 export const OFFRES: { code: Offre; label: string; niveauVise: string }[] = [
@@ -13,10 +18,10 @@ export const OFFRES: { code: Offre; label: string; niveauVise: string }[] = [
 ];
 
 export type CodeFormule =
-  | "A2_12H" | "A2_24H" | "A2_36H"
-  | "B1_9H" | "B1_21H" | "B1_33H" | "B1_45H"
-  | "B2_15H" | "B2_27H" | "B2_39H"
-  | "INT_6H" | "INT_18H" | "INT_30H";
+  | "A2_15H" | "A2_27H" | "A2_39H"
+  | "B1_21H" | "B1_33H" | "B1_45H"
+  | "B2_18H" | "B2_30H" | "B2_42H"
+  | "INT_12H" | "INT_24H" | "INT_36H";
 
 export interface Formule {
   code: CodeFormule;
@@ -36,22 +41,44 @@ function f(code: CodeFormule, offre: Offre, nom: string, h: number, prix: number
   return { code, offre, nomFormule: nom, libelle: `${h} h – ${prix} €`, dureeHeures: h, prixEuros: prix, seances3h: h / 3, seanceFinaleHeures: 0, descriptionFinale: DESC };
 }
 
-// Prix v6 alignés sur le site + la table public.formules → dossiers conformes au gate CDC.
+// Prix alignés sur le catalogue EDOF publié le 02/09/2026 (fichier
+// 91342308300017_MYSTORY_catalogue_EDOF_TEFIRN2026.xml) → dossiers conformes au gate CDC.
 export const CATALOGUE: Record<CodeFormule, Formule> = {
-  A2_12H: f("A2_12H", "A2", "Consolidation", 12, 690),
-  A2_24H: f("A2_24H", "A2", "Standard", 24, 1110),
-  A2_36H: f("A2_36H", "A2", "Renforcée", 36, 1410),
-  B1_9H:  f("B1_9H", "B1", "Éclair", 9, 555),
-  B1_21H: f("B1_21H", "B1", "Consolidation", 21, 990),
-  B1_33H: f("B1_33H", "B1", "Standard", 33, 1305),
-  B1_45H: f("B1_45H", "B1", "Complète", 45, 1500),
-  B2_15H: f("B2_15H", "B2", "Consolidation", 15, 825),
-  B2_27H: f("B2_27H", "B2", "Standard", 27, 1230),
-  B2_39H: f("B2_39H", "B2", "Complète", 39, 1515),
-  INT_6H:  f("INT_6H", "INTENSIF", "Express", 6, 420),
-  INT_18H: f("INT_18H", "INTENSIF", "Complet", 18, 870),
-  INT_30H: f("INT_30H", "INTENSIF", "Sérénité", 30, 1200),
+  A2_15H:  f("A2_15H", "A2", "Consolidation", 15, 750),
+  A2_27H:  f("A2_27H", "A2", "Standard", 27, 1170),
+  A2_39H:  f("A2_39H", "A2", "Renforcée", 39, 1500),
+  B1_21H:  f("B1_21H", "B1", "Consolidation", 21, 960),
+  B1_33H:  f("B1_33H", "B1", "Standard", 33, 1350),
+  B1_45H:  f("B1_45H", "B1", "Complète", 45, 1650),
+  B2_18H:  f("B2_18H", "B2", "Consolidation", 18, 855),
+  B2_30H:  f("B2_30H", "B2", "Standard", 30, 1275),
+  B2_42H:  f("B2_42H", "B2", "Complète", 42, 1575),
+  INT_12H: f("INT_12H", "INTENSIF", "Express", 12, 630),
+  INT_24H: f("INT_24H", "INTENSIF", "Complet", 24, 1065),
+  INT_36H: f("INT_36H", "INTENSIF", "Sérénité", 36, 1425),
 };
+
+/** Modules courts de méthodologie — HORS CPF (fonds propres / Lenbox uniquement).
+ *  Barème distinct : 150 € (examen inclus) + 50 €/h. Ne jamais publier sur EDOF. */
+export const MODULES_COURTS: { heures: number; prixEuros: number; nom: string }[] = [
+  { heures: 3, prixEuros: 300, nom: "Prise en main" },
+  { heures: 6, prixEuros: 450, nom: "Méthodologie" },
+  { heures: 9, prixEuros: 600, nom: "Méthodologie renforcée" },
+];
+
+/** Plafonds officiels — utilisés par les gates de conformité. */
+export const PRIX_EXAMEN_INCLUS = 150;
+export const PLAFOND_CPF = 1500;
+export const TICKET_MODERATEUR = 150;
+export const PLAFOND_TOTAL = 1650;
+
+/** Prix théorique d'une durée CPF selon le barème 40/35/25. Sert à détecter une saisie hors grille. */
+export function prixTheorique(heures: number): number {
+  let p = PRIX_EXAMEN_INCLUS + Math.min(heures, 15) * 40;
+  if (heures > 15) p += Math.min(heures - 15, 15) * 35;
+  if (heures > 30) p += (heures - 30) * 25;
+  return p;
+}
 
 /** Formules d'une offre (pour le sélecteur en cascade Offre → Formule). */
 export function formulesDeLOffre(offre: Offre): Formule[] {
