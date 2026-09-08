@@ -37,7 +37,9 @@ export async function POST(req: NextRequest) {
   if (!nom || !prenom) return NextResponse.json({ ok: false, erreur: "Nom et prénom requis." }, { status: 400 });
 
   const { data: t } = await supabaseAdmin
-    .from("tests").select("id").eq("phase", "initial").eq("actif", true)
+    // 08/09/2026 : sans filtre sur certif, tout nouveau test de phase « initial »
+    // (civique, Leveltel...) passait devant le TEF IRN par simple antériorité.
+    .from("tests").select("id").eq("phase", "initial").eq("certif", "TEF_IRN").eq("actif", true)
     .order("cree_le", { ascending: false }).limit(1).maybeSingle();
   if (!t) return NextResponse.json({ ok: false, erreur: "Aucun test de positionnement disponible." }, { status: 409 });
 

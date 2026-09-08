@@ -57,7 +57,9 @@ export default function Passation({ params }: { params: { token: string } }) {
   }, [params.token]);
 
   const sections = useMemo<("CE" | "CO")[]>(() => ["CE", "CO"], []);
-  const DUREES_MIN: Record<"CE" | "CO" | "EE" | "EO", number> = { CE: 20, CO: 20, EE: 15, EO: 10 };
+  // 08/09/2026 : format ramene a 45 min au total (37 min sur place, l'oral se faisant
+  // en direct avec le conseiller). Moins de questions faciles, plus de discriminantes.
+  const DUREES_MIN: Record<"CE" | "CO" | "EE" | "EO", number> = { CE: 15, CO: 12, EE: 10, EO: 8 };
   // Sur place : l'expression orale se fait EN DIRECT avec l'examinateur (qui la note ensuite) —
   // pas d'enregistrement en ligne. À distance : enregistrement micro (étape EO 10 min).
   const ORDRE_PHASES: ("CE" | "CO" | "EE" | "EO")[] = data?.mode === "sur_place" ? ["CE", "CO", "EE"] : ["CE", "CO", "EE", "EO"];
@@ -144,7 +146,7 @@ export default function Passation({ params }: { params: { token: string } }) {
   let numero = 0;
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-6">
+    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
       <header className="mb-4">
         <h1 className="text-xl font-bold text-mystory">{data.test.titre}</h1>
         <p className="text-sm text-gray-500">
@@ -155,14 +157,14 @@ export default function Passation({ params }: { params: { token: string } }) {
       {phase === "intro" && (
         <section className="card p-5">
           <h2 className="mb-2 text-lg font-semibold text-gray-800">Avant de commencer</h2>
-          <p className="mb-3 text-sm text-gray-600">Le test dure <b>{data.mode === "sur_place" ? "55" : "65"} minutes</b>, en {ORDRE_PHASES.length} étapes chronométrées. Quand le temps d&apos;une étape est écoulé (ou que vous la validez), vous passez à la suivante — <b>impossible de revenir en arrière</b>.</p>
+          <p className="mb-3 text-sm text-gray-600">Le test dure <b>{data.mode === "sur_place" ? "37" : "45"} minutes</b>, en {ORDRE_PHASES.length} étapes chronométrées. Quand le temps d&apos;une étape est écoulé (ou que vous la validez), vous passez à la suivante — <b>impossible de revenir en arrière</b>.</p>
           <ul className="mb-4 space-y-1.5 text-sm text-gray-700">
-            <li>📖 <b>Compréhension écrite</b> — 20 min</li>
-            <li>🎧 <b>Compréhension orale</b> — 20 min · <b>chaque audio ne peut être écouté qu&apos;UNE seule fois</b></li>
-            <li>✍️ <b>Expression écrite</b> — 15 min</li>
+            <li>📖 <b>Compréhension écrite</b> — 15 min</li>
+            <li>🎧 <b>Compréhension orale</b> — 12 min · <b>chaque audio ne peut être écouté qu&apos;UNE seule fois</b></li>
+            <li>✍️ <b>Expression écrite</b> — 10 min</li>
             {data.mode === "sur_place"
               ? <li>🎤 <b>Expression orale</b> — en direct avec votre examinateur, après le test écrit</li>
-              : <li>🎤 <b>Expression orale</b> — 10 min (micro requis)</li>}
+              : <li>🎤 <b>Expression orale</b> — 8 min (micro requis)</li>}
           </ul>
           <p className="mb-4 text-xs text-gray-400">Installez-vous au calme, avec de quoi écouter le son. Le chrono démarre au clic.</p>
           <button onClick={() => demarrerPhase("CE")} className="btn-primary w-full">🚀 Commencer le test (le chrono démarre)</button>
@@ -194,7 +196,11 @@ export default function Passation({ params }: { params: { token: string } }) {
               return (
                 <div key={q.id}>
                   {newBloc && q.bloc && <p className="mt-4 mb-1 text-sm font-semibold text-mystory">{q.bloc}</p>}
-                  {showCtx && <div className="mb-3 rounded-lg bg-gray-50 p-3 text-sm italic text-gray-700">{q.contexte}</div>}
+                  {showCtx && (
+                    <div className="sticky top-16 z-10 mb-4 max-h-[42vh] overflow-y-auto whitespace-pre-line rounded-xl border border-gray-200 bg-white/95 p-5 text-[15px] leading-relaxed text-gray-800 shadow-sm backdrop-blur">
+                      {q.contexte}
+                    </div>
+                  )}
                   {showAudio && (
                     jouable(q.audio_path) ? (
                       <AudioUneEcoute src={q.audio_path!} />
@@ -203,7 +209,7 @@ export default function Passation({ params }: { params: { token: string } }) {
                     )
                   )}
                   <div className="mb-4 rounded-xl border border-gray-200 p-3">
-                    <p className="mb-2 font-medium text-gray-800">{numero}. {q.enonce}</p>
+                    <p className="mb-3 text-[15px] font-semibold text-gray-900">{numero}. {q.enonce}</p>
                     {q.type === "texte_libre" ? (
                       <input
                         value={rep[q.id] ?? ""} onChange={(e) => setRep((p) => ({ ...p, [q.id]: e.target.value }))}
@@ -223,7 +229,7 @@ export default function Passation({ params }: { params: { token: string } }) {
                         ))}
                       </div>
                     ) : (
-                      <div className="space-y-1.5">
+                      <div className="grid gap-1.5 lg:grid-cols-2">
                         {q.options.map((o) => (
                           <label key={o.cle} className={`flex cursor-pointer items-start gap-2 rounded-lg border px-3 py-2 text-sm transition ${rep[q.id] === o.cle ? "border-mystory bg-mystory-clair" : "border-gray-200 hover:bg-gray-50"}`}>
                             <input type="radio" name={q.id} checked={rep[q.id] === o.cle} onChange={() => setRep((p) => ({ ...p, [q.id]: o.cle }))} className="mt-0.5" />
