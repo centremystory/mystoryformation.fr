@@ -5,7 +5,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { corrigerAuto, calibrer, heuresRecommandees,
+import { corrigerAuto, calibrer, heuresRecommandees, texteLibreOk,
          epreuveLaPlusFaible, type QuestionCorrige, type Palier } from "@/lib/tests";
 import { journal } from "@/lib/examens";
 import { envoyerEmail, gabaritEmail, EMAIL_ACTIF } from "@/lib/email";
@@ -90,6 +90,34 @@ export async function POST(req: NextRequest) {
   // ne doit JAMAIS lire « A0 » : c'est demoralisant, ce n'est pas un niveau du CECRL,
   // et cela fait fuir un prospect qu'on veut accompagner.
   const { paliers, niveau } = calibrer(questions as any, reponses);
+
+  // 09/09/2026 — le detail par competence et par niveau. Un candidat convaincu par
+  // ses propres erreurs s'inscrit ; un candidat a qui on annonce un niveau discute.
+  // On lui montre OU ca casse, jamais les bonnes reponses : le corrige servirait a
+  // repasser le test, et fausserait la mesure suivante.
+  const detail = (["CE", "CO"] as const).flatMap((sec) =>
+    (["A2", "B1", "B2"] as const).map((niv) => {
+      const lot = questions.filter((q: any) => q.section === sec && (q.niveau ?? "A2") === niv);
+      if (!lot.length) return null;
+      const bons = lot.filter((q: any) => {
+        const rep = reponses?.[q.id];
+        return q.type === "texte_libre"
+          ? texteLibreOk(rep, q.mots_cles)
+          : rep != null && String(rep) === q.bonne_reponse;
+      }).length;
+      return {
+        section: sec === "CE" ? "Compréhension écrite" : "Compréhension orale",
+        niveau: niv, total: lot.length, reussies: bons,
+        // Ce que ce lot de questions demandait vraiment.
+        exige: sec === "CE"
+          ? (niv === "A2" ? "trouver une information écrite noire sur blanc"
+             : niv === "B1" ? "lire un document administratif et en déduire une conséquence"
+             : "identifier un point de vue et distinguer le fait de l'opinion")
+          : (niv === "A2" ? "comprendre un message simple, énoncé lentement"
+             : niv === "B1" ? "suivre un échange à débit normal et en retenir l'essentiel"
+             : "saisir l'implicite dans un échange rapide entre plusieurs personnes"),
+      };
+    }).filter(Boolean));
   const vise = (["A2", "B1", "B2"].includes(String(evVise)) ? evVise : "B1") as Palier;
   const reco = heuresRecommandees(niveau, vise);
   const faible = epreuveLaPlusFaible(Number(ceSur10 ?? 0), Number(coSur10 ?? 0), null, null);
@@ -121,6 +149,7 @@ export async function POST(req: NextRequest) {
     ecart: reco.ecart,
     motif: reco.motif,
     epreuve_faible: faible,             // celle qui fait tomber le niveau au TEF IRN
+    detail,                             // par compétence et par niveau, sans les corrigés
     ce_sur10: ceSur10, co_sur10: coSur10,
   });
 }

@@ -188,6 +188,54 @@ export default function Passation({ params }: { params: { token: string } }) {
           </div>
         )}
 
+        {/* ── Ce qui a decroche, et pourquoi. C'est cette section qui convainc :
+            le candidat voit ses propres erreurs au lieu de recevoir un verdict. */}
+        {bilan?.detail?.length > 0 && (
+          <div className="mb-4 rounded-2xl border border-gray-200 bg-white p-5">
+            <div className="mb-1 text-xs uppercase tracking-wide text-gray-500">
+              Où vous en êtes, question par question
+            </div>
+            <p className="mb-3 text-sm text-gray-600">
+              Les questions étaient réparties par difficulté. Voici jusqu&apos;où vous êtes allé.
+            </p>
+            <div className="space-y-2">
+              {bilan.detail.map((d: any, i: number) => {
+                const part = d.total ? d.reussies / d.total : 0;
+                const tenu = part >= 0.6;
+                return (
+                  <div key={i} className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="text-sm font-semibold text-gray-800">
+                        {d.section} <span className="text-gray-400">·</span> niveau {d.niveau}
+                      </span>
+                      <span className={`text-sm font-bold ${tenu ? "text-green-700" : "text-amber-700"}`}>
+                        {d.reussies} / {d.total}
+                      </span>
+                    </div>
+                    <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded bg-gray-200">
+                      <div className={tenu ? "h-full bg-green-600" : "h-full bg-amber-500"}
+                           style={{ width: `${Math.round(part * 100)}%` }} />
+                    </div>
+                    <p className="mt-1.5 text-xs text-gray-600">
+                      Il fallait {d.exige}.
+                      {!tenu && d.total - d.reussies > 0 && (
+                        <span className="font-medium text-amber-800">
+                          {" "}C&apos;est là que {d.total - d.reussies} question
+                          {d.total - d.reussies > 1 ? "s vous ont" : " vous a"} échappé.
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="mt-3 text-xs text-gray-500">
+              Le détail de chaque réponse, avec sa correction commentée, vous est envoyé par
+              e-mail après relecture par une formatrice.
+            </p>
+          </div>
+        )}
+
         {/* ── Où en est chaque épreuve. */}
         <div className="mb-4 rounded-xl border border-gray-200 bg-white p-4 text-sm">
           <div className="mb-2 text-xs uppercase tracking-wide text-gray-500">Vos quatre épreuves</div>

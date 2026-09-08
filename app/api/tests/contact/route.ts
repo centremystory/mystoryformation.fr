@@ -67,5 +67,61 @@ export async function POST(req: NextRequest) {
   if (error) return NextResponse.json({ ok: false, erreur: "Enregistrement impossible." }, { status: 502 });
 
   await journal("evaluation", e.id, "contact_candidat", { champs: Object.keys(maj) }, "candidat");
+
+  // 09/09/2026 — un test passe doit produire un CONTACT dans le CRM, pas seulement
+  // une evaluation. Sans cela, un prospect qui a donne ses coordonnees restait
+  // invisible de l'equipe commerciale : il fallait penser a ouvrir l'ecran des
+  // tests pour le voir.
+  await rattacherStagiaire(e.id, {
+    nom: (maj.nom as string) ?? e.nom,
+    prenom: (maj.prenom as string) ?? e.prenom,
+    email: (maj.email as string) ?? e.email,
+    telephone: (maj.telephone as string) ?? e.telephone,
+  });
   return NextResponse.json({ ok: true });
+}
+
+
+/** Crée le contact dans le CRM, ou retrouve celui qui existe déjà.
+ *
+ *  On rapproche sur le courriel puis sur le téléphone : ce sont les deux seules
+ *  données qu'un candidat saisit de façon fiable. On ne rapproche PAS sur le nom,
+ *  qui produit trop de faux positifs (homonymes, translittérations variables).
+ *  En cas de doute, on crée un contact de plus : un doublon se fusionne, une fiche
+ *  écrasée ne se récupère pas.
+ */
+async function rattacherStagiaire(
+  evaluationId: string,
+  c: { nom?: string | null; prenom?: string | null; email?: string | null; telephone?: string | null },
+): Promise<void> {
+  if (!c.email && !c.telephone) return;          // rien pour rapprocher ni rappeler
+
+  let stagiaireId: string | null = null;
+  if (c.email) {
+    const { data } = await supabaseAdmin
+      .from("stagiaires").select("id").ilike("email", c.email).limit(1).maybeSingle();
+    stagiaireId = (data as any)?.id ?? null;
+  }
+  if (!stagiaireId && c.telephone) {
+    const tel = c.telephone.replace(/[^0-9]/g, "").slice(-9);   // on ignore l'indicatif
+    if (tel.length >= 9) {
+      const { data } = await supabaseAdmin
+        .from("stagiaires").select("id, telephone").ilike("telephone", `%${tel}`).limit(1).maybeSingle();
+      stagiaireId = (data as any)?.id ?? null;
+    }
+  }
+  if (!stagiaireId) {
+    const { data } = await supabaseAdmin.from("stagiaires").insert({
+      nom: c.nom ?? null, prenom: c.prenom ?? null,
+      email: c.email ?? null, telephone: c.telephone ?? null,
+      source_import: "test_positionnement",
+      actif: true,
+    }).select("id").maybeSingle();
+    stagiaireId = (data as any)?.id ?? null;
+  }
+  if (stagiaireId) {
+    await supabaseAdmin.from("evaluations")
+      .update({ stagiaire_id: stagiaireId }).eq("id", evaluationId);
+    await journal("stagiaire", stagiaireId, "cree_depuis_test", { evaluationId }, "systeme");
+  }
 }
