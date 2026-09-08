@@ -37,7 +37,12 @@ export default function Passation({ params }: { params: { token: string } }) {
   const [erreur, setErreur] = useState<string | null>(null);
   const [envoi, setEnvoi] = useState(false);
   const [fini, setFini] = useState(false);
-  const [provisoire, setProvisoire] = useState<string | null>(null);
+  // 08/09/2026 — on ne stocke plus un simple niveau : la fin du test est le moment
+  // ou un prospect decide. Il lui faut son niveau, le volume d'heures qui l'en
+  // separe, et un moyen de nous joindre.
+  const [bilan, setBilan] = useState<any>(null);
+  const [coord, setCoord] = useState({ nom: "", prenom: "", email: "", telephone: "", objectif: "" });
+  const [coordEnvoi, setCoordEnvoi] = useState<"idle" | "envoi" | "ok">("idle");
   const [deja, setDeja] = useState(false);
   const [kiosque, setKiosque] = useState(false);
   const [oralBlobs, setOralBlobs] = useState<Record<number, Blob>>({});
@@ -57,7 +62,9 @@ export default function Passation({ params }: { params: { token: string } }) {
   }, [params.token]);
 
   const sections = useMemo<("CE" | "CO")[]>(() => ["CE", "CO"], []);
-  const DUREES_MIN: Record<"CE" | "CO" | "EE" | "EO", number> = { CE: 20, CO: 20, EE: 15, EO: 10 };
+  // 08/09/2026 : format ramene a 45 min au total (37 min sur place, l'oral se faisant
+  // en direct avec le conseiller). Moins de questions faciles, plus de discriminantes.
+  const DUREES_MIN: Record<"CE" | "CO" | "EE" | "EO", number> = { CE: 15, CO: 12, EE: 10, EO: 8 };
   // Sur place : l'expression orale se fait EN DIRECT avec l'examinateur (qui la note ensuite) —
   // pas d'enregistrement en ligne. À distance : enregistrement micro (étape EO 10 min).
   const ORDRE_PHASES: ("CE" | "CO" | "EE" | "EO")[] = data?.mode === "sur_place" ? ["CE", "CO", "EE"] : ["CE", "CO", "EE", "EO"];
@@ -105,7 +112,7 @@ export default function Passation({ params }: { params: { token: string } }) {
         body: JSON.stringify({ token: params.token, reponses: rep, ecrit, sujet_ecrit: sujetEcrit }),
       });
       const j = await r.json();
-      if (j.ok) { setProvisoire(j.niveau_provisoire ?? null); setFini(true); } else setErreur(j.erreur || "Envoi impossible.");
+      if (j.ok) { setBilan(j); setFini(true); } else setErreur(j.erreur || "Envoi impossible.");
     } catch { setErreur("Envoi impossible. Vérifiez votre connexion."); }
     finally { setEnvoi(false); }
   }
@@ -115,23 +122,205 @@ export default function Passation({ params }: { params: { token: string } }) {
     const surPlace = data?.mode === "sur_place";
     return (
       <Centre>
-        <h1 className="mb-1 text-2xl font-bold text-mystory">✓ Test terminé — merci{data?.candidat.prenom ? ` ${data.candidat.prenom}` : ""} !</h1>
-        <p className="mb-3 text-sm text-gray-500">Voici le résumé de votre passation.</p>
-        {provisoire && (
-          <div className="my-2 rounded-xl border-2 border-mystory bg-blue-50 px-6 py-4">
-            <div className="text-xs uppercase tracking-wide text-gray-500">Niveau provisoire (compréhension écrite &amp; orale)</div>
-            <div className="text-4xl font-extrabold text-mystory">{provisoire}</div>
+        <div className="w-full max-w-3xl text-left">
+        <h1 className="mb-1 text-2xl font-bold text-mystory">
+          Merci{data?.candidat.prenom ? ` ${data.candidat.prenom}` : ""}, c&apos;est terminé.
+        </h1>
+        <p className="mb-5 text-sm text-gray-500">Voici ce que votre test nous apprend déjà.</p>
+
+        {/* ── LE RÉSULTAT. On n'affiche JAMAIS « A0 » : ce n'est pas un niveau du
+            CECRL, c'est démoralisant, et c'est faux tant que l'oral et l'écrit
+            n'ont pas été corrigés par un humain. */}
+        {bilan && (
+          <div className="mb-4 rounded-2xl border-2 border-mystory bg-blue-50 p-6">
+            {bilan.niveau_calibre ? (
+              <>
+                <div className="text-xs uppercase tracking-wide text-gray-600">
+                  Niveau tenu sur les épreuves de compréhension
+                </div>
+                <div className="text-5xl font-extrabold leading-none text-mystory">
+                  {bilan.niveau_calibre}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="text-xs uppercase tracking-wide text-gray-600">
+                  Compréhension écrite et orale
+                </div>
+                <div className="mt-1 text-xl font-bold text-mystory">
+                  Les bases sont à consolider avant de viser {bilan.niveau_vise}
+                </div>
+                <p className="mt-1 text-sm text-gray-600">
+                  C&apos;est fréquent, et c&apos;est exactement ce que la formation sert à corriger.
+                </p>
+              </>
+            )}
+            {bilan.niveau_vise && (
+              <p className="mt-3 text-sm text-gray-700">
+                Vous visez le niveau <b>{bilan.niveau_vise}</b>.
+              </p>
+            )}
           </div>
         )}
-        <div className="mx-auto mb-3 max-w-sm space-y-1.5 text-left text-sm text-gray-700">
-          <div className="flex justify-between"><span>📖 Compréhension écrite</span><span className="font-medium text-green-700">✓ envoyée</span></div>
-          <div className="flex justify-between"><span>🎧 Compréhension orale</span><span className="font-medium text-green-700">✓ envoyée</span></div>
-          <div className="flex justify-between"><span>✍️ Expression écrite{sujetEcrit ? ` (sujet ${sujetEcrit})` : ""}</span><span className="font-medium text-amber-600">{nbMotsFin > 0 ? `${nbMotsFin} mots · en correction` : "non rédigée"}</span></div>
-          <div className="flex justify-between"><span>🎤 Expression orale</span><span className="font-medium text-amber-600">{surPlace ? "avec votre examinateur" : Object.keys(oralBlobs).length > 0 ? `${Object.keys(oralBlobs).length} audio(s) · en correction` : "non enregistrée"}</span></div>
+
+        {/* ── LE CHIFFRE QUI COMPTE : combien d'heures pour y arriver. */}
+        {bilan?.heures && (
+          <div className="mb-4 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="text-xs uppercase tracking-wide text-gray-500">
+              Ce que nous vous recommandons
+            </div>
+            <div className="mt-1 flex items-baseline gap-2">
+              <span className="text-4xl font-extrabold text-gray-900">{bilan.heures}</span>
+              <span className="text-lg font-semibold text-gray-700">heures de formation</span>
+            </div>
+            <p className="mt-2 text-sm text-gray-600">{bilan.motif}</p>
+            {bilan.epreuve_faible && (
+              <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                À travailler en priorité : <b>{bilan.epreuve_faible.epreuve}</b>. Au TEF IRN, il
+                faut tenir le score dans les quatre épreuves à la fois — une seule épreuve faible
+                fait tomber le niveau entier.
+              </p>
+            )}
+            <p className="mt-3 text-xs text-gray-500">
+              Volume indicatif, confirmé avec vous après la correction de votre écrit et de
+              votre oral. Le passage de l&apos;examen est compris dans nos parcours.
+            </p>
+          </div>
+        )}
+
+        {/* ── Ce qui a decroche, et pourquoi. C'est cette section qui convainc :
+            le candidat voit ses propres erreurs au lieu de recevoir un verdict. */}
+        {bilan?.detail?.length > 0 && (
+          <div className="mb-4 rounded-2xl border border-gray-200 bg-white p-5">
+            <div className="mb-1 text-xs uppercase tracking-wide text-gray-500">
+              Où vous en êtes, question par question
+            </div>
+            <p className="mb-3 text-sm text-gray-600">
+              Les questions étaient réparties par difficulté. Voici jusqu&apos;où vous êtes allé.
+            </p>
+            <div className="space-y-2">
+              {bilan.detail.map((d: any, i: number) => {
+                const part = d.total ? d.reussies / d.total : 0;
+                const tenu = part >= 0.6;
+                return (
+                  <div key={i} className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="text-sm font-semibold text-gray-800">
+                        {d.section} <span className="text-gray-400">·</span> niveau {d.niveau}
+                      </span>
+                      <span className={`text-sm font-bold ${tenu ? "text-green-700" : "text-amber-700"}`}>
+                        {d.reussies} / {d.total}
+                      </span>
+                    </div>
+                    <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded bg-gray-200">
+                      <div className={tenu ? "h-full bg-green-600" : "h-full bg-amber-500"}
+                           style={{ width: `${Math.round(part * 100)}%` }} />
+                    </div>
+                    <p className="mt-1.5 text-xs text-gray-600">
+                      Il fallait {d.exige}.
+                      {!tenu && d.total - d.reussies > 0 && (
+                        <span className="font-medium text-amber-800">
+                          {" "}C&apos;est là que {d.total - d.reussies} question
+                          {d.total - d.reussies > 1 ? "s vous ont" : " vous a"} échappé.
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="mt-3 text-xs text-gray-500">
+              Le détail de chaque réponse, avec sa correction commentée, vous est envoyé par
+              e-mail après relecture par une formatrice.
+            </p>
+          </div>
+        )}
+
+        {/* ── Où en est chaque épreuve. */}
+        <div className="mb-4 rounded-xl border border-gray-200 bg-white p-4 text-sm">
+          <div className="mb-2 text-xs uppercase tracking-wide text-gray-500">Vos quatre épreuves</div>
+          <div className="space-y-1.5 text-gray-700">
+            <div className="flex justify-between"><span>Compréhension écrite</span>
+              <span className="font-medium text-green-700">corrigée{bilan?.ce_sur10 != null ? ` · ${bilan.ce_sur10}/10` : ""}</span></div>
+            <div className="flex justify-between"><span>Compréhension orale</span>
+              <span className="font-medium text-green-700">corrigée{bilan?.co_sur10 != null ? ` · ${bilan.co_sur10}/10` : ""}</span></div>
+            <div className="flex justify-between"><span>Expression écrite{sujetEcrit ? ` (sujet ${sujetEcrit})` : ""}</span>
+              <span className="font-medium text-amber-600">{nbMotsFin > 0 ? `${nbMotsFin} mots · en correction` : "non rédigée"}</span></div>
+            <div className="flex justify-between"><span>Expression orale</span>
+              <span className="font-medium text-amber-600">{surPlace ? "avec votre examinateur" : Object.keys(oralBlobs).length > 0 ? `${Object.keys(oralBlobs).length} enregistrement(s) · en correction` : "non enregistrée"}</span></div>
+          </div>
         </div>
-        <div className="mx-auto max-w-sm rounded-xl bg-gray-50 p-4 text-left text-sm text-gray-600">
-          <p className="mb-1 font-semibold text-gray-900">Et maintenant ?</p>
-          <p>{surPlace ? "Votre examinateur va évaluer votre expression orale avec vous, puis une formatrice corrige votre rédaction." : "Une formatrice corrige votre rédaction et vos réponses orales sous 24-48 h."} Vous recevrez ensuite votre <strong>niveau complet, le détail des 4 épreuves et nos conseils par email</strong>{surPlace ? " — et un conseiller vous accompagne tout de suite pour la suite." : ", avec une invitation à échanger avec un conseiller (06 81 43 16 54)."}</p>
+
+        {/* ── Le formulaire. Sans coordonnées, un test passé ne sert a personne. */}
+        {coordEnvoi !== "ok" && (
+          <form
+            className="mb-4 rounded-2xl border-2 border-dashed border-mystory/40 bg-white p-5"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setCoordEnvoi("envoi");
+              try {
+                await fetch(`/api/tests/contact`, {
+                  method: "POST", headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ token: params.token, ...coord }),
+                });
+                setCoordEnvoi("ok");
+              } catch { setCoordEnvoi("idle"); }
+            }}
+          >
+            <p className="mb-1 font-semibold text-gray-900">Recevez votre bilan complet</p>
+            <p className="mb-3 text-sm text-gray-600">
+              Le détail des quatre épreuves, la correction de votre rédaction et le parcours
+              adapté à votre situation. Un conseiller vous rappelle pour en parler.
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <input required placeholder="Prénom" className="input" value={coord.prenom}
+                     onChange={(e) => setCoord({ ...coord, prenom: e.target.value })} />
+              <input required placeholder="Nom" className="input" value={coord.nom}
+                     onChange={(e) => setCoord({ ...coord, nom: e.target.value })} />
+              <input required type="email" placeholder="Adresse e-mail" className="input" value={coord.email}
+                     onChange={(e) => setCoord({ ...coord, email: e.target.value })} />
+              <input required type="tel" placeholder="Téléphone" className="input" value={coord.telephone}
+                     onChange={(e) => setCoord({ ...coord, telephone: e.target.value })} />
+            </div>
+            <textarea
+              className="input mt-2 w-full" rows={2} value={coord.objectif}
+              placeholder="Pourquoi passez-vous le TEF ? (carte de séjour, naturalisation, travail…) et pour quand ?"
+              onChange={(e) => setCoord({ ...coord, objectif: e.target.value })} />
+            <button type="submit" disabled={coordEnvoi === "envoi"} className="btn-primary mt-3 w-full">
+              {coordEnvoi === "envoi" ? "Envoi…" : "Recevoir mon bilan et être rappelé"}
+            </button>
+            <p className="mt-2 text-xs text-gray-400">
+              Vos données servent uniquement à vous transmettre votre bilan et à vous rappeler.
+              Vous pouvez demander leur suppression à tout moment.
+            </p>
+          </form>
+        )}
+        {coordEnvoi === "ok" && (
+          <div className="mb-4 rounded-2xl border border-green-300 bg-green-50 p-5 text-sm text-green-900">
+            <b>C&apos;est noté.</b> Vous recevrez votre bilan complet par e-mail, et un conseiller
+            vous rappelle très vite pour en parler.
+          </div>
+        )}
+
+        {/* ── En attendant, de quoi s'entraîner. */}
+        <div className="mb-4 rounded-xl bg-gray-50 p-4 text-sm text-gray-700">
+          <p className="mb-1 font-semibold text-gray-900">En attendant, entraînez-vous</p>
+          <p>
+            La plateforme <a className="text-mystory underline" href="https://passetontef.fr"
+            target="_blank" rel="noopener noreferrer">passetontef.fr</a> vous fait travailler
+            les quatre épreuves au format réel.
+            {bilan?.niveau_vise ? " Elle est particulièrement utile sur l'épreuve que nous venons d'identifier." : ""}
+          </p>
+        </div>
+
+        <div className="rounded-xl bg-gray-50 p-4 text-sm text-gray-600">
+          <p className="mb-1 font-semibold text-gray-900">La suite</p>
+          <p>{surPlace
+            ? "Votre examinateur évalue votre expression orale avec vous, puis une formatrice corrige votre rédaction."
+            : "Une formatrice corrige votre rédaction et vos réponses orales sous 24 à 48 heures."}
+            {" "}Vous recevrez ensuite votre niveau complet et le détail des quatre épreuves.
+            Une question tout de suite ? <b>06 81 43 16 54</b>.</p>
+        </div>
         </div>
         {kiosque && <a href="/test/kiosque" className="btn-primary mt-5">Candidat suivant →</a>}
       </Centre>
@@ -144,7 +333,7 @@ export default function Passation({ params }: { params: { token: string } }) {
   let numero = 0;
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-6">
+    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
       <header className="mb-4">
         <h1 className="text-xl font-bold text-mystory">{data.test.titre}</h1>
         <p className="text-sm text-gray-500">
@@ -155,14 +344,14 @@ export default function Passation({ params }: { params: { token: string } }) {
       {phase === "intro" && (
         <section className="card p-5">
           <h2 className="mb-2 text-lg font-semibold text-gray-800">Avant de commencer</h2>
-          <p className="mb-3 text-sm text-gray-600">Le test dure <b>{data.mode === "sur_place" ? "55" : "65"} minutes</b>, en {ORDRE_PHASES.length} étapes chronométrées. Quand le temps d&apos;une étape est écoulé (ou que vous la validez), vous passez à la suivante — <b>impossible de revenir en arrière</b>.</p>
+          <p className="mb-3 text-sm text-gray-600">Le test dure <b>{data.mode === "sur_place" ? "37" : "45"} minutes</b>, en {ORDRE_PHASES.length} étapes chronométrées. Quand le temps d&apos;une étape est écoulé (ou que vous la validez), vous passez à la suivante — <b>impossible de revenir en arrière</b>.</p>
           <ul className="mb-4 space-y-1.5 text-sm text-gray-700">
-            <li>📖 <b>Compréhension écrite</b> — 20 min</li>
-            <li>🎧 <b>Compréhension orale</b> — 20 min · <b>chaque audio ne peut être écouté qu&apos;UNE seule fois</b></li>
-            <li>✍️ <b>Expression écrite</b> — 15 min</li>
+            <li>📖 <b>Compréhension écrite</b> — 15 min</li>
+            <li>🎧 <b>Compréhension orale</b> — 12 min · <b>chaque audio ne peut être écouté qu&apos;UNE seule fois</b></li>
+            <li>✍️ <b>Expression écrite</b> — 10 min</li>
             {data.mode === "sur_place"
               ? <li>🎤 <b>Expression orale</b> — en direct avec votre examinateur, après le test écrit</li>
-              : <li>🎤 <b>Expression orale</b> — 10 min (micro requis)</li>}
+              : <li>🎤 <b>Expression orale</b> — 8 min (micro requis)</li>}
           </ul>
           <p className="mb-4 text-xs text-gray-400">Installez-vous au calme, avec de quoi écouter le son. Le chrono démarre au clic.</p>
           <button onClick={() => demarrerPhase("CE")} className="btn-primary w-full">🚀 Commencer le test (le chrono démarre)</button>
@@ -194,7 +383,11 @@ export default function Passation({ params }: { params: { token: string } }) {
               return (
                 <div key={q.id}>
                   {newBloc && q.bloc && <p className="mt-4 mb-1 text-sm font-semibold text-mystory">{q.bloc}</p>}
-                  {showCtx && <div className="mb-3 rounded-lg bg-gray-50 p-3 text-sm italic text-gray-700">{q.contexte}</div>}
+                  {showCtx && (
+                    <div className="sticky top-16 z-10 mb-4 max-h-[42vh] overflow-y-auto whitespace-pre-line rounded-xl border border-gray-200 bg-white/95 p-5 text-[15px] leading-relaxed text-gray-800 shadow-sm backdrop-blur">
+                      {q.contexte}
+                    </div>
+                  )}
                   {showAudio && (
                     jouable(q.audio_path) ? (
                       <AudioUneEcoute src={q.audio_path!} />
@@ -203,7 +396,7 @@ export default function Passation({ params }: { params: { token: string } }) {
                     )
                   )}
                   <div className="mb-4 rounded-xl border border-gray-200 p-3">
-                    <p className="mb-2 font-medium text-gray-800">{numero}. {q.enonce}</p>
+                    <p className="mb-3 text-[15px] font-semibold text-gray-900">{numero}. {q.enonce}</p>
                     {q.type === "texte_libre" ? (
                       <input
                         value={rep[q.id] ?? ""} onChange={(e) => setRep((p) => ({ ...p, [q.id]: e.target.value }))}
@@ -223,7 +416,7 @@ export default function Passation({ params }: { params: { token: string } }) {
                         ))}
                       </div>
                     ) : (
-                      <div className="space-y-1.5">
+                      <div className="grid gap-1.5 lg:grid-cols-2">
                         {q.options.map((o) => (
                           <label key={o.cle} className={`flex cursor-pointer items-start gap-2 rounded-lg border px-3 py-2 text-sm transition ${rep[q.id] === o.cle ? "border-mystory bg-mystory-clair" : "border-gray-200 hover:bg-gray-50"}`}>
                             <input type="radio" name={q.id} checked={rep[q.id] === o.cle} onChange={() => setRep((p) => ({ ...p, [q.id]: o.cle }))} className="mt-0.5" />

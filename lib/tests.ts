@@ -59,3 +59,145 @@ export function corrigerAuto(
     cePts, ceMax, coPts, coMax,
   };
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * CALIBRAGE PAR PALIER — 08/09/2026
+ *
+ * Le barème historique (corrigerAuto) est un pourcentage : bon pour dire « il a
+ * eu 7/10 », inutilisable pour situer un niveau dès qu'on mélange des questions
+ * faciles et difficiles. En ajoutant des items B1/B2 au test initial, un candidat
+ * A2 voyait mécaniquement son pourcentage chuter et se retrouvait classé A1 —
+ * on lui aurait vendu une formule trop longue.
+ *
+ * Ici on ne compte plus le pourcentage global : on regarde JUSQU'OÙ le candidat
+ * tient. C'est le principe du TEF IRN lui-même, qui est adaptatif et attribue le
+ * niveau par seuil et non par moyenne.
+ *
+ * Le résultat est exprimé en HEURES et non en nom de formule : le même test peut
+ * ainsi servir à plusieurs organismes, chacun projetant ces heures sur sa grille.
+ * ────────────────────────────────────────────────────────────────────────────── */
+
+export type Palier = "A2" | "B1" | "B2";
+export const PALIERS: Palier[] = ["A2", "B1", "B2"];
+
+/** Un palier est tenu si le candidat y réussit au moins 60 % des points. */
+export const SEUIL_PALIER = 0.6;
+
+export type QuestionCalibree = QuestionCorrige & { niveau?: string | null };
+
+export type ResultatPalier = {
+  palier: Palier;
+  points: number;
+  max: number;
+  taux: number;
+  tenu: boolean;
+};
+
+/**
+ * Niveau atteint = le palier le plus haut tenu, à condition que tous les paliers
+ * en dessous le soient aussi. Un candidat qui réussirait le B2 sans tenir le B1
+ * n'est pas B2 : c'est presque toujours le signe d'un hasard sur peu d'items.
+ * Renvoie null quand même l'A2 n'est pas tenu (le candidat est en dessous).
+ */
+export function niveauAtteint(paliers: ResultatPalier[]): Palier | null {
+  let atteint: Palier | null = null;
+  for (const p of PALIERS) {
+    const r = paliers.find((x) => x.palier === p);
+    if (!r || r.max === 0) continue;   // palier non évalué : on ne tranche pas dessus
+    if (!r.tenu) break;                // dès qu'un palier lâche, on s'arrête
+    atteint = p;
+  }
+  return atteint;
+}
+
+/** Détaille la réussite palier par palier, toutes sections confondues. */
+export function calibrer(
+  questions: QuestionCalibree[],
+  reponses: Record<string, string>,
+): { paliers: ResultatPalier[]; niveau: Palier | null } {
+  const acc = new Map<Palier, { points: number; max: number }>();
+  for (const p of PALIERS) acc.set(p, { points: 0, max: 0 });
+
+  for (const q of questions) {
+    const niv = (q.niveau ?? "A2") as Palier;
+    const bucket = acc.get(niv);
+    if (!bucket) continue;             // niveau inconnu ou hors échelle : ignoré
+    const max = q.points ?? 1;
+    bucket.max += max;
+    const rep = reponses?.[q.id];
+    const ok = q.type === "texte_libre"
+      ? texteLibreOk(rep, q.mots_cles)
+      : rep != null && String(rep) === q.bonne_reponse;
+    if (ok) bucket.points += max;
+  }
+
+  const paliers: ResultatPalier[] = PALIERS.map((palier) => {
+    const b = acc.get(palier)!;
+    const taux = b.max ? b.points / b.max : 0;
+    return { palier, points: b.points, max: b.max, taux, tenu: b.max > 0 && taux >= SEUIL_PALIER };
+  });
+
+  return { paliers, niveau: niveauAtteint(paliers) };
+}
+
+/**
+ * Heures recommandées à partir de l'écart entre le niveau constaté et le niveau
+ * visé par la démarche administrative du candidat.
+ *
+ * Le volume ne dépend QUE de l'écart : un candidat qui doit franchir deux niveaux
+ * a besoin de plus d'heures qu'un candidat qui en franchit un, quel que soit le
+ * niveau de départ. On ne descend jamais sous 12 h (plancher exigé pour un dépôt
+ * EDOF) et on ne dépasse jamais 45 h.
+ */
+export function heuresRecommandees(
+  constate: Palier | null,
+  vise: Palier,
+): { heures: number; ecart: number; motif: string } {
+  const rang = (p: Palier | null) => (p === null ? 0 : PALIERS.indexOf(p) + 1); // 0 = sous A2
+  const ecart = Math.max(0, rang(vise) - rang(constate));
+
+  if (ecart === 0) {
+    return {
+      heures: 15,
+      ecart,
+      motif: "Le niveau visé semble déjà tenu. Les heures servent à sécuriser le jour de l'examen : méthode, gestion du temps, épreuves d'expression.",
+    };
+  }
+  if (ecart === 1) {
+    return {
+      heures: 30,
+      ecart,
+      motif: "Un niveau à franchir. Volume standard, avec un travail spécifique sur l'épreuve la plus faible.",
+    };
+  }
+  return {
+    heures: 45,
+    ecart,
+    motif: "Deux niveaux ou plus à franchir. Volume complet ; en dessous, le passage de l'examen serait prématuré.",
+  };
+}
+
+/**
+ * Une seule épreuve faible fait tomber le niveau au TEF IRN (il faut tenir le
+ * score dans les quatre à la fois). On signale donc l'épreuve décrochée, qui est
+ * celle sur laquelle la formation doit porter en priorité.
+ */
+export function epreuveLaPlusFaible(
+  ceSur10: number,
+  coSur10: number,
+  eeSur10: number | null,
+  eoSur10: number | null,
+): { epreuve: string; note: number } | null {
+  const notes: Array<{ epreuve: string; note: number }> = [
+    { epreuve: "compréhension écrite", note: ceSur10 },
+    { epreuve: "compréhension orale", note: coSur10 },
+  ];
+  if (eeSur10 != null) notes.push({ epreuve: "expression écrite", note: eeSur10 });
+  if (eoSur10 != null) notes.push({ epreuve: "expression orale", note: eoSur10 });
+  notes.sort((a, b) => a.note - b.note);
+  const pire = notes[0];
+  const suivant = notes[1];
+  // On ne signale que si l'écart est réel : sinon le profil est homogène.
+  if (!suivant || suivant.note - pire.note < 1.5) return null;
+  return pire;
+}

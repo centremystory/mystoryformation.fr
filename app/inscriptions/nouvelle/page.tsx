@@ -19,7 +19,7 @@ export default function NouvelleInscription() {
     adresse: "", cp: "", ville: "", dateNaissance: "", villeNaissance: "",
     certification: "TEF_IRN" as const, financement: "CPF" as const,
     numeroEdof: "", dateCommandeValidee: "", participationReglee: false,
-    offre: "B1" as Offre, formule: "B1_21H" as CodeFormule, niveauVise: "B1" as string,
+    offre: "B1" as Offre, formule: "B1_18H" as CodeFormule, niveauVise: "B1" as string,
     agenceInscription: "GAGNY" as const, resteAChargeAccepte: false,
     declencherContractualisation: true, formatriceId: "", formatriceLibre: "",
     remise: 0, remiseMotif: "", venduPar: "",

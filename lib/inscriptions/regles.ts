@@ -19,8 +19,8 @@ export const OFFRES: { code: Offre; label: string; niveauVise: string }[] = [
 
 export type CodeFormule =
   | "A2_15H" | "A2_27H" | "A2_39H"
-  | "B1_21H" | "B1_33H" | "B1_45H"
-  | "B2_18H" | "B2_30H" | "B2_42H"
+  | "B1_18H" | "B1_30H" | "B1_42H"
+  | "B2_21H" | "B2_33H" | "B2_45H"
   | "INT_12H" | "INT_24H" | "INT_36H";
 
 export interface Formule {
@@ -47,12 +47,19 @@ export const CATALOGUE: Record<CodeFormule, Formule> = {
   A2_15H:  f("A2_15H", "A2", "Consolidation", 15, 750),
   A2_27H:  f("A2_27H", "A2", "Standard", 27, 1170),
   A2_39H:  f("A2_39H", "A2", "Renforcée", 39, 1500),
-  B1_21H:  f("B1_21H", "B1", "Consolidation", 21, 960),
-  B1_33H:  f("B1_33H", "B1", "Standard", 33, 1350),
-  B1_45H:  f("B1_45H", "B1", "Complète", 45, 1650),
-  B2_18H:  f("B2_18H", "B2", "Consolidation", 18, 855),
-  B2_30H:  f("B2_30H", "B2", "Standard", 30, 1275),
-  B2_42H:  f("B2_42H", "B2", "Complète", 42, 1575),
+  // 08/09/2026 — INVERSION B1 / B2, alignement sur le catalogue EDOF.
+  // Le 07/09, les durees de B1 et B2 ont ete inversees dans le catalogue publie :
+  // rien ne justifiait que le B1 demande plus d'heures que le B2, chaque offre ne
+  // faisant franchir qu'un seul niveau. Le CRM etait reste sur l'ancienne
+  // repartition : un conseiller vendant « B1 Consolidation » enregistrait 21 h /
+  // 960 EUR quand EDOF publiait 18 h / 855 EUR, et le dossier CPF ne correspondait
+  // pas a l'offre commandee.
+  B1_18H:  f("B1_18H", "B1", "Consolidation", 18, 855),
+  B1_30H:  f("B1_30H", "B1", "Standard", 30, 1275),
+  B1_42H:  f("B1_42H", "B1", "Complète", 42, 1575),
+  B2_21H:  f("B2_21H", "B2", "Consolidation", 21, 960),
+  B2_33H:  f("B2_33H", "B2", "Standard", 33, 1350),
+  B2_45H:  f("B2_45H", "B2", "Complète", 45, 1650),
   INT_12H: f("INT_12H", "INTENSIF", "Express", 12, 630),
   INT_24H: f("INT_24H", "INTENSIF", "Complet", 24, 1065),
   INT_36H: f("INT_36H", "INTENSIF", "Sérénité", 36, 1425),
