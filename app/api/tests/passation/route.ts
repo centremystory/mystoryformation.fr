@@ -135,17 +135,27 @@ async function alerterCorrection(
   const base = process.env.APP_URL || "https://crm.mystoryformation.fr";
   const surPlace = String(c.auteur || "").startsWith("sur_place");
 
+  // Tout ce qui suit vient du candidat : nom, telephone, objectif, redaction. Ces
+  // valeurs partent dans un courriel HTML lu par l'equipe. Sans echappement, un
+  // candidat pouvait y glisser un faux bouton ou un faux lien, dans un message qui
+  // porte notre propre identite — c'est du hameconnage a nos frais.
+  const esc = (v: unknown) =>
+    String(v ?? "").replace(/[&<>"']/g, (ch) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch] as string));
+  // Un retour a la ligne dans l'objet permettrait d'injecter des en-tetes.
+  const objetSur = (v: unknown) => String(v ?? "").replace(/[\r\n]+/g, " ").trim();
+
   const li = (cle: string, val: string) =>
-    val ? `<tr><td style="padding:6px 12px 6px 0;color:#6b7280;white-space:nowrap">${cle}</td>`
-        + `<td style="padding:6px 0;font-weight:600;color:#111827">${val}</td></tr>` : "";
+    val ? `<tr><td style="padding:6px 12px 6px 0;color:#6b7280;white-space:nowrap">${esc(cle)}</td>`
+        + `<td style="padding:6px 0;font-weight:600;color:#111827">${esc(val)}</td></tr>` : "";
 
   const paliers = (r.paliers || [])
     .filter((p: any) => p.max > 0)
-    .map((p: any) => `${p.palier} ${Math.round(p.taux * 100)} %${p.tenu ? " ✓" : ""}`)
+    .map((p: any) => `${esc(p.palier)} ${Math.round(p.taux * 100)} %${p.tenu ? " ✓" : ""}`)
     .join(" &nbsp;·&nbsp; ");
 
   const niveau = r.niveau
-    ? `<b style="font-size:20px">${r.niveau}</b> atteint sur les épreuves automatiques`
+    ? `<b style="font-size:20px">${esc(r.niveau)}</b> atteint sur les épreuves automatiques`
     : `<b style="color:#b45309">palier A2 non tenu</b> sur les épreuves automatiques`;
 
   const corps = `
@@ -161,23 +171,23 @@ async function alerterCorrection(
     </table>
     ${c.objectif ? `<p style="margin:0 0 18px;padding:12px 14px;background:#f9fafb;
        border-left:3px solid #2F72DE;font-size:14px"><b>Son objectif, dans ses mots :</b><br>
-       ${String(c.objectif).replace(/</g, "&lt;")}</p>` : ""}
+       ${esc(c.objectif)}</p>` : ""}
 
     <h3 style="font-size:15px;margin:0 0 8px">Ce que le test a déjà mesuré</h3>
     <p style="margin:0 0 6px;font-size:14px">${niveau}</p>
-    <p style="margin:0 0 6px;font-size:13px;color:#6b7280">Par palier : ${paliers || "—"}</p>
+    <p style="margin:0 0 6px;font-size:13px;color:#6b7280">Par palier : ${paliers || "&mdash;"}</p>
     <p style="margin:0 0 6px;font-size:13px;color:#6b7280">
-      Compréhension écrite ${r.ceSur10}/10 &nbsp;·&nbsp; compréhension orale ${r.coSur10}/10</p>
+      Compréhension écrite ${Number(r.ceSur10)}/10 &nbsp;·&nbsp; compréhension orale ${Number(r.coSur10)}/10</p>
     ${r.faible ? `<p style="margin:0 0 6px;font-size:14px;color:#b45309">
-      Épreuve décrochée : <b>${r.faible.epreuve}</b> (${r.faible.note}/10). Au TEF IRN, il faut
+      Épreuve décrochée : <b>${esc(r.faible.epreuve)}</b> (${Number(r.faible.note)}/10). Au TEF IRN, il faut
       tenir le score dans les quatre épreuves à la fois : c'est elle qui ferait tomber le niveau.</p>` : ""}
     <p style="margin:12px 0 18px;padding:12px 14px;background:#eff6ff;border-radius:6px;font-size:14px">
-      <b>Volume à proposer : ${r.reco.heures} heures.</b><br>
-      <span style="color:#4b5563">${r.reco.motif}</span></p>
+      <b>Volume à proposer : ${Number(r.reco.heures)} heures.</b><br>
+      <span style="color:#4b5563">${esc(r.reco.motif)}</span></p>
 
     <h3 style="font-size:15px;margin:0 0 8px">Ce qui reste à faire, par vous</h3>
     <ol style="font-size:14px;margin:0 0 18px;padding-left:20px">
-      <li>Corriger l'expression écrite${r.sujetEcrit ? ` (sujet ${r.sujetEcrit})` : ""} — le texte est ci-dessous.</li>
+      <li>Corriger l'expression écrite${r.sujetEcrit ? ` (sujet ${esc(r.sujetEcrit)})` : ""} — le texte est ci-dessous.</li>
       <li>${surPlace ? "Faire passer l'expression orale et la noter." : "Écouter les enregistrements et noter l'expression orale."}</li>
       <li>Valider le niveau et le volume, puis rappeler le candidat.</li>
     </ol>
@@ -185,7 +195,7 @@ async function alerterCorrection(
       (${String(r.ecrit).trim().split(/\s+/).length} mots)</h3>
       <div style="white-space:pre-wrap;font-size:14px;line-height:1.6;padding:14px;
         background:#fff;border:1px solid #e5e7eb;border-radius:6px">${
-        String(r.ecrit).replace(/</g, "&lt;")}</div>`
+        esc(r.ecrit)}</div>`
       : `<p style="font-size:14px;color:#b45309">Aucune rédaction n'a été rendue.</p>`}
     <p style="margin:22px 0 0">
       <a href="${base}/tests/a-noter" style="display:inline-block;background:#2F72DE;color:#fff;
@@ -196,7 +206,7 @@ async function alerterCorrection(
 
   await envoyerEmail({
     a: process.env.EMAIL_CORRECTIONS || "contact@mystoryformation.fr",
-    objet: `Test de positionnement à corriger — ${nom}${c.telephone ? " · " + c.telephone : ""}`,
+    objet: objetSur(`Test de positionnement à corriger — ${nom}${c.telephone ? " · " + c.telephone : ""}`),
     html: gabaritEmail("Une copie attend sa correction", corps),
     entite: "evaluations", entiteId: id, auteur: "systeme",
   });

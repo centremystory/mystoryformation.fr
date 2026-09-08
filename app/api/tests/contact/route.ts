@@ -17,7 +17,11 @@ import { ipDe, limiteDepassee } from "@/lib/rateLimit";
 
 const txt = (v: unknown, max: number) => {
   const s = String(v ?? "").trim();
-  return s ? s.slice(0, max) : null;
+  if (!s) return null;
+  // Defense en profondeur : un retour a la ligne dans un nom ou un telephone
+  // finirait dans l'objet d'un courriel, ou il permettrait d'injecter des en-tetes.
+  // On le neutralise a l'entree, pas seulement a la sortie.
+  return s.replace(/[\r\n]+/g, " ").slice(0, max);
 };
 
 export async function POST(req: NextRequest) {
@@ -27,14 +31,26 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({} as any));
   const token = txt(body.token, 80);
   if (!token) return NextResponse.json({ ok: false, erreur: "Jeton manquant." }, { status: 400 });
+  // Le jeton est un gen_random_uuid() : imprevisible. Mais il vit aussi longtemps
+  // que l'evaluation, alors qu'il n'a de raison de servir ici qu'une fois, juste
+  // apres la remise de la copie. On borne donc le nombre d'ecritures par jeton.
+  if (await limiteDepassee(`tests-contact-jeton:${token}`, 3, 3600)) {
+    return NextResponse.json({ ok: false, erreur: "Trop de tentatives." }, { status: 429 });
+  }
 
   const { data: ev } = await supabaseAdmin
     .from("evaluations")
-    .select("id, nom, prenom, email, telephone, objectif")
+    .select("id, statut, nom, prenom, email, telephone, objectif")
     .eq("token", token).maybeSingle();
   if (!ev) return NextResponse.json({ ok: false, erreur: "Test introuvable." }, { status: 404 });
 
   const e = ev as any;
+  // Cette route ne sert QU'a l'ecran de fin. Un test encore en cours, ou deja
+  // traite par une formatrice, n'a pas a etre modifie par un appel public.
+  if (e.statut !== "en_attente_formateur") {
+    return NextResponse.json({ ok: false, erreur: "Ce test n'attend pas de coordonnées." },
+                             { status: 409 });
+  }
   // On ne comble que ce qui manque : un conseiller a pu saisir la fiche avant.
   const maj: Record<string, unknown> = {};
   const combler = (champ: string, valeur: string | null) => {
