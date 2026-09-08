@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, UnauthorizedError } from "@/lib/auth";
 import { importerEdof } from "@/lib/edof";
+import { creerDossiersManquants, type LigneEdof } from "@/lib/edofCreation";
 import { journal } from "@/lib/examens";
 
 export const runtime = "nodejs";
@@ -34,14 +35,54 @@ export async function POST(req: NextRequest) {
   try {
     const auteur = (user && (user.email || user.nom)) ? String(user.email || user.nom) : null;
     const rapport = await importerEdof(csv, { mode, fichier, auteur });
+
+  // 09/09/2026 — volet CREATION. L'import historique ne complete que les dossiers
+  // deja saisis a la main ; une commande EDOF sans dossier restait a ressaisir en
+  // entier. On analyse donc aussi ce qui pourrait etre cree, dans le meme passage.
+  // Le mode suit celui de l'import : rien n'est ecrit tant que « Appliquer » n'a
+  // pas ete clique.
+  let creation = null;
+  try {
+    creation = await creerDossiersManquants(lignesBrutes(csv), {
+      mode, auteur: user?.email ?? null,
+    });
+  } catch (e: any) {
+    creation = { erreur: String(e?.message ?? e) };
+  }
     if (mode === "apply") {
       await journal("import_edof", null, "import_applique", {
         fichier, total: rapport.total, crees: rapport.crees, mis_a_jour: rapport.mis_a_jour,
         rapproches_live: rapport.rapproches_live, conflits: rapport.conflits_total,
       });
     }
-    return NextResponse.json({ ok: true, mode, rapport });
+    return NextResponse.json({ ok: true, mode, rapport, creation });
   } catch (e) {
     return NextResponse.json({ ok: false, erreur: String(e) }, { status: 500 });
   }
+}
+
+
+/** Les lignes de l'export, en objets clé→valeur. Le parseur de lib/edof filtre déjà
+ *  les colonnes qui l'intéressent ; la création a besoin de l'identité complète. */
+function lignesBrutes(csv: string): LigneEdof[] {
+  const lignes = csv.split(/\r?\n/).filter((l) => l.trim());
+  if (lignes.length < 2) return [];
+  const sep = (lignes[0].match(/;/g) ?? []).length >= (lignes[0].match(/,/g) ?? []).length ? ";" : ",";
+  const decoupe = (l: string) => {
+    const out: string[] = []; let cur = "", guill = false;
+    for (const ch of l) {
+      if (ch === '"') { guill = !guill; continue; }
+      if (ch === sep && !guill) { out.push(cur); cur = ""; continue; }
+      cur += ch;
+    }
+    out.push(cur);
+    return out.map((x) => x.trim());
+  };
+  const entetes = decoupe(lignes[0]);
+  return lignes.slice(1).map((l) => {
+    const v = decoupe(l);
+    const o: LigneEdof = {};
+    entetes.forEach((e, i) => { o[e] = v[i] ?? ""; });
+    return o;
+  });
 }

@@ -6,6 +6,15 @@
  */
 import { useState, useEffect } from "react";
 
+type Creation = {
+  candidats: number; creables: number; ignorees: number;
+  crees_dossiers: number; crees_stagiaires: number;
+  detail: Array<{ numero_dossier: string; nom: string; prenom: string; statut_edof: string;
+                  montant: number | null; heures: number | null; raison_ignore?: string;
+                  stagiaire_existant: boolean }>;
+  erreur?: string;
+};
+
 type Rapport = {
   total: number; crees: number; mis_a_jour: number; rapproches_live: number;
   services_fait_ouverts: number;
@@ -31,6 +40,7 @@ export default function ImportEdof() {
   const [fichier, setFichier] = useState<string | null>(null);
   const [csv, setCsv] = useState<string | null>(null);
   const [rapport, setRapport] = useState<Rapport | null>(null);
+  const [creation, setCreation] = useState<Creation | null>(null);
   const [applique, setApplique] = useState(false);
   const [busy, setBusy] = useState<"" | "dry" | "apply">("");
   const [erreur, setErreur] = useState<string | null>(null);
@@ -52,7 +62,7 @@ export default function ImportEdof() {
   function choisir(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
-    setErreur(null); setRapport(null); setApplique(false);
+    setErreur(null); setRapport(null); setCreation(null); setApplique(false);
     setFichier(f.name);
     const reader = new FileReader();
     reader.onload = () => setCsv(String(reader.result || ""));
@@ -70,7 +80,7 @@ export default function ImportEdof() {
       });
       const j = await r.json();
       if (!j.ok) { setErreur(j.erreur || "Échec."); return; }
-      setRapport(j.rapport);
+      setRapport(j.rapport); setCreation(j.creation ?? null);
       if (mode === "apply") { setApplique(true); chargerCoherence(); }
     } catch { setErreur("Échec de la requête."); }
     finally { setBusy(""); }
@@ -106,6 +116,65 @@ export default function ImportEdof() {
         </div>
         {erreur && <p className="mt-3 text-sm text-red-600">{erreur}</p>}
       </div>
+
+      {creation && !creation.erreur && creation.candidats > 0 && (
+        <section className="card mb-4 p-5">
+          <h2 className="mb-1 text-lg font-semibold text-gray-900">
+            Dossiers absents du CRM
+          </h2>
+          <p className="mb-3 text-sm text-gray-600">
+            Ces commandes existent sur Mon Compte Formation mais n&apos;ont pas encore de
+            dossier ici. Les créer évite de ressaisir l&apos;identité, l&apos;adresse et les
+            coordonnées — l&apos;export EDOF les porte déjà.
+          </p>
+          <div className="mb-3 flex flex-wrap gap-4 text-sm">
+            <span><b className="text-2xl">{creation.creables}</b> à créer</span>
+            {creation.ignorees > 0 && (
+              <span className="text-amber-700"><b className="text-2xl">{creation.ignorees}</b> à faire à la main</span>
+            )}
+            {applique && (
+              <span className="text-green-700">
+                {creation.crees_dossiers} dossier(s) et {creation.crees_stagiaires} stagiaire(s) créés
+              </span>
+            )}
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+                <tr>
+                  <th className="p-2 text-left">Dossier EDOF</th>
+                  <th className="p-2 text-left">Stagiaire</th>
+                  <th className="p-2 text-left">Statut</th>
+                  <th className="p-2 text-right">Montant</th>
+                  <th className="p-2 text-right">Durée</th>
+                  <th className="p-2 text-left">Contact</th>
+                </tr>
+              </thead>
+              <tbody>
+                {creation.detail.map((d) => (
+                  <tr key={d.numero_dossier} className={`border-t ${d.raison_ignore ? "bg-amber-50" : ""}`}>
+                    <td className="p-2 font-mono text-xs">{d.numero_dossier}</td>
+                    <td className="p-2">{d.prenom} {d.nom}</td>
+                    <td className="p-2 text-gray-600">{d.statut_edof}</td>
+                    <td className="p-2 text-right tabular-nums">{d.montant != null ? `${d.montant} €` : "—"}</td>
+                    <td className="p-2 text-right tabular-nums">
+                      {d.heures != null ? `${d.heures} h`
+                        : <span className="text-amber-700">{d.raison_ignore}</span>}
+                    </td>
+                    <td className="p-2 text-xs text-gray-500">
+                      {d.stagiaire_existant ? "fiche existante" : "fiche à créer"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-3 text-xs text-gray-500">
+            La durée est déduite du montant : chaque palier du catalogue a un prix unique.
+            Un montant hors grille n&apos;est jamais interprété — la ligne reste à saisir à la main.
+          </p>
+        </section>
+      )}
 
       {rapport && (
         <div className="mt-6">
