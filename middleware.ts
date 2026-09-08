@@ -63,6 +63,7 @@ const CHEMINS_PUBLICS = [
   "/api/tests/passation",         // passation par jeton (capability)
   "/api/tests/oral",              // dépôt des audios (jeton)
   "/api/tests/audio",             // upload audio (jeton)
+  "/api/tests/contact",           // coordonnées laissées en fin de test (jeton + statut vérifiés)
 ];
 
 export async function middleware(req: NextRequest) {
