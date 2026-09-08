@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireRole, UnauthorizedError } from "@/lib/auth";
-import { niveauFromSur20 } from "@/lib/tests";
+import { niveauFromSur20, PALIERS, epreuveLaPlusFaible, type Palier } from "@/lib/tests";
 import { genererDocEvaluation } from "@/lib/evaluationDoc";
 import { journal } from "@/lib/examens";
 import { envoyerEmail, gabaritEmail } from "@/lib/email";
@@ -76,13 +76,38 @@ export async function POST(req: NextRequest) {
   const clip = (v: unknown, n = 2000) => (v == null ? null : String(v).trim().slice(0, n) || null);
 
   const { data: ev } = await supabaseAdmin
-    .from("evaluations").select("id, phase, dossier_id, ce_sur10, co_sur10, statut, civilite, nom, prenom, email, niveau_vise").eq("id", id).maybeSingle();
+    .from("evaluations").select("id, phase, dossier_id, ce_sur10, co_sur10, statut, civilite, nom, prenom, email, niveau_vise, niveau_calibre, heures_preconisees").eq("id", id).maybeSingle();
   if (!ev) return NextResponse.json({ ok: false, erreur: "Évaluation introuvable." }, { status: 404 });
   if (ev.statut !== "en_attente_formateur") return NextResponse.json({ ok: false, erreur: "Ce test n'est pas en attente de notation." }, { status: 409 });
   if (ev.ce_sur10 == null || ev.co_sur10 == null) return NextResponse.json({ ok: false, erreur: "Scores de compréhension absents." }, { status: 409 });
 
   const total = Math.round(((Number(ev.ce_sur10) + Number(ev.co_sur10) + ee + eo) / 2) * 10) / 10;
-  const niveau = niveauFromSur20(total);
+
+  // 09/09/2026 — le niveau n'est plus une moyenne des quatre epreuves.
+  //
+  // Au TEF IRN, il faut tenir le score DANS LES QUATRE EPREUVES A LA FOIS : une
+  // seule epreuve faible fait tomber le niveau entier. Une moyenne donnait donc un
+  // resultat que l'examen reel dementirait — un candidat a l'aise a l'oral mais qui
+  // n'ecrit pas ressortait « B1 » puis echouait.
+  //
+  // On part du palier reellement tenu en comprehension (calibrer(), au moment de la
+  // soumission), et on l'abaisse d'un cran si une epreuve d'expression ne suit pas.
+  // On ne remonte jamais au-dessus : une bonne expression ne compense pas une
+  // comprehension insuffisante.
+  const SEUIL_EXPRESSION = 6;                    // sur 10, note par la formatrice
+  const calibre = (ev as any).niveau_calibre as Palier | null;
+  let niveau: string;
+  if (!calibre) {
+    // Le palier A2 n'etait deja pas tenu en comprehension : les expressions ne
+    // peuvent pas creer un niveau qui n'existe pas.
+    niveau = "En deça de A2";
+  } else if (Math.min(ee, eo) < SEUIL_EXPRESSION) {
+    const rang = PALIERS.indexOf(calibre);
+    niveau = rang > 0 ? PALIERS[rang - 1] : "En deça de A2";
+  } else {
+    niveau = calibre;
+  }
+  const faible = epreuveLaPlusFaible(Number(ev.ce_sur10), Number(ev.co_sur10), ee, eo);
 
   // Évaluation orale granulaire (trace stable, ne réécrase jamais la modalité si non fournie).
   const oralPatch: Record<string, unknown> = {
