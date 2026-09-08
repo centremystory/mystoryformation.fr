@@ -5,9 +5,10 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { niveauFromSur20 } from "@/lib/tests";
-import { corrigerAuto, type QuestionCorrige } from "@/lib/tests";
+import { corrigerAuto, calibrer, heuresRecommandees,
+         epreuveLaPlusFaible, type QuestionCorrige, type Palier } from "@/lib/tests";
 import { journal } from "@/lib/examens";
+import { envoyerEmail, gabaritEmail, EMAIL_ACTIF } from "@/lib/email";
 import { ipDe, limiteDepassee } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
@@ -24,6 +25,8 @@ export async function GET(req: NextRequest) {
     .maybeSingle();
   if (error) return NextResponse.json({ ok: false, erreur: "Lecture impossible." }, { status: 502 });
   if (!ev) return NextResponse.json({ ok: false, erreur: "Test introuvable." }, { status: 404 });
+  const evVise = (ev as any).niveau_vise;
+  const evFiche = ev as any;
   if (ev.statut === "annule") return NextResponse.json({ ok: false, erreur: "Ce test a été annulé." }, { status: 410 });
   if (ev.statut !== "en_cours") return NextResponse.json({ ok: false, erreur: "Ce test a déjà été envoyé. Merci !", dejaFait: true }, { status: 409 });
 
@@ -61,28 +64,140 @@ export async function POST(req: NextRequest) {
   const sujetEcrit = ["A1", "A2", "B1", "B2"].includes(String(body.sujet_ecrit)) ? String(body.sujet_ecrit) : null;
 
   const { data: ev, error } = await supabaseAdmin
-    .from("evaluations").select("id, test_id, statut").eq("token", token).maybeSingle();
+    .from("evaluations")
+    .select("id, test_id, statut, niveau_vise, nom, prenom, email, telephone, demarche, objectif, echeance, auteur")
+    .eq("token", token).maybeSingle();
   if (error) return NextResponse.json({ ok: false, erreur: "Lecture impossible." }, { status: 502 });
   if (!ev) return NextResponse.json({ ok: false, erreur: "Test introuvable." }, { status: 404 });
+  const evVise = (ev as any).niveau_vise;
+  const evFiche = ev as any;
   if (ev.statut !== "en_cours") return NextResponse.json({ ok: false, erreur: "Ce test a déjà été envoyé." }, { status: 409 });
 
   const { data: qs } = await supabaseAdmin
     .from("test_questions")
-    .select("id, section, type, bonne_reponse, mots_cles, points")
+    .select("id, section, type, bonne_reponse, mots_cles, points, niveau")
     .eq("test_id", ev.test_id).eq("actif", true);
 
   const questions: QuestionCorrige[] = (qs ?? []).map((q: any) => ({
     id: q.id, section: q.section, type: q.type,
     bonne_reponse: q.bonne_reponse, mots_cles: q.mots_cles, points: q.points ?? 1,
+    niveau: q.niveau ?? "A2",
   }));
   const { ceSur10, coSur10 } = corrigerAuto(questions, reponses);
 
+  // 08/09/2026 — le niveau n'est plus un pourcentage. On retient le palier le plus
+  // haut reellement tenu, et on en deduit le volume d'heures a proposer. Le candidat
+  // ne doit JAMAIS lire « A0 » : c'est demoralisant, ce n'est pas un niveau du CECRL,
+  // et cela fait fuir un prospect qu'on veut accompagner.
+  const { paliers, niveau } = calibrer(questions as any, reponses);
+  const vise = (["A2", "B1", "B2"].includes(String(evVise)) ? evVise : "B1") as Palier;
+  const reco = heuresRecommandees(niveau, vise);
+  const faible = epreuveLaPlusFaible(Number(ceSur10 ?? 0), Number(coSur10 ?? 0), null, null);
+
   const { error: e2 } = await supabaseAdmin.from("evaluations").update({
     reponses, ce_sur10: ceSur10, co_sur10: coSur10, ecrit, sujet_ecrit: sujetEcrit,
+    niveau_calibre: niveau, heures_preconisees: reco.heures,
     statut: "en_attente_formateur",
   }).eq("id", ev.id);
   if (e2) return NextResponse.json({ ok: false, erreur: "Enregistrement impossible." }, { status: 502 });
 
   await journal("evaluation", ev.id, "test_soumis", { ce_sur10: ceSur10, co_sur10: coSur10 }, "candidat");
-  return NextResponse.json({ ok: true, niveau_provisoire: niveauFromSur20(Number(ceSur10 ?? 0) + Number(coSur10 ?? 0)) });
+
+  // 08/09/2026 — Alerte de correction. Sans elle, une rédaction pouvait dormir des
+  // jours : rien ne prévenait l'équipe qu'un candidat attendait sa note. C'est aussi
+  // la fiche commerciale du prospect : elle porte ses coordonnées, sa démarche, son
+  // échéance et le volume d'heures a lui proposer.
+  if (EMAIL_ACTIF) {
+    void alerterCorrection(ev.id, token, evFiche, {
+      ceSur10, coSur10, paliers, niveau, vise, reco, faible, ecrit, sujetEcrit,
+    }).catch(() => { /* l'envoi ne doit jamais faire echouer la soumission du candidat */ });
+  }
+  return NextResponse.json({
+    ok: true,
+    niveau_calibre: niveau,             // A2 | B1 | B2 | null (palier non tenu)
+    niveau_vise: vise,
+    paliers,                            // detail par palier, pour la restitution
+    heures: reco.heures,
+    ecart: reco.ecart,
+    motif: reco.motif,
+    epreuve_faible: faible,             // celle qui fait tomber le niveau au TEF IRN
+    ce_sur10: ceSur10, co_sur10: coSur10,
+  });
+}
+
+
+/** Prévient l'équipe qu'une copie attend sa correction, et lui donne de quoi
+ *  rappeler le candidat tout de suite. */
+async function alerterCorrection(
+  id: string, token: string, c: any, r: any,
+): Promise<void> {
+  const nom = [c.prenom, c.nom].filter(Boolean).join(" ") || "Candidat sans nom";
+  const base = process.env.APP_URL || "https://crm.mystoryformation.fr";
+  const surPlace = String(c.auteur || "").startsWith("sur_place");
+
+  const li = (cle: string, val: string) =>
+    val ? `<tr><td style="padding:6px 12px 6px 0;color:#6b7280;white-space:nowrap">${cle}</td>`
+        + `<td style="padding:6px 0;font-weight:600;color:#111827">${val}</td></tr>` : "";
+
+  const paliers = (r.paliers || [])
+    .filter((p: any) => p.max > 0)
+    .map((p: any) => `${p.palier} ${Math.round(p.taux * 100)} %${p.tenu ? " ✓" : ""}`)
+    .join(" &nbsp;·&nbsp; ");
+
+  const niveau = r.niveau
+    ? `<b style="font-size:20px">${r.niveau}</b> atteint sur les épreuves automatiques`
+    : `<b style="color:#b45309">palier A2 non tenu</b> sur les épreuves automatiques`;
+
+  const corps = `
+    <p style="margin:0 0 14px">Une copie attend sa correction.</p>
+    <table style="border-collapse:collapse;font-size:14px;margin-bottom:18px">
+      ${li("Candidat", nom)}
+      ${li("Téléphone", c.telephone || "")}
+      ${li("Courriel", c.email || "")}
+      ${li("Démarche", c.demarche || "")}
+      ${li("Niveau visé", c.niveau_vise || "")}
+      ${li("Échéance annoncée", c.echeance || "")}
+      ${li("Passation", surPlace ? "sur place" : "à distance")}
+    </table>
+    ${c.objectif ? `<p style="margin:0 0 18px;padding:12px 14px;background:#f9fafb;
+       border-left:3px solid #2F72DE;font-size:14px"><b>Son objectif, dans ses mots :</b><br>
+       ${String(c.objectif).replace(/</g, "&lt;")}</p>` : ""}
+
+    <h3 style="font-size:15px;margin:0 0 8px">Ce que le test a déjà mesuré</h3>
+    <p style="margin:0 0 6px;font-size:14px">${niveau}</p>
+    <p style="margin:0 0 6px;font-size:13px;color:#6b7280">Par palier : ${paliers || "—"}</p>
+    <p style="margin:0 0 6px;font-size:13px;color:#6b7280">
+      Compréhension écrite ${r.ceSur10}/10 &nbsp;·&nbsp; compréhension orale ${r.coSur10}/10</p>
+    ${r.faible ? `<p style="margin:0 0 6px;font-size:14px;color:#b45309">
+      Épreuve décrochée : <b>${r.faible.epreuve}</b> (${r.faible.note}/10). Au TEF IRN, il faut
+      tenir le score dans les quatre épreuves à la fois : c'est elle qui ferait tomber le niveau.</p>` : ""}
+    <p style="margin:12px 0 18px;padding:12px 14px;background:#eff6ff;border-radius:6px;font-size:14px">
+      <b>Volume à proposer : ${r.reco.heures} heures.</b><br>
+      <span style="color:#4b5563">${r.reco.motif}</span></p>
+
+    <h3 style="font-size:15px;margin:0 0 8px">Ce qui reste à faire, par vous</h3>
+    <ol style="font-size:14px;margin:0 0 18px;padding-left:20px">
+      <li>Corriger l'expression écrite${r.sujetEcrit ? ` (sujet ${r.sujetEcrit})` : ""} — le texte est ci-dessous.</li>
+      <li>${surPlace ? "Faire passer l'expression orale et la noter." : "Écouter les enregistrements et noter l'expression orale."}</li>
+      <li>Valider le niveau et le volume, puis rappeler le candidat.</li>
+    </ol>
+    ${r.ecrit ? `<h3 style="font-size:15px;margin:0 0 8px">Sa rédaction
+      (${String(r.ecrit).trim().split(/\s+/).length} mots)</h3>
+      <div style="white-space:pre-wrap;font-size:14px;line-height:1.6;padding:14px;
+        background:#fff;border:1px solid #e5e7eb;border-radius:6px">${
+        String(r.ecrit).replace(/</g, "&lt;")}</div>`
+      : `<p style="font-size:14px;color:#b45309">Aucune rédaction n'a été rendue.</p>`}
+    <p style="margin:22px 0 0">
+      <a href="${base}/tests/a-noter" style="display:inline-block;background:#2F72DE;color:#fff;
+        text-decoration:none;padding:11px 20px;border-radius:6px;font-weight:600">
+        Noter cette copie</a>
+      &nbsp;&nbsp;<a href="${base}/tests/${id}" style="color:#2F72DE">voir le détail</a>
+    </p>`;
+
+  await envoyerEmail({
+    a: process.env.EMAIL_CORRECTIONS || "contact@mystoryformation.fr",
+    objet: `Test de positionnement à corriger — ${nom}${c.telephone ? " · " + c.telephone : ""}`,
+    html: gabaritEmail("Une copie attend sa correction", corps),
+    entite: "evaluations", entiteId: id, auteur: "systeme",
+  });
 }
