@@ -45,6 +45,11 @@ export default function Passation({ params }: { params: { token: string } }) {
                                        demarche: "", niveauVise: "", echeance: "", objectif: "" });
   const [coordEnvoi, setCoordEnvoi] = useState<"idle" | "envoi" | "ok">("idle");
   const [civique, setCivique] = useState<"idle" | "envoi">("idle");
+  // 09/09/2026 — sequencement des documents sonores. Ils s'enchainent l'un apres
+  // l'autre, jamais en meme temps, et les reponses d'un bloc ne s'ouvrent que
+  // pendant ses 15 secondes de reponse : c'est la contrainte du jour J.
+  const [audioIdx, setAudioIdx] = useState(0);
+  const [phaseAudio, setPhaseAudio] = useState<Record<string, string>>({});
   const [deja, setDeja] = useState(false);
   const [kiosque, setKiosque] = useState(false);
   const [oralBlobs, setOralBlobs] = useState<Record<number, Blob>>({});
@@ -483,9 +488,17 @@ export default function Passation({ params }: { params: { token: string } }) {
       )}
 
       {sections.filter((s) => s === phase).map((sec) => {
+        // Les documents sonores, dans l'ordre ou le candidat les rencontrera.
+        const audios: string[] = [];
+        for (const q of data.questions.filter((q) => q.section === sec)) {
+          if (q.audio_path && jouable(q.audio_path) && !audios.includes(q.audio_path)) {
+            audios.push(q.audio_path);
+          }
+        }
         const qs = data.questions.filter((q) => q.section === sec);
         if (!qs.length) return null;
         let lastCtx: string | null = null, lastAudio: string | null = null, lastBloc: string | null = null;
+        let verrouille = false;
         return (
           <section key={sec} className="mb-8">
             <h2 className="mb-3 border-b border-gray-200 pb-1 text-lg font-semibold text-gray-800">{LABEL[sec]}</h2>
@@ -505,24 +518,35 @@ export default function Passation({ params }: { params: { token: string } }) {
                   )}
                   {showAudio && (
                     jouable(q.audio_path) ? (
-                      <AudioUneEcoute src={q.audio_path!} />
+                      <DocumentSonore
+                        src={q.audio_path!}
+                        actif={audios.indexOf(q.audio_path!) === audioIdx}
+                        onPhase={(ph) => setPhaseAudio((p) =>
+                          p[q.audio_path!] === ph ? p : { ...p, [q.audio_path!]: ph })}
+                        onFini={() => setAudioIdx((i) =>
+                          i === audios.indexOf(q.audio_path!) ? i + 1 : i)}
+                      />
                     ) : (
                       <p className="mb-3 text-xs text-amber-700">🎧 Audio fourni par la formatrice le jour du test.</p>
                     )
                   )}
-                  <div className="mb-4 rounded-xl border border-gray-200 p-3">
+                  {(() => { verrouille = !!q.audio_path && jouable(q.audio_path)
+                      && phaseAudio[q.audio_path] !== "repondre"; return null; })()}
+                  <div className={`mb-4 rounded-xl border p-3 ${verrouille
+                    ? "border-gray-100 bg-gray-50/60 opacity-60" : "border-gray-200"}`}>
                     <p className="mb-3 text-[15px] font-semibold text-gray-900">{numero}. {q.enonce}</p>
                     {q.type === "texte_libre" ? (
                       <input
                         value={rep[q.id] ?? ""} onChange={(e) => setRep((p) => ({ ...p, [q.id]: e.target.value }))}
-                        placeholder="Votre réponse…" className="input w-full"
+                        disabled={verrouille}
+                        placeholder={verrouille ? "Patientez…" : "Votre réponse…"} className="input w-full"
                       />
                     ) : aImages ? (
                       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                         {q.options.map((o) => (
                           <button
-                            key={o.cle} type="button"
-                            onClick={() => setRep((p) => ({ ...p, [q.id]: o.cle }))}
+                            key={o.cle} type="button" disabled={verrouille}
+                            onClick={() => { if (!verrouille) setRep((p) => ({ ...p, [q.id]: o.cle })); }}
                             className={`overflow-hidden rounded-lg border-2 p-1 transition ${rep[q.id] === o.cle ? "border-mystory ring-2 ring-mystory/30" : "border-gray-200"}`}
                           >
                             {o.image && <img src={o.image} alt={o.texte} className="h-24 w-full object-contain" />}
@@ -534,7 +558,7 @@ export default function Passation({ params }: { params: { token: string } }) {
                       <div className="grid gap-1.5 lg:grid-cols-2">
                         {q.options.map((o) => (
                           <label key={o.cle} className={`flex cursor-pointer items-start gap-2 rounded-lg border px-3 py-2 text-sm transition ${rep[q.id] === o.cle ? "border-mystory bg-mystory-clair" : "border-gray-200 hover:bg-gray-50"}`}>
-                            <input type="radio" name={q.id} checked={rep[q.id] === o.cle} onChange={() => setRep((p) => ({ ...p, [q.id]: o.cle }))} className="mt-0.5" />
+                            <input type="radio" name={q.id} disabled={verrouille} checked={rep[q.id] === o.cle} onChange={() => setRep((p) => ({ ...p, [q.id]: o.cle }))} className="mt-0.5" />
                             <span><span className="font-medium">{o.cle}.</span> {o.texte}</span>
                           </label>
                         ))}
@@ -673,26 +697,80 @@ function EnregistreurOral({ index, question, onBlob }: { index: number; question
 }
 
 /** Compréhension orale : chaque audio ne peut être écouté qu'UNE seule fois (règle Direction 10/07). */
-function AudioUneEcoute({ src }: { src: string }) {
+/**
+ * Un document sonore, joué comme au TEF IRN.
+ *
+ * 09/09/2026 — le kit formateur est explicite : « on laisse 10 secondes avant
+ * l'audio pour lire la question et 15 secondes après pour répondre. Tout
+ * entraînement doit reproduire cette contrainte. » Et le jour J, l'audio se lance
+ * SEUL : il n'y a pas de bouton « écouter ».
+ *
+ * On reproduit donc les trois temps :
+ *   1. LIRE   — 10 s, les réponses sont verrouillées : on prend connaissance des questions
+ *   2. ÉCOUTE — l'audio part tout seul, une seule fois, réponses toujours verrouillées
+ *   3. RÉPONDRE — 15 s, et seulement là on peut cocher
+ * Passé ce délai le bloc est clos, comme à l'examen.
+ *
+ * Le cycle ne démarre que lorsque le bloc devient ACTIF : les documents s'enchaînent
+ * l'un après l'autre, jamais en même temps.
+ */
+function DocumentSonore({
+  src, actif, onFini, onPhase,
+}: {
+  src: string; actif: boolean;
+  onFini: () => void; onPhase: (p: "attente" | "lire" | "ecoute" | "repondre" | "clos") => void;
+}) {
+  const [phase, setPhase] = useState<"attente" | "lire" | "ecoute" | "repondre" | "clos">("attente");
+  const [reste, setReste] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [etat, setEtat] = useState<"pret" | "lecture" | "fini">("pret");
+  const lance = useRef(false);
 
-  function lancer() {
-    if (etat !== "pret") return;
-    const a = new Audio(src);
-    audioRef.current = a;
-    a.onended = () => setEtat("fini");
-    a.onerror = () => setEtat("fini");
-    a.play().then(() => setEtat("lecture")).catch(() => setEtat("pret"));
-  }
+  useEffect(() => { onPhase(phase); }, [phase, onPhase]);
 
-  return (
-    <div className="mb-3 flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
-      {etat === "pret" && (
-        <button type="button" onClick={lancer} className="btn-primary !py-1.5 !text-sm">▶ Écouter l&apos;audio (1 seule fois)</button>
-      )}
-      {etat === "lecture" && <span className="text-sm font-medium text-mystory">🔊 Écoute en cours… répondez aux questions ci-dessous.</span>}
-      {etat === "fini" && <span className="text-sm text-gray-500">✓ Écoute terminée — répondez de mémoire.</span>}
-    </div>
-  );
+  useEffect(() => {
+    if (!actif || lance.current) return;
+    lance.current = true;
+    setPhase("lire"); setReste(10);
+    const tic = setInterval(() => setReste((r) => (r > 0 ? r - 1 : 0)), 1000);
+    const versEcoute = setTimeout(() => {
+      clearInterval(tic);
+      setPhase("ecoute");
+      const a = new Audio(src);
+      audioRef.current = a;
+      const apres = () => {
+        setPhase("repondre"); setReste(15);
+        const t2 = setInterval(() => setReste((r) => (r > 0 ? r - 1 : 0)), 1000);
+        setTimeout(() => { clearInterval(t2); setPhase("clos"); onFini(); }, 15_000);
+      };
+      a.onended = apres;
+      // Un fichier introuvable ou un navigateur qui refuse la lecture automatique ne
+      // doit pas bloquer le candidat : on passe au temps de réponse.
+      a.onerror = apres;
+      a.play().catch(apres);
+    }, 10_000);
+    return () => { clearInterval(tic); clearTimeout(versEcoute); };
+  }, [actif, src, onFini]);
+
+  const cadre = "mb-3 rounded-xl border-2 px-4 py-3 text-sm font-medium";
+  if (phase === "attente")
+    return <div className={`${cadre} border-gray-200 bg-gray-50 text-gray-500`}>
+      Document sonore suivant — il démarrera seul.
+    </div>;
+  if (phase === "lire")
+    return <div className={`${cadre} border-amber-300 bg-amber-50 text-amber-900`}>
+      Lisez les questions ci-dessous. L&apos;audio démarre dans <b>{reste} s</b> — il ne
+      passera qu&apos;une seule fois.
+    </div>;
+  if (phase === "ecoute")
+    return <div className={`${cadre} border-mystory bg-blue-50 text-mystory`}>
+      🔊 Écoute en cours. Vous répondrez juste après.
+    </div>;
+  if (phase === "repondre")
+    return <div className={`${cadre} border-green-400 bg-green-50 text-green-800`}>
+      À vous — <b>{reste} s</b> pour répondre.
+    </div>;
+  return <div className={`${cadre} border-gray-200 bg-gray-50 text-gray-400`}>
+    Document terminé.
+  </div>;
 }
+
