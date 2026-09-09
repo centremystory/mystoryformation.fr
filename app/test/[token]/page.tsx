@@ -41,8 +41,10 @@ export default function Passation({ params }: { params: { token: string } }) {
   // ou un prospect decide. Il lui faut son niveau, le volume d'heures qui l'en
   // separe, et un moyen de nous joindre.
   const [bilan, setBilan] = useState<any>(null);
-  const [coord, setCoord] = useState({ nom: "", prenom: "", email: "", telephone: "", objectif: "" });
+  const [coord, setCoord] = useState({ nom: "", prenom: "", email: "", telephone: "",
+                                       demarche: "", niveauVise: "", echeance: "", objectif: "" });
   const [coordEnvoi, setCoordEnvoi] = useState<"idle" | "envoi" | "ok">("idle");
+  const [civique, setCivique] = useState<"idle" | "envoi">("idle");
   const [deja, setDeja] = useState(false);
   const [kiosque, setKiosque] = useState(false);
   const [oralBlobs, setOralBlobs] = useState<Record<number, Blob>>({});
@@ -64,7 +66,9 @@ export default function Passation({ params }: { params: { token: string } }) {
   const sections = useMemo<("CE" | "CO")[]>(() => ["CE", "CO"], []);
   // 08/09/2026 : format ramene a 45 min au total (37 min sur place, l'oral se faisant
   // en direct avec le conseiller). Moins de questions faciles, plus de discriminantes.
-  const DUREES_MIN: Record<"CE" | "CO" | "EE" | "EO", number> = { CE: 15, CO: 12, EE: 10, EO: 8 };
+  // 09/09/2026 : la CO passe de 12 a 15 min — 8 documents sonores et 18 questions
+  // n'y tenaient pas. Total inchange a 45 min a distance, 38 sur place.
+  const DUREES_MIN: Record<"CE" | "CO" | "EE" | "EO", number> = { CE: 15, CO: 15, EE: 8, EO: 7 };
   // Sur place : l'expression orale se fait EN DIRECT avec l'examinateur (qui la note ensuite) —
   // pas d'enregistrement en ligne. À distance : enregistrement micro (étape EO 10 min).
   const ORDRE_PHASES: ("CE" | "CO" | "EE" | "EO")[] = data?.mode === "sur_place" ? ["CE", "CO", "EE"] : ["CE", "CO", "EE", "EO"];
@@ -236,6 +240,119 @@ export default function Passation({ params }: { params: { token: string } }) {
           </div>
         )}
 
+        {/* ── Le formulaire. C'est l'etape qui transforme un test en client : elle
+            passe donc AVANT le detail des epreuves, pendant que le resultat est
+            encore sous les yeux. Listes deroulantes plutot que texte libre : le
+            candidat repond plus vite, et la donnee devient exploitable. */}
+        {coordEnvoi !== "ok" && (
+          <form
+            className="mb-5 rounded-2xl border-2 border-mystory bg-blue-50/60 p-6 shadow-sm"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setCoordEnvoi("envoi");
+              try {
+                await fetch(`/api/tests/contact`, {
+                  method: "POST", headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ token: params.token, ...coord }),
+                });
+                setCoordEnvoi("ok");
+              } catch { setCoordEnvoi("idle"); }
+            }}
+          >
+            <p className="text-lg font-bold text-gray-900">Recevez votre bilan complet</p>
+            <p className="mb-4 text-sm text-gray-600">
+              Le détail des quatre épreuves, la correction commentée de votre rédaction, et le
+              parcours adapté à votre situation. Un conseiller vous rappelle pour en parler.
+            </p>
+
+            <div className="grid gap-2 sm:grid-cols-2">
+              <input required placeholder="Prénom" className="input" value={coord.prenom}
+                     onChange={(e) => setCoord({ ...coord, prenom: e.target.value })} />
+              <input required placeholder="Nom" className="input" value={coord.nom}
+                     onChange={(e) => setCoord({ ...coord, nom: e.target.value })} />
+              <input required type="email" placeholder="Adresse e-mail" className="input" value={coord.email}
+                     onChange={(e) => setCoord({ ...coord, email: e.target.value })} />
+              <input required type="tel" placeholder="Téléphone" className="input" value={coord.telephone}
+                     onChange={(e) => setCoord({ ...coord, telephone: e.target.value })} />
+            </div>
+
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-gray-600">
+                  Pourquoi passez-vous le TEF ?
+                </span>
+                <select required className="input w-full" value={coord.demarche}
+                        onChange={(e) => {
+                          // La demarche determine le niveau exige par la loi : on le
+                          // pre-remplit pour que le candidat n'ait pas a le deviner.
+                          const d = e.target.value;
+                          const niv = d === "sejour" ? "A2" : d === "resident" ? "B1"
+                                    : d === "naturalisation" ? "B2" : coord.niveauVise;
+                          setCoord({ ...coord, demarche: d, niveauVise: niv });
+                        }}>
+                  <option value="">Choisissez…</option>
+                  <option value="sejour">Carte de séjour pluriannuelle</option>
+                  <option value="resident">Carte de résident de 10 ans</option>
+                  <option value="naturalisation">Naturalisation française</option>
+                  <option value="emploi">Travail ou recherche d&apos;emploi</option>
+                  <option value="etudes">Études ou formation</option>
+                  <option value="autre">Autre raison</option>
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-gray-600">
+                  Niveau à atteindre
+                </span>
+                <select required className="input w-full" value={coord.niveauVise}
+                        onChange={(e) => setCoord({ ...coord, niveauVise: e.target.value })}>
+                  <option value="">Choisissez…</option>
+                  <option value="A2">A2 — carte de séjour pluriannuelle</option>
+                  <option value="B1">B1 — carte de résident</option>
+                  <option value="B2">B2 — naturalisation</option>
+                  <option value="inconnu">Je ne sais pas encore</option>
+                </select>
+              </label>
+            </div>
+
+            <label className="mt-2 block">
+              <span className="mb-1 block text-xs font-medium text-gray-600">
+                Pour quand en avez-vous besoin ?
+              </span>
+              <select className="input w-full" value={coord.echeance}
+                      onChange={(e) => setCoord({ ...coord, echeance: e.target.value })}>
+                <option value="">Choisissez…</option>
+                <option value="urgent">J&apos;ai déjà un rendez-vous en préfecture</option>
+                <option value="1mois">Dans le mois</option>
+                <option value="3mois">Dans les trois mois</option>
+                <option value="6mois">Dans les six mois</option>
+                <option value="pas_presse">Je ne suis pas pressé</option>
+              </select>
+            </label>
+
+            <textarea
+              className="input mt-2 w-full" rows={2} value={coord.objectif}
+              placeholder="Une précision à nous donner ? (facultatif)"
+              onChange={(e) => setCoord({ ...coord, objectif: e.target.value })} />
+
+            <button type="submit" disabled={coordEnvoi === "envoi"} className="btn-primary mt-3 w-full !py-3 !text-base">
+              {coordEnvoi === "envoi" ? "Envoi…" : "Recevoir mon bilan et être rappelé"}
+            </button>
+            <p className="mt-2 text-xs text-gray-500">
+              Vos données servent uniquement à vous transmettre votre bilan et à vous rappeler.
+              Vous pouvez demander leur suppression à tout moment.
+            </p>
+          </form>
+        )}
+        {coordEnvoi === "ok" && (
+          <div className="mb-5 rounded-2xl border-2 border-green-300 bg-green-50 p-6 text-green-900">
+            <p className="text-lg font-bold">C&apos;est noté.</p>
+            <p className="mt-1 text-sm">
+              Vous recevrez votre bilan complet par e-mail, et un conseiller vous rappelle très
+              vite pour en parler.
+            </p>
+          </div>
+        )}
+
         {/* ── Où en est chaque épreuve. */}
         <div className="mb-4 rounded-xl border border-gray-200 bg-white p-4 text-sm">
           <div className="mb-2 text-xs uppercase tracking-wide text-gray-500">Vos quatre épreuves</div>
@@ -251,66 +368,64 @@ export default function Passation({ params }: { params: { token: string } }) {
           </div>
         </div>
 
-        {/* ── Le formulaire. Sans coordonnées, un test passé ne sert a personne. */}
-        {coordEnvoi !== "ok" && (
-          <form
-            className="mb-4 rounded-2xl border-2 border-dashed border-mystory/40 bg-white p-5"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              setCoordEnvoi("envoi");
-              try {
-                await fetch(`/api/tests/contact`, {
-                  method: "POST", headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ token: params.token, ...coord }),
-                });
-                setCoordEnvoi("ok");
-              } catch { setCoordEnvoi("idle"); }
-            }}
-          >
-            <p className="mb-1 font-semibold text-gray-900">Recevez votre bilan complet</p>
-            <p className="mb-3 text-sm text-gray-600">
-              Le détail des quatre épreuves, la correction de votre rédaction et le parcours
-              adapté à votre situation. Un conseiller vous rappelle pour en parler.
-            </p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <input required placeholder="Prénom" className="input" value={coord.prenom}
-                     onChange={(e) => setCoord({ ...coord, prenom: e.target.value })} />
-              <input required placeholder="Nom" className="input" value={coord.nom}
-                     onChange={(e) => setCoord({ ...coord, nom: e.target.value })} />
-              <input required type="email" placeholder="Adresse e-mail" className="input" value={coord.email}
-                     onChange={(e) => setCoord({ ...coord, email: e.target.value })} />
-              <input required type="tel" placeholder="Téléphone" className="input" value={coord.telephone}
-                     onChange={(e) => setCoord({ ...coord, telephone: e.target.value })} />
-            </div>
-            <textarea
-              className="input mt-2 w-full" rows={2} value={coord.objectif}
-              placeholder="Pourquoi passez-vous le TEF ? (carte de séjour, naturalisation, travail…) et pour quand ?"
-              onChange={(e) => setCoord({ ...coord, objectif: e.target.value })} />
-            <button type="submit" disabled={coordEnvoi === "envoi"} className="btn-primary mt-3 w-full">
-              {coordEnvoi === "envoi" ? "Envoi…" : "Recevoir mon bilan et être rappelé"}
-            </button>
-            <p className="mt-2 text-xs text-gray-400">
-              Vos données servent uniquement à vous transmettre votre bilan et à vous rappeler.
-              Vous pouvez demander leur suppression à tout moment.
-            </p>
-          </form>
-        )}
-        {coordEnvoi === "ok" && (
-          <div className="mb-4 rounded-2xl border border-green-300 bg-green-50 p-5 text-sm text-green-900">
-            <b>C&apos;est noté.</b> Vous recevrez votre bilan complet par e-mail, et un conseiller
-            vous rappelle très vite pour en parler.
-          </div>
-        )}
+        {/* ── L'entrainement, et le second examen. Depuis 2026 une carte de sejour,
+            une carte de resident et une naturalisation exigent AUSSI l'examen
+            civique : le candidat l'ignore souvent, et c'est ici qu'il y pense. */}
+        <div className="mb-4">
+          <p className="mb-2 text-sm font-semibold text-gray-900">En attendant, entraînez-vous</p>
+          <div className="grid gap-3 sm:grid-cols-2">
 
-        {/* ── En attendant, de quoi s'entraîner. */}
-        <div className="mb-4 rounded-xl bg-gray-50 p-4 text-sm text-gray-700">
-          <p className="mb-1 font-semibold text-gray-900">En attendant, entraînez-vous</p>
-          <p>
-            La plateforme <a className="text-mystory underline" href="https://passetontef.fr"
-            target="_blank" rel="noopener noreferrer">passetontef.fr</a> vous fait travailler
-            les quatre épreuves au format réel.
-            {bilan?.niveau_vise ? " Elle est particulièrement utile sur l'épreuve que nous venons d'identifier." : ""}
+            <a href="https://passetontef.fr" target="_blank" rel="noopener noreferrer"
+               className="block rounded-2xl border-2 border-gray-200 bg-white p-4 transition hover:border-mystory hover:shadow-sm">
+              <div className="mb-1 flex items-baseline gap-1">
+                <span className="text-lg font-extrabold tracking-tight text-mystory">passetontef</span>
+                <span className="text-lg font-light text-gray-400">.fr</span>
+              </div>
+              <p className="text-sm text-gray-600">
+                Les quatre épreuves du TEF IRN au format réel, autant de fois que vous voulez.
+              </p>
+              <span className="mt-2 inline-block text-sm font-semibold text-mystory">S&apos;entraîner →</span>
+            </a>
+
+            <a href="https://prepcivique.fr" target="_blank" rel="noopener noreferrer"
+               className="block rounded-2xl border-2 border-gray-200 bg-white p-4 transition hover:border-mystory hover:shadow-sm">
+              <div className="mb-1 flex items-baseline gap-1">
+                <span className="text-lg font-extrabold tracking-tight text-mystory">prepcivique</span>
+                <span className="text-lg font-light text-gray-400">.fr</span>
+              </div>
+              <p className="text-sm text-gray-600">
+                L&apos;examen civique : valeurs, institutions, histoire et vie quotidienne.
+              </p>
+              <span className="mt-2 inline-block text-sm font-semibold text-mystory">S&apos;entraîner →</span>
+            </a>
+          </div>
+        </div>
+
+        <div className="mb-4 rounded-2xl border-2 border-amber-300 bg-amber-50 p-5">
+          <p className="font-semibold text-amber-950">Vous devez aussi passer l&apos;examen civique</p>
+          <p className="mt-1 text-sm text-amber-900">
+            Depuis le 1<sup>er</sup> janvier 2026, la carte de séjour pluriannuelle, la carte de
+            résident et la naturalisation exigent, en plus du niveau de français,
+            la réussite d&apos;un examen civique : 40 questions en 45 minutes, à partir de 32
+            bonnes réponses. Testez votre niveau maintenant, cela prend cinq minutes.
           </p>
+          <button
+            type="button" disabled={civique === "envoi"}
+            className="btn-primary mt-3"
+            onClick={async () => {
+              setCivique("envoi");
+              try {
+                const r = await fetch("/api/tests/civique", {
+                  method: "POST", headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ token: params.token }),
+                });
+                const j = await r.json();
+                if (j?.ok && j.url) { window.location.href = j.url; return; }
+              } catch { /* on retombe sur l'etat initial : le candidat peut reessayer */ }
+              setCivique("idle");
+            }}>
+            {civique === "envoi" ? "Préparation…" : "Tester mon niveau à l'examen civique →"}
+          </button>
         </div>
 
         <div className="rounded-xl bg-gray-50 p-4 text-sm text-gray-600">
@@ -344,14 +459,14 @@ export default function Passation({ params }: { params: { token: string } }) {
       {phase === "intro" && (
         <section className="card p-5">
           <h2 className="mb-2 text-lg font-semibold text-gray-800">Avant de commencer</h2>
-          <p className="mb-3 text-sm text-gray-600">Le test dure <b>{data.mode === "sur_place" ? "37" : "45"} minutes</b>, en {ORDRE_PHASES.length} étapes chronométrées. Quand le temps d&apos;une étape est écoulé (ou que vous la validez), vous passez à la suivante — <b>impossible de revenir en arrière</b>.</p>
+          <p className="mb-3 text-sm text-gray-600">Le test dure <b>{data.mode === "sur_place" ? "38" : "45"} minutes</b>, en {ORDRE_PHASES.length} étapes chronométrées. Quand le temps d&apos;une étape est écoulé (ou que vous la validez), vous passez à la suivante — <b>impossible de revenir en arrière</b>.</p>
           <ul className="mb-4 space-y-1.5 text-sm text-gray-700">
             <li>📖 <b>Compréhension écrite</b> — 15 min</li>
-            <li>🎧 <b>Compréhension orale</b> — 12 min · <b>chaque audio ne peut être écouté qu&apos;UNE seule fois</b></li>
-            <li>✍️ <b>Expression écrite</b> — 10 min</li>
+            <li>🎧 <b>Compréhension orale</b> — 15 min · <b>chaque audio ne peut être écouté qu&apos;UNE seule fois</b></li>
+            <li>✍️ <b>Expression écrite</b> — 8 min</li>
             {data.mode === "sur_place"
               ? <li>🎤 <b>Expression orale</b> — en direct avec votre examinateur, après le test écrit</li>
-              : <li>🎤 <b>Expression orale</b> — 8 min (micro requis)</li>}
+              : <li>🎤 <b>Expression orale</b> — 7 min (micro requis)</li>}
           </ul>
           <p className="mb-4 text-xs text-gray-400">Installez-vous au calme, avec de quoi écouter le son. Le chrono démarre au clic.</p>
           <button onClick={() => demarrerPhase("CE")} className="btn-primary w-full">🚀 Commencer le test (le chrono démarre)</button>

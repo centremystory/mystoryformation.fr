@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { journal } from "@/lib/examens";
 import { ipDe, limiteDepassee } from "@/lib/rateLimit";
+import { envoyerEmail, gabaritEmail, EMAIL_ACTIF } from "@/lib/email";
 
 const txt = (v: unknown, max: number) => {
   const s = String(v ?? "").trim();
@@ -40,7 +41,7 @@ export async function POST(req: NextRequest) {
 
   const { data: ev } = await supabaseAdmin
     .from("evaluations")
-    .select("id, statut, nom, prenom, email, telephone, objectif")
+    .select("id, statut, nom, prenom, email, telephone, objectif, demarche, echeance, niveau_vise")
     .eq("token", token).maybeSingle();
   if (!ev) return NextResponse.json({ ok: false, erreur: "Test introuvable." }, { status: 404 });
 
@@ -61,6 +62,12 @@ export async function POST(req: NextRequest) {
   combler("email", txt(body.email, 200));
   combler("telephone", txt(body.telephone, 40));
   combler("objectif", txt(body.objectif, 1000));
+  // Listes deroulantes : valeurs fermees, donc exploitables en statistique et en
+  // relance. On accepte aussi le niveau vise, que la demarche pre-remplit.
+  combler("demarche", txt(body.demarche, 40));
+  combler("echeance", txt(body.echeance, 40));
+  const niv = txt(body.niveauVise, 10);
+  if (niv && ["A2", "B1", "B2"].includes(niv) && !e.niveau_vise) maj.niveau_vise = niv;
   maj.rappel_souhaite = true;
 
   const { error } = await supabaseAdmin.from("evaluations").update(maj).eq("id", e.id);
@@ -72,6 +79,20 @@ export async function POST(req: NextRequest) {
   // une evaluation. Sans cela, un prospect qui a donne ses coordonnees restait
   // invisible de l'equipe commerciale : il fallait penser a ouvrir l'ecran des
   // tests pour le voir.
+  // 09/09/2026 — le formulaire promet « vous recevrez votre bilan par e-mail ».
+  // Rien ne partait : le seul courriel ecrit allait a l'equipe. Une promesse faite
+  // a un prospect et non tenue coute plus cher que pas de promesse du tout.
+  // Le bilan DETAILLE part apres correction humaine ; celui-ci accuse reception
+  // tout de suite, avec ce qui est deja mesure.
+  const mailCandidat = (maj.email as string) ?? e.email;
+  if (EMAIL_ACTIF && mailCandidat) {
+    void accuserReception(e.id, mailCandidat, (maj.prenom as string) ?? e.prenom)
+      .catch(async (err: any) => {
+        await journal("evaluation", e.id, "accuse_reception_echec",
+          { raison: String(err?.message ?? err) }, "systeme");
+      });
+  }
+
   await rattacherStagiaire(e.id, {
     nom: (maj.nom as string) ?? e.nom,
     prenom: (maj.prenom as string) ?? e.prenom,
@@ -124,4 +145,53 @@ async function rattacherStagiaire(
       .update({ stagiaire_id: stagiaireId }).eq("id", evaluationId);
     await journal("stagiaire", stagiaireId, "cree_depuis_test", { evaluationId }, "systeme");
   }
+}
+
+
+/** Accusé de réception immédiat au candidat : il vient de laisser ses coordonnées
+ *  en échange d'un bilan, il doit voir arriver quelque chose tout de suite. */
+async function accuserReception(id: string, email: string, prenom: string | null): Promise<void> {
+  const { data } = await supabaseAdmin.from("evaluations")
+    .select("niveau_calibre, heures_preconisees, niveau_vise, ce_sur10, co_sur10")
+    .eq("id", id).maybeSingle();
+  const d = (data ?? {}) as any;
+
+  const esc = (v: unknown) =>
+    String(v ?? "").replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
+
+  const heures = d.heures_preconisees
+    ? `<p style="margin:0 0 16px;padding:14px 16px;background:#eff6ff;border-radius:8px;font-size:15px">
+         D'après vos réponses, nous vous recommandons
+         <b style="font-size:19px">${Number(d.heures_preconisees)} heures</b> de formation
+         pour atteindre le niveau ${esc(d.niveau_vise ?? "visé")}.</p>`
+    : "";
+
+  const corps = `
+    <p style="margin:0 0 14px;font-size:15px">Bonjour${prenom ? " " + esc(prenom) : ""},</p>
+    <p style="margin:0 0 14px;font-size:15px">
+      Nous avons bien reçu votre test de positionnement. Merci d'avoir pris le temps de le passer.</p>
+    ${heures}
+    <p style="margin:0 0 14px;font-size:15px">
+      <b>Ce qui arrive maintenant.</b> Une formatrice corrige votre rédaction et votre
+      expression orale. Vous recevrez ensuite votre bilan complet : le détail des quatre
+      épreuves, la correction commentée de votre écrit, et le parcours adapté à votre
+      situation. Comptez 24 à 48 heures.</p>
+    <p style="margin:0 0 14px;font-size:15px">
+      Un conseiller vous rappelle également pour en parler de vive voix. Vous pouvez nous
+      joindre à tout moment au <b>06 81 43 16 54</b>.</p>
+    <p style="margin:0 0 6px;font-size:15px"><b>En attendant, entraînez-vous.</b></p>
+    <p style="margin:0 0 14px;font-size:15px">
+      <a href="https://passetontef.fr" style="color:#2F72DE">passetontef.fr</a> reprend les
+      quatre épreuves du TEF IRN au format réel.
+      Si vous devez aussi passer l'examen civique,
+      <a href="https://prepcivique.fr" style="color:#2F72DE">prepcivique.fr</a> vous y prépare.</p>
+    <p style="margin:22px 0 0;font-size:15px">À très bientôt,<br>L'équipe MYSTORY Formation</p>`;
+
+  await envoyerEmail({
+    a: email,
+    objet: "Votre test de positionnement a bien été reçu",
+    html: gabaritEmail("Votre test a bien été reçu", corps),
+    entite: "evaluations", entiteId: id, auteur: "systeme",
+  });
 }

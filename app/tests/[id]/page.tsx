@@ -106,7 +106,52 @@ export default function RecapTestPage() {
           <Note lbl="Compréhension orale" n={ev.co_sur10} />
           <Note lbl="Expression écrite" n={ev.ee_sur10} />
           <Note lbl="Expression orale" n={ev.eo_sur10} />
-        </div>
+        {ev.niveau_calibre !== undefined && (
+        <section className="card mb-4 p-5">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
+            Ce que le test a mesuré
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div>
+              <div className="text-xs text-gray-500">Palier tenu en compréhension</div>
+              <div className="text-2xl font-bold text-mystory">
+                {ev.niveau_calibre ?? "en deçà de A2"}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500">Volume préconisé</div>
+              <div className="text-2xl font-bold text-gray-900">
+                {ev.heures_preconisees ? `${ev.heures_preconisees} h` : "—"}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500">Niveau visé</div>
+              <div className="text-2xl font-bold text-gray-900">{ev.niveau_vise ?? "—"}</div>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
+            {ev.demarche && (
+              <div><span className="text-gray-500">Démarche : </span>
+                <b>{({sejour:"Carte de séjour pluriannuelle",resident:"Carte de résident",
+                      naturalisation:"Naturalisation",emploi:"Travail ou emploi",
+                      etudes:"Études",autre:"Autre"} as any)[ev.demarche] ?? ev.demarche}</b></div>
+            )}
+            {ev.echeance && (
+              <div><span className="text-gray-500">Échéance : </span>
+                <b>{({urgent:"Rendez-vous préfecture déjà pris",["1mois"]:"Dans le mois",
+                      ["3mois"]:"Dans trois mois",["6mois"]:"Dans six mois",
+                      pas_presse:"Pas pressé"} as any)[ev.echeance] ?? ev.echeance}</b></div>
+            )}
+            {ev.rappel_souhaite && (
+              <div className="sm:col-span-2 rounded-lg bg-amber-50 px-3 py-2 text-amber-900">
+                <b>Ce candidat a demandé à être rappelé.</b>
+                {ev.telephone ? ` — ${ev.telephone}` : ""}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+      </div>
         {ev.niveau_vise && <div className="mt-3 text-sm text-gray-600">Objectif exprimé par le candidat : <strong>{ev.niveau_vise}</strong></div>}
         {ev.oral_evaluation_mode && (
           <div className="mt-3 rounded-lg border border-gray-200 p-3 text-sm text-gray-700">

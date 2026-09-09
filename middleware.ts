@@ -64,6 +64,7 @@ const CHEMINS_PUBLICS = [
   "/api/tests/oral",              // dépôt des audios (jeton)
   "/api/tests/audio",             // upload audio (jeton)
   "/api/tests/contact",           // coordonnées laissées en fin de test (jeton + statut vérifiés)
+  "/api/tests/civique",           // enchaînement TEF IRN → examen civique (jeton)
 ];
 
 export async function middleware(req: NextRequest) {

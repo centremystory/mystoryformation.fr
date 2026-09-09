@@ -135,11 +135,15 @@ export async function POST(req: NextRequest) {
   // jours : rien ne prévenait l'équipe qu'un candidat attendait sa note. C'est aussi
   // la fiche commerciale du prospect : elle porte ses coordonnées, sa démarche, son
   // échéance et le volume d'heures a lui proposer.
-  if (EMAIL_ACTIF) {
-    void alerterCorrection(ev.id, token, evFiche, {
-      ceSur10, coSur10, paliers, niveau, vise, reco, faible, ecrit, sujetEcrit,
-    }).catch(() => { /* l'envoi ne doit jamais faire echouer la soumission du candidat */ });
-  }
+  // L'envoi ne doit jamais faire echouer la soumission du candidat — mais un echec
+  // SILENCIEUX est pire : le 09/09/2026, l'alerte n'est jamais partie et rien dans
+  // le journal ne permettait de savoir pourquoi. On trace donc systematiquement.
+  void alerterCorrection(ev.id, token, evFiche, {
+    ceSur10, coSur10, paliers, niveau, vise, reco, faible, ecrit, sujetEcrit, detail,
+  }).catch(async (err: any) => {
+    await journal("evaluation", ev.id, "alerte_correction_echec",
+      { raison: String(err?.message ?? err), email_actif: EMAIL_ACTIF }, "systeme");
+  });
   return NextResponse.json({
     ok: true,
     niveau_calibre: niveau,             // A2 | B1 | B2 | null (palier non tenu)
