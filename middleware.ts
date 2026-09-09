@@ -56,6 +56,8 @@ const CHEMINS_PUBLICS = [
   "/api/pre-inscription",         // dépôt de la demande de pré-inscription (public, honeypot + rate-limit)
   "/partenaire",                  // portail partenaire par jeton (capability)
   "/api/partenaire",              // données + dépôts partenaire (jeton vérifié côté serveur)
+  "/prescripteur",                // portail prescripteur par jeton — l'organisme partenaire
+  "/api/prescripteur",            //   n'a pas de compte : le jeton est vérifié côté serveur
   "/politique-confidentialite",   // politique de confidentialité publique (RGPD art. 13)
   "/test",                        // test initial : accueil, inscription candidat, passation par jeton
   "/api/tests/kiosque",           // auto-enregistrement candidat (rate-limité)

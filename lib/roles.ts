@@ -106,6 +106,9 @@ export const PAGE_PERMISSIONS: Record<string, Role[]> = {
   "/factures": ["direction", "manager", "back_office"],
   "/examens/remboursements": ["direction", "manager", "back_office"],
   "/examens/croise": ["direction", "manager"],
+  // Inscriptions deposees par les organismes prescripteurs (Secure Academy...).
+  // Confirmer une place engage le centre devant le certificateur : encadrement seul.
+  "/partenaires": ["direction", "manager", "back_office"],
   // — Commercial / prospects —
   "/inscriptions": ["direction", "manager", "commercial", "back_office"],
   "/ventes-formation": ["direction", "manager", "commercial", "back_office"],
