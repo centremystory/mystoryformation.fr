@@ -20,6 +20,15 @@ const BADGE: Record<string, string> = {
 export default function PageMessages() {
   const toast = useToast();
   const [filtre, setFiltre] = useState("nouveau");
+
+  // 10/09/2026 — on marque le fil comme lu a l'ouverture, sinon la pastille ne
+  // s'eteint jamais et l'equipe cesse de la regarder.
+  useEffect(() => {
+    fetch("/api/notifications", {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fil: "prospects" }),
+    }).catch(() => { /* marquer comme lu ne doit jamais casser l'ecran */ });
+  }, []);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [charge, setCharge] = useState(true);
   const [err, setErr] = useState<string | null>(null);

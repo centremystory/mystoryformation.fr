@@ -38,6 +38,15 @@ function dateFr(s: string): string {
 export default function InternePage() {
   const toast = useToast();
   const [questions, setQuestions] = useState<Question[]>([]);
+
+  // 10/09/2026 — on marque le fil comme lu a l'ouverture, sinon la pastille ne
+  // s'eteint jamais et l'equipe cesse de la regarder.
+  useEffect(() => {
+    fetch("/api/notifications", {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fil: "questions" }),
+    }).catch(() => { /* marquer comme lu ne doit jamais casser l'ecran */ });
+  }, []);
   const [chargement, setChargement] = useState(true);
   const [nouvelle, setNouvelle] = useState("");
   const [busy, setBusy] = useState(false);

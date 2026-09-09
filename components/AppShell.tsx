@@ -179,6 +179,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     return () => { vivant = false; };
   }, []);
 
+  const [nonLus, setNonLus] = useState<Record<string, number>>({});
+  useEffect(() => {
+    let vivant = true;
+    const charger = () =>
+      fetch("/api/notifications", { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((j) => { if (vivant && j?.ok) setNonLus(j.compte ?? {}); })
+        .catch(() => { /* une pastille absente vaut mieux qu'une navigation cassee */ });
+    charger();
+    const t = setInterval(charger, 120_000);
+    return () => { vivant = false; clearInterval(t); };
+  }, []);
+
   const navVisible = useMemo(() => {
     const acces = (href: string) => (permMap ? accesPageAvec(roles ?? role, email, href, permMap) : accesPage(roles ?? role, email, href));
     // Un lien fusionné est visible si href OU un membre est accessible ; il pointe alors vers la 1ʳᵉ page accessible.
@@ -224,6 +237,21 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const roleLabel = role && role in ROLE_LABEL ? ROLE_LABEL[role as keyof typeof ROLE_LABEL] : "Équipe";
 
   // --- Contenu de la navigation (réutilisé desktop + drawer) ---
+  // 10/09/2026 — pastilles de non-lu. Sans elles, un message d'equipe n'est jamais
+  // lu : rien ne signale qu'il existe. Rafraichi toutes les 2 minutes, comme les
+  // autres alertes du CRM ; un echec ne doit jamais casser la navigation.
+  const badge = (href: string) => {
+    const n = href === "/equipe-messages" ? (nonLus.equipe ?? 0) + (nonLus.questions ?? 0)
+            : href === "/messages" ? (nonLus.prospects ?? 0)
+            : 0;
+    if (!n) return null;
+    return (
+      <span className="ml-auto shrink-0 rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
+        {n > 99 ? "99+" : n}
+      </span>
+    );
+  };
+
   const nav = (onNavigate?: () => void) => (
     <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
       {navVisible.map((e) => {
@@ -261,6 +289,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       {actif && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-full bg-mystory" />}
                       <SousIcone size={16} strokeWidth={1.75} className="shrink-0" />
                       <span>{i.label}</span>
+                      {badge(i.href)}
                     </Link>
                   );
                 })}

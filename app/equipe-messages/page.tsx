@@ -16,6 +16,15 @@ function quand(iso: string): string {
 
 export default function PageEquipeMessages() {
   const [messages, setMessages] = useState<Msg[]>([]);
+
+  // 10/09/2026 — on marque le fil comme lu a l'ouverture, sinon la pastille ne
+  // s'eteint jamais et l'equipe cesse de la regarder.
+  useEffect(() => {
+    fetch("/api/notifications", {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fil: "equipe" }),
+    }).catch(() => { /* marquer comme lu ne doit jamais casser l'ecran */ });
+  }, []);
   const [contenu, setContenu] = useState("");
   const [chargement, setChargement] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
