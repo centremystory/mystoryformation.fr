@@ -183,9 +183,22 @@ export default function Passation({ params }: { params: { token: string } }) {
             </div>
             <div className="mt-1 flex items-baseline gap-2">
               <span className="text-4xl font-extrabold text-gray-900">{bilan.heures}</span>
-              <span className="text-lg font-semibold text-gray-700">heures de formation</span>
+              <span className="text-lg font-semibold text-gray-700">
+                heures{bilan.prochain ? ` pour atteindre le ${bilan.prochain}` : " de formation"}
+              </span>
             </div>
             <p className="mt-2 text-sm text-gray-600">{bilan.motif}</p>
+
+            {/* 09/09/2026 — quand l'objectif demande plusieurs parcours, on le dit ICI,
+                gros et clair. Laisser croire qu'une formation mene de zero au B2 se
+                paie au moment de l'examen, et le candidat a raison d'etre furieux. */}
+            {bilan.etapes > 1 && (
+              <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">
+                <b>Votre objectif {bilan.niveau_vise} se construit en {bilan.etapes} étapes.</b>{" "}
+                Celle-ci est la première. On ne franchit qu&apos;un niveau à la fois : c&apos;est la
+                seule façon de réussir l&apos;examen du premier coup à chaque palier.
+              </div>
+            )}
             {bilan.epreuve_faible && (
               <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
                 À travailler en priorité : <b>{bilan.epreuve_faible.epreuve}</b>. Au TEF IRN, il
@@ -773,57 +786,82 @@ function DocumentSonore({
   src, actif, onFini, onPhase,
 }: {
   src: string; actif: boolean;
-  onFini: () => void; onPhase: (p: "attente" | "lire" | "ecoute" | "repondre" | "clos") => void;
+  onFini: () => void; onPhase: (p: "attente" | "pret" | "ecoute" | "repondre" | "clos") => void;
 }) {
-  const [phase, setPhase] = useState<"attente" | "lire" | "ecoute" | "repondre" | "clos">("attente");
+  // 09/09/2026 — RETOUR AU BOUTON. Le demarrage automatique ne marchait pas : les
+  // navigateurs bloquent play() sans geste de l'utilisateur, le catch passait donc
+  // directement au temps de reponse et le candidat n'entendait RIEN. Teste par
+  // Arudhan le 09/09 : « les audios ne fonctionnent pas ».
+  //
+  // Ce qui compte pedagogiquement est conserve : une seule ecoute, pas de retour en
+  // arriere, et un temps de reponse borne. Le candidat choisit seulement QUAND il
+  // lance — ce qui est plus proche du reel, ou l'on se prepare avant que ca demarre.
+  const [phase, setPhase] = useState<"attente" | "pret" | "ecoute" | "repondre" | "clos">("attente");
+  const [erreurAudio, setErreurAudio] = useState(false);
   const [reste, setReste] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lance = useRef(false);
 
-  useEffect(() => { onPhase(phase); }, [phase, onPhase]);
+  useEffect(() => { onPhase(phase as any); }, [phase, onPhase]);
 
   useEffect(() => {
-    if (!actif || lance.current) return;
+    if (actif && phase === "attente") setPhase("pret");
+  }, [actif, phase]);
+
+  function ecouter() {
+    if (lance.current) return;          // une seule ecoute, jamais deux
     lance.current = true;
-    setPhase("lire"); setReste(10);
-    const tic = setInterval(() => setReste((r) => (r > 0 ? r - 1 : 0)), 1000);
-    const versEcoute = setTimeout(() => {
-      clearInterval(tic);
-      setPhase("ecoute");
-      const a = new Audio(src);
-      audioRef.current = a;
-      const apres = () => {
-        setPhase("repondre"); setReste(15);
-        const t2 = setInterval(() => setReste((r) => (r > 0 ? r - 1 : 0)), 1000);
-        setTimeout(() => { clearInterval(t2); setPhase("clos"); onFini(); }, 15_000);
-      };
-      a.onended = apres;
-      // Un fichier introuvable ou un navigateur qui refuse la lecture automatique ne
-      // doit pas bloquer le candidat : on passe au temps de réponse.
-      a.onerror = apres;
-      a.play().catch(apres);
-    }, 10_000);
-    return () => { clearInterval(tic); clearTimeout(versEcoute); };
-  }, [actif, src, onFini]);
+    setPhase("ecoute");
+    const a = new Audio(src);
+    audioRef.current = a;
+    const apres = () => {
+      setPhase("repondre"); setReste(15);
+      const t = setInterval(() => setReste((r) => (r > 0 ? r - 1 : 0)), 1000);
+      setTimeout(() => { clearInterval(t); setPhase("clos"); onFini(); }, 15_000);
+    };
+    a.onended = apres;
+    // Fichier introuvable : on ouvre quand meme le temps de reponse plutot que de
+    // bloquer le candidat, mais on le DIT — un silence inexplique est pire.
+    a.onerror = () => { setErreurAudio(true); apres(); };
+    a.play().catch(() => { setErreurAudio(true); apres(); });
+  }
 
   const cadre = "mb-3 rounded-xl border-2 px-4 py-3 text-sm font-medium";
+
   if (phase === "attente")
     return <div className={`${cadre} border-gray-200 bg-gray-50 text-gray-500`}>
-      Document sonore suivant — il démarrera seul.
+      Document sonore suivant.
     </div>;
-  if (phase === "lire")
-    return <div className={`${cadre} border-amber-300 bg-amber-50 text-amber-900`}>
-      Lisez les questions ci-dessous. L&apos;audio démarre dans <b>{reste} s</b> — il ne
-      passera qu&apos;une seule fois.
-    </div>;
+
+  if (phase === "pret")
+    return (
+      <div className={`${cadre} border-amber-300 bg-amber-50 text-amber-900`}>
+        <p className="mb-2">
+          Lisez d&apos;abord les questions ci-dessous, puis lancez l&apos;écoute.
+          <b> L&apos;audio ne passe qu&apos;une seule fois</b> — comme le jour de l&apos;examen.
+        </p>
+        <button type="button" onClick={ecouter}
+                className="rounded-lg bg-mystory px-4 py-2 text-sm font-bold text-white shadow hover:opacity-90">
+          ▶ Écouter le document
+        </button>
+      </div>
+    );
+
   if (phase === "ecoute")
     return <div className={`${cadre} border-mystory bg-blue-50 text-mystory`}>
       🔊 Écoute en cours. Vous répondrez juste après.
     </div>;
+
   if (phase === "repondre")
     return <div className={`${cadre} border-green-400 bg-green-50 text-green-800`}>
       À vous — <b>{reste} s</b> pour répondre.
+      {erreurAudio && (
+        <span className="ml-2 font-normal text-amber-800">
+          (le son n&apos;a pas pu être joué : signalez-le à votre conseiller)
+        </span>
+      )}
     </div>;
+
   return <div className={`${cadre} border-gray-200 bg-gray-50 text-gray-400`}>
     Document terminé.
   </div>;

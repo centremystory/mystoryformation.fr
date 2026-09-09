@@ -181,6 +181,11 @@ export async function POST(req: NextRequest) {
     heures: reco.heures,
     ecart: reco.ecart,
     motif: reco.motif,
+    // 09/09/2026 — le palier reellement visable par CE parcours, et le nombre de
+    // parcours qui separent le candidat de son objectif. Sans cela, l'ecran
+    // promettait le niveau reve en une seule formation.
+    prochain: reco.prochain,
+    etapes: reco.etapes,
     epreuve_faible: faible,             // celle qui fait tomber le niveau au TEF IRN
     detail,                             // par compétence et par niveau, sans les corrigés
     ce_sur10: ceSur10, co_sur10: coSur10,

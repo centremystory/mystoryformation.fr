@@ -149,33 +149,69 @@ export function calibrer(
  * niveau de départ. On ne descend jamais sous 12 h (plancher exigé pour un dépôt
  * EDOF) et on ne dépasse jamais 45 h.
  */
+/** L'echelle reelle : « sous A2 » n'est pas un niveau vise, c'est un point de depart. */
+const ECHELLE = ["A1", "A2", "B1", "B2"] as const;
+
+/**
+ * Le volume d'heures a recommander, et surtout LE NIVEAU A VISER.
+ *
+ * 09/09/2026 — corrige apres un test reel d'Arudhan : en ne repondant a AUCUNE
+ * question, il s'est vu proposer « 45 h pour atteindre le B2 ». Deux fautes.
+ *
+ *   1. 45 h n'existe plus. Le catalogue plafonne a 36 h depuis la mise en demeure
+ *      de la Caisse des depots du 09/09 : recommander un volume non finançable est
+ *      une information trompeuse sur les conditions de financement (art. 7.2 CG).
+ *
+ *   2. Surtout : on ne franchit qu'UN SEUL palier a la fois. A1 vers A2, A2 vers B1,
+ *      B1 vers B2 — jamais A1 vers B2. Le TEF IRN est un examen unique, et le
+ *      plafond de prise en charge ne finance pas deux paliers. Promettre le B2 a un
+ *      debutant, c'est vendre un echec : il paie, il echoue, il revient furieux.
+ *
+ * On renvoie donc le PROCHAIN palier atteignable, pas celui dont le candidat reve,
+ * et le nombre d'etapes qui le separent de son objectif.
+ */
 export function heuresRecommandees(
   constate: Palier | null,
   vise: Palier,
-): { heures: number; ecart: number; motif: string } {
-  const rang = (p: Palier | null) => (p === null ? 0 : PALIERS.indexOf(p) + 1); // 0 = sous A2
-  const ecart = Math.max(0, rang(vise) - rang(constate));
+): { heures: number; ecart: number; motif: string; prochain: string; etapes: number } {
+  // « sous A2 » = A1 : c'est la ou l'on part, pas ce que l'on vise.
+  const depart = constate === null ? "A1" : constate;
+  const iDepart = ECHELLE.indexOf(depart as any);
+  const iVise = Math.max(iDepart, ECHELLE.indexOf(vise as any));
 
-  if (ecart === 0) {
+  // Le prochain palier : un cran au-dessus, jamais deux.
+  const iProchain = Math.min(iDepart + 1, ECHELLE.length - 1);
+  const prochain = ECHELLE[iProchain];
+  const etapes = Math.max(0, iVise - iDepart);
+
+  // Deja au niveau vise : il reste l'examen a securiser.
+  if (etapes === 0) {
     return {
-      heures: 15,
-      ecart,
-      motif: "Le niveau visé semble déjà tenu. Les heures servent à sécuriser le jour de l'examen : méthode, gestion du temps, épreuves d'expression.",
+      heures: 12, ecart: 0, prochain: depart, etapes: 0,
+      motif: "Le niveau visé est déjà tenu. Les heures servent à sécuriser le jour de l'examen : "
+           + "méthode des quatre épreuves, gestion du temps, entraînement à l'écrit et à l'oral.",
     };
   }
-  if (ecart === 1) {
+
+  // Un seul palier a franchir : c'est le cas standard.
+  if (etapes === 1) {
     return {
-      heures: 30,
-      ecart,
-      motif: "Un niveau à franchir. Volume standard, avec un travail spécifique sur l'épreuve la plus faible.",
+      heures: 36, ecart: 1, prochain, etapes: 1,
+      motif: `Un palier à franchir, de ${depart} vers ${prochain}. C'est le parcours complet, `
+           + "avec un travail renforcé sur l'épreuve la plus faible.",
     };
   }
+
+  // Plusieurs paliers : on ne vend QUE le premier, et on le dit.
   return {
-    heures: 45,
-    ecart,
-    motif: "Deux niveaux ou plus à franchir. Volume complet ; en dessous, le passage de l'examen serait prématuré.",
+    heures: 36, ecart: etapes, prochain, etapes,
+    motif: `Votre objectif ${vise} demande ${etapes} parcours successifs. On ne franchit qu'un `
+         + `palier à la fois : ce premier parcours vous mène de ${depart} à ${prochain}. `
+         + `Vous repasserez ensuite le TEF IRN, puis nous verrons la suite. Promettre `
+         + `${vise} en une seule formation serait vous vendre un échec.`,
   };
 }
+
 
 /**
  * Une seule épreuve faible fait tomber le niveau au TEF IRN (il faut tenir le
