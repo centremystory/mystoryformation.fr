@@ -56,6 +56,24 @@ export async function resolverPrescripteur(token: string): Promise<Prescripteur 
   } as Prescripteur;
 }
 
+/** Meme chose que resolverPrescripteur, mais depuis l'identifiant de session. */
+export async function resolverPrescripteurParId(id: string): Promise<Prescripteur | null> {
+  const { data } = await supabaseAdmin
+    .from("partenaires")
+    .select("id, raison_sociale, contact_nom, centre, jours_autorises, horaires_autorises, "
+          + "plafond_places, surbooking_autorise, tarif_tef_irn, tarif_civique, actif")
+    .eq("id", id).eq("actif", true).maybeSingle();
+  if (!data) return null;
+  const { actif, ...p } = data as any;
+  return {
+    ...p,
+    jours_autorises: p.jours_autorises ?? [],
+    horaires_autorises: p.horaires_autorises ?? [],
+    tarif_tef_irn: p.tarif_tef_irn != null ? Number(p.tarif_tef_irn) : null,
+    tarif_civique: p.tarif_civique != null ? Number(p.tarif_civique) : null,
+  } as Prescripteur;
+}
+
 /**
  * Les sessions que CE partenaire peut reserver, avec les places qui lui restent.
  *
@@ -127,7 +145,7 @@ export async function mesDemandes(p: Prescripteur, limite = 200) {
   const { data } = await supabaseAdmin
     .from("demandes_inscription_partenaire")
     .select("id, candidat_nom, candidat_prenom, candidat_email, candidat_telephone, "
-          + "candidat_naissance, statut, motif_refus, demande_le, "
+          + "candidat_naissance, statut, motif_refus, demande_le, piece_identite_nom, "
           + "sessions_examen:session_id (type, date_examen, horaire, centre)")
     .eq("partenaire_id", p.id)
     .order("demande_le", { ascending: false }).limit(limite);
@@ -139,6 +157,7 @@ export async function mesDemandes(p: Prescripteur, limite = 200) {
       email: d.candidat_email, telephone: d.candidat_telephone,
       naissance: d.candidat_naissance,
       statut: d.statut, motif_refus: d.motif_refus, demande_le: d.demande_le,
+      piece: d.piece_identite_nom ?? null,
       session: s ? { type: s.type, date: s.date_examen, horaire: s.horaire, centre: s.centre } : null,
     };
   });

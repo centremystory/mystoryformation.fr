@@ -56,8 +56,12 @@ const CHEMINS_PUBLICS = [
   "/api/pre-inscription",         // dépôt de la demande de pré-inscription (public, honeypot + rate-limit)
   "/partenaire",                  // portail partenaire par jeton (capability)
   "/api/partenaire",              // données + dépôts partenaire (jeton vérifié côté serveur)
-  "/prescripteur",                // portail prescripteur par jeton — l'organisme partenaire
-  "/api/prescripteur",            //   n'a pas de compte : le jeton est vérifié côté serveur
+  // Portail des organismes prescripteurs. Public au sens du middleware d'ÉQUIPE
+  // seulement : ces routes portent leur propre authentification (cookie et audience
+  // JWT distincts, cf. lib/prescripteurAuth.ts), pour qu'une session partenaire
+  // n'ouvre jamais le CRM.
+  "/prescripteur",
+  "/api/prescripteur",
   "/politique-confidentialite",   // politique de confidentialité publique (RGPD art. 13)
   "/test",                        // test initial : accueil, inscription candidat, passation par jeton
   "/api/tests/kiosque",           // auto-enregistrement candidat (rate-limité)
