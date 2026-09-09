@@ -6,23 +6,45 @@
  *         la convention nous engage a motiver, et un refus sec se paie au telephone.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { requireUser, UnauthorizedError } from "@/lib/auth";
+import { requireRole, UnauthorizedError, ForbiddenError } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { journal } from "@/lib/examens";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// 10/09/2026 — CORRECTION DE SECURITE. La garde n'appelait que requireUser : tout
+// compte connecte pouvait confirmer ou refuser une place partenaire. Or le
+// middleware ne filtre PAS les routes API par role — il le dit lui-meme, « les API
+// gardent leurs propres controles » — et la ligne "/partenaires" ajoutee dans
+// PAGE_PERMISSIONS ne protege que la PAGE, pas cette route.
+//
+// Confirmer une place engage le centre devant le certificateur et consomme une
+// capacite d'examen : c'est une decision d'encadrement, pas une action de saisie.
+const ROLES = ["direction", "manager", "back_office"] as const;
+
+/** 401 si non authentifie, 403 si authentifie mais sans le role — jamais confondus. */
 async function garde(req: NextRequest) {
-  try { return await requireUser(req); } catch (e) {
-    if (e instanceof UnauthorizedError) return null;
+  try {
+    return { u: await requireRole(req, ROLES), code: 0 };
+  } catch (e) {
+    if (e instanceof UnauthorizedError) return { u: null, code: 401 };
+    if (e instanceof ForbiddenError) return { u: null, code: 403 };
     throw e;
   }
 }
 
+function refus(code: number) {
+  return code === 403
+    ? NextResponse.json(
+        { ok: false, erreur: "Réservé à la direction, au management et au back-office." },
+        { status: 403 })
+    : NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
+}
+
 export async function GET(req: NextRequest) {
-  const u = await garde(req);
-  if (!u) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
+  const { u, code } = await garde(req);
+  if (!u) return refus(code);
 
   const statut = req.nextUrl.searchParams.get("statut") ?? "en_attente";
   let q = supabaseAdmin
@@ -61,8 +83,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const u = await garde(req);
-  if (!u) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
+  const { u, code } = await garde(req);
+  if (!u) return refus(code);
 
   let b: any;
   try { b = await req.json(); } catch { return NextResponse.json({ ok: false, erreur: "JSON invalide." }, { status: 400 }); }

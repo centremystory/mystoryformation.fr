@@ -135,6 +135,10 @@ export const PAGE_PERMISSIONS: Record<string, Role[]> = {
   "/tests/tous": ["direction", "manager", "formatrice", "back_office"],
   "/tests/a-noter": ["direction", "manager", "formatrice", "back_office"],
   "/tests/banque": ["direction", "manager", "formatrice"],
+  // 10/09/2026 — page oubliee de la carte : elle etait donc ouverte a tous, alors
+  // que ses voisines /tests/tous et /tests/a-noter sont restreintes. Relancer un
+  // prospect et l'abandonner sont des gestes commerciaux, pas pedagogiques.
+  "/tests/relances": ["direction", "manager", "commercial", "back_office"],
   "/satisfaction-cours": ["direction", "manager", "formatrice"],
   "/emargement": ["direction", "manager", "formatrice", "back_office"],
   // — RH équipe (encadrement) —
