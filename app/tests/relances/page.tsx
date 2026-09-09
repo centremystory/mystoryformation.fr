@@ -13,6 +13,9 @@ type Test = {
 export default function RelancesTestsPage() {
   const [tests, setTests] = useState<Test[] | null>(null);
   const [etat, setEtat] = useState<Record<string, string>>({});
+  // 09/09/2026 — abandon d'un prospect sans suite. Deux clics : le premier demande
+  // confirmation, le second execute. Un seul clic sur une liste dense fait des degats.
+  const [abandon, setAbandon] = useState<Record<string, "confirme" | "..." | "err">>({});
   const [comm, setComm] = useState<Record<string, string>>({});
   const [commEtat, setCommEtat] = useState<Record<string, string>>({});
 
@@ -45,6 +48,24 @@ export default function RelancesTestsPage() {
         setTimeout(() => setCommEtat((e) => ({ ...e, [id]: "" })), 1800);
       }
     } catch { setCommEtat((e) => ({ ...e, [id]: "err" })); }
+  }
+
+  async function abandonner(id: string) {
+    // Premier clic : on demande confirmation en changeant le libelle du bouton.
+    if (abandon[id] !== "confirme") { setAbandon((a) => ({ ...a, [id]: "confirme" })); return; }
+    setAbandon((a) => ({ ...a, [id]: "..." }));
+    try {
+      const r = await fetch("/api/tests/relances-distance", {
+        method: "DELETE", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, motif: comm[id] ?? "" }),
+      });
+      const j = await r.json();
+      if (!j?.ok) { setAbandon((a) => ({ ...a, [id]: "err" })); return; }
+      // La ligne disparait de la liste : le test passe au statut « annule ».
+      setTests((ts) => (ts ?? []).filter((t) => t.id !== id));
+    } catch {
+      setAbandon((a) => ({ ...a, [id]: "err" }));
+    }
   }
 
   return (
@@ -94,6 +115,22 @@ export default function RelancesTestsPage() {
                   <button onClick={() => enregistrerCommentaire(t.id)} disabled={!modifie || ce === "..."}
                     style={{ background: modifie ? "#111827" : "#E4E7EC", color: modifie ? "#fff" : "#98A2B3", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 600, cursor: modifie ? "pointer" : "default", whiteSpace: "nowrap" }}>
                     {ce === "..." ? "…" : ce === "ok" ? "✓ Enregistré" : ce === "err" ? "Erreur" : "Enregistrer"}
+                  </button>
+                  <button
+                    onClick={() => abandonner(t.id)}
+                    disabled={abandon[t.id] === "..."}
+                    title="Le prospect ne donne pas suite : la ligne sort de la liste, la trace est conservée"
+                    style={{
+                      background: abandon[t.id] === "confirme" ? "#B42318" : "transparent",
+                      color: abandon[t.id] === "confirme" ? "#fff" : "#B42318",
+                      border: abandon[t.id] === "confirme" ? "none" : "1px solid #FDA29B",
+                      borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 600,
+                      cursor: "pointer", whiteSpace: "nowrap",
+                    }}>
+                    {abandon[t.id] === "..." ? "…"
+                      : abandon[t.id] === "err" ? "Erreur"
+                      : abandon[t.id] === "confirme" ? "Confirmer l\u2019abandon"
+                      : "Pas intéressé"}
                   </button>
                 </div>
               </div>

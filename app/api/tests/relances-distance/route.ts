@@ -46,3 +46,45 @@ export async function PATCH(req: NextRequest) {
   await journal("evaluation", id, "test_distance_commentaire", { longueur: commentaire.length }, u.email ?? null);
   return NextResponse.json({ ok: true });
 }
+
+// Abandonner un prospect qui ne donne pas suite.
+//
+// 09/09/2026 — demande d'Arudhan : « il faut qu'on puisse supprimer les prospects
+// non interesses aussi sur le crm ». On ARCHIVE plutot que de supprimer : le statut
+// « annule » existe deja dans l'interface, il sort la ligne de la liste de relance
+// sans effacer la passation. Trois raisons de ne pas supprimer :
+//   - un test deja commence contient des reponses, donc une trace de traitement de
+//     donnees personnelles qu'il vaut mieux pouvoir justifier ;
+//   - un prospect « pas interesse » en septembre rappelle en janvier ;
+//   - une suppression est irreversible, un statut se change.
+export async function DELETE(req: NextRequest) {
+  let u;
+  try { u = await requireUser(req); } catch (e) {
+    if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
+    throw e;
+  }
+  let b: any;
+  try { b = await req.json(); } catch { return NextResponse.json({ ok: false, erreur: "JSON invalide." }, { status: 400 }); }
+  const id = String(b?.id ?? "").trim();
+  if (!id) return NextResponse.json({ ok: false, erreur: "id requis." }, { status: 400 });
+  const motif = String(b?.motif ?? "").slice(0, 500);
+
+  // On ne peut abandonner qu'un test NON PASSE : un test deja corrige appartient au
+  // dossier du stagiaire, on n'y touche pas depuis cet ecran.
+  const { data: ev } = await supabaseAdmin
+    .from("evaluations").select("id, statut, commentaire_suivi").eq("id", id).maybeSingle();
+  if (!ev) return NextResponse.json({ ok: false, erreur: "Test introuvable." }, { status: 404 });
+  if (ev.statut !== "en_cours") {
+    return NextResponse.json(
+      { ok: false, erreur: "Ce test a déjà été passé : il ne peut plus être abandonné ici." },
+      { status: 409 });
+  }
+
+  const trace = [ev.commentaire_suivi, motif ? `Abandonné : ${motif}` : "Abandonné (sans suite)"]
+    .filter(Boolean).join(" — ").slice(0, 2000);
+  const { error } = await supabaseAdmin
+    .from("evaluations").update({ statut: "annule", commentaire_suivi: trace }).eq("id", id);
+  if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
+  await journal("evaluation", id, "test_distance_abandon", { motif: motif || null }, u.email ?? null);
+  return NextResponse.json({ ok: true });
+}
