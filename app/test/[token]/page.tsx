@@ -45,6 +45,9 @@ export default function Passation({ params }: { params: { token: string } }) {
                                        demarche: "", niveauVise: "", echeance: "", objectif: "" });
   const [coordEnvoi, setCoordEnvoi] = useState<"idle" | "envoi" | "ok">("idle");
   const [civique, setCivique] = useState<"idle" | "envoi">("idle");
+  // 09/09/2026 — le candidat peut demander a voir sa correction. Repliee par defaut :
+  // le resultat et le nombre d'heures doivent rester la premiere chose qu'il lit.
+  const [voirCorrection, setVoirCorrection] = useState(false);
   // 09/09/2026 — sequencement des documents sonores. Ils s'enchainent l'un apres
   // l'autre, jamais en meme temps, et les reponses d'un bloc ne s'ouvrent que
   // pendant ses 15 secondes de reponse : c'est la contrainte du jour J.
@@ -239,9 +242,61 @@ export default function Passation({ params }: { params: { token: string } }) {
               })}
             </div>
             <p className="mt-3 text-xs text-gray-500">
-              Le détail de chaque réponse, avec sa correction commentée, vous est envoyé par
+              La correction commentée de votre rédaction et de votre oral vous est envoyée par
               e-mail après relecture par une formatrice.
             </p>
+
+            {/* ── La correction, a la demande. On ne montre QUE les questions manquees :
+                le candidat comprend ses erreurs, et le corrige complet ne circule pas. */}
+            {Array.isArray(bilan.correction) && bilan.correction.length > 0 && (
+              <div className="mt-4 border-t border-gray-100 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setVoirCorrection((v) => !v)}
+                  className="text-sm font-semibold text-mystory underline underline-offset-2">
+                  {voirCorrection
+                    ? "Masquer ma correction"
+                    : `Voir ma correction — ${bilan.correction.length} question${bilan.correction.length > 1 ? "s" : ""} manquée${bilan.correction.length > 1 ? "s" : ""} →`}
+                </button>
+
+                {voirCorrection && (
+                  <div className="mt-3 space-y-3">
+                    <p className="text-xs text-gray-500">
+                      Seules les questions manquées figurent ici. Celles que vous avez réussies
+                      n&apos;appellent pas d&apos;explication.
+                    </p>
+                    {bilan.correction.map((c: any, i: number) => (
+                      <div key={i} className="rounded-xl border border-amber-200 bg-amber-50/60 p-3">
+                        <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-amber-800">
+                          {c.section} · niveau {c.niveau}
+                        </div>
+                        {c.enonce && (
+                          <p className="text-sm font-medium text-gray-900">{c.enonce}</p>
+                        )}
+                        <div className="mt-2 space-y-1 text-sm">
+                          <div>
+                            <span className="text-gray-500">Votre réponse : </span>
+                            <span className="font-medium text-red-700">
+                              {c.votre_reponse ?? "aucune réponse"}
+                            </span>
+                          </div>
+                          {c.bonne_reponse && (
+                            <div>
+                              <span className="text-gray-500">Réponse attendue : </span>
+                              <span className="font-semibold text-green-800">{c.bonne_reponse}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    <p className="text-xs text-gray-600">
+                      Ces erreurs ne sont pas des fautes d&apos;inattention : elles portent sur des
+                      points de langue précis, que la formation reprend un par un.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 

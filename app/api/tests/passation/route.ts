@@ -75,14 +75,17 @@ export async function POST(req: NextRequest) {
 
   const { data: qs } = await supabaseAdmin
     .from("test_questions")
-    .select("id, section, type, bonne_reponse, mots_cles, points, niveau")
+    .select("id, section, type, bonne_reponse, mots_cles, points, niveau, enonce, options, ordre")
     .eq("test_id", ev.test_id).eq("actif", true);
 
   const questions: QuestionCorrige[] = (qs ?? []).map((q: any) => ({
     id: q.id, section: q.section, type: q.type,
     bonne_reponse: q.bonne_reponse, mots_cles: q.mots_cles, points: q.points ?? 1,
     niveau: q.niveau ?? "A2",
-  }));
+    // enonce et options ne servent qu'a la correction rendue au candidat ; ils ne
+    // sont jamais renvoyes pour les questions reussies.
+    enonce: q.enonce ?? null, options: q.options ?? null, ordre: q.ordre ?? 0,
+  } as any));
   const { ceSur10, coSur10 } = corrigerAuto(questions, reponses);
 
   // 08/09/2026 — le niveau n'est plus un pourcentage. On retient le palier le plus
@@ -118,6 +121,31 @@ export async function POST(req: NextRequest) {
              : "saisir l'implicite dans un échange rapide entre plusieurs personnes"),
       };
     }).filter(Boolean));
+
+  // 09/09/2026 — demande d'Arudhan : « a la fin du test, si le client veut voir sa
+  // correction, qu'il puisse la regarder ».
+  //
+  // Regle retenue : on ne renvoie le corrige QUE des questions manquees. Le candidat
+  // comprend ses erreurs — c'est l'argument de vente le plus solide — sans qu'on lui
+  // remette la totalite du corrige, qui circulerait et fausserait les passations
+  // suivantes. Les questions reussies n'ont pas besoin d'explication.
+  const correction = questions
+    .map((q: any) => {
+      const rep = reponses?.[q.id];
+      const juste = q.type === "texte_libre"
+        ? texteLibreOk(rep, q.mots_cles)
+        : rep != null && String(rep) === q.bonne_reponse;
+      return { q, rep, juste };
+    })
+    .filter((x: any) => !x.juste)
+    .map(({ q, rep }: any) => ({
+      section: q.section === "CE" ? "Compréhension écrite" : "Compréhension orale",
+      niveau: q.niveau ?? "A2",
+      enonce: q.enonce ?? null,
+      options: q.options ?? null,
+      votre_reponse: rep != null ? String(rep) : null,
+      bonne_reponse: q.type === "texte_libre" ? null : q.bonne_reponse,
+    }));
   const vise = (["A2", "B1", "B2"].includes(String(evVise)) ? evVise : "B1") as Palier;
   const reco = heuresRecommandees(niveau, vise);
   const faible = epreuveLaPlusFaible(Number(ceSur10 ?? 0), Number(coSur10 ?? 0), null, null);
@@ -140,6 +168,7 @@ export async function POST(req: NextRequest) {
   // le journal ne permettait de savoir pourquoi. On trace donc systematiquement.
   void alerterCorrection(ev.id, token, evFiche, {
     ceSur10, coSur10, paliers, niveau, vise, reco, faible, ecrit, sujetEcrit, detail,
+    correction,
   }).catch(async (err: any) => {
     await journal("evaluation", ev.id, "alerte_correction_echec",
       { raison: String(err?.message ?? err), email_actif: EMAIL_ACTIF }, "systeme");

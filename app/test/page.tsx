@@ -7,7 +7,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-const NIVEAUX = ["A1", "A2", "B1", "B2"] as const;
 
 export default function AccueilTestPage() {
   const router = useRouter();
@@ -24,7 +23,9 @@ export default function AccueilTestPage() {
     setErr(null);
     if (!f.prenom.trim() || !f.nom.trim()) { setErr("Indiquez votre prénom et votre nom."); return; }
     if (mode === "distance" && !f.email.trim() && !f.telephone.trim()) { setErr("Indiquez un email ou un téléphone pour recevoir vos résultats."); return; }
-    if (mode === "sur_place" && !f.accompagnant.trim()) { setErr("Indiquez le prénom du conseiller ou de la formatrice qui vous accompagne."); return; }
+    // 09/09/2026 — le conseiller n'est plus obligatoire : avec le QR code, le
+    // prospect commence seul depuis son telephone. Le champ reste disponible pour
+    // le suivi quand quelqu'un l'accompagne vraiment.
     setBusy(true);
     try {
       const r = await fetch("/api/tests/kiosque", {
@@ -96,11 +97,11 @@ export default function AccueilTestPage() {
                 <option value="A2">A2 — carte de séjour pluriannuelle</option>
                 <option value="B1">B1 — carte de résident</option>
                 <option value="B2">B2 — naturalisation</option>
-                <option value="A1">A1 — premiers pas en français</option>
+                <option value="A1">A1 — premiers pas (hors financement CPF)</option>
               </select>
               {mode === "sur_place" && (
                 <input value={f.accompagnant} onChange={(e) => set("accompagnant", e.target.value)}
-                  placeholder="Prénom du conseiller / de la formatrice *"
+                  placeholder="Prénom du conseiller / de la formatrice (facultatif)"
                   className="col-span-2 rounded-lg border-2 border-blue-200 bg-blue-50/50 px-3 py-2.5 text-sm" />
               )}
             </div>

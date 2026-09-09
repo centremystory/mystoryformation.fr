@@ -66,7 +66,14 @@ export default function Kiosque() {
         </div>
         <label className="block text-sm text-gray-700">Niveau visé <span className="text-gray-400">(si connu)</span>
           <select value={niveauVise} onChange={(e) => setNiveauVise(e.target.value)} className="input mt-1 w-full">
-            <option value="">— je ne sais pas —</option><option value="A1">A1</option><option value="A2">A2</option><option value="B1">B1</option><option value="B2">B2</option>
+            {/* 09/09/2026 - la demarche visee a cote du niveau : le candidat connait
+                rarement son niveau CECRL, mais il sait toujours quel titre il demande.
+                A1 retire : le certificateur a confirme le 09/09 qu'il n'est pas reconnu
+                par la RS6775 et ne peut donc pas etre un niveau vise. */}
+            <option value="">— je ne sais pas —</option>
+            <option value="A2">A2 — carte de séjour pluriannuelle</option>
+            <option value="B1">B1 — carte de résident</option>
+            <option value="B2">B2 — naturalisation française</option>
           </select>
         </label>
         {err && <p className="text-sm text-red-600">{err}</p>}
