@@ -27,7 +27,7 @@ type Data = {
     plafond_places: number | null; tarif_tef_irn: number | null; tarif_civique: number | null;
     jours_autorises: string[];
   };
-  delai_jours: number;
+  delai_ouvres: number;
   sessions: Session[];
   demandes: Demande[];
 };
@@ -260,7 +260,8 @@ export default function PortailPrescripteur() {
       <section className={`mb-8 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm ${vue === "inscrire" ? "" : "hidden"}`}>
         <h2 className="mb-1 text-base font-bold text-gray-900">Inscrire un candidat</h2>
         <p className="mb-4 text-xs text-gray-500">
-          Les inscriptions ferment {data.delai_jours} jours avant la session. Chaque demande
+          Les inscriptions ferment {data.delai_ouvres} jours ouvrés avant la session, en même
+          temps que l&apos;envoi des convocations. Chaque demande
           est validée par le centre, qui vérifie l&apos;identité du candidat le jour de
           l&apos;épreuve.
         </p>
@@ -445,8 +446,123 @@ export default function PortailPrescripteur() {
         </div>
       )}
 
+      {/* ── Documents ────────────────────────────────────────────────────────
+          10/09/2026 — l'onglet existait, les deux routes d'API aussi, mais aucune
+          interface ne les appelait. Deux sens de circulation, volontairement
+          separes a l'ecran : ce que le centre REMET (resultats, attestations) et
+          ce que le partenaire TRANSMET (justificatifs de report ou d'absence).
+          Un partenaire qui ne sait pas ou deposer son justificatif telephone. ── */}
+      {vue === "documents" && (
+        <div className="mb-8 space-y-6">
+          {/* Deposer un justificatif */}
+          <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <h2 className="mb-1 text-base font-bold text-gray-900">
+              Transmettre un justificatif
+            </h2>
+            <p className="mb-4 text-xs text-gray-500">
+              Absence ou demande de report. Le report s&apos;exerce dans un délai de
+              quatorze jours minimum avant la date prévue, et sous réserve que la CCI
+              accepte le justificatif.
+            </p>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-gray-700">
+                  Candidat concerné
+                </span>
+                <select
+                  value={justif.demande}
+                  onChange={(e) => setJustif((j) => ({ ...j, demande: e.target.value }))}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                  <option value="">— Sans rattachement —</option>
+                  {data.demandes.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.prenom} {d.nom}
+                      {d.session ? ` — ${dateFr(d.session.date)}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-gray-700">
+                  Fichier <span className="text-gray-400">(photo ou PDF, 8 Mo max.)</span>
+                </span>
+                <input type="file" accept="image/*,application/pdf"
+                       onChange={(e) => setJustif((j) => ({ ...j, fichier: e.target.files?.[0] ?? null }))}
+                       className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm file:mr-3 file:rounded file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-xs file:font-semibold" />
+              </label>
+
+              <label className="block sm:col-span-2">
+                <span className="mb-1 block text-xs font-medium text-gray-700">
+                  Précision <span className="text-gray-400">(facultatif)</span>
+                </span>
+                <input value={justif.note}
+                       onChange={(e) => setJustif((j) => ({ ...j, note: e.target.value }))}
+                       placeholder="Motif, date souhaitée pour le report…"
+                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+              </label>
+            </div>
+
+            <button onClick={deposerJustificatif} disabled={envoi || !justif.fichier}
+                    className="mt-4 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                    style={{ background: BLEU }}>
+              {envoi ? "Envoi…" : "Transmettre au centre"}
+            </button>
+          </section>
+
+          {/* Ce que le centre a remis + ce que le partenaire a transmis */}
+          {docs === null ? (
+            <p className="text-sm text-gray-400">Chargement des documents…</p>
+          ) : (
+            (["centre", "partenaire"] as const).map((sens) => {
+              const liste = docs.filter((d: any) =>
+                sens === "centre" ? d.par_le_centre : !d.par_le_centre);
+              return (
+                <section key={sens}>
+                  <h2 className="mb-1 text-base font-bold text-gray-900">
+                    {sens === "centre" ? "Résultats et documents remis par le centre"
+                                       : "Justificatifs que vous avez transmis"}
+                  </h2>
+                  {liste.length === 0 ? (
+                    <p className="mt-2 text-sm text-gray-500">
+                      {sens === "centre"
+                        ? "Aucun document pour l'instant. Les résultats de vos candidats apparaîtront ici."
+                        : "Vous n'avez transmis aucun justificatif."}
+                    </p>
+                  ) : (
+                    <div className="mt-3 space-y-2">
+                      {liste.map((d: any) => (
+                        <div key={d.id}
+                             className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white p-3">
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-semibold text-gray-900">{d.nom}</div>
+                            <div className="mt-0.5 text-xs text-gray-500">
+                              {d.candidat ? <>{d.candidat} · </> : null}
+                              {dateFr(d.depose_le)}
+                              {d.commentaire ? <> · {d.commentaire}</> : null}
+                            </div>
+                          </div>
+                          {d.url && (
+                            <a href={d.url} target="_blank" rel="noopener noreferrer"
+                               className="shrink-0 rounded-lg border px-3 py-1.5 text-xs font-semibold"
+                               style={{ borderColor: BLEU, color: BLEU }}>
+                              Télécharger
+                            </a>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              );
+            })
+          )}
+        </div>
+      )}
+
       {/* ── Les candidats deja deposes ───────────────────────────────────── */}
-      <section className={vue === "calendrier" ? "hidden" : ""}>
+      <section className={vue === "inscrire" ? "" : "hidden"}>
         <h2 className="mb-1 text-base font-bold text-gray-900">
           Vos candidats
           {enAttente > 0 && (

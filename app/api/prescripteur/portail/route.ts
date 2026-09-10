@@ -13,11 +13,19 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { journal } from "@/lib/examens";
 import { sessionPrescripteur } from "@/lib/prescripteurAuth";
 import { resolverPrescripteurParId, sessionsOuvertes, mesDemandes } from "@/lib/prescripteur";
+import { joursOuvresAvant } from "@/lib/joursOuvres";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const DELAI_JOURS = 7;                       // article 4 de la convention
+// 10/09/2026 — le delai passe de 7 jours CALENDAIRES a 5 jours OUVRES, et c'est
+// desormais le meme seuil pour tout : a J-5 ouvres la convocation part au candidat
+// ET les inscriptions se ferment. Un seuil unique, parce que deux seuils
+// differents produisent la situation ou un candidat est inscrit apres l'envoi des
+// convocations et n'en reçoit jamais.
+// ⚠️ L'article 4 de la convention partenaire doit dire la meme chose : il parlait
+// de sept jours calendaires. Les deux textes se contrediraient sinon.
+const DELAI_OUVRES = 5;
 const BUCKET = "documents";
 const TAILLE_MAX = 8 * 1024 * 1024;          // 8 Mo : une photo de piece d'identite
 const TYPES_OK = ["image/jpeg", "image/png", "image/heic", "image/webp", "application/pdf"];
@@ -43,7 +51,7 @@ export async function GET(req: NextRequest) {
       plafond_places: p.plafond_places, tarif_tef_irn: p.tarif_tef_irn,
       tarif_civique: p.tarif_civique, jours_autorises: p.jours_autorises,
     },
-    delai_jours: DELAI_JOURS,
+    delai_ouvres: DELAI_OUVRES,
     sessions, demandes,
   });
 }
@@ -132,12 +140,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, erreur: "Plus de place sur cette session." }, { status: 409 });
   }
 
-  const jours = Math.floor(
-    (new Date(s.date_examen + "T00:00:00Z").getTime() - Date.now()) / 86400000);
-  if (jours < DELAI_JOURS) {
+  // Jours OUVRES, pas calendaires : samedis, dimanches et feries ne comptent pas,
+  // comme le dit la convention. Le calcul passe par une date construite en local —
+  // new Date("2026-09-14") decale d'un jour selon le fuseau et ferait refuser une
+  // inscription encore dans les temps.
+  const ouvres = joursOuvresAvant(s.date_examen);
+  if (ouvres < DELAI_OUVRES) {
     return NextResponse.json(
-      { ok: false, erreur: `Les inscriptions ferment ${DELAI_JOURS} jours avant la session. `
-                         + `Celle-ci a lieu dans ${Math.max(0, jours)} jour(s).` }, { status: 409 });
+      { ok: false, erreur: `Les inscriptions ferment ${DELAI_OUVRES} jours ouvrés avant la session, `
+                         + `en même temps que l'envoi des convocations. `
+                         + `Il ne reste que ${ouvres} jour${ouvres > 1 ? "s" : ""} ouvré`
+                         + `${ouvres > 1 ? "s" : ""} avant celle-ci.` }, { status: 409 });
   }
 
   if (email) {

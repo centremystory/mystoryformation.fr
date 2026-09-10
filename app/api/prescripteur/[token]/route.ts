@@ -18,7 +18,11 @@ export const dynamic = "force-dynamic";
 
 // Delai de depot : l'article 4 de la convention impose 7 jours calendaires avant la
 // session. Le faire respecter par le code evite d'avoir a le refuser a la main.
-const DELAI_JOURS = 7;
+// 10/09/2026 — aligne sur le portail authentifie : 5 jours OUVRES, pas 7
+// calendaires. Cette route hericlassee est en lecture seule, mais annoncer un
+// delai different de la regle reellement appliquee induirait le partenaire en
+// erreur sur la date limite.
+const DELAI_OUVRES = 5;
 
 function invalide() {
   return NextResponse.json({ ok: false, erreur: "Lien invalide ou expiré." }, { status: 404 });
@@ -46,7 +50,7 @@ export async function GET(_req: NextRequest, { params }: { params: { token: stri
       tarif_civique: p.tarif_civique,
       jours_autorises: p.jours_autorises,
     },
-    delai_jours: DELAI_JOURS,
+    delai_ouvres: DELAI_OUVRES,
     sessions, demandes,
   });
 }
