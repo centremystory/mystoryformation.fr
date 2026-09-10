@@ -102,6 +102,14 @@ export async function POST(req: NextRequest) {
   if (!sousType) manquants.push("la mention visée");
   if (!email) manquants.push("le courriel");
   if (!telephone) manquants.push("le téléphone");
+  // 10/09/2026 — adresse et langue maternelle deviennent obligatoires.
+  // L'adresse est exigee avec son code postal et sa ville : « 15 rue des Lilas »
+  // sans commune n'est pas une adresse, et c'est nous qui rappelions le candidat
+  // pour la completer.
+  if (!langue) manquants.push("la langue maternelle");
+  if (!adresse) manquants.push("l'adresse");
+  if (!cp) manquants.push("le code postal");
+  if (!ville) manquants.push("la ville");
   if (manquants.length) {
     return NextResponse.json(
       { ok: false, erreur: `Il manque ${manquants.join(", ")} — la CCI les exige à l'inscription.` },
@@ -199,7 +207,12 @@ export async function POST(req: NextRequest) {
       piece_identite_path: chemin,
       piece_identite_nom: piece.name.slice(0, 200),
       piece_identite_depose_le: new Date().toISOString(),
-      statut: "en_attente", auteur: `partenaire:${p.raison_sociale}`,
+      // 10/09/2026 — AUTO-CONFIRMATION. Le centre ne valide plus chaque
+      // inscription une par une : la place etait deja decomptee au depot, et
+      // la validation ne faisait que retarder la convocation. Le controle se
+      // fait desormais A L'ACCUEIL, par deux cases certifiant la carence/fraude
+      // et l'exactitude des informations — une verification tracee, pas une porte.
+      statut: "confirmee", auteur: `partenaire:${p.raison_sociale}`,
     })
     .select("id").single();
   if (error) {
@@ -239,6 +252,107 @@ export async function DELETE(req: NextRequest) {
   if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
 
   await journal("demande_partenaire", id, "retrait", { partenaire: p.raison_sociale },
+    `partenaire:${p.raison_sociale}`);
+  return NextResponse.json({ ok: true });
+}
+
+/**
+ * PATCH → le partenaire corrige la fiche d'un de SES candidats.
+ *
+ * 10/09/2026 — jusqu'ici une faute de frappe obligeait a retirer le candidat et a
+ * tout resaisir, piece d'identite comprise. Le partenaire appelait, ou pire :
+ * laissait l'erreur, et c'est la CCI qui refusait l'inscription le jour J.
+ *
+ * Trois limites, dans cet ordre :
+ *   - ses candidats seulement (partenaire_id) ;
+ *   - pas une fiche deja refusee ou retiree, qui ne represente plus rien ;
+ *   - PLUS RIEN a moins de 5 jours ouvres : la convocation est partie, et laisser
+ *     modifier un nom apres coup produirait une convocation et une piece d'identite
+ *     qui ne concordent pas au controle.
+ * La session n'est pas modifiable : changer de date, c'est une autre inscription,
+ * avec un autre decompte de places.
+ */
+export async function PATCH(req: NextRequest) {
+  const p = await courant(req);
+  if (!p) return nonConnecte();
+
+  let b: any;
+  try { b = await req.json(); } catch {
+    return NextResponse.json({ ok: false, erreur: "JSON invalide." }, { status: 400 });
+  }
+  const id = String(b?.id ?? "").trim();
+  if (!id) return NextResponse.json({ ok: false, erreur: "id requis." }, { status: 400 });
+
+  const { data: d } = await supabaseAdmin
+    .from("demandes_inscription_partenaire")
+    .select("id, statut, sessions_examen:session_id (date_examen)")
+    .eq("id", id).eq("partenaire_id", p.id).maybeSingle();
+  if (!d) return NextResponse.json({ ok: false, erreur: "Candidat introuvable." }, { status: 404 });
+  if (["refusee", "annulee"].includes(d.statut)) {
+    return NextResponse.json(
+      { ok: false, erreur: "Cette inscription n'est plus active." }, { status: 409 });
+  }
+
+  const s: any = Array.isArray((d as any).sessions_examen)
+    ? (d as any).sessions_examen[0] : (d as any).sessions_examen;
+  if (s?.date_examen) {
+    const ouvres = joursOuvresAvant(s.date_examen);
+    if (ouvres < DELAI_OUVRES) {
+      return NextResponse.json(
+        { ok: false, erreur: `La convocation est déjà partie : la fiche n'est plus modifiable à `
+                           + `moins de ${DELAI_OUVRES} jours ouvrés de la session. `
+                           + `Appelez le centre au 06 81 43 16 54.` }, { status: 409 });
+    }
+  }
+
+  // Liste blanche : le partenaire corrige l'identite, rien d'autre.
+  const CHAMPS: Record<string, string> = {
+    civilite: "candidat_civilite", genre: "candidat_genre",
+    nom: "candidat_nom", prenom: "candidat_prenom",
+    naissance: "candidat_naissance", lieu_naissance: "candidat_lieu_naissance",
+    langue_maternelle: "candidat_langue_maternelle", nationalite: "candidat_nationalite",
+    email: "candidat_email", telephone: "candidat_telephone",
+    adresse: "candidat_adresse", code_postal: "candidat_code_postal",
+    ville: "candidat_ville", pays: "candidat_pays",
+    num_piece: "candidat_num_piece", sous_type: "sous_type",
+  };
+
+  const maj: Record<string, any> = {};
+  for (const [envoye, colonne] of Object.entries(CHAMPS)) {
+    if (!(envoye in b)) continue;
+    let v = String(b[envoye] ?? "").trim();
+    if (envoye === "nom") v = v.toUpperCase();
+    if (envoye === "email") v = v.toLowerCase();
+    maj[colonne] = v || null;
+  }
+  if (!Object.keys(maj).length) {
+    return NextResponse.json({ ok: false, erreur: "Aucune modification." }, { status: 400 });
+  }
+  if (maj.candidat_email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(maj.candidat_email)) {
+    return NextResponse.json({ ok: false, erreur: "Adresse e-mail invalide." }, { status: 400 });
+  }
+  if (maj.candidat_naissance && !/^\d{4}-\d{2}-\d{2}$/.test(maj.candidat_naissance)) {
+    return NextResponse.json(
+      { ok: false, erreur: "Date de naissance attendue au format AAAA-MM-JJ." }, { status: 400 });
+  }
+
+  // La fiche a change : le controle d'accueil qui portait sur l'ancienne version
+  // ne vaut plus. On le remet a zero, sinon l'accueil certifierait des informations
+  // qu'il n'a pas vues.
+  maj.controle_infos = false;
+  maj.controle_carence_fraude = false;
+  maj.controle_par = null;
+  maj.controle_le = null;
+  maj.modifie_le = new Date().toISOString();
+  maj.modifie_par = `partenaire:${p.raison_sociale}`;
+
+  const { error } = await supabaseAdmin
+    .from("demandes_inscription_partenaire")
+    .update(maj).eq("id", id).eq("partenaire_id", p.id);
+  if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
+
+  await journal("demande_partenaire", id, "modification",
+    { partenaire: p.raison_sociale, champs: Object.keys(maj).filter((k) => k.startsWith("candidat_") || k === "sous_type") },
     `partenaire:${p.raison_sociale}`);
   return NextResponse.json({ ok: true });
 }

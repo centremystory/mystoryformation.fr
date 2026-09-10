@@ -36,8 +36,11 @@ const LIB_TYPE: Record<string, string> = {
   TEF_IRN: "TEF IRN", Examen_civique: "Examen civique",
 };
 const STATUT: Record<string, { l: string; c: string }> = {
-  en_attente: { l: "En attente de validation", c: "bg-amber-50 text-amber-800 border-amber-200" },
-  confirmee: { l: "Confirmée", c: "bg-emerald-50 text-emerald-800 border-emerald-200" },
+  // 10/09/2026 — le centre ne valide plus chaque inscription : la place est retenue
+  // des le depot. « En attente » ne subsiste que pour les fiches deposees avant ce
+  // changement, d'ou un libelle qui ne promet plus une validation a venir.
+  en_attente: { l: "Place retenue", c: "bg-emerald-50 text-emerald-800 border-emerald-200" },
+  confirmee: { l: "Place retenue", c: "bg-emerald-50 text-emerald-800 border-emerald-200" },
   refusee: { l: "Refusée", c: "bg-red-50 text-red-800 border-red-200" },
   annulee: { l: "Annulée", c: "bg-gray-100 text-gray-500 border-gray-200" },
 };
@@ -78,10 +81,17 @@ export default function PortailPrescripteur() {
   const [envoi, setEnvoi] = useState(false);
   const [msg, setMsg] = useState<{ t: "ok" | "err"; m: string } | null>(null);
   const [retrait, setRetrait] = useState<Record<string, "confirme" | "...">>({});
-  // 10/09/2026 — trois vues : inscrire, le calendrier de ses sessions, ses documents.
-  const [vue, setVue] = useState<"inscrire" | "calendrier" | "documents">("inscrire");
+  // 10/09/2026 — quatre vues. « Mes candidats » est separee de « Inscrire » : on ne
+  // cherche pas quelqu'un dans le meme geste qu'on en ajoute un, et melanger les deux
+  // obligeait a faire defiler un formulaire de vingt champs pour atteindre sa liste.
+  const [vue, setVue] = useState<"inscrire" | "candidats" | "calendrier" | "documents">("inscrire");
   const [recherche, setRecherche] = useState("");
   const [docs, setDocs] = useState<any[] | null>(null);
+  const [factures, setFactures] = useState<any | null>(null);
+  // Edition d'une fiche : l'identifiant en cours et les champs modifies.
+  const [edite, setEdite] = useState<string | null>(null);
+  const [ed, setEd] = useState<Record<string, string>>({});
+  const [majEnCours, setMajEnCours] = useState(false);
   const [justif, setJustif] = useState<{ demande: string; fichier: File | null; note: string }>(
     { demande: "", fichier: null, note: "" });
 
@@ -96,6 +106,14 @@ export default function PortailPrescripteur() {
   }, [router]);
 
   useEffect(() => { charger(); }, [charger]);
+
+  useEffect(() => {
+    if (vue !== "documents" || factures !== null) return;
+    fetch("/api/prescripteur/factures", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => setFactures(j?.ok ? j : { factures: [], reste_a_regler: 0 }))
+      .catch(() => setFactures({ factures: [], reste_a_regler: 0 }));
+  }, [vue, factures]);
 
   useEffect(() => {
     if (vue !== "documents" || docs !== null) return;
@@ -129,6 +147,8 @@ export default function PortailPrescripteur() {
       lieu_naissance: "le lieu de naissance", nationalite: "la nationalité",
       num_piece: "le numéro de pièce d'identité", sous_type: "la mention visée",
       email: "le courriel", telephone: "le téléphone",
+      langue_maternelle: "la langue maternelle",
+      adresse: "l'adresse", code_postal: "le code postal", ville: "la ville",
     };
     const manque = Object.entries(requis)
       .filter(([k]) => !String((f as any)[k] ?? "").trim()).map(([, l]) => l);
@@ -150,13 +170,47 @@ export default function PortailPrescripteur() {
       const r = await fetch("/api/prescripteur/portail", { method: "POST", body: fd });
       const j = await r.json();
       if (!j?.ok) { setMsg({ t: "err", m: j?.erreur ?? "Enregistrement impossible." }); return; }
-      setMsg({ t: "ok", m: `${f.prenom} ${f.nom.toUpperCase()} est inscrit·e, en attente de validation.` });
+      setMsg({ t: "ok", m: `${f.prenom} ${f.nom.toUpperCase()} est inscrit·e. Sa place est retenue ; `
+                           + `la convocation lui parviendra 5 jours ouvrés avant la session.` });
       setF({ ...VIDE_F });
       setPiece(null);
       await charger();
     } catch {
       setMsg({ t: "err", m: "Connexion interrompue : réessayez." });
     } finally { setEnvoi(false); }
+  }
+
+  /** Ouvre l'edition d'une fiche en la pre-remplissant : on corrige, on ne resaisit pas. */
+  function ouvrirEdition(d: any) {
+    if (edite === d.id) { setEdite(null); return; }
+    setEdite(d.id);
+    setMsg(null);
+    setEd({
+      civilite: d.civilite ?? "", genre: d.genre ?? "",
+      nom: d.nom ?? "", prenom: d.prenom ?? "",
+      naissance: (d.naissance ?? "").slice(0, 10),
+      lieu_naissance: d.lieu_naissance ?? "", langue_maternelle: d.langue_maternelle ?? "",
+      nationalite: d.nationalite ?? "", email: d.email ?? "", telephone: d.telephone ?? "",
+      adresse: d.adresse ?? "", code_postal: d.code_postal ?? "", ville: d.ville ?? "",
+      pays: d.pays ?? "France", num_piece: d.num_piece ?? "", sous_type: d.sous_type ?? "",
+    });
+  }
+
+  async function enregistrerEdition(id: string) {
+    setMajEnCours(true); setMsg(null);
+    try {
+      const r = await fetch("/api/prescripteur/portail", {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, ...ed }),
+      });
+      const j = await r.json();
+      if (!j?.ok) { setMsg({ t: "err", m: j?.erreur ?? "Modification impossible." }); return; }
+      setMsg({ t: "ok", m: "Fiche mise à jour." });
+      setEdite(null);
+      await charger();
+    } catch {
+      setMsg({ t: "err", m: "Connexion interrompue : réessayez." });
+    } finally { setMajEnCours(false); }
   }
 
   async function retirer(id: string) {
@@ -187,8 +241,13 @@ export default function PortailPrescripteur() {
     );
   if (!data) return <div className="p-8 text-sm text-gray-400">Indisponible.</div>;
 
-  const enAttente = data.demandes.filter((d) => d.statut === "en_attente").length;
-  const confirmes = data.demandes.filter((d) => d.statut === "confirmee").length;
+  // 10/09/2026 — le centre ne valide plus : ce qui compte desormais pour le
+  // partenaire, c'est le nombre de places retenues et celles encore ouvertes.
+  const actifs = data.demandes.filter(
+    (d) => d.statut === "confirmee" || d.statut === "en_attente").length;
+  const aVenir = data.demandes.filter((d: any) =>
+    d.session?.date && d.session.date.slice(0, 10) >= new Date().toISOString().slice(0, 10)
+    && !["refusee", "annulee"].includes(d.statut)).length;
   // Les places qui restent AU PARTENAIRE, toutes sessions ouvertes confondues.
   const placesRestantes = data.sessions.reduce((n, s) => n + s.places_restantes, 0);
   const prochaine = data.sessions.find((s) => s.places_restantes > 0);
@@ -222,9 +281,9 @@ export default function PortailPrescripteur() {
           Un partenaire qui doit compter lui-meme finit par appeler. ────────── */}
       <div className="mb-6 grid gap-3 sm:grid-cols-4">
         {[
-          { n: data.demandes.length, l: "candidats inscrits", c: "text-gray-900" },
-          { n: enAttente, l: "en attente de validation", c: enAttente ? "text-amber-700" : "text-gray-400" },
-          { n: confirmes, l: "places confirmées", c: confirmes ? "text-emerald-700" : "text-gray-400" },
+          { n: data.demandes.length, l: "candidats inscrits au total", c: "text-gray-900" },
+          { n: aVenir, l: "examens encore à venir", c: aVenir ? "text-gray-900" : "text-gray-400" },
+          { n: actifs, l: "places retenues", c: actifs ? "text-emerald-700" : "text-gray-400" },
           { n: placesRestantes, l: "places encore disponibles", c: placesRestantes ? "text-mystory" : "text-red-700" },
         ].map((x, i) => (
           <div key={i} className="rounded-xl border border-gray-200 bg-white p-4">
@@ -244,13 +303,15 @@ export default function PortailPrescripteur() {
 
       {/* ── Trois vues ───────────────────────────────────────────────────── */}
       <div className="mb-4 flex gap-2">
-        {([["inscrire", "Inscrire un candidat"],
-           ["calendrier", "Mon calendrier"],
-           ["documents", "Documents"]] as const).map(([v, l]) => (
-          <button key={v} onClick={() => setVue(v)}
-                  className={`rounded-lg px-3 py-2 text-sm font-semibold ${
-                    vue === v ? "text-white" : "bg-gray-100 text-gray-600"}`}
+        {([["inscrire", "Inscrire un candidat", "+"],
+           ["candidats", `Mes candidats${data.demandes.length ? ` (${data.demandes.length})` : ""}`, "\u25A4"],
+           ["calendrier", "Calendrier", "\u25A6"],
+           ["documents", "Documents et factures", "\u2913"]] as const).map(([v, l, ic]) => (
+          <button key={v} onClick={() => { setVue(v as any); setMsg(null); }}
+                  className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition ${
+                    vue === v ? "text-white shadow-sm" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
                   style={vue === v ? { background: BLEU } : undefined}>
+            <span aria-hidden className="text-base leading-none opacity-80">{ic}</span>
             {l}
           </button>
         ))}
@@ -262,8 +323,8 @@ export default function PortailPrescripteur() {
         <p className="mb-4 text-xs text-gray-500">
           Les inscriptions ferment {data.delai_ouvres} jours ouvrés avant la session, en même
           temps que l&apos;envoi des convocations. Chaque demande
-          est validée par le centre, qui vérifie l&apos;identité du candidat le jour de
-          l&apos;épreuve.
+          retient immédiatement une place. Le centre vérifie l&apos;identité du candidat
+          le jour de l&apos;épreuve.
         </p>
 
         {data.sessions.length === 0 ? (
@@ -454,6 +515,70 @@ export default function PortailPrescripteur() {
           Un partenaire qui ne sait pas ou deposer son justificatif telephone. ── */}
       {vue === "documents" && (
         <div className="mb-8 space-y-6">
+          {/* ── Factures ─────────────────────────────────────────────────────
+              En tete de l'onglet : c'est ce qu'un partenaire ouvre en premier.
+              Le reste a payer est annonce d'emblee, sinon il additionne lui-meme
+              — et appelle pour verifier. ──────────────────────────────────── */}
+          <section>
+            <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="text-base font-bold text-gray-900">Vos factures</h2>
+              {factures && factures.reste_a_regler > 0 && (
+                <span className="rounded-full bg-amber-100 px-3 py-1 text-sm font-bold text-amber-900">
+                  {euros(factures.reste_a_regler)} à régler
+                </span>
+              )}
+            </div>
+
+            {factures === null ? (
+              <p className="text-sm text-gray-400">Chargement…</p>
+            ) : factures.factures.length === 0 ? (
+              <p className="rounded-xl bg-gray-50 px-4 py-5 text-sm text-gray-500">
+                Aucune facture pour l&apos;instant. Le centre émet sa facture dans les deux
+                jours ouvrés qui suivent chaque session.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {factures.factures.map((fa: any) => (
+                  <div key={fa.id}
+                       className="rounded-xl border bg-white p-4"
+                       style={{ borderColor: fa.reglee ? "#A7F3D0" : "#FDE68A" }}>
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <div className="min-w-0">
+                        <span className="font-mono text-sm font-bold text-gray-900">{fa.numero}</span>
+                        <span className="ml-2 text-xs text-gray-500">
+                          émise le {dateFr(fa.date_emission)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-base font-extrabold tabular-nums text-gray-900">
+                          {euros(fa.montant)}
+                        </span>
+                        <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                          fa.reglee ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-900"}`}>
+                          {fa.reglee ? `Réglée${fa.date_paiement ? ` le ${dateFr(fa.date_paiement)}` : ""}`
+                                     : "À régler"}
+                        </span>
+                      </div>
+                    </div>
+                    {fa.designation && (
+                      <p className="mt-1.5 text-xs text-gray-600">{fa.designation}</p>
+                    )}
+                    {fa.nb_candidats > 0 && (
+                      <details className="mt-2">
+                        <summary className="cursor-pointer text-xs font-medium" style={{ color: BLEU }}>
+                          {fa.nb_candidats} candidat{fa.nb_candidats > 1 ? "s" : ""} sur cette facture
+                        </summary>
+                        <ul className="mt-1.5 grid gap-0.5 pl-4 text-xs text-gray-600 sm:grid-cols-2">
+                          {fa.candidats.map((n: string, i: number) => <li key={i}>{n}</li>)}
+                        </ul>
+                      </details>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
           {/* Deposer un justificatif */}
           <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
             <h2 className="mb-1 text-base font-bold text-gray-900">
@@ -562,66 +687,166 @@ export default function PortailPrescripteur() {
       )}
 
       {/* ── Les candidats deja deposes ───────────────────────────────────── */}
-      <section className={vue === "inscrire" ? "" : "hidden"}>
-        <h2 className="mb-1 text-base font-bold text-gray-900">
-          Vos candidats
-          {enAttente > 0 && (
-            <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
-              {enAttente} en attente
-            </span>
-          )}
-        </h2>
-        {data.demandes.length === 0 ? (
-          <p className="mt-2 text-sm text-gray-500">Aucun candidat inscrit pour l&apos;instant.</p>
-        ) : (
-          <div className="mt-3 space-y-2">
-            {data.demandes.map((d) => {
-              const st = STATUT[d.statut] ?? { l: d.statut, c: "bg-gray-100 text-gray-600 border-gray-200" };
-              return (
-                <div key={d.id} className="rounded-xl border border-gray-200 bg-white p-3">
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <div>
-                      <span className="text-sm font-semibold text-gray-900">
-                        {d.prenom} {d.nom}
-                      </span>
-                      {d.session && (
-                        <span className="ml-2 text-xs text-gray-500">
-                          {LIB_TYPE[d.session.type] ?? d.session.type} ·{" "}
-                          {dateFr(d.session.date)} · {d.session.horaire}
-                        </span>
-                      )}
-                    </div>
-                    <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${st.c}`}>
-                      {st.l}
-                    </span>
-                  </div>
-                  {(d as any).sous_type && (
-                    <p className="mt-1 text-xs text-gray-600">
-                      Mention : {(d as any).sous_type}
-                    </p>
-                  )}
-                  {(d as any).piece && (
-                    <p className="mt-1 text-xs text-gray-500">
-                      Pièce d&apos;identité jointe : {(d as any).piece}
-                    </p>
-                  )}
-                  {d.motif_refus && (
-                    <p className="mt-1 text-xs text-red-700">Motif : {d.motif_refus}</p>
-                  )}
-                  {d.statut === "en_attente" && (
-                    <button onClick={() => retirer(d.id)} disabled={retrait[d.id] === "..."}
-                            className="mt-2 text-xs font-semibold text-red-700 underline underline-offset-2">
-                      {retrait[d.id] === "..." ? "…"
-                        : retrait[d.id] === "confirme" ? "Confirmer le retrait"
-                        : "Retirer ce candidat"}
-                    </button>
-                  )}
-                </div>
-              );
-            })}
+      {/* ── Mes candidats : chercher, verifier, corriger ────────────────────
+          10/09/2026 — separee de « Inscrire ». Un partenaire qui cherche un
+          candidat ne veut pas faire defiler vingt champs de formulaire pour y
+          arriver, et la recherche par nom, prenom ou telephone est ce qu'il fait
+          en premier quand un candidat l'appelle. ──────────────────────────── */}
+      {vue === "candidats" && (
+        <section>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-base font-bold text-gray-900">Mes candidats</h2>
+            <div className="relative w-full sm:w-80">
+              <input
+                value={recherche}
+                onChange={(e) => setRecherche(e.target.value)}
+                placeholder="Rechercher un nom, un prénom, un téléphone…"
+                className="w-full rounded-lg border border-gray-300 py-2 pl-9 pr-8 text-sm" />
+              <span aria-hidden className="pointer-events-none absolute left-3 top-2.5 text-gray-400">⌕</span>
+              {recherche && (
+                <button onClick={() => setRecherche("")} aria-label="Effacer"
+                        className="absolute right-2 top-1.5 rounded px-1.5 py-1 text-gray-400 hover:text-gray-700">×</button>
+              )}
+            </div>
           </div>
-        )}
-      </section>
+
+          {(() => {
+            // Recherche insensible aux accents et aux espaces : « jean-pierre »,
+            // « JEAN PIERRE » et « 06 12 34 56 78 » doivent tous trouver leur fiche.
+            const norm = (x: string) =>
+              (x ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            const q = norm(recherche).replace(/\s+/g, "");
+            const liste = !q ? data.demandes : data.demandes.filter((d: any) => {
+              const champs = norm(`${d.prenom} ${d.nom}`).replace(/\s+/g, "")
+                           + norm(`${d.nom} ${d.prenom}`).replace(/\s+/g, "")
+                           + (d.telephone ?? "").replace(/\D/g, "")
+                           + norm(d.email ?? "");
+              return champs.includes(q);
+            });
+
+            if (data.demandes.length === 0) {
+              return (
+                <p className="mt-2 rounded-xl bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">
+                  Aucun candidat inscrit pour l&apos;instant.
+                </p>
+              );
+            }
+            if (liste.length === 0) {
+              return (
+                <p className="mt-2 rounded-xl bg-amber-50 px-4 py-6 text-center text-sm text-amber-900">
+                  Aucun candidat ne correspond à « {recherche} ».
+                </p>
+              );
+            }
+
+            return (
+              <>
+                {q && (
+                  <p className="mb-2 text-xs text-gray-500">
+                    {liste.length} résultat{liste.length > 1 ? "s" : ""} sur {data.demandes.length}
+                  </p>
+                )}
+                <div className="space-y-2">
+                  {liste.map((d: any) => {
+                    const st = STATUT[d.statut] ?? { l: d.statut, c: "bg-gray-100 text-gray-600 border-gray-200" };
+                    const ouvert = edite === d.id;
+                    return (
+                      <div key={d.id} className="rounded-xl border border-gray-200 bg-white p-4">
+                        <div className="flex flex-wrap items-baseline justify-between gap-2">
+                          <div className="min-w-0">
+                            <span className="text-sm font-semibold text-gray-900">
+                              {d.prenom} {d.nom}
+                            </span>
+                            {d.session && (
+                              <span className="ml-2 text-xs text-gray-500">
+                                {LIB_TYPE[d.session.type] ?? d.session.type} ·{" "}
+                                <b className="text-gray-700">{dateFr(d.session.date)}</b> · {d.session.horaire}
+                              </span>
+                            )}
+                          </div>
+                          <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium ${st.c}`}>
+                            {st.l}
+                          </span>
+                        </div>
+
+                        <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600">
+                          {d.telephone && <span>{d.telephone}</span>}
+                          {d.email && <span className="truncate">{d.email}</span>}
+                          {d.sous_type && <span>Mention : {d.sous_type}</span>}
+                          {d.piece && <span className="text-emerald-700">Pièce jointe ✓</span>}
+                          {d.controle_ok && <span className="text-emerald-700">Vérifié par le centre ✓</span>}
+                        </div>
+
+                        {d.motif_refus && (
+                          <p className="mt-2 rounded-lg bg-red-50 px-3 py-1.5 text-xs text-red-800">
+                            Motif : {d.motif_refus}
+                          </p>
+                        )}
+
+                        {!["refusee", "annulee"].includes(d.statut) && (
+                          <div className="mt-3 flex flex-wrap gap-3">
+                            <button onClick={() => ouvrirEdition(d)}
+                                    className="text-xs font-semibold underline underline-offset-2"
+                                    style={{ color: BLEU }}>
+                              {ouvert ? "Fermer" : "Modifier la fiche"}
+                            </button>
+                            <button onClick={() => retirer(d.id)} disabled={retrait[d.id] === "..."}
+                                    className="text-xs font-semibold text-red-700 underline underline-offset-2">
+                              {retrait[d.id] === "..." ? "…"
+                                : retrait[d.id] === "confirme" ? "Confirmer le retrait"
+                                : "Retirer ce candidat"}
+                            </button>
+                          </div>
+                        )}
+
+                        {/* ── Correction de la fiche ─────────────────────────── */}
+                        {ouvert && (
+                          <div className="mt-4 rounded-xl bg-gray-50 p-4">
+                            <p className="mb-3 text-xs text-gray-600">
+                              Corrigez ce qui doit l&apos;être. La date et l&apos;horaire de la
+                              session ne se modifient pas ici : pour changer de session, retirez
+                              le candidat et réinscrivez-le.
+                            </p>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              {([["nom", "Nom"], ["prenom", "Prénom"],
+                                 ["naissance", "Date de naissance (AAAA-MM-JJ)"],
+                                 ["lieu_naissance", "Lieu de naissance"],
+                                 ["nationalite", "Nationalité"], ["langue_maternelle", "Langue maternelle"],
+                                 ["telephone", "Téléphone"], ["email", "Courriel"],
+                                 ["adresse", "Adresse"], ["code_postal", "Code postal"],
+                                 ["ville", "Ville"], ["num_piece", "N° pièce d'identité"]] as const).map(
+                                ([k, l]) => (
+                                  <label key={k} className="block">
+                                    <span className="mb-1 block text-xs font-medium text-gray-700">{l}</span>
+                                    <input
+                                      value={ed[k] ?? ""}
+                                      onChange={(e) => setEd((x) => ({ ...x, [k]: e.target.value }))}
+                                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+                                  </label>
+                                ))}
+                            </div>
+                            <div className="mt-4 flex gap-2">
+                              <button onClick={() => enregistrerEdition(d.id)} disabled={majEnCours}
+                                      className="rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                                      style={{ background: BLEU }}>
+                                {majEnCours ? "Enregistrement…" : "Enregistrer"}
+                              </button>
+                              <button onClick={() => setEdite(null)}
+                                      className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700">
+                                Annuler
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            );
+          })()}
+        </section>
+      )}
 
       <div className="mt-8 text-center">
         <button

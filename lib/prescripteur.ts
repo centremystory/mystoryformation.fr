@@ -144,8 +144,15 @@ export async function sessionsOuvertes(p: Prescripteur, jours = 60) {
 export async function mesDemandes(p: Prescripteur, limite = 200) {
   const { data } = await supabaseAdmin
     .from("demandes_inscription_partenaire")
+    // 10/09/2026 — la fiche complete, pas seulement l'entete : le partenaire peut
+    // desormais la corriger depuis son espace, et un formulaire d'edition qui
+    // s'ouvre vide fait resaisir au lieu de corriger.
     .select("id, candidat_nom, candidat_prenom, candidat_email, candidat_telephone, "
-          + "candidat_naissance, statut, motif_refus, demande_le, piece_identite_nom, sous_type, "
+          + "candidat_naissance, candidat_civilite, candidat_genre, candidat_lieu_naissance, "
+          + "candidat_langue_maternelle, candidat_nationalite, candidat_adresse, "
+          + "candidat_code_postal, candidat_ville, candidat_pays, candidat_num_piece, "
+          + "statut, motif_refus, demande_le, piece_identite_nom, sous_type, "
+          + "controle_carence_fraude, controle_infos, controle_le, "
           + "sessions_examen:session_id (type, date_examen, horaire, centre)")
     .eq("partenaire_id", p.id)
     .order("demande_le", { ascending: false }).limit(limite);
@@ -156,9 +163,19 @@ export async function mesDemandes(p: Prescripteur, limite = 200) {
       nom: d.candidat_nom, prenom: d.candidat_prenom,
       email: d.candidat_email, telephone: d.candidat_telephone,
       naissance: d.candidat_naissance,
+      civilite: d.candidat_civilite ?? null, genre: d.candidat_genre ?? null,
+      lieu_naissance: d.candidat_lieu_naissance ?? null,
+      langue_maternelle: d.candidat_langue_maternelle ?? null,
+      nationalite: d.candidat_nationalite ?? null,
+      adresse: d.candidat_adresse ?? null, code_postal: d.candidat_code_postal ?? null,
+      ville: d.candidat_ville ?? null, pays: d.candidat_pays ?? null,
+      num_piece: d.candidat_num_piece ?? null,
       statut: d.statut, motif_refus: d.motif_refus, demande_le: d.demande_le,
       piece: d.piece_identite_nom ?? null,
       sous_type: d.sous_type ?? null,
+      // Ce que l'accueil a certifie : le partenaire voit ou en est son dossier.
+      controle_ok: Boolean(d.controle_carence_fraude && d.controle_infos),
+      controle_le: d.controle_le ?? null,
       session: s ? { type: s.type, date: s.date_examen, horaire: s.horaire, centre: s.centre } : null,
     };
   });
