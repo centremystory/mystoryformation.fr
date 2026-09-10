@@ -25,7 +25,11 @@ async function garde(req: NextRequest): Promise<NextResponse | SessionUser> {
 
 export async function GET(req: NextRequest) {
   const g = await garde(req); if (g instanceof NextResponse) return g;
-  const { data, error } = await supabaseAdmin.from("offres_formules").select("*").order("offre_id").order("ordre");
+  const { data, error } = await supabaseAdmin.from("offres_formules").select("*").order("ordre").order("offre_id");
+  // 10/09/2026 — on trie par ORDRE avant l'identifiant : trier par offre_id
+  // faisait remonter MODULES2026 (hors CPF) avant TEFIRN2026, par simple ordre
+  // alphabetique. Le catalogue CPF doit s'afficher en premier : c'est lui qu'on
+  // vend, et c'est lui qui engage devant la Caisse des depots.
   if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
   return NextResponse.json({ ok: true, formules: data ?? [] });
 }
