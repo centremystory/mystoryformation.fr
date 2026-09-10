@@ -57,7 +57,23 @@ export default function PortailPrescripteur() {
   const [piece, setPiece] = useState<File | null>(null);
 
   const [sessionId, setSessionId] = useState("");
-  const [f, setF] = useState({ nom: "", prenom: "", email: "", telephone: "", naissance: "" });
+  // 10/09/2026 — le formulaire reprend les champs de l'onglet « Examens » du suivi
+  // de ventes : c'est ce que la CCI demande a l'inscription. Sans eux, il fallait
+  // rappeler le candidat, donc refaire le travail que le partenaire avait deja fait.
+  const [f, setF] = useState({
+    civilite: "", nom: "", prenom: "", genre: "",
+    naissance: "", lieu_naissance: "", nationalite: "", langue_maternelle: "",
+    email: "", telephone: "",
+    adresse: "", code_postal: "", ville: "", pays: "France",
+    num_piece: "", sous_type: "",
+  });
+  const VIDE_F = {
+    civilite: "", nom: "", prenom: "", genre: "",
+    naissance: "", lieu_naissance: "", nationalite: "", langue_maternelle: "",
+    email: "", telephone: "",
+    adresse: "", code_postal: "", ville: "", pays: "France",
+    num_piece: "", sous_type: "",
+  };
   const [envoi, setEnvoi] = useState(false);
   const [msg, setMsg] = useState<{ t: "ok" | "err"; m: string } | null>(null);
   const [retrait, setRetrait] = useState<Record<string, "confirme" | "...">>({});
@@ -75,8 +91,17 @@ export default function PortailPrescripteur() {
   useEffect(() => { charger(); }, [charger]);
 
   async function inscrire() {
-    if (!sessionId || !f.nom.trim() || !f.prenom.trim()) {
-      setMsg({ t: "err", m: "Choisissez une session et renseignez au moins le nom et le prénom." });
+    const requis: Record<string, string> = {
+      nom: "le nom", prenom: "le prénom", naissance: "la date de naissance",
+      lieu_naissance: "le lieu de naissance", nationalite: "la nationalité",
+      num_piece: "le numéro de pièce d'identité", sous_type: "la mention visée",
+      email: "le courriel", telephone: "le téléphone",
+    };
+    const manque = Object.entries(requis)
+      .filter(([k]) => !String((f as any)[k] ?? "").trim()).map(([, l]) => l);
+    if (!sessionId) manque.unshift("la session");
+    if (manque.length) {
+      setMsg({ t: "err", m: `Il manque ${manque.join(", ")} — la CCI les exige à l'inscription.` });
       return;
     }
     if (!piece) {
@@ -87,13 +112,13 @@ export default function PortailPrescripteur() {
     try {
       const fd = new FormData();
       fd.append("session_id", sessionId);
-      Object.entries(f).forEach(([k, v]) => fd.append(k, v));
+      Object.entries(f).forEach(([k, v]) => fd.append(k, String(v ?? "")));
       fd.append("piece", piece);
       const r = await fetch("/api/prescripteur/portail", { method: "POST", body: fd });
       const j = await r.json();
       if (!j?.ok) { setMsg({ t: "err", m: j?.erreur ?? "Enregistrement impossible." }); return; }
       setMsg({ t: "ok", m: `${f.prenom} ${f.nom.toUpperCase()} est inscrit·e, en attente de validation.` });
-      setF({ nom: "", prenom: "", email: "", telephone: "", naissance: "" });
+      setF({ ...VIDE_F });
       setPiece(null);
       await charger();
     } catch {
@@ -130,6 +155,10 @@ export default function PortailPrescripteur() {
   if (!data) return <div className="p-8 text-sm text-gray-400">Indisponible.</div>;
 
   const enAttente = data.demandes.filter((d) => d.statut === "en_attente").length;
+  const confirmes = data.demandes.filter((d) => d.statut === "confirmee").length;
+  // Les places qui restent AU PARTENAIRE, toutes sessions ouvertes confondues.
+  const placesRestantes = data.sessions.reduce((n, s) => n + s.places_restantes, 0);
+  const prochaine = data.sessions.find((s) => s.places_restantes > 0);
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
@@ -155,6 +184,30 @@ export default function PortailPrescripteur() {
           )}
         </div>
       </header>
+
+      {/* ── Ce qu'il faut voir en arrivant : ou j'en suis, et ce qu'il me reste.
+          Un partenaire qui doit compter lui-meme finit par appeler. ────────── */}
+      <div className="mb-6 grid gap-3 sm:grid-cols-4">
+        {[
+          { n: data.demandes.length, l: "candidats inscrits", c: "text-gray-900" },
+          { n: enAttente, l: "en attente de validation", c: enAttente ? "text-amber-700" : "text-gray-400" },
+          { n: confirmes, l: "places confirmées", c: confirmes ? "text-emerald-700" : "text-gray-400" },
+          { n: placesRestantes, l: "places encore disponibles", c: placesRestantes ? "text-mystory" : "text-red-700" },
+        ].map((x, i) => (
+          <div key={i} className="rounded-xl border border-gray-200 bg-white p-4">
+            <div className={`text-2xl font-extrabold ${x.c}`}>{x.n}</div>
+            <div className="mt-0.5 text-xs text-gray-600">{x.l}</div>
+          </div>
+        ))}
+      </div>
+
+      {prochaine && (
+        <p className="mb-6 rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-900">
+          Prochaine session ouverte : <b>{prochaine.jour} {dateFr(prochaine.date_examen)}</b> à{" "}
+          {prochaine.horaire} — {prochaine.places_restantes} place
+          {prochaine.places_restantes > 1 ? "s" : ""} pour vous.
+        </p>
+      )}
 
       {/* ── Inscrire un candidat ─────────────────────────────────────────── */}
       <section className="mb-8 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
@@ -188,25 +241,113 @@ export default function PortailPrescripteur() {
               </select>
             </label>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <input value={f.nom} onChange={(e) => setF({ ...f, nom: e.target.value })}
-                     placeholder="Nom *"
-                     className="rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-              <input value={f.prenom} onChange={(e) => setF({ ...f, prenom: e.target.value })}
-                     placeholder="Prénom *"
-                     className="rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-              <input value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })}
-                     placeholder="Courriel" type="email"
-                     className="rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-              <input value={f.telephone} onChange={(e) => setF({ ...f, telephone: e.target.value })}
-                     placeholder="Téléphone"
-                     className="rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-              <label className="sm:col-span-2 block">
-                <span className="mb-1 block text-xs font-medium text-gray-600">
-                  Date de naissance
-                </span>
+            {/* ── Identité — reprend les champs de l'onglet « Examens » du suivi de
+                ventes, pour que l'inscription CCI se fasse sans ressaisie. ──── */}
+            <p className="mb-2 mt-4 text-xs font-semibold uppercase tracking-wide text-gray-500">
+              Identité du candidat
+            </p>
+            <div className="grid gap-3 sm:grid-cols-4">
+              <label className="block">
+                <span className="mb-1 block text-xs text-gray-600">Civilité</span>
+                <select value={f.civilite} onChange={(e) => setF({ ...f, civilite: e.target.value })}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                  <option value="">—</option>
+                  <option value="Madame">Madame</option>
+                  <option value="Monsieur">Monsieur</option>
+                </select>
+              </label>
+              <label className="block sm:col-span-2">
+                <span className="mb-1 block text-xs text-gray-600">Nom *</span>
+                <input value={f.nom} onChange={(e) => setF({ ...f, nom: e.target.value })}
+                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs text-gray-600">Genre</span>
+                <select value={f.genre} onChange={(e) => setF({ ...f, genre: e.target.value })}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                  <option value="">—</option>
+                  <option value="F">Féminin</option>
+                  <option value="M">Masculin</option>
+                </select>
+              </label>
+              <label className="block sm:col-span-2">
+                <span className="mb-1 block text-xs text-gray-600">Prénom *</span>
+                <input value={f.prenom} onChange={(e) => setF({ ...f, prenom: e.target.value })}
+                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs text-gray-600">Date de naissance *</span>
                 <input value={f.naissance} onChange={(e) => setF({ ...f, naissance: e.target.value })}
                        type="date"
+                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs text-gray-600">Lieu de naissance *</span>
+                <input value={f.lieu_naissance} onChange={(e) => setF({ ...f, lieu_naissance: e.target.value })}
+                       placeholder="Ville, pays"
+                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+              </label>
+              <label className="block sm:col-span-2">
+                <span className="mb-1 block text-xs text-gray-600">Nationalité *</span>
+                <input value={f.nationalite} onChange={(e) => setF({ ...f, nationalite: e.target.value })}
+                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+              </label>
+              <label className="block sm:col-span-2">
+                <span className="mb-1 block text-xs text-gray-600">Langue maternelle</span>
+                <input value={f.langue_maternelle} onChange={(e) => setF({ ...f, langue_maternelle: e.target.value })}
+                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+              </label>
+              <label className="block sm:col-span-2">
+                <span className="mb-1 block text-xs text-gray-600">
+                  N° de pièce d&apos;identité *
+                </span>
+                <input value={f.num_piece} onChange={(e) => setF({ ...f, num_piece: e.target.value })}
+                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+              </label>
+              <label className="block sm:col-span-2">
+                <span className="mb-1 block text-xs text-gray-600">Mention visée *</span>
+                <select value={f.sous_type} onChange={(e) => setF({ ...f, sous_type: e.target.value })}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                  <option value="">Choisissez…</option>
+                  <option value="Carte de séjour pluriannuelle">Carte de séjour pluriannuelle</option>
+                  <option value="Carte de résident">Carte de résident (10 ans)</option>
+                  <option value="Naturalisation">Naturalisation française</option>
+                </select>
+              </label>
+            </div>
+
+            <p className="mb-2 mt-4 text-xs font-semibold uppercase tracking-wide text-gray-500">
+              Coordonnées
+            </p>
+            <div className="grid gap-3 sm:grid-cols-4">
+              <label className="block sm:col-span-2">
+                <span className="mb-1 block text-xs text-gray-600">Courriel *</span>
+                <input value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} type="email"
+                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+              </label>
+              <label className="block sm:col-span-2">
+                <span className="mb-1 block text-xs text-gray-600">Téléphone *</span>
+                <input value={f.telephone} onChange={(e) => setF({ ...f, telephone: e.target.value })}
+                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+              </label>
+              <label className="block sm:col-span-4">
+                <span className="mb-1 block text-xs text-gray-600">Adresse</span>
+                <input value={f.adresse} onChange={(e) => setF({ ...f, adresse: e.target.value })}
+                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs text-gray-600">Code postal</span>
+                <input value={f.code_postal} onChange={(e) => setF({ ...f, code_postal: e.target.value })}
+                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+              </label>
+              <label className="block sm:col-span-2">
+                <span className="mb-1 block text-xs text-gray-600">Ville</span>
+                <input value={f.ville} onChange={(e) => setF({ ...f, ville: e.target.value })}
+                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs text-gray-600">Pays</span>
+                <input value={f.pays} onChange={(e) => setF({ ...f, pays: e.target.value })}
                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
               </label>
             </div>
@@ -280,6 +421,11 @@ export default function PortailPrescripteur() {
                       {st.l}
                     </span>
                   </div>
+                  {(d as any).sous_type && (
+                    <p className="mt-1 text-xs text-gray-600">
+                      Mention : {(d as any).sous_type}
+                    </p>
+                  )}
                   {(d as any).piece && (
                     <p className="mt-1 text-xs text-gray-500">
                       Pièce d&apos;identité jointe : {(d as any).piece}

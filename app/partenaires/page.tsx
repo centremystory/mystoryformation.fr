@@ -14,6 +14,10 @@ type Demande = {
   statut: string; motif_refus: string | null; demande_le: string;
   decide_le: string | null; decide_par: string | null;
   session: { type: string; date: string; horaire: string; centre: string | null; capacite: number | null } | null;
+  civilite?: string | null; genre?: string | null; lieu_naissance?: string | null;
+  langue_maternelle?: string | null; nationalite?: string | null;
+  adresse?: string | null; code_postal?: string | null; ville?: string | null; pays?: string | null;
+  num_piece?: string | null; sous_type?: string | null; piece_nom?: string | null;
 };
 
 const LIB_TYPE: Record<string, string> = { TEF_IRN: "TEF IRN", Examen_civique: "Examen civique" };
@@ -121,6 +125,27 @@ export default function PagePartenaires() {
               <p className="mt-1 text-xs text-gray-500">
                 {d.email ?? "pas de courriel"}{d.telephone ? ` · ${d.telephone}` : ""}
               </p>
+
+              {/* Tout ce que la CCI demande, sous les yeux : le partenaire l'a saisi,
+                  personne n'a a rappeler le candidat ni a rouvrir un autre ecran. */}
+              <div className="mt-2 grid gap-x-6 gap-y-1 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-700 sm:grid-cols-2">
+                {d.sous_type && <span><b>Mention :</b> {d.sous_type}</span>}
+                {d.civilite && <span><b>Civilité :</b> {d.civilite}{d.genre ? ` (${d.genre})` : ""}</span>}
+                {d.lieu_naissance && <span><b>Né·e à :</b> {d.lieu_naissance}</span>}
+                {d.nationalite && <span><b>Nationalité :</b> {d.nationalite}</span>}
+                {d.langue_maternelle && <span><b>Langue maternelle :</b> {d.langue_maternelle}</span>}
+                {d.num_piece && <span><b>N° pièce :</b> {d.num_piece}</span>}
+                {(d.adresse || d.ville) && (
+                  <span className="sm:col-span-2">
+                    <b>Adresse :</b> {[d.adresse, d.code_postal, d.ville, d.pays].filter(Boolean).join(" ")}
+                  </span>
+                )}
+                {d.piece_nom && (
+                  <span className="sm:col-span-2 text-emerald-700">
+                    ✓ Pièce d&apos;identité jointe : {d.piece_nom}
+                  </span>
+                )}
+              </div>
 
               {d.motif_refus && (
                 <p className="mt-2 rounded-lg bg-red-50 px-3 py-1.5 text-xs text-red-800">

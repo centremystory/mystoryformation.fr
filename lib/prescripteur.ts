@@ -145,7 +145,7 @@ export async function mesDemandes(p: Prescripteur, limite = 200) {
   const { data } = await supabaseAdmin
     .from("demandes_inscription_partenaire")
     .select("id, candidat_nom, candidat_prenom, candidat_email, candidat_telephone, "
-          + "candidat_naissance, statut, motif_refus, demande_le, piece_identite_nom, "
+          + "candidat_naissance, statut, motif_refus, demande_le, piece_identite_nom, sous_type, "
           + "sessions_examen:session_id (type, date_examen, horaire, centre)")
     .eq("partenaire_id", p.id)
     .order("demande_le", { ascending: false }).limit(limite);
@@ -158,6 +158,7 @@ export async function mesDemandes(p: Prescripteur, limite = 200) {
       naissance: d.candidat_naissance,
       statut: d.statut, motif_refus: d.motif_refus, demande_le: d.demande_le,
       piece: d.piece_identite_nom ?? null,
+      sous_type: d.sous_type ?? null,
       session: s ? { type: s.type, date: s.date_examen, horaire: s.horaire, centre: s.centre } : null,
     };
   });

@@ -65,10 +65,39 @@ export async function POST(req: NextRequest) {
   const email = champ("email").toLowerCase();
   const telephone = champ("telephone");
   const naissance = champ("naissance");
+  // 10/09/2026 — tous les champs que la CCI reclame a l'inscription. Sans eux, il
+  // fallait rappeler le candidat pour lui demander sa nationalite ou son numero de
+  // piece, donc refaire le travail que le partenaire avait deja fait.
+  const civilite = champ("civilite");
+  const genre = champ("genre");
+  const lieuNaissance = champ("lieu_naissance");
+  const langue = champ("langue_maternelle");
+  const nationalite = champ("nationalite");
+  const adresse = champ("adresse");
+  const cp = champ("code_postal");
+  const ville = champ("ville");
+  const pays = champ("pays") || "France";
+  const numPiece = champ("num_piece");
+  const sousType = champ("sous_type");
   const piece = form.get("piece") as File | null;
 
-  if (!sessionId || !nom || !prenom) {
-    return NextResponse.json({ ok: false, erreur: "Session, nom et prénom sont obligatoires." }, { status: 400 });
+  // Ce que la CCI exige : sans l'un de ces elements, l'inscription est refusee et
+  // il faut rappeler le candidat. Autant le bloquer ici.
+  const manquants: string[] = [];
+  if (!sessionId) manquants.push("la session");
+  if (!nom) manquants.push("le nom");
+  if (!prenom) manquants.push("le prénom");
+  if (!naissance) manquants.push("la date de naissance");
+  if (!lieuNaissance) manquants.push("le lieu de naissance");
+  if (!nationalite) manquants.push("la nationalité");
+  if (!numPiece) manquants.push("le numéro de pièce d'identité");
+  if (!sousType) manquants.push("la mention visée");
+  if (!email) manquants.push("le courriel");
+  if (!telephone) manquants.push("le téléphone");
+  if (manquants.length) {
+    return NextResponse.json(
+      { ok: false, erreur: `Il manque ${manquants.join(", ")} — la CCI les exige à l'inscription.` },
+      { status: 400 });
   }
   if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     return NextResponse.json({ ok: false, erreur: "Adresse e-mail invalide." }, { status: 400 });
@@ -143,6 +172,17 @@ export async function POST(req: NextRequest) {
       candidat_nom: nom.toUpperCase(), candidat_prenom: prenom,
       candidat_email: email || null, candidat_telephone: telephone || null,
       candidat_naissance: naissance || null,
+      candidat_civilite: civilite || null,
+      candidat_genre: genre || null,
+      candidat_lieu_naissance: lieuNaissance || null,
+      candidat_langue_maternelle: langue || null,
+      candidat_nationalite: nationalite || null,
+      candidat_adresse: adresse || null,
+      candidat_code_postal: cp || null,
+      candidat_ville: ville || null,
+      candidat_pays: pays,
+      candidat_num_piece: numPiece || null,
+      sous_type: sousType || null,
       piece_identite_path: chemin,
       piece_identite_nom: piece.name.slice(0, 200),
       piece_identite_depose_le: new Date().toISOString(),

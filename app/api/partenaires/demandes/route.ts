@@ -50,7 +50,11 @@ export async function GET(req: NextRequest) {
   let q = supabaseAdmin
     .from("demandes_inscription_partenaire")
     .select("id, candidat_nom, candidat_prenom, candidat_email, candidat_telephone, "
-          + "candidat_naissance, statut, motif_refus, demande_le, decide_le, decide_par, "
+          + "candidat_naissance, candidat_civilite, candidat_genre, candidat_lieu_naissance, "
+          + "candidat_langue_maternelle, candidat_nationalite, candidat_adresse, "
+          + "candidat_code_postal, candidat_ville, candidat_pays, candidat_num_piece, "
+          + "sous_type, piece_identite_path, piece_identite_nom, "
+          + "statut, motif_refus, demande_le, decide_le, decide_par, "
           + "partenaires:partenaire_id (raison_sociale), "
           + "sessions_examen:session_id (type, date_examen, horaire, centre, capacite)")
     .order("demande_le", { ascending: true }).limit(500);
@@ -68,6 +72,14 @@ export async function GET(req: NextRequest) {
       nom: d.candidat_nom, prenom: d.candidat_prenom,
       email: d.candidat_email, telephone: d.candidat_telephone,
       naissance: d.candidat_naissance,
+      civilite: d.candidat_civilite, genre: d.candidat_genre,
+      lieu_naissance: d.candidat_lieu_naissance,
+      langue_maternelle: d.candidat_langue_maternelle,
+      nationalite: d.candidat_nationalite,
+      adresse: d.candidat_adresse, code_postal: d.candidat_code_postal,
+      ville: d.candidat_ville, pays: d.candidat_pays,
+      num_piece: d.candidat_num_piece, sous_type: d.sous_type,
+      piece_nom: d.piece_identite_nom, piece_path: d.piece_identite_path,
       statut: d.statut, motif_refus: d.motif_refus,
       demande_le: d.demande_le, decide_le: d.decide_le, decide_par: d.decide_par,
       session: s ? {
