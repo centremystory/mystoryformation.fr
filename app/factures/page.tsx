@@ -36,10 +36,18 @@ const BADGE: Record<string, string> = {
   "relance_1": "bg-orange-100 border-orange-300 text-orange-800",
   "relance_2": "bg-red-100 border-red-300 text-red-800",
   "payée": "bg-green-100 border-green-300 text-green-800",
+  // 10/09/2026 — « annulee » existait en base mais pas ici : le badge affichait la
+  // valeur brute, et la facture etait comptee comme impayee.
+  "annulee": "bg-gray-100 border-gray-300 text-gray-600",
+  "annulée": "bg-gray-100 border-gray-300 text-gray-600",
 };
 const LIBELLE_STATUT: Record<string, string> = {
   "émise": "Émise", "relance_1": "Relance 1 (J+7)", "relance_2": "Relance 2 (J+15)", "payée": "Payée",
+  "annulee": "Annulée", "annulée": "Annulée",
 };
+/** Une facture annulee ne doit peser ni dans l'emis, ni dans l'attente, ni dans les impayes. */
+const EST_ANNULEE = (st: string | null | undefined) =>
+  String(st ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === "annulee";
 
 function dateFR(iso: string | null): string {
   if (!iso) return "";
@@ -105,9 +113,19 @@ export default function PageFactures() {
   const cpfTerminees = useMemo(() => aFacturer.filter((d) => d.estCpf && d.terminee), [aFacturer]);
 
   const totaux = useMemo(() => {
-    const emis = facturesVue.reduce((s, f) => s + Number(f.montant || 0), 0);
-    const encaisse = facturesVue.filter((f) => f.statut === "payée").reduce((s, f) => s + Number(f.montant || 0), 0);
-    return { emis, encaisse, attente: emis - encaisse, enAttenteN: facturesVue.filter((f) => f.statut !== "payée").length };
+    // 10/09/2026 — les factures ANNULEES sortaient du registre visuellement mais
+    // restaient dans les compteurs : une facture annulee de 26 EUR s'affichait en
+    // « En attente 26 EUR » et « 1 facture non payee ». On ne compte plus que le
+    // vivant, et on montre a part ce qui a ete annule.
+    const vivantes = facturesVue.filter((f) => !EST_ANNULEE(f.statut));
+    const emis = vivantes.reduce((s, f) => s + Number(f.montant || 0), 0);
+    const encaisse = vivantes.filter((f) => f.statut === "payée").reduce((s, f) => s + Number(f.montant || 0), 0);
+    const annulees = facturesVue.filter((f) => EST_ANNULEE(f.statut)).length;
+    return {
+      emis, encaisse, attente: emis - encaisse,
+      enAttenteN: vivantes.filter((f) => f.statut !== "payée").length,
+      annulees,
+    };
   }, [facturesVue]);
 
   async function action(url: string, corps: Record<string, unknown>, cle: string, message: string) {
@@ -268,7 +286,13 @@ export default function PageFactures() {
         <div className="rounded-lg border bg-white p-3"><div className="text-xs text-gray-500">Émis (50 dernières)</div><div className="text-lg font-semibold">{totaux.emis.toLocaleString("fr-FR")} €</div></div>
         <div className="rounded-lg border bg-white p-3"><div className="text-xs text-gray-500">Encaissé</div><div className="text-lg font-semibold text-green-700">{totaux.encaisse.toLocaleString("fr-FR")} €</div></div>
         <div className="rounded-lg border bg-white p-3"><div className="text-xs text-gray-500">En attente</div><div className="text-lg font-semibold text-orange-700">{totaux.attente.toLocaleString("fr-FR")} €</div></div>
-        <div className="rounded-lg border bg-white p-3"><div className="text-xs text-gray-500">Factures non payées</div><div className="text-lg font-semibold">{totaux.enAttenteN}</div></div>
+        <div className="rounded-lg border bg-white p-3"><div className="text-xs text-gray-500">Factures non payées</div><div className="text-lg font-semibold">{totaux.enAttenteN}</div>
+          {totaux.annulees > 0 && (
+            <div className="mt-0.5 text-xs text-gray-400">
+              {totaux.annulees} annulée{totaux.annulees > 1 ? "s" : ""}, hors compteurs
+            </div>
+          )}
+        </div>
       </div>
 
       {erreur && <div className="mt-4 rounded-md border border-red-300 bg-red-50 text-red-800 px-3 py-2 text-sm">{erreur}</div>}
@@ -429,7 +453,7 @@ export default function PageFactures() {
                       >
                         📄 PDF
                       </a>
-                      {f.statut !== "payée" && (
+                      {f.statut !== "payée" && !EST_ANNULEE(f.statut) && (
                         <button
                           onClick={() => { if (window.confirm(`Marquer la facture ${f.numero} comme PAYÉE ?\n\nCela appose le tampon « PAYÉE », régénère le PDF et notifie le client. Action à ne faire qu'après encaissement réel.`)) action("/api/factures", { id: f.id, action: "payee" }, `p-${f.id}`, `Facture ${f.numero} marquée payée`); }}
                           disabled={busy !== null}
@@ -462,7 +486,7 @@ export default function PageFactures() {
           </div>
         )}
         <p className="text-xs text-gray-400 mt-2">
-          Numérotation FAC-AAAA-NNNNN séquentielle sans trou, attribuée par le serveur — document comptable : aucune suppression possible.
+          Numérotation séquentielle sans trou, attribuée par le serveur (série MYS, une suite continue par série) — document comptable : aucune suppression possible.
         </p>
       </section>
       </>}
