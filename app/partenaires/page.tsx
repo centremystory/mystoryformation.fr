@@ -18,6 +18,9 @@ type Demande = {
   langue_maternelle?: string | null; nationalite?: string | null;
   adresse?: string | null; code_postal?: string | null; ville?: string | null; pays?: string | null;
   num_piece?: string | null; sous_type?: string | null; piece_nom?: string | null;
+  controle_carence_fraude?: boolean; controle_infos?: boolean;
+  controle_par?: string | null; controle_le?: string | null;
+  modifie_le?: string | null; modifie_par?: string | null;
 };
 
 const LIB_TYPE: Record<string, string> = { TEF_IRN: "TEF IRN", Examen_civique: "Examen civique" };
@@ -29,7 +32,7 @@ const dateFr = (iso: string | null) => {
 
 export default function PagePartenaires() {
   const [demandes, setDemandes] = useState<Demande[] | null>(null);
-  const [filtre, setFiltre] = useState("en_attente");
+  const [filtre, setFiltre] = useState("confirmee");
   const [busy, setBusy] = useState<string | null>(null);
   const [motif, setMotif] = useState<Record<string, string>>({});
   const [refusOuvert, setRefusOuvert] = useState<Record<string, boolean>>({});
@@ -43,6 +46,26 @@ export default function PagePartenaires() {
   }, [filtre]);
 
   useEffect(() => { charger(); }, [charger]);
+
+  /** Coche l'une des deux verifications d'accueil. Optimiste : l'accueil enchaine
+      les fiches, attendre le serveur a chaque clic rendrait le geste penible. */
+  async function controler(d: Demande, champ: "controle_carence_fraude" | "controle_infos") {
+    const nouvelle = !d[champ];
+    setDemandes((ds) => (ds ?? []).map((x) =>
+      x.id === d.id ? { ...x, [champ]: nouvelle } : x));
+    const r = await fetch("/api/partenaires/demandes", {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: d.id, [champ]: nouvelle }),
+    });
+    const j = await r.json().catch(() => null);
+    if (!j?.ok) {
+      // On remet la case comme elle etait : une coche qui reste alors que rien
+      // n'est enregistre est pire que pas de coche du tout.
+      setDemandes((ds) => (ds ?? []).map((x) =>
+        x.id === d.id ? { ...x, [champ]: !nouvelle } : x));
+      setErr(j?.erreur ?? "Enregistrement du contrôle impossible.");
+    }
+  }
 
   async function decider(id: string, decision: "confirmee" | "refusee") {
     if (decision === "refusee" && !(motif[id] ?? "").trim()) {
@@ -67,10 +90,14 @@ export default function PagePartenaires() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
       <h1 className="text-xl font-bold text-gray-900">Inscriptions partenaires</h1>
+      {/* 10/09/2026 — le centre ne valide plus chaque inscription : la place est
+          retenue des le depot. Ce qui reste, c'est un CONTROLE A L'ACCUEIL sur deux
+          points, trace (qui, quand). Il ne bloque pas l'inscription : il etablit ce
+          qui a ete verifie, ce qu'on doit pouvoir produire devant le certificateur. */}
       <p className="mt-1 text-sm text-gray-600">
-        Candidats déposés par les organismes prescripteurs. Chaque demande est validée
-        par le centre&nbsp;: c&apos;est nous qui répondons de la régularité de la passation
-        devant le certificateur.
+        Candidats déposés par les organismes prescripteurs. Leur place est retenue dès le
+        dépôt. L&apos;accueil coche les deux vérifications ci-dessous&nbsp;: c&apos;est nous
+        qui répondons de la régularité de la passation devant le certificateur.
       </p>
 
       <a href="/partenaires/organismes"
@@ -80,7 +107,7 @@ export default function PagePartenaires() {
       </a>
 
       <div className="mt-4 flex gap-2">
-        {[["en_attente", "À valider"], ["confirmee", "Confirmées"],
+        {[["confirmee", "Places retenues"], ["en_attente", "Avant le 10/09"],
           ["refusee", "Refusées"], ["toutes", "Toutes"]].map(([v, l]) => (
           <button key={v} onClick={() => setFiltre(v)}
                   className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
@@ -144,6 +171,46 @@ export default function PagePartenaires() {
                   <span className="sm:col-span-2 text-emerald-700">
                     ✓ Pièce d&apos;identité jointe : {d.piece_nom}
                   </span>
+                )}
+              </div>
+
+              {/* ── Contrôle d'accueil ─────────────────────────────────────
+                  Deux points, et deux seulement. Formulés comme une certification
+                  — « je certifie » — parce que c'est ce qu'ils sont : la trace de
+                  ce que l'accueil a vérifié, opposable devant le certificateur. */}
+              <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Vérifications à l&apos;accueil
+                </p>
+                <div className="space-y-2">
+                  {([["controle_carence_fraude",
+                      "Je certifie que ce candidat n'est pas dans le délai de carence et n'est pas banni de l'examen pour fraude."],
+                     ["controle_infos",
+                      "Je certifie que les informations saisies sont exactes et conformes à la pièce d'identité."]] as const)
+                    .map(([champ, libelle]) => (
+                    <label key={champ} className="flex cursor-pointer items-start gap-2.5 text-sm text-gray-800">
+                      <input type="checkbox" checked={Boolean(d[champ])}
+                             onChange={() => controler(d, champ)}
+                             className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-emerald-600" />
+                      <span className={d[champ] ? "text-emerald-800" : ""}>{libelle}</span>
+                    </label>
+                  ))}
+                </div>
+                {d.controle_carence_fraude && d.controle_infos ? (
+                  <p className="mt-2 text-xs font-medium text-emerald-700">
+                    ✓ Vérifié{d.controle_par ? ` par ${d.controle_par}` : ""}
+                    {d.controle_le ? ` le ${dateFr(d.controle_le)}` : ""}
+                  </p>
+                ) : (
+                  <p className="mt-2 text-xs text-amber-700">
+                    À faire avant le jour de l&apos;épreuve.
+                  </p>
+                )}
+                {d.modifie_le && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    Fiche modifiée par le partenaire le {dateFr(d.modifie_le)} — les
+                    vérifications ont été remises à zéro.
+                  </p>
                 )}
               </div>
 

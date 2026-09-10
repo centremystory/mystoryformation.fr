@@ -55,6 +55,9 @@ export async function GET(req: NextRequest) {
           + "candidat_code_postal, candidat_ville, candidat_pays, candidat_num_piece, "
           + "sous_type, piece_identite_path, piece_identite_nom, "
           + "statut, motif_refus, demande_le, decide_le, decide_par, "
+          // 10/09/2026 — le controle d'accueil remplace la validation piece a piece.
+          + "controle_carence_fraude, controle_infos, controle_par, controle_le, "
+          + "modifie_le, modifie_par, "
           + "partenaires:partenaire_id (raison_sociale), "
           + "sessions_examen:session_id (type, date_examen, horaire, centre, capacite)")
     .order("demande_le", { ascending: true }).limit(500);
@@ -80,6 +83,10 @@ export async function GET(req: NextRequest) {
       ville: d.candidat_ville, pays: d.candidat_pays,
       num_piece: d.candidat_num_piece, sous_type: d.sous_type,
       piece_nom: d.piece_identite_nom, piece_path: d.piece_identite_path,
+      controle_carence_fraude: Boolean(d.controle_carence_fraude),
+      controle_infos: Boolean(d.controle_infos),
+      controle_par: d.controle_par, controle_le: d.controle_le,
+      modifie_le: d.modifie_le, modifie_par: d.modifie_par,
       statut: d.statut, motif_refus: d.motif_refus,
       demande_le: d.demande_le, decide_le: d.decide_le, decide_par: d.decide_par,
       session: s ? {
@@ -105,6 +112,26 @@ export async function PATCH(req: NextRequest) {
   const motif = String(b?.motif ?? "").trim().slice(0, 500);
 
   if (!id) return NextResponse.json({ ok: false, erreur: "id requis." }, { status: 400 });
+
+  // 10/09/2026 — CONTROLE D'ACCUEIL. Le centre ne valide plus chaque inscription :
+  // la place est retenue des le depot. Ce qui reste, c'est une VERIFICATION tracee,
+  // faite a l'accueil, sur deux points precis. Elle ne bloque rien — elle etablit
+  // qui a verifie quoi et quand, ce qu'on doit pouvoir produire si un candidat en
+  // carence ou banni pour fraude se presentait.
+  if ("controle_carence_fraude" in b || "controle_infos" in b) {
+    const maj: Record<string, any> = { controle_par: u.email ?? null, controle_le: new Date().toISOString() };
+    if ("controle_carence_fraude" in b) maj.controle_carence_fraude = Boolean(b.controle_carence_fraude);
+    if ("controle_infos" in b) maj.controle_infos = Boolean(b.controle_infos);
+    // Tout decocher, c'est retirer la certification : on efface aussi qui l'avait faite.
+    if (maj.controle_carence_fraude === false && maj.controle_infos === false) {
+      maj.controle_par = null; maj.controle_le = null;
+    }
+    const { error } = await supabaseAdmin
+      .from("demandes_inscription_partenaire").update(maj).eq("id", id);
+    if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
+    await journal("demande_partenaire", id, "controle_accueil", maj, u.email ?? null);
+    return NextResponse.json({ ok: true });
+  }
   if (!["confirmee", "refusee"].includes(decision)) {
     return NextResponse.json({ ok: false, erreur: "Décision invalide." }, { status: 400 });
   }
