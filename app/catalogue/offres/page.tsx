@@ -87,10 +87,20 @@ export default function CatalogueOffresPage() {
     <div style={{ maxWidth: 1000, margin: "0 auto", padding: "8px 4px 60px" }}>
       <h1 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 2px" }}>Catalogue — Offres & formules</h1>
       <p style={{ color: "#667085", fontSize: 14, marginTop: 0 }}>
-        Édite <strong>titres, finalités, niveaux</strong> (au niveau offre) et <strong>formules</strong> (nom, heures, prix). <strong>Barème 2026 :</strong> 150€ (examen TEF IRN inclus) + heures × taux dégressif — 1-15h=40€/h · 16-30h=35€/h · au-delà de 30h=25€/h. Plafond 1 650€ = 1 500€ CPF + 150€ de ticket modérateur. Durées de 12h à 45h, multiples de 3h.
+        Édite <strong>titres, finalités, niveaux</strong> (au niveau offre) et <strong>formules</strong> (nom, heures, prix).{" "}
+        <strong>Barème CPF :</strong> 180 € (examen TEF IRN inclus) + heures × <strong>40 €/h — taux unique, sans palier</strong>.
+        Plafond 1 650 € = 1 500 € CPF + 150 € de participation, ce qui borne la durée finançable à <strong>36 h</strong>.
+        Plancher <strong>12 h</strong> (la Caisse des dépôts pose une durée minimale de 10 h ; 12 h est le premier
+        multiple de la séance de 3 h au-dessus).{" "}
+        <strong>Hors CPF :</strong> 180 € + 50 €/h, modules de 3 à 9 h — jamais déposés sur EDOF.
       </p>
       <div style={{ background: "#ECFDF3", border: "1px solid #ABEFC6", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#067647", margin: "12px 0" }}>
-        ✅ <strong>Catalogue 2026 en vigueur</strong> — validé par le certificateur (Le français des affaires, 26/08/2026) et publié sur EDOF le 02/09/2026. Toute modification de prix doit rester conforme au barème ci-dessus, sinon la commande EDOF et la convention divergent.
+        ✅ <strong>Catalogue refondu le 10/09/2026</strong> après la mise en demeure de la Caisse des dépôts.
+        <strong>Trois offres, une action chacune, à 36 h / 1 620 €</strong> — la durée publiée est un{" "}
+        <strong>maximum</strong> : le test de positionnement arrête le volume réellement retenu, inscrit au dossier
+        avant signature, et lui seul est facturé. L&apos;ancienne grille (TEFIRN7, quatre offres, prix dégressifs) est
+        archivée et ne doit plus être vendue — l&apos;offre « Intensif » a été supprimée sur demande de la CDC.
+        Toute modification de prix doit rester conforme au barème ci-dessus, sinon la commande EDOF et la convention divergent.
       </div>
 
       {/* Historique / retour arrière */}
