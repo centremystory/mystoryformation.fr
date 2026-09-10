@@ -109,6 +109,9 @@ export const PAGE_PERMISSIONS: Record<string, Role[]> = {
   // Inscriptions deposees par les organismes prescripteurs (Secure Academy...).
   // Confirmer une place engage le centre devant le certificateur : encadrement seul.
   "/partenaires": ["direction", "manager", "back_office"],
+  // Creer un acces partenaire ouvre des places d'examen dont nous repondons devant
+  // le certificateur : direction et management seulement, pas le back-office.
+  "/partenaires/organismes": ["direction", "manager"],
   // — Commercial / prospects —
   "/inscriptions": ["direction", "manager", "commercial", "back_office"],
   "/ventes-formation": ["direction", "manager", "commercial", "back_office"],

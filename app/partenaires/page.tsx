@@ -69,6 +69,12 @@ export default function PagePartenaires() {
         devant le certificateur.
       </p>
 
+      <a href="/partenaires/organismes"
+         className="mt-3 inline-block text-sm font-semibold underline underline-offset-2"
+         style={{ color: BLEU }}>
+        Gérer les accès partenaires →
+      </a>
+
       <div className="mt-4 flex gap-2">
         {[["en_attente", "À valider"], ["confirmee", "Confirmées"],
           ["refusee", "Refusées"], ["toutes", "Toutes"]].map(([v, l]) => (

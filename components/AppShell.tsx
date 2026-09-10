@@ -10,7 +10,7 @@ import {
   Home, Search, GraduationCap, LayoutGrid, CalendarDays, Star, BookOpen, FolderOpen, ClipboardCheck,
   ClipboardList, Users, Plane, CalendarRange, Clock, Settings, Receipt, CheckCircle2,
   FileSpreadsheet, UserCog, MessageSquare, MessageCircle, Megaphone, Eye, HelpCircle, KeyRound,
-  Workflow, ScrollText, LogOut, Menu, X, ChevronDown,
+  Workflow, ScrollText, LogOut, Menu, X, ChevronDown, Handshake,
   Plus, FileCheck, RotateCcw, Trophy, UserPlus, Phone, ShieldCheck, BarChart3, QrCode, } from "lucide-react";
 import { accesPage, accesPageAvec, ROLE_LABEL } from "@/lib/roles";
 import TachesUrgentes from "@/components/TachesUrgentes";
@@ -20,7 +20,15 @@ import ConformiteAlerte from "@/components/ConformiteAlerte";
 import AssistantWidget from "@/components/AssistantWidget";
 import { SITES, COOKIE_SITE, siteValide } from "@/lib/sites";
 
-const PAGES_SANS_NAV = ["/connexion", "/qcm", "/positionnement", "/suivi", "/evaluation", "/fiche-besoin", "/emargement/signer", "/satisfaction", "/avis-cours", "/formateur-questionnaire", "/contact", "/partenaire", "/test"];
+// Pages qui ne doivent JAMAIS afficher la navigation interne : elles sont vues par
+// des candidats, des formateurs sous-traitants ou des organismes partenaires. Leur
+// montrer le menu du CRM revient a leur exposer toute notre structure — Finances,
+// BPF, RH, Comptes — et a leur donner des liens a essayer. Les pages seraient
+// refusees, mais l'inventaire, lui, serait livre.
+//
+// 10/09/2026 : « /prescripteur » ajoute. Il manquait, et Secure Academy aurait vu
+// le menu complet des son premier acces.
+const PAGES_SANS_NAV = ["/connexion", "/qcm", "/positionnement", "/suivi", "/evaluation", "/fiche-besoin", "/emargement/signer", "/satisfaction", "/avis-cours", "/formateur-questionnaire", "/contact", "/partenaire", "/prescripteur", "/test"];
 
 // `membres` = pages fusionnées derrière ce lien (accessibles via sous-onglets de la page).
 // Le lien s'affiche si l'utilisateur accède à href OU à un membre ; il pointe alors vers
@@ -68,6 +76,7 @@ const NAV: Entree[] = [
       { href: "/activite", label: "Activité", icon: BarChart3 },
       { href: "/factures", label: "Factures", icon: Receipt },
       { href: "/validations", label: "Validations", icon: CheckCircle2 },
+      { href: "/partenaires", label: "Partenaires", icon: Handshake, membres: ["/partenaires/organismes"] },
       { href: "/bpf", label: "BPF", icon: FileSpreadsheet },
       { href: "/classement", label: "Classement", icon: Trophy },
     ],
