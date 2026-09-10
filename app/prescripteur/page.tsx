@@ -8,6 +8,7 @@
 // sous-traitants (depot d'emargements et de factures).
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import CalendrierPartenaire from "@/components/CalendrierPartenaire";
 
 const BLEU = "#2F72DE";
 
@@ -77,6 +78,12 @@ export default function PortailPrescripteur() {
   const [envoi, setEnvoi] = useState(false);
   const [msg, setMsg] = useState<{ t: "ok" | "err"; m: string } | null>(null);
   const [retrait, setRetrait] = useState<Record<string, "confirme" | "...">>({});
+  // 10/09/2026 — trois vues : inscrire, le calendrier de ses sessions, ses documents.
+  const [vue, setVue] = useState<"inscrire" | "calendrier" | "documents">("inscrire");
+  const [recherche, setRecherche] = useState("");
+  const [docs, setDocs] = useState<any[] | null>(null);
+  const [justif, setJustif] = useState<{ demande: string; fichier: File | null; note: string }>(
+    { demande: "", fichier: null, note: "" });
 
   const charger = useCallback(async () => {
     try {
@@ -89,6 +96,32 @@ export default function PortailPrescripteur() {
   }, [router]);
 
   useEffect(() => { charger(); }, [charger]);
+
+  useEffect(() => {
+    if (vue !== "documents" || docs !== null) return;
+    fetch("/api/prescripteur/documents", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => setDocs(j?.ok ? j.documents : []))
+      .catch(() => setDocs([]));
+  }, [vue, docs]);
+
+  async function deposerJustificatif() {
+    if (!justif.fichier) { setMsg({ t: "err", m: "Choisissez un fichier." }); return; }
+    setEnvoi(true); setMsg(null);
+    try {
+      const fd = new FormData();
+      fd.append("type", "justificatif_absence");
+      fd.append("demande_id", justif.demande);
+      fd.append("commentaire", justif.note);
+      fd.append("fichier", justif.fichier);
+      const r = await fetch("/api/prescripteur/documents", { method: "POST", body: fd });
+      const j = await r.json();
+      if (!j?.ok) { setMsg({ t: "err", m: j?.erreur ?? "Dépôt impossible." }); return; }
+      setMsg({ t: "ok", m: "Justificatif transmis au centre." });
+      setJustif({ demande: "", fichier: null, note: "" });
+      setDocs(null);   // on rechargera la liste
+    } finally { setEnvoi(false); }
+  }
 
   async function inscrire() {
     const requis: Record<string, string> = {
@@ -209,8 +242,22 @@ export default function PortailPrescripteur() {
         </p>
       )}
 
+      {/* ── Trois vues ───────────────────────────────────────────────────── */}
+      <div className="mb-4 flex gap-2">
+        {([["inscrire", "Inscrire un candidat"],
+           ["calendrier", "Mon calendrier"],
+           ["documents", "Documents"]] as const).map(([v, l]) => (
+          <button key={v} onClick={() => setVue(v)}
+                  className={`rounded-lg px-3 py-2 text-sm font-semibold ${
+                    vue === v ? "text-white" : "bg-gray-100 text-gray-600"}`}
+                  style={vue === v ? { background: BLEU } : undefined}>
+            {l}
+          </button>
+        ))}
+      </div>
+
       {/* ── Inscrire un candidat ─────────────────────────────────────────── */}
-      <section className="mb-8 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+      <section className={`mb-8 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm ${vue === "inscrire" ? "" : "hidden"}`}>
         <h2 className="mb-1 text-base font-bold text-gray-900">Inscrire un candidat</h2>
         <p className="mb-4 text-xs text-gray-500">
           Les inscriptions ferment {data.delai_jours} jours avant la session. Chaque demande
@@ -387,8 +434,19 @@ export default function PortailPrescripteur() {
         )}
       </section>
 
+      {/* ── Mon calendrier ───────────────────────────────────────────────────
+          10/09/2026 — l'onglet existait dans l'etat `vue` mais n'affichait rien :
+          le partenaire cliquait « Mon calendrier » et retombait sur la liste.
+          Les donnees necessaires etaient deja renvoyees par mesDemandes() — la vue
+          ne coute aucun appel reseau supplementaire. ─────────────────────────── */}
+      {vue === "calendrier" && (
+        <div className="mb-8">
+          <CalendrierPartenaire demandes={data.demandes as any} />
+        </div>
+      )}
+
       {/* ── Les candidats deja deposes ───────────────────────────────────── */}
-      <section>
+      <section className={vue === "calendrier" ? "hidden" : ""}>
         <h2 className="mb-1 text-base font-bold text-gray-900">
           Vos candidats
           {enAttente > 0 && (
