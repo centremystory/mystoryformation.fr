@@ -141,20 +141,34 @@ export interface DocumentGenere {
   chemin: string;
 }
 
+/**
+ * Adresse et accès d'un centre d'examen, avec repli sur les réglages puis sur Gagny.
+ * 14/09/2026 — les corps d'e-mail portaient l'adresse de Gagny EN DUR alors que les
+ * gabarits PDF utilisaient déjà {{lieu_examen}}. Un candidat convoqué à Rosny recevait
+ * une pièce jointe juste et un message faux, dans le même envoi. Une seule fonction
+ * sert désormais les deux, pour qu'ils ne puissent plus diverger.
+ */
+async function lieuDuCentre(code?: string | null): Promise<{ adresse: string; acces: string }> {
+  let adresse = "", acces = "";
+  if (code) {
+    const { data } = await supabaseAdmin.from("centres").select("adresse, acces").eq("code", code).maybeSingle();
+    if (data) { adresse = data.adresse ?? ""; acces = data.acces ?? ""; }
+  }
+  return {
+    adresse: adresse || (await getParam("examen_lieu", "3 bis avenue de Gagny, 93220 Gagny")),
+    acces: acces || (await getParam("examen_acces", "RER E : station Gagny. Stationnement à proximité.")),
+  };
+}
+
 /** Génère (et archive en storage) l'attestation + la convocation éventuelle d'une vente. */
 export async function genererDocumentsVente(vc: VenteComplete, options?: { corrigee?: boolean }): Promise<DocumentGenere[]> {
   const { vente, candidat } = vc;
   const valeurs = valeursVente(vc, options);
   // Lieu d'examen = centre de la SESSION (référentiel /centres, ex. Gagny ou Rosny) ;
   // repli sur le paramètre global /reglages si la session n'a pas de centre reconnu.
-  const centreCode = (vc.session as any)?.centre ?? null;
-  let lieuExamen = "", accesExamen = "";
-  if (centreCode) {
-    const { data: centre } = await supabaseAdmin.from("centres").select("adresse, acces").eq("code", centreCode).maybeSingle();
-    if (centre) { lieuExamen = centre.adresse ?? ""; accesExamen = centre.acces ?? ""; }
-  }
-  valeurs.lieu_examen = lieuExamen || await getParam("examen_lieu", "3 bis avenue de Gagny, 93220 Gagny");
-  valeurs.acces_examen = accesExamen || await getParam("examen_acces", "RER E : station Gagny. Stationnement à proximité.");
+  const lieuVente = await lieuDuCentre((vc.session as any)?.centre ?? null);
+  valeurs.lieu_examen = lieuVente.adresse;
+  valeurs.acces_examen = lieuVente.acces;
   const docs: DocumentGenere[] = [];
 
   const rendus: Array<{ piece: "attestation" | "convocation"; template: string; nom: string }> = [
@@ -195,10 +209,11 @@ export async function envoyerDocumentsVente(
     ? `${prefixe}Votre attestation d'inscription MYSTORY (${vente.numero_attestation})`
     : `${prefixe}Votre convocation à l'examen — ${session ? dateFR(session.date_examen) : ""} (${vente.numero_attestation})`;
 
+  const lieuMail = await lieuDuCentre((session as any)?.centre ?? null);
   const lignesSession = session
     ? `<p><strong>Votre session :</strong> ${session.type === "TEF_IRN" ? "TEF IRN" : "Examen civique"} —
        le <strong>${dateFR(session.date_examen)}</strong> à <strong>${horaires(session).debut}</strong><br>
-       Lieu : <strong>3 bis avenue de Gagny, 93220 Gagny</strong> (RER E station Gagny)</p>
+       Lieu : <strong>${escapeHtml(lieuMail.adresse)}</strong><br>${escapeHtml(lieuMail.acces)}</p>
        <p>Merci de vous présenter <strong>15 minutes avant</strong>, muni(e) d'une <strong>pièce d'identité en cours de validité</strong> et de votre convocation (imprimée ou sur téléphone).</p>`
     : `<p>Votre accès à l'application d'entraînement <strong>${vente.sous_type ?? ""}</strong> est confirmé.</p>`;
 
@@ -236,6 +251,7 @@ export async function envoyerConvocationsGroupees(params: {
   convocationGroupee: { nom: string; pdf: Buffer };
 }): Promise<{ ok: boolean; erreur?: string }> {
   const { candidat, dateExamenISO, examensDuJour, attestations, convocationGroupee } = params;
+  const lieuGroupe = await lieuDuCentre((examensDuJour[0]?.session as any)?.centre ?? null);
   if (!candidat.email) return { ok: false, erreur: "Candidat sans adresse email." };
 
   const lignes = examensDuJour
@@ -249,9 +265,9 @@ export async function envoyerConvocationsGroupees(params: {
 
   const corps = `
     <p>Bonjour ${escapeHtml(candidat.prenom ?? "")},</p>
-    <p>Nous vous confirmons votre inscription. Vous êtes convoqué(e) le <strong>${dateFR(dateExamenISO)}</strong> à MYSTORY (Gagny) pour les épreuves suivantes :</p>
+    <p>Nous vous confirmons votre inscription. Vous êtes convoqué(e) le <strong>${dateFR(dateExamenISO)}</strong> pour les épreuves suivantes :</p>
     <ul>${lignes}</ul>
-    <p>Lieu : <strong>3 bis avenue de Gagny, 93220 Gagny</strong> (RER E station Gagny).<br>
+    <p>Lieu : <strong>${escapeHtml(lieuGroupe.adresse)}</strong><br>${escapeHtml(lieuGroupe.acces)}<br>
        Merci de vous présenter <strong>15 minutes avant la première épreuve</strong>, muni(e) d'une <strong>pièce d'identité en cours de validité</strong> et de votre convocation (imprimée ou sur téléphone).</p>
     <p>En pièces jointes : <strong>votre convocation regroupant toutes vos épreuves du jour</strong> et vos attestations.</p>
     <p>Pour toute question : 06 81 43 16 54 · contact@mystoryformation.fr</p>
