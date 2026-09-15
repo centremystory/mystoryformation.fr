@@ -18,7 +18,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole, UnauthorizedError, ForbiddenError } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { journal } from "@/lib/examens";
+import { facturerSession, tarifPartenaire } from "@/lib/facturationPartenaire";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,11 +39,7 @@ const refus = (code: number) =>
     { status: code });
 
 /** Le tarif partenaire qui s'applique, selon le type d'examen de la session. */
-function tarif(p: any, typeSession: string): number {
-  const civique = String(typeSession ?? "").toLowerCase().includes("civique");
-  const t = civique ? p.tarif_civique : p.tarif_tef_irn;
-  return Number(t ?? 0);
-}
+// tarif() vit desormais dans lib/facturationPartenaire (tarifPartenaire).
 
 export async function GET(req: NextRequest) {
   const { u, code } = await garde(req);
@@ -78,7 +74,7 @@ export async function GET(req: NextRequest) {
       serie: p.serie_facture,
       session_id: (d as any).session_id,
       type: s.type, date_examen: s.date_examen, horaire: s.horaire, centre: s.centre,
-      tarif: tarif(p, s.type),
+      tarif: tarifPartenaire(p, s.type),
       candidats: [] as string[],
     };
     lot.candidats.push(`${(d as any).candidat_prenom} ${(d as any).candidat_nom}`);
@@ -110,87 +106,10 @@ export async function POST(req: NextRequest) {
       { ok: false, erreur: "partenaire_id et session_id requis." }, { status: 400 });
   }
 
-  const { data: p } = await supabaseAdmin
-    .from("partenaires")
-    .select("id, raison_sociale, tarif_tef_irn, tarif_civique, serie_facture")
-    .eq("id", partenaireId).maybeSingle();
-  if (!p) return NextResponse.json({ ok: false, erreur: "Partenaire introuvable." }, { status: 404 });
-  if (!p.serie_facture) {
-    return NextResponse.json(
-      { ok: false, erreur: "Ce partenaire n'a pas de série de facturation." }, { status: 400 });
-  }
-
-  const { data: s } = await supabaseAdmin
-    .from("sessions_examen")
-    .select("id, type, date_examen, horaire, centre")
-    .eq("id", sessionId).maybeSingle();
-  if (!s) return NextResponse.json({ ok: false, erreur: "Session introuvable." }, { status: 404 });
-
-  // Les places de CE partenaire sur CETTE session, pas encore facturees.
-  const { data: lignes } = await supabaseAdmin
-    .from("demandes_inscription_partenaire")
-    .select("id, candidat_nom, candidat_prenom")
-    .eq("partenaire_id", partenaireId).eq("session_id", sessionId)
-    .is("facture_id", null).in("statut", ["confirmee", "en_attente"]);
-
-  if (!lignes?.length) {
-    return NextResponse.json(
-      { ok: false, erreur: "Rien à facturer : aucune place non facturée sur cette session." },
-      { status: 409 });
-  }
-
-  const pu = tarif(p, s.type);
-  if (pu <= 0) {
-    return NextResponse.json(
-      { ok: false, erreur: "Aucun tarif partenaire n'est défini pour ce type d'examen." },
-      { status: 400 });
-  }
-  const montant = lignes.length * pu;
-
-  // Numero atomique. Si la serie n'a pas de compteur, la fonction leve — on le dit
-  // clairement plutot que de laisser remonter une erreur Postgres brute.
-  const { data: num, error: eNum } = await supabaseAdmin
-    .rpc("prochain_numero_facture", { p_serie: p.serie_facture });
-  if (eNum || !num) {
-    return NextResponse.json(
-      { ok: false, erreur: `Numérotation impossible pour la série « ${p.serie_facture} » : `
-                         + `${eNum?.message ?? "aucun compteur"}.` }, { status: 500 });
-  }
-
-  const libelle = String(s.type).toLowerCase().includes("civique") ? "Examen civique" : "TEF IRN";
-  const [an, mo, jo] = String(s.date_examen).slice(0, 10).split("-");
-  const designation =
-    `${lignes.length} passation${lignes.length > 1 ? "s" : ""} ${libelle} — session du `
-    + `${jo}/${mo}/${an}${s.horaire ? ` (${s.horaire})` : ""}`
-    + `${s.centre ? ` — ${s.centre}` : ""} — ${pu.toLocaleString("fr-FR")} € par candidat`;
-
-  const { data: facture, error } = await supabaseAdmin
-    .from("factures")
-    .insert({
-      numero: num, serie: p.serie_facture, type: "facture",
-      client: p.raison_sociale, montant, designation, statut: "émise",
-    })
-    .select("id, numero, montant, date_emission").single();
-  if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
-
-  // Rattachement : c'est ce lien qui empeche de refacturer les memes places, et qui
-  // permet au partenaire de voir ses factures depuis son espace.
-  const { error: eLien } = await supabaseAdmin
-    .from("demandes_inscription_partenaire")
-    .update({ facture_id: facture.id })
-    .in("id", lignes.map((l: any) => l.id));
-  if (eLien) {
-    // La facture existe mais n'est rattachee a rien : on le signale plutot que de
-    // laisser croire que c'est fait, sinon les memes places seront refacturees.
-    return NextResponse.json(
-      { ok: false, erreur: `Facture ${num} créée, mais le rattachement des candidats a échoué : `
-                         + `${eLien.message}. À reprendre à la main avant toute nouvelle émission.` },
-      { status: 500 });
-  }
-
-  await journal("facture", facture.id, "emission_partenaire",
-    { partenaire: p.raison_sociale, numero: num, montant, places: lignes.length,
-      session: `${s.date_examen} ${s.horaire}` }, u.email ?? null);
-
-  return NextResponse.json({ ok: true, facture: { ...facture, places: lignes.length } });
+  // 15/09/2026 — la logique d'emission vit desormais dans lib/facturationPartenaire,
+  // partagee avec le cron du jour d'examen (/api/cron/facturation-partenaire).
+  // Deux implementations, ce sont deux series de numeros qui divergent un jour.
+  const r = await facturerSession({ partenaireId, sessionId, auteur: u.email ?? null });
+  if (!r.ok) return NextResponse.json({ ok: false, erreur: r.erreur }, { status: r.code });
+  return NextResponse.json({ ok: true, facture: r.facture });
 }

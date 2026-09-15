@@ -41,6 +41,9 @@ export interface EnvoiEmail {
   objet: string;
   html: string;
   piecesJointes?: PieceJointe[];
+  /** Copie CACHEE. Le destinataire ne la voit pas : on garde une trace interne
+   *  de ce qui est reellement parti, sans exposer l'adresse au candidat. */
+  copieCachee?: string;
   // Traçabilité journal
   entite?: string;    // ex. "ventes_examen", "dossiers"
   entiteId?: string;
@@ -90,6 +93,7 @@ export async function envoyerEmail(e: EnvoiEmail): Promise<{ ok: boolean; erreur
     const info = await transport().sendMail({
       from: EXPEDITEUR,
       to: e.a,
+      ...(e.copieCachee ? { bcc: e.copieCachee } : {}),
       replyTo: REPONDRE_A,
       subject: e.objet,
       html: e.html,
@@ -107,6 +111,7 @@ export async function envoyerEmail(e: EnvoiEmail): Promise<{ ok: boolean; erreur
       rejetes: (info as any).rejected ?? null,
       enveloppe: (info as any).envelope ?? null,
       pieces_jointes: (e.piecesJointes ?? []).map((p) => p.nom),
+      copie_cachee: e.copieCachee ?? null,
     });
     return { ok: true };
   } catch (err: any) {

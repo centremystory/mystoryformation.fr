@@ -148,7 +148,10 @@ export interface DocumentGenere {
  * une pièce jointe juste et un message faux, dans le même envoi. Une seule fonction
  * sert désormais les deux, pour qu'ils ne puissent plus diverger.
  */
-async function lieuDuCentre(code?: string | null): Promise<{ adresse: string; acces: string }> {
+/** Lieu et acces d'un centre, lus dans le referentiel /centres. Exporte depuis le
+ *  15/09/2026 : la convocation des candidats presentes par un partenaire en a
+ *  besoin, et elle ne passe pas par une vente. */
+export async function lieuDuCentre(code?: string | null): Promise<{ adresse: string; acces: string }> {
   let adresse = "", acces = "";
   if (code) {
     const { data } = await supabaseAdmin.from("centres").select("adresse, acces").eq("code", code).maybeSingle();
