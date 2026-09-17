@@ -79,11 +79,11 @@ export default function Corriger({ params }: { params: { id: string } }) {
   }
 
   const champ = "w-full rounded-lg border border-gray-300 px-3 py-2 text-sm";
-  const carte = "mt-4 rounded-2xl border border-gray-200 bg-white p-4";
+  const carte = "rounded-2xl border border-gray-200 bg-white p-4 sm:p-5";
 
   return (
-    <main className="mx-auto max-w-md px-4 py-8">
-      <h1 className="text-xl font-extrabold text-gray-900">Corriger l'écrit et l'oral</h1>
+    <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+      <h1 className="text-2xl font-extrabold text-gray-900 sm:text-3xl">Corriger l&apos;écrit et l&apos;oral</h1>
       <p className="mt-1 text-sm text-gray-500">
         Deux notes sur 10 suffisent à finaliser le niveau. Le candidat reçoit ses résultats aussitôt.
       </p>
@@ -92,7 +92,7 @@ export default function Corriger({ params }: { params: { id: string } }) {
 
       {ev && !fini && (
         <>
-          <div className={carte}>
+          <div className={`mt-4 ${carte}`}>
             <div className="text-lg font-bold text-gray-900">{ev.candidat || "Candidat sans nom"}</div>
             <div className="mt-1 text-sm text-gray-500">
               {ev.phase === "final" ? "Test final" : "Test de positionnement"}
@@ -124,6 +124,8 @@ export default function Corriger({ params }: { params: { id: string } }) {
             </p>
           )}
 
+          <div className="mt-4 grid gap-4 lg:grid-cols-[1.45fr_1fr] lg:items-start">
+          <div className="space-y-4">
           <div className={carte}>
             <div className="text-sm font-semibold text-gray-800">✍️ Expression écrite</div>
             {ev.test?.consigne_ecrit && (
@@ -159,7 +161,14 @@ export default function Corriger({ params }: { params: { id: string } }) {
             )}
           </div>
 
-          <div className="mt-4 space-y-3">
+          </div>
+
+          <div className={`${carte} lg:sticky lg:top-6`}>
+            <div className="text-sm font-semibold text-gray-800">Vos notes</div>
+            <p className="mt-0.5 text-xs text-gray-500">
+              Sous 6/10, le niveau descend d&apos;un cran.
+            </p>
+            <div className="mt-3 space-y-3">
             <div>
               <label className="text-sm font-medium text-gray-700">Expression écrite / 10</label>
               <input type="number" min="0" max="10" step="0.5" value={ee} inputMode="decimal"
@@ -180,15 +189,16 @@ export default function Corriger({ params }: { params: { id: string } }) {
                 placeholder="Nom de la formatrice" autoComplete="name" />
               <p className="mt-1 text-xs text-gray-500">Il figure sur la pièce d'évaluation du dossier.</p>
             </div>
+            </div>
+            <button onClick={noter} disabled={envoi || ee === "" || eo === "" || ev.deja_notee}
+              className="mt-4 w-full rounded-xl bg-mystory px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">
+              {envoi ? "Enregistrement…" : "Valider et finaliser le niveau"}
+            </button>
+            <p className="mt-2 text-center text-xs text-gray-500">
+              La validation envoie ses résultats au candidat et la correction détaillée à l&apos;équipe.
+            </p>
           </div>
-
-          <button onClick={noter} disabled={envoi || ee === "" || eo === "" || ev.deja_notee}
-            className="mt-4 w-full rounded-xl bg-mystory px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">
-            {envoi ? "Enregistrement…" : "Valider et finaliser le niveau"}
-          </button>
-          <p className="mt-2 text-center text-xs text-gray-500">
-            La validation envoie ses résultats au candidat et la correction détaillée à l'équipe.
-          </p>
+          </div>
         </>
       )}
 

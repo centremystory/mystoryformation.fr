@@ -714,7 +714,11 @@ export default function Passation({ params }: { params: { token: string } }) {
           {data.test.consigne_oral && <div className="mb-3 rounded-lg bg-gray-50 p-3 text-sm italic text-gray-700">{data.test.consigne_oral}</div>}
           {(data.test.oral_questions?.length ?? 0) > 0 ? (
             <div className="space-y-3">
-              <p className="text-xs text-gray-500">Enregistrez votre réponse à chaque question (autorisez l'accès au micro).</p>
+              <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                <b>Enregistrez votre réponse à chaque question</b> — autorisez l&apos;accès au micro.
+                À distance, c&apos;est votre voix qui est évaluée : <b>les {data.test.oral_questions!.length} enregistrements
+                sont obligatoires</b> pour terminer le test.
+              </p>
               {data.test.oral_questions!.map((q, i) => (
                 <EnregistreurOral key={i} index={i} question={q} onBlob={(bl) => setOralBlobs((pp) => ({ ...pp, [i]: bl }))} />
               ))}
@@ -726,9 +730,29 @@ export default function Passation({ params }: { params: { token: string } }) {
       )}
 
       {erreur && <p className="mb-3 text-sm text-red-700">{erreur}</p>}
+      {(() => {
+        // À distance, l'oral doit être enregistré : sans son, il n'y a rien à noter.
+        const nbQuestionsOrales = data.test.oral_questions?.length ?? 0;
+        const oralAttendu = data.mode !== "sur_place" && nbQuestionsOrales > 0;
+        const nbEnregistres = Object.keys(oralBlobs).length;
+        const oralIncomplet = oralAttendu && phase === "EO" && nbEnregistres < nbQuestionsOrales;
+        if (!oralIncomplet) return null;
+        return (
+          <p className="mb-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+            <b>Il reste {nbQuestionsOrales - nbEnregistres} question{nbQuestionsOrales - nbEnregistres > 1 ? "s" : ""} à enregistrer.</b>{" "}
+            Votre voix est la seule trace de l&apos;épreuve orale : sans elle, votre niveau ne peut pas
+            être établi. Appuyez sur « ● Enregistrer » sous chaque question, parlez, puis arrêtez.
+          </p>
+        );
+      })()}
       {phase !== "intro" && !fini && (
         phase === ORDRE_PHASES[ORDRE_PHASES.length - 1] ? (
-          <button onClick={() => { if (!envoyeRef.current) { envoyeRef.current = true; envoyer(); } }} disabled={envoi} className="btn-primary w-full">{envoi ? "Envoi…" : "✅ Terminer et envoyer mes réponses"}</button>
+          <button
+            onClick={() => { if (!envoyeRef.current) { envoyeRef.current = true; envoyer(); } }}
+            disabled={envoi || (data.mode !== "sur_place" && phase === "EO"
+              && (data.test.oral_questions?.length ?? 0) > 0
+              && Object.keys(oralBlobs).length < (data.test.oral_questions?.length ?? 0))}
+            className="btn-primary w-full">{envoi ? "Envoi…" : "✅ Terminer et envoyer mes réponses"}</button>
         ) : (
           <button onClick={() => { if (confirm("Passer à l'étape suivante ? Vous ne pourrez pas revenir en arrière.")) phaseSuivante(); }} className="btn-primary w-full">Étape suivante →</button>
         )
