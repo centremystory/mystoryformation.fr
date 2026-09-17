@@ -253,9 +253,23 @@ async function alerterCorrection(
     ${r.faible ? `<p style="margin:0 0 6px;font-size:14px;color:#b45309">
       Épreuve décrochée : <b>${esc(r.faible.epreuve)}</b> (${Number(r.faible.note)}/10). Au TEF IRN, il faut
       tenir le score dans les quatre épreuves à la fois : c'est elle qui ferait tomber le niveau.</p>` : ""}
-    <p style="margin:12px 0 18px;padding:12px 14px;background:#eff6ff;border-radius:6px;font-size:14px">
-      <b>Volume à proposer : ${Number(r.reco.heures)} heures.</b><br>
-      <span style="color:#4b5563">${esc(r.reco.motif)}</span></p>
+    ${(() => {
+      // Ce que le conseiller doit annoncer au téléphone, calculé une fois ici :
+      // 180 € (passage du TEF IRN, inclus) + 40 €/h, CPF plafonné à 1 500 €,
+      // participation forfaitaire de 150 € due quel que soit le volume.
+      const h = Number(r.reco.heures);
+      const prix = 180 + h * 40;
+      const cpf = Math.min(1500, prix - 150);
+      const reste = prix - cpf;
+      const eur = (v: number) => (v >= 1000 ? `${Math.floor(v / 1000)} ${String(v % 1000).padStart(3, "0")}` : String(v));
+      return `<div style="margin:12px 0 18px;padding:13px 15px;background:#eff6ff;border-radius:6px;font-size:14px">
+      <b>À proposer : ${h} heures &mdash; ${eur(prix)} €, passage du TEF IRN compris.</b><br>
+      <span style="color:#4b5563">${esc(r.reco.motif)}</span>
+      <div style="margin-top:9px;padding-top:9px;border-top:1px solid #d7e6fb;color:#4b5563;font-size:13px">
+        CPF : ${eur(cpf)} € pris en charge &middot; <b style="color:#1f2430">${eur(reste)} € à sa charge</b>.
+        Hors CPF : 3 ou 4 fois sans frais, 10 fois après étude.
+      </div></div>`;
+    })()}
 
     <h3 style="font-size:15px;margin:0 0 8px">Ce qui reste à faire, par vous</h3>
     <ol style="font-size:14px;margin:0 0 18px;padding-left:20px">

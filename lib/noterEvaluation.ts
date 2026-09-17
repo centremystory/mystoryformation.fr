@@ -207,6 +207,14 @@ async function envoyerRecapCandidat(
 </tr>`;
     };
 
+    // 180 € pour le passage du TEF IRN, inclus, + 40 € par heure. Le CPF prend en
+    // charge jusqu'à 1 500 € ; la participation forfaitaire de 150 € reste due
+    // quel que soit le volume — c'est ce qui rend le reste à charge constant.
+    const prixTotal = 180 + c.heures * 40;
+    const partCpf = Math.min(1500, prixTotal - 150);
+    const resteACharge = prixTotal - partCpf;
+    const eur = (v: number) => (v >= 1000 ? `${Math.floor(v / 1000)} ${String(v % 1000).padStart(3, "0")}` : String(v));
+
     const corps = `
 <p style="font-size:15px;margin:0 0 16px;">Bonjour ${prenom || "à vous"},</p>
 <p style="font-size:15px;margin:0 0 20px;">Votre test a été corrigé par notre formatrice. Voici où vous en êtes.</p>
@@ -242,16 +250,43 @@ ${epreuves.map(barre).join("")}
   </td></tr>
 </table>
 
-<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:24px 0 0;">
+<div style="font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:#6b7280;margin:24px 0 8px;">Ce que ça coûte, et comment le financer</div>
+<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:14px;">
+  <tr>
+    <td style="padding:9px 0;border-bottom:1px solid #eef1f6;">Parcours de ${c.heures} h, <b>passage du TEF IRN compris</b></td>
+    <td style="padding:9px 0;border-bottom:1px solid #eef1f6;text-align:right;font-weight:700;white-space:nowrap;">${eur(prixTotal)}&nbsp;€</td>
+  </tr>
+  <tr>
+    <td style="padding:9px 0;border-bottom:1px solid #eef1f6;color:#4a5768;">Pris en charge par votre CPF</td>
+    <td style="padding:9px 0;border-bottom:1px solid #eef1f6;text-align:right;font-weight:700;color:#15663a;white-space:nowrap;">&minus;&nbsp;${eur(partCpf)}&nbsp;€</td>
+  </tr>
+  <tr>
+    <td style="padding:11px 0;"><b>Il vous reste à régler</b></td>
+    <td style="padding:11px 0;text-align:right;font-size:20px;font-weight:800;color:#2F72DE;white-space:nowrap;">${eur(resteACharge)}&nbsp;€</td>
+  </tr>
+</table>
+<p style="font-size:13px;color:#4a5768;margin:6px 0 0;line-height:1.6;">
+  Ces ${eur(resteACharge)}&nbsp;€ sont la <b>participation obligatoire</b>, identique pour tout le monde et
+  quel que soit le nombre d'heures. Et si vous ne passez pas par le CPF, ce parcours se règle
+  <b>en 3 ou 4 fois sans frais</b>, ou <b>en 10 fois</b> après étude.
+</p>
+
+<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:26px 0 0;">
   <tr><td align="center">
-    <a href="${lien}" style="display:inline-block;background:#2F72DE;color:#ffffff;text-decoration:none;padding:15px 34px;border-radius:10px;font-size:16px;font-weight:700;">Je m'inscris à la formation</a>
+    <a href="${lien}" style="display:inline-block;background:#2F72DE;color:#ffffff;text-decoration:none;padding:16px 38px;border-radius:10px;font-size:17px;font-weight:700;">Je réserve ma place</a>
     <div style="font-size:13px;color:#6b7280;margin-top:10px;">
       Vos informations sont déjà pré-remplies : il ne reste qu'à confirmer.
     </div>
   </td></tr>
 </table>
 
-<p style="font-size:14px;color:#4a5768;margin:22px 0 0;line-height:1.6;">
+<p style="font-size:15px;color:#1f2430;margin:22px 0 0;line-height:1.65;">
+  <b>Ce qui vous sépare de votre objectif est court, et il se travaille.</b> Vous vous entraînerez
+  sur les postes qui servent le jour de l'examen, avec un examen blanc complet avant l'épreuve —
+  et vous la passerez dans le centre où vous aurez été formé. C'est ce qui fait la différence entre
+  réussir du premier coup et attendre 20 jours pour repasser.
+</p>
+<p style="font-size:14px;color:#4a5768;margin:14px 0 0;line-height:1.6;">
   Vous préférez en parler ? Appelez-nous au <b style="color:#1f2430;">06&nbsp;81&nbsp;43&nbsp;16&nbsp;54</b>.
   La correction commentée de votre rédaction vous est remise lors du rendez-vous.
 </p>
