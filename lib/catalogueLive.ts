@@ -1,7 +1,9 @@
 // lib/catalogueLive.ts — Catalogue "live" lu depuis offres_formules (source éditable via /catalogue).
 // Relie le catalogue éditable au formulaire d'inscription + au montant + au gate CDC, pour que
 // les modifications faites dans /catalogue se répercutent partout (fin du catalogue codé en dur).
-// Mapping par DURÉE (unique en v6 : 6/9/12/15/18/21/24/27/30/33/36/39/45 h → 1 CodeFormule).
+// 17/09/2026 — mapping par (NIVEAU VISÉ, DURÉE). La durée seule ne suffit plus :
+// 24 h existe pour A2, B1 et B2, et indexer sur elle faisait écraser deux offres
+// sur trois — la dernière ligne lue gagnait, au hasard de l'ordre de la table.
 import { supabaseAdmin } from "./supabaseAdmin";
 import { formuleParHeures, CATALOGUE, type CodeFormule } from "./inscriptions/regles";
 
@@ -19,7 +21,9 @@ export async function catalogueLive(): Promise<Record<string, FormuleLive>> {
       .select("offre_intitule, vise_niveau, formule_nom, heures, seances, prix_eur, actif")
       .eq("actif", true);
     for (const r of (data ?? []) as any[]) {
-      const code = formuleParHeures(Number(r.heures));
+      const niveau = String(r.vise_niveau ?? "").trim().toUpperCase();
+      const offre = niveau === "A2" || niveau === "B1" || niveau === "B2" ? niveau : undefined;
+      const code = formuleParHeures(Number(r.heures), offre);
       if (!code) continue;
       out[code] = {
         code, nom: String(r.formule_nom ?? ""), prix: Number(r.prix_eur),
@@ -37,7 +41,13 @@ export async function prixLive(code: CodeFormule): Promise<number> {
   return live[code]?.prix ?? CATALOGUE[code].prixEuros;
 }
 
-/** Prix officiel par durée (pour le gate CDC) : offres_formules d'abord, sinon CATALOGUE. */
+/**
+ * Prix officiel par durée, pour le gate CDC.
+ *
+ * Sans offre, c'est volontaire et sans risque ici : depuis le 09/09 le barème est
+ * unique — 180 € + 40 €/h — donc 24 h vaut 1 140 € que ce soit A2, B1 ou B2. Seul
+ * le PROGRAMME dépend de l'offre, jamais le prix.
+ */
 export async function prixLiveParHeures(heures: number): Promise<number | null> {
   const code = formuleParHeures(heures);
   if (!code) return null;

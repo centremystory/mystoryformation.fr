@@ -1,27 +1,42 @@
 // lib/inscriptions/regles.ts — Règles de conformité MYSTORY (inscriptions formation)
 // Source de vérité unique : catalogue, décompositions de séances, délai d'accès, validations.
 
-// Catalogue TEF IRN 2026 (02/09/2026) — validé par la CCI Paris Île-de-France (Mme Mamert,
-// courriel du 26/08/2026) et publié sur EDOF le 02/09/2026.
-// 4 OFFRES × 3 formules = 12 formules CPF. Durées multiples de 3 h, de 12 h à 45 h.
-// Barème : 150 € (examen TEF IRN inclus) + heures × taux dégressif
-//          40 €/h de 1 à 15 h · 35 €/h de 16 à 30 h · 25 €/h au-delà de 30 h.
-// Plafond : 1 650 € = 1 500 € pris en charge par le CPF + 150 € de ticket modérateur.
-// Les modules courts 3/6/9 h (MODULES_COURTS) sont HORS CPF : fonds propres uniquement.
-export type Offre = "A2" | "B1" | "B2" | "INTENSIF";
+// CATALOGUE TEF IRN — refondu le 17/09/2026 pour rejoindre le catalogue réellement
+// déposé sur EDOF depuis le 09/09.
+//
+// Ce fichier portait encore la grille v6 : 4 offres × 3 formules, durées de 12 à
+// 45 h, prix de 630 à 1 650 €, et un barème dégressif 40/35/25 €/h. Rien de tout
+// cela n'existe plus.
+//
+// Ce que la mise en demeure de la Caisse des dépôts du 09/09 a imposé :
+//   1. l'offre INTENSIF (multi-niveaux) est SUPPRIMÉE — elle ne se distinguait des
+//      autres que par sa durée et par un niveau non fixé ;
+//   2. il reste TROIS offres, une par niveau visé, chacune publiée à sa DURÉE
+//      MAXIMALE : 36 h, 1 620 €.
+//
+// Le volume réellement suivi est arrêté APRÈS le test de positionnement et inscrit
+// au dossier avec sa justification (CGU art. 5.1, commande « personnalisée ») : de
+// 12 h — le plancher finançable — à 36 h, par pas de 3 h.
+//
+// Barème unique, sans palier : 180 € pour le passage du TEF IRN (inclus) + 40 €/h.
+// 36 h = 180 + 1 440 = 1 620 €, dernier multiple de 3 qui tient sous le plafond.
+// Plafond : 1 650 € = 1 500 € pris en charge par le CPF + 150 € de participation.
+//
+// ⚠️ La durée n'identifie PLUS l'offre : 24 h peut être A2, B1 ou B2. Tout ce qui
+// déduisait l'offre d'une durée doit passer par le niveau visé du dossier.
+export type Offre = "A2" | "B1" | "B2";
 
 export const OFFRES: { code: Offre; label: string; niveauVise: string }[] = [
   { code: "A2", label: "A2 — Français du quotidien et du travail (carte de séjour pluriannuelle)", niveauVise: "A2" },
   { code: "B1", label: "B1 — Autonomie professionnelle (carte de résident)", niveauVise: "B1" },
   { code: "B2", label: "B2 — Argumenter et évoluer (naturalisation)", niveauVise: "B2" },
-  { code: "INTENSIF", label: "Intensif — Stratégies & examens blancs", niveauVise: "" },
 ];
 
-export type CodeFormule =
-  | "A2_15H" | "A2_27H" | "A2_39H"
-  | "B1_18H" | "B1_30H" | "B1_42H"
-  | "B2_21H" | "B2_33H" | "B2_45H"
-  | "INT_12H" | "INT_24H" | "INT_36H";
+/** Volumes finançables : de 12 h (plancher CPF) à 36 h (durée publiée), par pas de 3 h. */
+export const VOLUMES_CPF = [12, 15, 18, 21, 24, 27, 30, 33, 36] as const;
+
+/** `A2_12H` … `B2_36H` — une entrée par offre et par volume finançable. */
+export type CodeFormule = `${Offre}_${number}H`;
 
 export interface Formule {
   code: CodeFormule;
@@ -36,66 +51,72 @@ export interface Formule {
   descriptionFinale: string;
 }
 
-const DESC = "Oral + simulation intégrés à la dernière séance";
-function f(code: CodeFormule, offre: Offre, nom: string, h: number, prix: number): Formule {
-  return { code, offre, nomFormule: nom, libelle: `${h} h – ${prix} €`, dureeHeures: h, prixEuros: prix, seances3h: h / 3, seanceFinaleHeures: 0, descriptionFinale: DESC };
-}
-
-// Prix alignés sur le catalogue EDOF publié le 02/09/2026 (fichier
-// 91342308300017_MYSTORY_catalogue_EDOF_TEFIRN2026.xml) → dossiers conformes au gate CDC.
-export const CATALOGUE: Record<CodeFormule, Formule> = {
-  A2_15H:  f("A2_15H", "A2", "Consolidation", 15, 750),
-  A2_27H:  f("A2_27H", "A2", "Standard", 27, 1170),
-  A2_39H:  f("A2_39H", "A2", "Renforcée", 39, 1500),
-  // 08/09/2026 — INVERSION B1 / B2, alignement sur le catalogue EDOF.
-  // Le 07/09, les durees de B1 et B2 ont ete inversees dans le catalogue publie :
-  // rien ne justifiait que le B1 demande plus d'heures que le B2, chaque offre ne
-  // faisant franchir qu'un seul niveau. Le CRM etait reste sur l'ancienne
-  // repartition : un conseiller vendant « B1 Consolidation » enregistrait 21 h /
-  // 960 EUR quand EDOF publiait 18 h / 855 EUR, et le dossier CPF ne correspondait
-  // pas a l'offre commandee.
-  B1_18H:  f("B1_18H", "B1", "Consolidation", 18, 855),
-  B1_30H:  f("B1_30H", "B1", "Standard", 30, 1275),
-  B1_42H:  f("B1_42H", "B1", "Complète", 42, 1575),
-  B2_21H:  f("B2_21H", "B2", "Consolidation", 21, 960),
-  B2_33H:  f("B2_33H", "B2", "Standard", 33, 1350),
-  B2_45H:  f("B2_45H", "B2", "Complète", 45, 1650),
-  INT_12H: f("INT_12H", "INTENSIF", "Express", 12, 630),
-  INT_24H: f("INT_24H", "INTENSIF", "Complet", 24, 1065),
-  INT_36H: f("INT_36H", "INTENSIF", "Sérénité", 36, 1425),
-};
-
-/** Modules courts de méthodologie — HORS CPF (fonds propres / Lenbox uniquement).
- *  Barème distinct : 150 € (examen inclus) + 50 €/h. Ne jamais publier sur EDOF. */
-export const MODULES_COURTS: { heures: number; prixEuros: number; nom: string }[] = [
-  { heures: 3, prixEuros: 300, nom: "Prise en main" },
-  { heures: 6, prixEuros: 450, nom: "Méthodologie" },
-  { heures: 9, prixEuros: 600, nom: "Méthodologie renforcée" },
-];
-
-/** Plafonds officiels — utilisés par les gates de conformité. */
-export const PRIX_EXAMEN_INCLUS = 150;
+/** Plafonds et barème officiels — utilisés par les gates de conformité. */
+export const PRIX_EXAMEN_INCLUS = 180;   // passage du TEF IRN, compris dans le parcours
+export const TAUX_HORAIRE = 40;          // €/h — TAUX UNIQUE, sans palier depuis le 09/09
 export const PLAFOND_CPF = 1500;
 export const TICKET_MODERATEUR = 150;
 export const PLAFOND_TOTAL = 1650;
 
-/** Prix théorique d'une durée CPF selon le barème 40/35/25. Sert à détecter une saisie hors grille. */
+/** Prix d'un parcours : 180 € (examen inclus) + 40 € par heure. Source unique du calcul. */
 export function prixTheorique(heures: number): number {
-  let p = PRIX_EXAMEN_INCLUS + Math.min(heures, 15) * 40;
-  if (heures > 15) p += Math.min(heures - 15, 15) * 35;
-  if (heures > 30) p += (heures - 30) * 25;
-  return p;
+  return PRIX_EXAMEN_INCLUS + heures * TAUX_HORAIRE;
 }
+
+const DESC = "Oral + simulation intégrés à la dernière séance";
+
+/** Nom lisible d'un volume, pour le sélecteur : il ne promet plus une « formule ». */
+function nomVolume(h: number): string {
+  if (h <= 15) return "Parcours court";
+  if (h <= 27) return "Parcours standard";
+  return h === 36 ? "Parcours complet" : "Parcours renforcé";
+}
+
+function f(offre: Offre, h: number): Formule {
+  const prix = prixTheorique(h);
+  return {
+    code: `${offre}_${h}H` as CodeFormule, offre, nomFormule: nomVolume(h),
+    libelle: `${h} h – ${prix} €`, dureeHeures: h, prixEuros: prix,
+    seances3h: h / 3, seanceFinaleHeures: 0, descriptionFinale: DESC,
+  };
+}
+
+/**
+ * Trois offres × neuf volumes. Le prix est CALCULÉ, jamais recopié : c'est ce qui
+ * avait laissé la grille du CRM diverger du catalogue déposé pendant huit jours.
+ */
+export const CATALOGUE: Record<CodeFormule, Formule> = Object.fromEntries(
+  (["A2", "B1", "B2"] as const).flatMap((o) => VOLUMES_CPF.map((h) => [`${o}_${h}H`, f(o, h)])),
+) as Record<CodeFormule, Formule>;
+
+/** Modules courts de méthodologie — HORS CPF (fonds propres / Lenbox uniquement).
+ *  15/09/2026 : même barème que le catalogue CPF — 180 € + 40 €/h — pour qu'aucun
+ *  écart ne laisse croire à un prix majoré au motif d'un financement CPF.
+ *  Ne jamais publier sur EDOF : sous le plancher de 12 h, ce n'est pas finançable. */
+export const MODULES_COURTS: { heures: number; prixEuros: number; nom: string }[] =
+  [3, 6, 9].map((h) => ({
+    heures: h, prixEuros: prixTheorique(h),
+    nom: h === 3 ? "Prise en main" : h === 6 ? "Méthodologie" : "Méthodologie renforcée",
+  }));
 
 /** Formules d'une offre (pour le sélecteur en cascade Offre → Formule). */
 export function formulesDeLOffre(offre: Offre): Formule[] {
   return Object.values(CATALOGUE).filter((x) => x.offre === offre);
 }
 
-/** Retrouve la formule v6 correspondant à une durée (les durées sont uniques dans le catalogue).
- *  Sert à revalider un planning à partir des heures_prevues du dossier. */
-export function formuleParHeures(heures: number): CodeFormule | null {
-  return (Object.values(CATALOGUE).find((x) => x.dureeHeures === heures)?.code) ?? null;
+/**
+ * Retrouve une formule à partir d'une durée.
+ *
+ * ⚠️ 17/09/2026 — la durée n'identifie PLUS l'offre : 24 h existe pour A2, B1 et B2.
+ * Sans `offre`, cette fonction renvoie la première correspondance, ce qui suffit
+ * pour un calcul de PRIX (identique d'une offre à l'autre) mais jamais pour
+ * déterminer le programme d'un dossier — passer par son niveau visé.
+ */
+export function formuleParHeures(heures: number, offre?: Offre): CodeFormule | null {
+  const f = Object.values(CATALOGUE).find(
+    (x) => x.dureeHeures === heures && (!offre || x.offre === offre),
+  );
+  return f?.code ?? null;
 }
 
 export type Creneau = "MATIN" | "APRES_MIDI" | "FINALE_1H" | "FINALE_2H";

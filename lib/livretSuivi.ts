@@ -12,7 +12,7 @@
  */
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getFiche } from "@/lib/crm";
-import { offreParHeures } from "@/lib/programmesTefIrn";
+import { offreDuDossier } from "@/lib/programmesTefIrn";
 
 const NAVY = "#16213E";
 const BLEU = "#2F72DE";
@@ -26,7 +26,6 @@ const OFFRE_LABEL: Record<string, string> = {
   A2: "Français du quotidien et de l'emploi — Objectif A2",
   B1: "Gagner en autonomie professionnelle et administrative — Objectif B1",
   B2: "Argumenter et évoluer en contexte professionnel — Objectif B2",
-  INTENSIF: "Intensif — stratégies et examens blancs",
 };
 const OBJECTIF: Record<string, string> = {
   A2: "Carte de séjour pluriannuelle (A2)",
@@ -68,7 +67,9 @@ export async function genererLivretSuiviHtml(dossierId: string): Promise<string 
   const { data: livretRow } = await supabaseAdmin.from("livrets_suivi").select("donnees").eq("dossier_id", dossierId).maybeSingle();
   const D: any = (livretRow as any)?.donnees ?? {};
 
-  const offre = offreParHeures(fiche.heuresPrevues);
+  // 17/09/2026 — le niveau visé d'abord : trois offres partagent maintenant les
+  // mêmes durées, un livret intitulé d'après les heures serait parfois le mauvais.
+  const offre = offreDuDossier(fiche.niveauVise, fiche.heuresPrevues);
   const nom = `${fiche.prenom ?? ""} ${fiche.nom ?? ""}`.trim();
   const objectifCoche = (k: string) => box(fiche.niveauVise === k);
   const niveauViseBox = (k: string) => box(fiche.niveauVise === k);

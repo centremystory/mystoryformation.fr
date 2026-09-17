@@ -3,7 +3,7 @@
  *
  * Le programme n'est plus générique : il s'adapte à l'offre suivie par le stagiaire
  * (Objectif A2 / B1 / B2 / Intensif). L'offre est déduite des `heuresPrevues` du
- * dossier — les durées sont uniques dans le catalogue v6 (cf. formuleParHeures).
+ * dossier — par son NIVEAU VISÉ (17/09/2026 : la durée ne l'identifie plus).
  *
  * Le fragment renvoyé est injecté en HTML BRUT dans convention.html (marqueur
  * <!--PROGRAMME_OFFRE-->), AVANT la substitution des {{balises}} : on peut donc y
@@ -12,7 +12,7 @@
  * Source de vérité des tarifs/durées : lib/inscriptions/regles.ts (CATALOGUE).
  * Contenu pédagogique : programmes officiels MYSTORY (fiches EDOF TEF IRN, RS6775).
  */
-import { CATALOGUE, formuleParHeures, type Offre } from "@/lib/inscriptions/regles";
+import { PRIX_EXAMEN_INCLUS, TAUX_HORAIRE, VOLUMES_CPF, prixTheorique, type Offre } from "@/lib/inscriptions/regles";
 
 type Sequence = { titre: string; objectif: string };
 
@@ -136,56 +136,42 @@ const SPECS: Record<Offre, ProgSpec> = {
     ],
     examensBlancs: "4 à 5",
   },
-  INTENSIF: {
-    intitule: "Intensif — stratégies et examens blancs (A2 à B2)",
-    soustitre: "Préparer son TEF IRN — sécuriser le score au niveau cible déjà atteint",
-    niveauSortie: "Sécuriser le score au niveau cible déjà atteint (A2, B1 ou B2), validé par le TEF IRN (RS6775)",
-    publicVise:
-      "Personne étrangère/non francophone en situation régulière dont le niveau cible est déjà atteint et qui " +
-      "doit le faire certifier (candidature, entrée en formation, évolution de poste, démarche administrative).",
-    prerequis:
-      "Niveau cible déjà atteint (A2, B1 ou B2 selon le projet), obligatoirement vérifié au test de positionnement " +
-      "gratuit (ou justificatif de moins de 2 ans) ; être âgé d'au moins 16 ans ; savoir lire des phrases simples ; " +
-      "ne pas être en situation d'analphabétisme.",
-    finalite:
-      "Ce parcours court ne vise pas une montée en niveau linguistique mais la maîtrise du format de l'examen et " +
-      "des stratégies de réussite, pour sécuriser le score attendu le jour du passage. Les candidats dont le niveau " +
-      "cible n'est pas atteint sont orientés vers les parcours Objectif A2, B1 ou B2.",
-    capacites: [
-      "Identifier le déroulement, les consignes et les critères d'évaluation des 4 épreuves du TEF IRN.",
-      "Appliquer des stratégies efficaces de gestion du temps et de traitement des questions (CO / CE).",
-      "Mobiliser une méthodologie éprouvée pour les tâches d'expression écrite et orale.",
-      "Gérer son stress et organiser ses réponses dans les conditions réelles de l'examen.",
-    ],
-    sequences: [
-      { titre: "Séquence 0 — Positionnement initial", objectif: "Vérifier que le niveau cible est atteint et définir la formule (test de 45 min + entretien individuel, avant l'entrée en formation)." },
-      { titre: "Séquence 1 — Diagnostic complet et stratégies de compréhension", objectif: "Connaître ses forces et faiblesses par épreuve ; maîtriser les stratégies des épreuves de compréhension écrite et orale." },
-      { titre: "Séquence 2 — Stratégies d'expression et examen blanc ciblé", objectif: "Maîtriser la méthode des épreuves d'expression et sécuriser les épreuves les plus faibles." },
-      { titre: "Formule Complet — entraînements intégraux + examen blanc", objectif: "Automatiser la gestion des épreuves de compréhension et d'expression, puis vivre un examen blanc intégral des 4 épreuves." },
-      { titre: "Formule Sérénité — 4 séances supplémentaires", objectif: "Multiplier les passages en conditions réelles (examens blancs intégraux) jusqu'à stabiliser le score attendu." },
-    ],
-    examensBlancs: "1 à 3",
-  },
 };
 
-/** Déduit l'offre TEF IRN à partir des heures prévues (durées uniques dans le catalogue). */
-export function offreParHeures(heures?: number | null): Offre | null {
-  if (heures == null) return null;
-  const code = formuleParHeures(Number(heures));
-  return code ? CATALOGUE[code].offre : null;
+/**
+ * @deprecated 17/09/2026 — ne déduit plus rien, et c'est voulu.
+ *
+ * Les trois offres partagent désormais les mêmes durées (24 h peut être A2, B1 ou
+ * B2) : déduire un programme d'un nombre d'heures reviendrait à tirer au sort le
+ * niveau visé d'un stagiaire, donc à lui remettre parfois le programme d'un autre
+ * niveau. Renvoyer `null` fait retomber l'appelant sur le programme générique —
+ * imprécis, jamais faux. Passer par `offreDuDossier(niveauVise, heures)`.
+ */
+export function offreParHeures(_heures?: number | null): Offre | null {
+  return null;
 }
 
 function li(items: string[]): string {
   return items.map((t) => `<li>${t}</li>`).join("");
 }
 
-function tableFormules(offre: Offre): string {
-  const rows = Object.values(CATALOGUE)
-    .filter((f) => f.offre === offre)
-    .sort((a, b) => a.dureeHeures - b.dureeHeures)
-    .map((f) => `<tr><td class="k">${f.nomFormule} — ${f.dureeHeures} h</td><td class="v">${f.prixEuros} € net · examen TEF IRN inclus</td></tr>`)
-    .join("");
-  return `<table class="fields">${rows}</table>`;
+/**
+ * Le pavé « durée et prix » de l'annexe.
+ *
+ * 17/09/2026 — il listait les trois « formules » de l'offre. Il n'y en a plus :
+ * l'offre est publiée à sa durée MAXIMALE (36 h, 1 620 €) et le volume réellement
+ * suivi s'arrête après le test de positionnement, entre 12 et 36 h. Énumérer des
+ * formules ferait croire à un choix commercial là où il y a une décision
+ * pédagogique justifiée au dossier — exactement ce que la CDC a fait retirer.
+ */
+function tableFormules(_offre: Offre): string {
+  const plancher = VOLUMES_CPF[0];
+  const plafond = VOLUMES_CPF[VOLUMES_CPF.length - 1];
+  return `<table class="fields">
+    <tr><td class="k">Durée publiée</td><td class="v">${plafond} h · ${prixTheorique(plafond)} € net · examen TEF IRN inclus</td></tr>
+    <tr><td class="k">Durée adaptée</td><td class="v">de ${plancher} h à ${plafond} h, par pas de 3 h, arrêtée au vu du test de positionnement</td></tr>
+    <tr><td class="k">Tarif</td><td class="v">${PRIX_EXAMEN_INCLUS} € (passage du TEF IRN) + ${TAUX_HORAIRE} € par heure de formation</td></tr>
+  </table>`;
 }
 
 function renduOffre(offre: Offre): string {

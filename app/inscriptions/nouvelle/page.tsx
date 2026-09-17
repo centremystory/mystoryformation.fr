@@ -135,18 +135,29 @@ export default function NouvelleInscription() {
         <div><label className={label}>Offre *</label>
           <select className={champ} value={form.offre} onChange={e => {
             const o = e.target.value as Offre;
-            const prem = formulesDeLOffre(o)[0];
+            // 17/09/2026 — on présélectionne la DURÉE PUBLIÉE (36 h), pas la plus
+            // courte. Réduire le volume est une décision pédagogique qui se justifie
+            // au dossier ; elle doit être posée sciemment, jamais héritée d'un défaut.
+            const vols = formulesDeLOffre(o);
+            const prem = vols[vols.length - 1];
             setForm(f => ({ ...f, offre: o, formule: prem.code, niveauVise: OFFRES.find(x => x.code === o)?.niveauVise || f.niveauVise }));
             setSeances([]);
           }}>
             {OFFRES.map(o => <option key={o.code} value={o.code}>{o.label}</option>)}</select></div>
-        <div><label className={label}>Formule *</label>
+        <div><label className={label}>Volume horaire *</label>
           <select className={champ} value={form.formule} onChange={e => { set("formule", e.target.value); setSeances([]); }}>
             {formulesDeLOffre(form.offre).map(x => {
               const l = live[x.code];
-              const nom = l?.nom ?? x.nomFormule;
-              const lib = l?.prix != null ? `${x.dureeHeures} h – ${l.prix} €` : x.libelle;
-              return <option key={x.code} value={x.code}>{nom} — {lib}</option>;
+              const prix = l?.prix ?? x.prixEuros;
+              // Le reste à charge est ce que le conseiller doit annoncer : au-delà de
+              // 1 500 €, le CPF ne suit plus et la différence se paie en fonds propres.
+              const reste = Math.max(0, prix - 1500);
+              const suffixe = reste > 0 ? ` · ${reste} € hors CPF` : "";
+              return (
+                <option key={x.code} value={x.code}>
+                  {x.dureeHeures} h — {prix} €{suffixe}{x.dureeHeures === 36 ? " (durée publiée)" : ""}
+                </option>
+              );
             })}</select></div>
         <div><label className={label}>Niveau visé</label>
           <select className={champ} value={form.niveauVise} onChange={e => set("niveauVise", e.target.value)}>
