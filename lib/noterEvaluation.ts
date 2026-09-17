@@ -266,9 +266,19 @@ ${epreuves.map(barre).join("")}
   </tr>
 </table>
 <p style="font-size:13px;color:#4a5768;margin:6px 0 0;line-height:1.6;">
-  Ces ${eur(resteACharge)}&nbsp;€ sont la <b>participation obligatoire</b>, identique pour tout le monde et
-  quel que soit le nombre d'heures. Et si vous ne passez pas par le CPF, ce parcours se règle
-  <b>en 3 ou 4 fois sans frais</b>, ou <b>en 10 fois</b> après étude.
+  Ces ${eur(resteACharge)}&nbsp;€ sont la <b>participation obligatoire au CPF</b> : elle est la même
+  quel que soit le nombre d'heures — prendre les heures dont vous avez besoin ne vous coûte donc
+  rien de plus.
+</p>
+<p style="font-size:14px;color:#15663a;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:12px 14px;margin:12px 0 0;line-height:1.6;">
+  <b>Et peut-être n'aurez-vous rien à payer du tout.</b> Cette participation n'est
+  <b>pas demandée</b> si vous êtes <b>demandeur d'emploi</b>, ni si votre <b>employeur</b> ou votre
+  <b>OPCO</b> participe au financement. Dans ces cas, votre reste à charge est de <b>0&nbsp;€</b>.
+  Dites-le-nous : nous vérifions avec vous.
+</p>
+<p style="font-size:13px;color:#4a5768;margin:10px 0 0;line-height:1.6;">
+  Et si vous ne passez pas par le CPF, ce parcours se règle <b>en 3 ou 4 fois sans frais</b>,
+  ou <b>en 10 fois</b> après étude.
 </p>
 
 <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:26px 0 0;">

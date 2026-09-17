@@ -267,7 +267,10 @@ async function alerterCorrection(
       <span style="color:#4b5563">${esc(r.reco.motif)}</span>
       <div style="margin-top:9px;padding-top:9px;border-top:1px solid #d7e6fb;color:#4b5563;font-size:13px">
         CPF : ${eur(cpf)} € pris en charge &middot; <b style="color:#1f2430">${eur(reste)} € à sa charge</b>.
-        Hors CPF : 3 ou 4 fois sans frais, 10 fois après étude.
+        <br><b style="color:#15663a">À demander systématiquement : est-il demandeur d'emploi, ou son
+        employeur / son OPCO participe-t-il ?</b> Dans ces cas la participation n'est pas due &mdash;
+        <b>0 € à sa charge</b>, et c'est l'argument qui fait signer.
+        <br>Hors CPF : 3 ou 4 fois sans frais, 10 fois après étude.
       </div></div>`;
     })()}
 
