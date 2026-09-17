@@ -72,6 +72,10 @@
     "app/api/tests/corriger/[id]/route.ts": {
       "memory": 3009,
       "maxDuration": 60
+    },
+    "app/api/dossiers/[id]/fiche-stagiaire/route.ts": {
+      "memory": 3009,
+      "maxDuration": 60
     }
   },
   "crons": [
