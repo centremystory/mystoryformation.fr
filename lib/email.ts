@@ -87,15 +87,56 @@ function transport(): Transporter {
       port: SMTP_PORT,
       secure: SMTP_SECURE,
       auth: { user: SMTP_USER, pass: SMTP_PASS },
+      // 17/09/2026 — délais explicites. Sans eux, nodemailer attend le défaut de
+      // Node (deux minutes), et une fonction Vercel est tuée avant : l'envoi
+      // échoue sans qu'aucune erreur ne soit journalisée. Mieux vaut renoncer
+      // vite et réessayer que disparaître en silence.
+      connectionTimeout: 15_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 25_000,
     });
   }
   return _transport;
 }
 
 /**
+ * Une panne de réseau est-elle passagère ?
+ *
+ * 17/09/2026 — sur les sept derniers jours, DEUX envois sur huit ont échoué sur
+ * « Unexpected socket close », soit un quart des convocations. Ce n'est pas un
+ * refus du serveur : c'est la connexion qui tombe en cours de route, typiquement
+ * quand IONOS ferme un canal resté ouvert entre deux invocations chaudes de la
+ * même fonction. Un second essai sur une connexion NEUVE passe.
+ *
+ * On ne réessaie que ces cas-là. Une adresse invalide ou un refus
+ * d'authentification ne s'arrangeront pas en insistant — et insister sur un rejet
+ * d'authentification est le meilleur moyen de faire bloquer le compte.
+ */
+function pannePassagere(message: string): boolean {
+  return /socket close|ETIMEDOUT|ECONNRESET|ECONNREFUSED|EPIPE|Greeting never received|Connection closed/i
+    .test(message);
+}
+
+/**
  * Envoie un email. Ne lève JAMAIS d'exception : renvoie { ok, erreur? } pour que
  * l'appelant décide (la vente/le document restent valides même si l'email échoue).
  */
+/**
+ * Exécute l'envoi, et le retente UNE fois sur connexion neuve si la connexion a
+ * lâché. Le transporteur est jeté avant le second essai : le reprendre
+ * réutiliserait la socket morte qui vient d'échouer.
+ */
+async function avecSecondEssai<T>(envoi: () => Promise<T>): Promise<T> {
+  try {
+    return await envoi();
+  } catch (err: any) {
+    if (!pannePassagere(String(err?.message ?? ""))) throw err;
+    _transport = null;
+    await new Promise((r) => setTimeout(r, 900));
+    return await envoi();
+  }
+}
+
 export async function envoyerEmail(e: EnvoiEmail): Promise<{ ok: boolean; erreur?: string }> {
   if (!EMAIL_ACTIF) {
     const erreur = "Envoi désactivé : identifiants SMTP (SMTP_USER / SMTP_PASS) absents des variables d'environnement Vercel.";
@@ -104,7 +145,7 @@ export async function envoyerEmail(e: EnvoiEmail): Promise<{ ok: boolean; erreur
   }
 
   try {
-    const info = await transport().sendMail({
+    const info = await avecSecondEssai(() => transport().sendMail({
       from: EXPEDITEUR,
       to: e.a,
       ...(e.copieCachee ? { bcc: e.copieCachee } : {}),
@@ -116,7 +157,7 @@ export async function envoyerEmail(e: EnvoiEmail): Promise<{ ok: boolean; erreur
         content: p.contenu,
         contentType: "application/pdf",
       })),
-    });
+    }));
 
     await journaliser("email_envoye", e, {
       message_id: info.messageId ?? null,
