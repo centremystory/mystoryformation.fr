@@ -417,13 +417,37 @@ export default function Passation({ params }: { params: { token: string } }) {
           </form>
         )}
         {coordEnvoi === "ok" && (
-          <div className="mb-5 rounded-2xl border-2 border-green-300 bg-green-50 p-6 text-green-900">
-            <p className="text-lg font-bold">C&apos;est noté.</p>
-            <p className="mt-1 text-sm">
-              Vous recevrez votre bilan complet par e-mail, et un conseiller vous rappelle très
-              vite pour en parler.
-            </p>
-          </div>
+          <>
+            <div className="mb-4 rounded-2xl border-2 border-green-300 bg-green-50 p-6 text-green-900">
+              <p className="text-lg font-bold">C&apos;est noté.</p>
+              <p className="mt-1 text-sm">
+                Vous recevrez votre bilan complet par e-mail, et un conseiller vous rappelle très
+                vite pour en parler.
+              </p>
+            </div>
+
+            {/* 17/09/2026 — le candidat est chaud MAINTENANT : il vient de voir son niveau et
+                le nombre d'heures qu'il lui faut. Lui demander d'attendre un rappel, c'est le
+                perdre. Le bouton mène au formulaire de pré-inscription, pré-rempli par son
+                jeton : il n'a rien à retaper. */}
+            <div className="mb-5 rounded-2xl border-2 border-mystory bg-blue-50/60 p-6 text-center">
+              <p className="text-lg font-bold text-gray-900">
+                Vous voulez commencer sans attendre&nbsp;?
+              </p>
+              <p className="mx-auto mt-1 max-w-md text-sm text-gray-700">
+                Réservez votre place dès maintenant. Le passage du TEF IRN est compris dans le
+                parcours, et le nombre d&apos;heures est arrêté avec vous avant toute signature —
+                vous ne financez que les heures retenues.
+              </p>
+              <a href={`/pre-inscription?t=${encodeURIComponent(params.token)}`}
+                 className="mt-4 inline-block rounded-xl bg-mystory px-8 py-3.5 text-base font-semibold text-white">
+                Je m&apos;inscris à la formation
+              </a>
+              <p className="mt-2 text-xs text-gray-500">
+                Vos informations sont déjà pré-remplies. Ou appelez-nous au 06 81 43 16 54.
+              </p>
+            </div>
+          </>
         )}
 
         {/* ── Où en est chaque épreuve. */}

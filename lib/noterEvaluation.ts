@@ -16,6 +16,7 @@ import { journal } from "@/lib/examens";
 import { envoyerEmail, gabaritEmail } from "@/lib/email";
 import { conseilTest } from "@/lib/conseilsTest";
 import { construireCorrectionPdf, estEchec } from "@/lib/correctionPdf";
+import { niveauLisible } from "@/lib/niveauLisible";
 
 export type EntreeNotation = {
   id: string;
@@ -75,7 +76,7 @@ export async function noterEvaluation(e: EntreeNotation): Promise<ResultatNotati
 
   const { data: ev } = await supabaseAdmin
     .from("evaluations")
-    .select("id, phase, dossier_id, ce_sur10, co_sur10, statut, civilite, nom, prenom, email, telephone, niveau_vise, niveau_calibre, heures_preconisees")
+    .select("id, token, phase, dossier_id, ce_sur10, co_sur10, statut, civilite, nom, prenom, email, telephone, niveau_vise, niveau_calibre, heures_preconisees")
     .eq("id", id)
     .maybeSingle();
   if (!ev) return { ok: false, erreur: "Évaluation introuvable.", code: 404 };
@@ -148,7 +149,7 @@ export async function noterEvaluation(e: EntreeNotation): Promise<ResultatNotati
     }
   }
 
-  const emailRecapEnvoye = await envoyerRecapCandidat(ev, { id, ee, eo, niveau, total });
+  const emailRecapEnvoye = await envoyerRecapCandidat(ev, { id, ee, eo, niveau, total, urlBase: e.urlBase });
   const correctionInterneEnvoyee = await envoyerCorrectionInterne(ev, { id, niveau, total, notateur: e.notateur });
   const satisfactionEnvoyee = await envoyerSatisfactionSiFinal(ev, e.urlBase, e.notateur);
 
@@ -172,40 +173,93 @@ export async function noterEvaluation(e: EntreeNotation): Promise<ResultatNotati
 
 /** Récap au CANDIDAT — jamais de corrigé : la banque de questions reste interne. */
 async function envoyerRecapCandidat(
-  ev: any, r: { id: string; ee: number; eo: number; niveau: string; total: number },
+  ev: any,
+  r: { id: string; ee: number; eo: number; niveau: string; total: number; urlBase: string },
 ): Promise<boolean> {
   if (ev.phase !== "initial" || !ev.email) return false;
   try {
     const c = conseilTest(r.niveau, ev.niveau_vise ?? null);
-    const ligne = (lbl: string, n: number) =>
-      `<tr><td style="padding:6px 10px;border-bottom:1px solid #eef1f6;">${lbl}</td><td style="padding:6px 10px;border-bottom:1px solid #eef1f6;text-align:right;font-weight:bold;">${n}/10</td></tr>`;
+    const n = niveauLisible(r.niveau);
+    const lien = `${r.urlBase.replace(/\/+$/, "")}/pre-inscription${ev.token ? `?t=${encodeURIComponent(ev.token)}` : ""}`;
+    const prenom = String(ev.prenom ?? "").trim();
+
+    // Une barre par épreuve : le candidat voit d'un coup d'œil OÙ ça décroche,
+    // ce qu'un tableau de chiffres ne montre pas. Tables + styles en ligne :
+    // c'est ce que les clients de messagerie savent rendre.
+    const epreuves: Array<[string, number]> = [
+      ["Compréhension écrite", Number(ev.ce_sur10)],
+      ["Compréhension orale", Number(ev.co_sur10)],
+      ["Expression écrite", r.ee],
+      ["Expression orale", r.eo],
+    ];
+    const faible = epreuves.reduce((a, b) => (b[1] < a[1] ? b : a));
+    const barre = ([nom, note]: [string, number]) => {
+      const pct = Math.max(3, Math.round((note / 10) * 100));
+      const couleur = note >= 6 ? "#2F72DE" : note >= 4 ? "#D97706" : "#B4462A";
+      return `<tr>
+  <td style="padding:7px 12px 7px 0;font-size:14px;color:#1f2430;white-space:nowrap;">${nom}</td>
+  <td style="padding:7px 0;width:100%;">
+    <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;background:#EDF1F7;border-radius:5px;">
+      <tr><td style="width:${pct}%;background:${couleur};height:9px;border-radius:5px;font-size:0;line-height:0;">&nbsp;</td><td style="font-size:0;line-height:0;">&nbsp;</td></tr>
+    </table>
+  </td>
+  <td style="padding:7px 0 7px 12px;font-size:14px;font-weight:700;color:${couleur};white-space:nowrap;">${note}/10</td>
+</tr>`;
+    };
+
     const corps = `
-<p>Bonjour ${ev.civilite ? ev.civilite + " " : ""}${ev.prenom ?? ""} ${ev.nom ?? ""},</p>
-<p>Votre test de positionnement en français a été corrigé par notre formatrice. Voici vos résultats :</p>
-${r.niveau === "En deçà de A2"
-  ? `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:14px 16px;margin:14px 0;">
-  <div style="font-weight:bold;color:#92400e;font-size:15px;margin-bottom:4px;">Le palier A2 n'est pas encore tenu</div>
-  <div style="color:#7c3f12;font-size:13px;">Cela veut dire que, sur les épreuves passées, les bases ne sont pas encore assez solides pour valider le premier niveau officiel (A2). Ce n'est pas un échec : c'est un point de départ, et il se travaille. Note globale : ${r.total}/20.</div>
-</div>`
-  : `<div style="text-align:center;margin:14px 0;">
-  <span style="display:inline-block;background:#2F72DE;color:#fff;border-radius:12px;padding:10px 26px;font-size:26px;font-weight:bold;">Niveau ${r.niveau}</span>
-  <div style="color:#6b7280;font-size:12px;margin-top:6px;">Note globale : ${r.total}/20 (échelle CECRL)</div>
-</div>`}
-<table style="width:100%;border-collapse:collapse;font-size:13px;">
-${ligne("Compréhension écrite", Number(ev.ce_sur10))}
-${ligne("Compréhension orale", Number(ev.co_sur10))}
-${ligne("Expression écrite", r.ee)}
-${ligne("Expression orale", r.eo)}
+<p style="font-size:15px;margin:0 0 16px;">Bonjour ${prenom || "à vous"},</p>
+<p style="font-size:15px;margin:0 0 20px;">Votre test a été corrigé par notre formatrice. Voici où vous en êtes.</p>
+
+<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;background:${n.fond};border:1px solid ${n.bord};border-radius:12px;">
+  <tr><td style="padding:18px 20px;">
+    <div style="font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:${n.encre};opacity:.75;">Votre niveau</div>
+    <div style="font-size:22px;font-weight:800;color:${n.encre};margin:5px 0 8px;line-height:1.25;">${n.titre}</div>
+    <div style="font-size:14px;color:${n.encre};line-height:1.55;">${n.explication}</div>
+    <div style="font-size:12px;color:${n.encre};opacity:.7;margin-top:10px;">Référence de l'examen : niveau ${n.code} &nbsp;·&nbsp; note globale ${r.total}/20</div>
+  </td></tr>
 </table>
-<div style="background:#f0f6ff;border:1px solid #d7e6fb;border-radius:10px;padding:12px 14px;margin:16px 0;">
-  <div style="font-weight:bold;color:#2F72DE;margin-bottom:4px;">Nos conseils personnalisés</div>
-  <div>${c.message}</div>
-</div>
-<p><strong>Et maintenant ?</strong> Appelez-nous au <strong>06&nbsp;81&nbsp;43&nbsp;16&nbsp;54</strong> : un conseiller vous présentera notre <strong>${c.formule}</strong> (jusqu'à ${c.heures}&nbsp;h, passage du TEF IRN compris) et les possibilités de financement (CPF, fonds propres). La correction commentée de votre rédaction vous est remise lors de ce rendez-vous.</p>
-<p>À très vite,<br>L'équipe MYSTORY Formation</p>`;
+
+<div style="font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:#6b7280;margin:24px 0 8px;">Épreuve par épreuve</div>
+<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;">
+${epreuves.map(barre).join("")}
+</table>
+<p style="font-size:13px;color:#4a5768;margin:12px 0 0;line-height:1.6;">
+  Au TEF IRN, il faut tenir le score <b>dans les quatre épreuves à la fois</b> : une seule
+  épreuve faible fait tomber le niveau entier. Pour vous, c'est
+  <b>${faible[0].toLowerCase()}</b> qui demande le plus de travail — c'est là que nous
+  commencerons.
+</p>
+
+<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;background:#F7F9FC;border:1px solid #E3E8F2;border-radius:12px;margin:24px 0 0;">
+  <tr><td style="padding:18px 20px;">
+    <div style="font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:#2F72DE;">Ce que nous vous proposons</div>
+    <div style="font-size:15px;color:#1f2430;line-height:1.6;margin-top:8px;">${c.message}</div>
+    <div style="font-size:13px;color:#4a5768;margin-top:10px;line-height:1.6;">
+      Le passage du TEF IRN est <b>compris</b> dans le parcours. Le nombre d'heures est arrêté
+      avec vous avant toute signature : <b>vous ne financez que les heures retenues</b>.
+    </div>
+  </td></tr>
+</table>
+
+<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:24px 0 0;">
+  <tr><td align="center">
+    <a href="${lien}" style="display:inline-block;background:#2F72DE;color:#ffffff;text-decoration:none;padding:15px 34px;border-radius:10px;font-size:16px;font-weight:700;">Je m'inscris à la formation</a>
+    <div style="font-size:13px;color:#6b7280;margin-top:10px;">
+      Vos informations sont déjà pré-remplies : il ne reste qu'à confirmer.
+    </div>
+  </td></tr>
+</table>
+
+<p style="font-size:14px;color:#4a5768;margin:22px 0 0;line-height:1.6;">
+  Vous préférez en parler ? Appelez-nous au <b style="color:#1f2430;">06&nbsp;81&nbsp;43&nbsp;16&nbsp;54</b>.
+  La correction commentée de votre rédaction vous est remise lors du rendez-vous.
+</p>
+<p style="font-size:15px;margin:20px 0 0;">À très vite,<br><b>L'équipe MYSTORY Formation</b></p>`;
+
     const envoi = await envoyerEmail({
       a: ev.email,
-      objet: `Vos résultats — niveau ${r.niveau} · MYSTORY Formation`,
+      objet: `${prenom ? prenom + ", v" : "V"}os résultats et le parcours que nous vous conseillons`,
       html: gabaritEmail("Résultats de votre test de positionnement", corps),
       entite: "evaluations", entiteId: r.id, auteur: "systeme",
     });

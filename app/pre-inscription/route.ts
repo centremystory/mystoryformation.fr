@@ -4,14 +4,47 @@
  * La soumission part vers POST /api/pre-inscription (honeypot + rate-limit côté serveur).
  * Public (cf. middleware). Charte MYSTORY (bleu #2F72DE). Lieu de formation : Gagny.
  */
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const BLEU = "#2F72DE";
 
-export async function GET() {
+const ech = (v: unknown) =>
+  String(v ?? "").replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
+
+/**
+ * 17/09/2026 — le candidat qui vient de finir son test arrive ici depuis le bouton
+ * « Je m'inscris » de son e-mail de résultats. Lui redemander son nom, son e-mail et
+ * son niveau visé, qu'il a déjà donnés, c'est le perdre. Le jeton `?t=` permet de
+ * relire SA fiche côté serveur et de pré-remplir. Le jeton est opaque et déjà
+ * utilisé pour la passation ; aucune donnée personnelle ne transite par l'URL.
+ */
+async function prefill(token: string | null) {
+  const vide = { prenom: "", nom: "", email: "", telephone: "", niveau: "", trouve: false };
+  if (!token) return vide;
+  try {
+    const { data } = await supabaseAdmin
+      .from("evaluations")
+      .select("prenom, nom, email, telephone, niveau_vise, niveau_global")
+      .eq("token", token)
+      .maybeSingle();
+    if (!data) return vide;
+    return {
+      prenom: String(data.prenom ?? ""), nom: String(data.nom ?? ""),
+      email: String(data.email ?? ""), telephone: String(data.telephone ?? ""),
+      niveau: String(data.niveau_vise ?? ""), trouve: true,
+    };
+  } catch {
+    return vide;
+  }
+}
+
+export async function GET(req: NextRequest) {
+  const p = await prefill(req.nextUrl.searchParams.get("t"));
   const html = `<!DOCTYPE html><html lang="fr"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow"><title>Pré-inscription — MYSTORY Formation</title>
@@ -36,6 +69,10 @@ export async function GET() {
   .done h2{color:var(--bleu);}
 </style></head><body>
 <div class="wrap">
+  ${p.trouve ? `<div style="background:#EFF6FF;border:1px solid #D7E6FB;border-radius:12px;padding:13px 16px;margin-bottom:12px;color:#1A4488;font-size:14px;line-height:1.55;">
+    <b>Vous venez de passer votre test, ${ech(p.prenom)}.</b> Vos informations sont déjà remplies —
+    vérifiez-les, complétez ce qui manque, et c'est fait. Un conseiller vous rappelle pour fixer vos dates.
+  </div>` : ""}
   <div class="head">
     <h1>Pré-inscription — MYSTORY Formation</h1>
     <div class="sub">Préparez votre certification de français (TEF IRN / LEVELTEL). Sans engagement : nous vous recontactons pour finaliser.</div>
@@ -43,11 +80,11 @@ export async function GET() {
 
   <form id="f" class="card" autocomplete="on">
     <div class="row">
-      <div><label for="prenom">Prénom *</label><input id="prenom" name="prenom" required></div>
-      <div><label for="nom">Nom *</label><input id="nom" name="nom" required></div>
+      <div><label for="prenom">Prénom *</label><input id="prenom" name="prenom" value="${ech(p.prenom)}" required></div>
+      <div><label for="nom">Nom *</label><input id="nom" name="nom" value="${ech(p.nom)}" required></div>
     </div>
-    <label for="email">Email</label><input id="email" name="email" type="email" placeholder="vous@exemple.fr">
-    <label for="telephone">Téléphone</label><input id="telephone" name="telephone" type="tel" placeholder="06 …">
+    <label for="email">Email</label><input id="email" name="email" type="email" value="${ech(p.email)}" placeholder="vous@exemple.fr">
+    <label for="telephone">Téléphone</label><input id="telephone" name="telephone" type="tel" value="${ech(p.telephone)}" placeholder="06 …">
     <p class="note">Indiquez au moins un email ou un téléphone pour qu'on puisse vous recontacter.</p>
 
     <label for="certif">Certification souhaitée</label>
@@ -70,8 +107,8 @@ export async function GET() {
     <select id="niveau" name="niveau">
       <option value="indecis">Je ne sais pas</option>
       <option value="debutant">Débutant</option>
-      <option value="A1">A1</option><option value="A2">A2</option>
-      <option value="B1">B1</option><option value="B2">B2</option>
+      <option value="A1"${p.niveau === "A1" ? " selected" : ""}>A1</option><option value="A2"${p.niveau === "A2" ? " selected" : ""}>A2</option>
+      <option value="B1"${p.niveau === "B1" ? " selected" : ""}>B1</option><option value="B2"${p.niveau === "B2" ? " selected" : ""}>B2</option>
     </select>
 
     <label for="message">Disponibilités / message (facultatif)</label>
