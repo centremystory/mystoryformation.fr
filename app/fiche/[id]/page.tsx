@@ -275,6 +275,14 @@ export default function PageFiche() {
                 {d.numero_edof && <span className="badge bg-gray-100 text-gray-500">EDOF {d.numero_edof}</span>}
                 <Link href={`/dossiers/${d.id}/suivi`} className="badge bg-mystory/10 text-mystory hover:bg-mystory/20" style={{ cursor: "pointer" }}>✍️ Suivi pédagogique</Link>
                 <a href={`/api/dossiers/${d.id}/livret-pdf`} target="_blank" rel="noopener" className="badge bg-mystory/10 text-mystory hover:bg-mystory/20" style={{ cursor: "pointer" }}>📘 Livret de suivi (PDF)</a>
+                {/* 17/09/2026 — ces deux actions existaient en API depuis ce matin
+                    sans aucun bouton pour les déclencher : personne ne pouvait s'en
+                    servir. La fiche stagiaire remplace les informations recopiées à
+                    la main sur la photocopie de la pièce d'identité ; le
+                    rattachement évite de ressaisir un test déjà passé. */}
+                <a href={`/api/dossiers/${d.id}/fiche-stagiaire`} target="_blank" rel="noopener" className="badge bg-mystory/10 text-mystory hover:bg-mystory/20" style={{ cursor: "pointer" }}>🪪 Fiche stagiaire (équipe)</a>
+                <a href={`/api/dossiers/${d.id}/fiche-stagiaire?pour=stagiaire`} target="_blank" rel="noopener" className="badge bg-gray-100 text-gray-600 hover:bg-gray-200" style={{ cursor: "pointer" }}>🪪 …à remettre au stagiaire</a>
+                <RattacherTest dossierId={d.id} />
               </div>
             </div>
           ))
@@ -510,6 +518,53 @@ export default function PageFiche() {
         </section>
       )}
     </div>
+  );
+}
+
+/**
+ * Rattacher au dossier le test de positionnement déjà passé en ligne.
+ *
+ * 17/09/2026 — ne crée jamais de dossier : la qualification reste humaine, et
+ * créer un dossier CPF depuis un formulaire public est exactement ce que la
+ * Caisse des dépôts sanctionne. Ce bouton relie APRÈS coup un test orphelin,
+ * inscrit le niveau d'entrée et génère la pièce Qualiopi.
+ *
+ * « Aucun test à rattacher » n'est pas une panne mais un cas courant : on
+ * l'affiche en gris, pas en rouge, pour ne pas envoyer l'équipe chercher un bug.
+ */
+function RattacherTest({ dossierId }: { dossierId: string }) {
+  const [etat, setEtat] = useState<"repos" | "envoi" | "ok" | "rien">("repos");
+  const [message, setMessage] = useState<string | null>(null);
+
+  if (etat === "ok") {
+    return <span className="badge bg-emerald-50 text-emerald-700">✓ {message}</span>;
+  }
+  return (
+    <>
+      <button
+        onClick={async () => {
+          setEtat("envoi"); setMessage(null);
+          try {
+            const r = await fetch(`/api/dossiers/${dossierId}/rattacher-test`, { method: "POST" });
+            const j = await r.json();
+            if (j.ok) {
+              setEtat("ok");
+              setMessage(`Test rattaché${j.niveau ? ` — niveau ${j.niveau}` : ""}${j.piece_generee ? " · pièce générée" : ""}`);
+            } else {
+              setEtat("rien"); setMessage(j.erreur || "Rattachement impossible.");
+            }
+          } catch {
+            setEtat("rien"); setMessage("Rattachement impossible.");
+          }
+        }}
+        disabled={etat === "envoi"}
+        className="badge bg-mystory/10 text-mystory hover:bg-mystory/20"
+        style={{ cursor: "pointer" }}
+      >
+        {etat === "envoi" ? "…" : "🔗 Rattacher son test de niveau"}
+      </button>
+      {etat === "rien" && message && <span className="badge bg-gray-100 text-gray-500">{message}</span>}
+    </>
   );
 }
 
