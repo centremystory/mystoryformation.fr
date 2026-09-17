@@ -1,7 +1,12 @@
 "use client";
 
 /**
- * MYSTORY — « Émargement du jour » (tablette au centre de Gagny, accès équipe).
+ * MYSTORY — « Émargement du jour » (tablette en centre, accès équipe).
+ *
+ * 17/09/2026 — le centre se CHOISIT. La page était écrite pour Gagny seul : une
+ * tablette posée à Rosny listait les stagiaires des trois centres et affichait
+ * « Lieu : Gagny » au-dessus. Le choix est mémorisé sur l'appareil, pour que la
+ * formatrice ne le refasse pas chaque matin.
  * Pour chaque demi-journée : signature du stagiaire (sur tablette OU via QR sur son téléphone)
  * + signature de la formatrice. La demi-journée est validée quand les DEUX ont signé.
  */
@@ -82,16 +87,45 @@ export default function EmargementDuJour() {
     finally { setScanBusy(false); }
   }
 
+  /**
+   * Le centre de la tablette, retenu dans le navigateur.
+   *
+   * On ne le déduit pas de l'utilisatrice : une formatrice intervient dans
+   * plusieurs centres, et c'est l'APPAREIL qui est posé quelque part, pas elle.
+   */
+  const [centres, setCentres] = useState<{ code: string; nom: string }[]>([]);
+  const [centre, setCentre] = useState<string>("");
+  const [adresse, setAdresse] = useState<string | null>(null);
+
+  useEffect(() => {
+    let vivant = true;
+    fetch("/api/centres?formation=1")
+      .then((r) => r.json())
+      .then((j) => {
+        if (!vivant || !j?.ok) return;
+        const liste = (j.centres ?? []) as { code: string; nom: string }[];
+        setCentres(liste);
+        const retenu = typeof window !== "undefined" ? window.localStorage.getItem("emargement:centre") : null;
+        setCentre(retenu && liste.some((c) => c.code === retenu) ? retenu : liste[0]?.code ?? "");
+      })
+      .catch(() => {});
+    return () => { vivant = false; };
+  }, []);
+
+  useEffect(() => {
+    if (centre && typeof window !== "undefined") window.localStorage.setItem("emargement:centre", centre);
+  }, [centre]);
+
   const charger = useCallback(async () => {
     setChargement(true); setErreur(null);
     try {
-      const r = await fetch(`/api/emargement/jour?date=${date}&demi=${demi}`);
+      const r = await fetch(`/api/emargement/jour?date=${date}&demi=${demi}&centre=${centre}`);
       const j = await r.json();
-      if (j.ok) setSeances(j.seances);
+      if (j.ok) { setSeances(j.seances); setAdresse(j.adresse ?? null); }
       else setErreur(j.erreur || "Lecture impossible.");
     } catch { setErreur("Lecture impossible."); }
     finally { setChargement(false); }
-  }, [date, demi]);
+  }, [date, demi, centre]);
 
   useEffect(() => { charger(); }, [charger]);
 
@@ -131,10 +165,17 @@ export default function EmargementDuJour() {
     <main className="mx-auto max-w-3xl px-4 py-8">
       <h1 className="page-title">Émargement du jour</h1>
       <p className="mt-1 text-sm text-gray-500">
-        Lieu : <b>Gagny</b> — signature stagiaire + formatrice par demi-journée. Présence horodatée au dépôt (anti-antidate).
+        Signature stagiaire + formatrice par demi-journée. Présence horodatée au dépôt (anti-antidate).
+        {adresse ? <> — <b>{centres.find((c) => c.code === centre)?.nom ?? centre}</b>, {adresse}</> : null}
       </p>
 
       <div className="mt-5 flex flex-wrap items-center gap-3">
+        {/* Le centre d'abord : c'est lui qui décide de la liste, et il finira sur
+            la feuille d'émargement. Se tromper ici, c'est signer au mauvais endroit. */}
+        <select value={centre} onChange={(e) => setCentre(e.target.value)}
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium">
+          {centres.map((c) => <option key={c.code} value={c.code}>{c.nom}</option>)}
+        </select>
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
                className="rounded-lg border border-gray-300 px-3 py-2 text-sm" />
         <div className="inline-flex overflow-hidden rounded-lg border border-gray-300">
@@ -162,9 +203,9 @@ export default function EmargementDuJour() {
       <div className="mt-4 rounded-2xl border border-gray-200 bg-white p-4">
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-sm font-semibold text-gray-800">📄 Feuille papier</span>
-          <a href={`/api/emargement/jour/pdf?date=${date}&demi=${demi}`} target="_blank" rel="noreferrer"
+          <a href={`/api/emargement/jour/pdf?date=${date}&demi=${demi}&centre=${centre}`} target="_blank" rel="noreferrer"
              className="rounded-lg bg-mystory px-3 py-1.5 text-sm font-semibold text-white">🖨️ Imprimer — {DEMI_LABEL[demi]}</a>
-          <a href={`/api/emargement/jour/pdf?date=${date}`} target="_blank" rel="noreferrer"
+          <a href={`/api/emargement/jour/pdf?date=${date}&centre=${centre}`} target="_blank" rel="noreferrer"
              className="text-sm underline text-gray-600 hover:text-mystory">Jour entier (matin + après-midi)</a>
           <button onClick={() => scanInputRef.current?.click()} disabled={scanBusy}
              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
@@ -190,7 +231,7 @@ export default function EmargementDuJour() {
             {walkinOuvert ? "Fermer" : "+ Élève walk-in (non planifié)"}
           </button>
           {walkinOuvert && (
-            <WalkIn date={date} demiDefaut={demi}
+            <WalkIn date={date} demiDefaut={demi} centre={centre}
               onCreated={(d) => { setWalkinOuvert(false); if (d === demi) charger(); else setDemi(d); }} />
           )}
         </div>
@@ -242,7 +283,7 @@ export default function EmargementDuJour() {
   );
 }
 
-function WalkIn({ date, demiDefaut, onCreated }: { date: string; demiDefaut: "matin" | "apres_midi"; onCreated: (demi: "matin" | "apres_midi") => void }) {
+function WalkIn({ date, demiDefaut, centre, onCreated }: { date: string; demiDefaut: "matin" | "apres_midi"; centre: string; onCreated: (demi: "matin" | "apres_midi") => void }) {
   const [dossiers, setDossiers] = useState<{ id: string; nom: string; certif: string | null }[]>([]);
   const [recherche, setRecherche] = useState("");
   const [selection, setSelection] = useState<Set<string>>(new Set());
@@ -276,7 +317,9 @@ function WalkIn({ date, demiDefaut, onCreated }: { date: string; demiDefaut: "ma
       for (const id of Array.from(selection)) {
         const r = await fetch("/api/emargement/walk-in", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ dossierId: id, demi_journee: demi, heures: heuresEleve[id] ?? heures }),
+          // Le centre de la tablette, pas celui du dossier : la personne se
+          // présente ICI, et c'est ici qu'elle signera.
+          body: JSON.stringify({ dossierId: id, demi_journee: demi, heures: heuresEleve[id] ?? heures, centre }),
         });
         const j = await r.json();
         if (!j.ok) echecs++;
@@ -292,7 +335,7 @@ function WalkIn({ date, demiDefaut, onCreated }: { date: string; demiDefaut: "ma
   return (
     <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
       <p className="text-sm font-semibold text-gray-800">Ajouter des élèves (walk-in)</p>
-      <p className="text-xs text-gray-500">Parmi les inscrits — séances créées pour aujourd'hui ({date}) à Gagny, puis à émarger comme les autres.</p>
+      <p className="text-xs text-gray-500">Parmi les inscrits — séances créées pour aujourd&apos;hui ({date}) dans le centre sélectionné, puis à émarger comme les autres.</p>
 
       <input value={recherche} onChange={(e) => setRecherche(e.target.value)} placeholder="Rechercher un élève…"
         className="mt-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white" />
@@ -384,7 +427,7 @@ function ModaleEmargement({ seance, onClose, onMaj }: { seance: Seance; onClose:
         <div className="flex items-start justify-between">
           <div>
             <h2 className="text-lg font-bold text-gray-900">{seance.stagiaire}</h2>
-            <p className="text-xs text-gray-500">{DEMI_LABEL[seance.demi_journee]} · {seance.heures} h · Gagny</p>
+            <p className="text-xs text-gray-500">{DEMI_LABEL[seance.demi_journee]} · {seance.heures} h</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
         </div>

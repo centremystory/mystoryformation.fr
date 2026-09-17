@@ -3,7 +3,9 @@
  * GET  : liste des dossiers actifs (pour le sélecteur).
  * POST { dossierId, demi_journee, heures } : crée une séance `hors_planning = true`
  *        datée d'AUJOURD'HUI (Europe/Paris, anti-antidate) → elle apparaît dans la liste à émarger.
- * Lieu unique : Gagny. Auth équipe (comme les autres routes d'émargement).
+ * La séance hérite du centre du dossier, ou reçoit celui passé en corps de requête
+ * (?centre) quand le stagiaire se présente dans un autre centre que le sien.
+ * Auth équipe (comme les autres routes d'émargement).
  */
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
@@ -60,12 +62,15 @@ export async function POST(req: NextRequest) {
 
   // Dossier valide et non annulé + sa formatrice référente (pour pré-renseigner la séance).
   const { data: d } = await supabaseAdmin
-    .from("dossiers").select("id, statut, formatrice_id").eq("id", dossierId).maybeSingle();
+    .from("dossiers").select("id, statut, formatrice_id, centre").eq("id", dossierId).maybeSingle();
   if (!d) return NextResponse.json({ ok: false, erreur: "Dossier introuvable." }, { status: 404 });
   if ((d as any).statut === "annule") return NextResponse.json({ ok: false, erreur: "Dossier annulé : walk-in impossible." }, { status: 409 });
 
   // Anti-antidate : la séance walk-in est forcément datée d'aujourd'hui (serveur, Europe/Paris).
   const date = parisToday();
+  // Le centre où la personne se présente réellement : il peut différer du sien.
+  const centre = String((body as any)?.centre ?? "").trim().toUpperCase() || null;
+
 
   // Anti-doublon : pas deux séances sur le même créneau pour le même élève.
   const { data: existe } = await supabaseAdmin
@@ -81,6 +86,7 @@ export async function POST(req: NextRequest) {
       demi_journee: demi,
       heures,
       hors_planning: true,
+      centre: centre ?? (d as any).centre ?? null,
       formatrice_id: (d as any).formatrice_id ?? null,
     })
     .select("id").single();

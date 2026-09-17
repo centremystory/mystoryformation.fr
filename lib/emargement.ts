@@ -5,12 +5,51 @@
  * La feuille ne contient QUE les demi-journées réellement émargées (deux signatures
  * présentes → emarge_le non nul). Les signatures capturées (PNG dans Storage) sont
  * intégrées en base64 directement dans le HTML, puis le HTML est rendu en PDF par DocuSeal.
- * Lieu unique : Gagny.
+ *
+ * 17/09/2026 — LE LIEU N'EST PLUS EN DUR. Ce module écrivait « Gagny, 3 bis av. de
+ * Gagny » sur toutes les feuilles, quel que soit le centre où le cours avait eu
+ * lieu. Sur une pièce opposable en audit Qualiopi, c'est une mention fausse.
+ * Le lieu se lit désormais sur la séance (planning.centre), avec repli sur le
+ * dossier puis sur le référentiel /centres — jamais sur une valeur par défaut.
+ * Un parcours commencé à Gagny et terminé à Rosny — ce qui arrive à partir du
+ * 28/09 — porte donc les deux lieux, ligne par ligne.
  */
 import { supabaseAdmin } from "./supabaseAdmin";
 
 const BUCKET = "documents";
 const BLEU = "#2F72DE";
+
+/**
+ * Le référentiel des centres, chargé une fois par feuille.
+ *
+ * Renvoie une fonction de résolution plutôt qu'une table : la règle de repli
+ * (séance → dossier → rien) vit ainsi au même endroit que la lecture, et aucun
+ * appelant ne la réinvente à sa façon.
+ */
+async function resolveurDeLieu(): Promise<(code?: string | null) => { nom: string; adresse: string } | null> {
+  const { data } = await supabaseAdmin.from("centres").select("code, nom, adresse");
+  const index = new Map<string, { nom: string; adresse: string }>();
+  for (const c of (data ?? []) as any[]) {
+    index.set(String(c.code), { nom: String(c.nom ?? c.code), adresse: String(c.adresse ?? "") });
+  }
+  return (code) => (code ? index.get(String(code)) ?? null : null);
+}
+
+/**
+ * Bloc « Lieu de formation » de l'en-tête.
+ *
+ * Muet plutôt que faux : sans lieu connu il écrit « — ». Un auditeur peut nous
+ * demander de compléter un tiret ; il croira sur parole un lieu inventé.
+ */
+function enteteLieu(lieux: { nom: string; adresse: string }[]): string {
+  if (lieux.length === 0) {
+    return `<div class="muted" style="text-align:right">Lieu de formation<br><b style="color:#0f172a">—</b></div>`;
+  }
+  if (lieux.length === 1) {
+    return `<div class="muted" style="text-align:right">Lieu de formation<br><b style="color:#0f172a">${esc(lieux[0].nom)}</b><br>${esc(lieux[0].adresse)}</div>`;
+  }
+  return `<div class="muted" style="text-align:right">Lieux de formation<br><b style="color:#0f172a">${esc(lieux.map((l) => l.nom).join(" · "))}</b><br>voir la colonne « Lieu »</div>`;
+}
 
 const DEMI: Record<string, { label: string; horaire: string }> = {
   matin: { label: "Matin", horaire: "9h30 – 12h30" },
@@ -75,7 +114,7 @@ function horaireReel(demi: string, heures: number): string {
 export async function genererFeuilleEmargementHtml(dossierId: string): Promise<FeuilleEmargement | null> {
   const { data: d } = await supabaseAdmin
     .from("dossiers")
-    .select("certif, numero_edof, stagiaire:stagiaires!stagiaire_id ( civilite, prenom, nom )")
+    .select("certif, numero_edof, centre, stagiaire:stagiaires!stagiaire_id ( civilite, prenom, nom )")
     .eq("id", dossierId)
     .maybeSingle();
   if (!d) return null;
@@ -86,7 +125,7 @@ export async function genererFeuilleEmargementHtml(dossierId: string): Promise<F
 
   const { data: seances } = await supabaseAdmin
     .from("planning")
-    .select("date_seance, demi_journee, heures_realisees, emarge_le, signature_stagiaire_url, signature_formatrice_url, formatrice:formatrices!formatrice_id ( nom )")
+    .select("date_seance, demi_journee, heures_realisees, emarge_le, centre, signature_stagiaire_url, signature_formatrice_url, formatrice:formatrices!formatrice_id ( nom )")
     .eq("dossier_id", dossierId)
     .not("emarge_le", "is", null)
     .order("date_seance", { ascending: true })
@@ -94,10 +133,15 @@ export async function genererFeuilleEmargementHtml(dossierId: string): Promise<F
 
   if (!seances || seances.length === 0) return null;
 
+  const lieuDe = await resolveurDeLieu();
+  const lieuxUtilises = new Map<string, { nom: string; adresse: string }>();
+
   let total = 0;
   const lignes: string[] = [];
   for (const s of seances as any[]) {
     total += Number(s.heures_realisees || 0);
+    const lieu = lieuDe(s.centre) ?? lieuDe((d as any).centre);
+    if (lieu) lieuxUtilises.set(lieu.nom, lieu);
     const sigS = await signatureUrl(s.signature_stagiaire_url);
     const sigF = await signatureUrl(s.signature_formatrice_url);
     const dm = DEMI[s.demi_journee] ?? { label: s.demi_journee, horaire: "" };
@@ -105,6 +149,7 @@ export async function genererFeuilleEmargementHtml(dossierId: string): Promise<F
       <td>${frDate(s.date_seance)}</td>
       <td><b>${dm.label}</b><br><span class="muted">${horaireReel(s.demi_journee, Number(s.heures_realisees)) || dm.horaire}</span></td>
       <td class="center">${nombreFR(Number(s.heures_realisees))} h</td>
+      <td class="center">${lieu ? esc(lieu.nom) : "—"}</td>
       <td class="sig">${sigS ? `<img src="${sigS}" alt="signature stagiaire">` : "—"}</td>
       <td class="sig">${sigF ? `<img src="${sigF}" alt="signature formatrice">` : "—"}<br><span class="muted">${esc(s.formatrice?.nom ?? "")}</span></td>
       <td class="center muted">${frDateTime(s.emarge_le)}</td>
@@ -140,7 +185,7 @@ export async function genererFeuilleEmargementHtml(dossierId: string): Promise<F
       <div class="muted">Organisme de formation — NDA 11756521775 (ne vaut pas agrément de l'État)</div>
     </div>
     <div class="muted" style="text-align:right">
-      Lieu de formation<br><b style="color:#0f172a">Gagny</b><br>3 bis av. de Gagny, 93220
+      ${enteteLieu([...lieuxUtilises.values()])}
     </div>
   </div>
 
@@ -153,7 +198,7 @@ export async function genererFeuilleEmargementHtml(dossierId: string): Promise<F
 
   <table>
     <thead><tr>
-      <th>Date</th><th>Demi-journée</th><th>Durée</th>
+      <th>Date</th><th>Demi-journée</th><th>Durée</th><th>Lieu</th>
       <th>Signature stagiaire</th><th>Signature formatrice</th><th>Émargé le (Europe/Paris)</th>
     </tr></thead>
     <tbody>${lignes.join("")}</tbody>
@@ -172,7 +217,9 @@ export async function genererFeuilleEmargementHtml(dossierId: string): Promise<F
 }
 
 /**
- * Feuille d'émargement PAPIER du jour (fallback présentiel). Lieu unique : Gagny.
+ * Feuille d'émargement PAPIER du jour (fallback présentiel), imprimée PAR CENTRE.
+ * 17/09/2026 — une feuille unique mélangeant Gagny, Sarcelles et Rosny ne peut être
+ * signée par aucune formatrice, et ne prouve donc rien.
  * Imprimée VIERGE de signatures : on liste les stagiaires planifiés (nom pré-imprimé autorisé),
  * mais JAMAIS de signature ni de date pré-remplies (recueillies en présentiel, à la main).
  * Le scan signé est ensuite redéposé dans le CRM (table emargements_papier).
@@ -180,16 +227,23 @@ export async function genererFeuilleEmargementHtml(dossierId: string): Promise<F
 export async function genererFeuillePapierJourHtml(
   date: string,
   demi?: "matin" | "apres_midi",
+  centre?: string | null,
 ): Promise<{ html: string; nb: number }> {
   const { data } = await supabaseAdmin
     .from("planning")
     .select(`
       demi_journee,
-      dossier:dossiers!dossier_id ( certif, stagiaire:stagiaires!stagiaire_id ( prenom, nom ) ),
+      centre,
+      dossier:dossiers!dossier_id ( certif, centre, stagiaire:stagiaires!stagiaire_id ( prenom, nom ) ),
       formatrice:formatrices!formatrice_id ( nom )
     `)
     .eq("date_seance", date);
-  const rows = (data ?? []) as any[];
+  let rows = (data ?? []) as any[];
+
+  const lieuDe = await resolveurDeLieu();
+  const centreDe = (r: any) => r.centre ?? r.dossier?.centre ?? null;
+  if (centre) rows = rows.filter((r) => centreDe(r) === centre);
+  const lieuFeuille = lieuDe(centre) ?? lieuDe(rows[0] ? centreDe(rows[0]) : null);
 
   // Créneaux imprimés : celui sélectionné à l'écran, ou les deux si aucun n'est précisé.
   const creneaux: readonly ("matin" | "apres_midi")[] = demi ? [demi] : (["matin", "apres_midi"] as const);
@@ -239,7 +293,7 @@ export async function genererFeuillePapierJourHtml(
       <div class="brand">MYSTORY</div>
       <div class="muted">Organisme de formation — NDA 11756521775 (ne vaut pas agrément de l'État)</div>
     </div>
-    <div class="muted" style="text-align:right">Lieu de formation<br><b style="color:#0f172a">Gagny</b><br>3 bis av. de Gagny, 93220</div>
+    ${enteteLieu(lieuFeuille ? [lieuFeuille] : [])}
   </div>
 
   <h1>Feuille d'émargement — ${frDate(date)}${demi ? ` · ${DEMI[demi].label}` : ""}</h1>
@@ -263,8 +317,8 @@ export async function genererFeuillePapierJourHtml(
 export async function genererFeuilleEmargementViergeDossierHtml(dossierId: string): Promise<{ html: string; nb: number } | null> {
   const { data: d } = await supabaseAdmin
     .from("dossiers")
-    .select(`certif, stagiaire:stagiaires!stagiaire_id ( civilite, prenom, nom ), formatrice:formatrices!formatrice_id ( nom ),
-             planning ( date_seance, demi_journee )`)
+    .select(`certif, centre, stagiaire:stagiaires!stagiaire_id ( civilite, prenom, nom ), formatrice:formatrices!formatrice_id ( nom ),
+             planning ( date_seance, demi_journee, centre )`)
     .eq("id", dossierId).maybeSingle();
   if (!d) return null;
   const dd = d as any;
@@ -274,6 +328,13 @@ export async function genererFeuilleEmargementViergeDossierHtml(dossierId: strin
   const seances = ((dd.planning ?? []) as any[])
     .filter((p) => p.date_seance)
     .sort((a, b) => String(a.date_seance).localeCompare(String(b.date_seance)) || String(a.demi_journee).localeCompare(String(b.demi_journee)));
+
+  const lieuDe = await resolveurDeLieu();
+  const lieuxVierge = new Map<string, { nom: string; adresse: string }>();
+  for (const p of seances) {
+    const l = lieuDe(p.centre) ?? lieuDe(dd.centre);
+    if (l) lieuxVierge.set(l.nom, l);
+  }
 
   const ligne = (dateTxt: string, dmLabel: string, horaire: string) =>
     `<tr><td>${esc(dateTxt)}</td><td>${esc(dmLabel)}<br><span class="muted">${esc(horaire)}</span></td><td class="sigc"></td><td class="sigc"></td></tr>`;
@@ -304,7 +365,7 @@ export async function genererFeuilleEmargementViergeDossierHtml(dossierId: strin
   <div class="head">
     <div><div class="brand">MYSTORY</div>
       <div class="muted">Organisme de formation — NDA 11756521775 (ne vaut pas agrément de l'État)</div></div>
-    <div class="muted" style="text-align:right">Lieu de formation<br><b style="color:#0f172a">Gagny</b><br>3 bis av. de Gagny, 93220</div>
+    ${enteteLieu([...lieuxVierge.values()])}
   </div>
   <h1>Feuille d'émargement — ${esc(nomStagiaire)}</h1>
   <div class="sub">Formation : <b>${esc(dd.certif ?? "")}</b> &nbsp;·&nbsp; Formateur(s) : <b>${esc(formatrice)}</b></div>

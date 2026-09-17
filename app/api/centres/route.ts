@@ -21,10 +21,18 @@ function deny(e: unknown) {
 
 export async function GET(req: NextRequest) {
   try { await requireUser(req); } catch (e) { const d = deny(e); if (d) return d; throw e; }
-  const { data, error } = await supabaseAdmin
+
+  // ?formation=1 — les seuls centres où l'on peut émarger une séance. Sans ce
+  // filtre, la tablette d'émargement proposerait un point de vente pur, et une
+  // feuille d'émargement porterait un lieu où aucun cours n'a lieu.
+  const formationSeule = req.nextUrl.searchParams.get("formation") === "1";
+
+  let q = supabaseAdmin
     .from("centres")
-    .select("code, nom, adresse, acces, horaires, accueille_formation, accueille_examen, point_de_vente, actif, ordre")
-    .order("ordre").order("nom");
+    .select("code, nom, adresse, acces, horaires, accueille_formation, accueille_examen, point_de_vente, actif, ordre");
+  if (formationSeule) q = q.eq("accueille_formation", true).eq("actif", true);
+
+  const { data, error } = await q.order("ordre").order("nom");
   if (error) return NextResponse.json({ ok: false, erreur: error.message }, { status: 500 });
   return NextResponse.json({ ok: true, centres: data ?? [] });
 }

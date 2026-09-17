@@ -23,6 +23,15 @@ export const maxDuration = 30;
 const BUCKET = "documents";
 const LIBELLE_DEMI: Record<string, string> = { matin: "Matin (9h30–12h30)", apres_midi: "Après-midi (14h–17h)" };
 
+/** « Rosny-sous-Bois — 46 bis rue d'Estienne d'Orves, 93110 », ou « — » si inconnu. */
+async function libelleLieu(code: string | null): Promise<string> {
+  if (!code) return "—";
+  const { data } = await supabaseAdmin
+    .from("centres").select("nom, adresse").eq("code", code).maybeSingle();
+  if (!data) return "—";
+  return [data.nom, data.adresse].filter(Boolean).join(" — ");
+}
+
 function dateFR(iso: string): string {
   try {
     return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "long", year: "numeric" }).format(new Date(iso + "T00:00:00"));
@@ -30,21 +39,21 @@ function dateFR(iso: string): string {
 }
 
 type SeanceRow = {
-  id: string; dossier_id: string; date_seance: string; demi_journee: string;
+  id: string; dossier_id: string; date_seance: string; demi_journee: string; centre: string | null;
   signature_stagiaire_url: string | null; signature_formatrice_url: string | null; emarge_le: string | null;
 };
 
 async function seanceParToken(token: string): Promise<SeanceRow | null> {
   const { data } = await supabaseAdmin
     .from("planning")
-    .select("id, dossier_id, date_seance, demi_journee, signature_stagiaire_url, signature_formatrice_url, emarge_le")
+    .select("id, dossier_id, date_seance, demi_journee, centre, signature_stagiaire_url, signature_formatrice_url, emarge_le")
     .eq("emargement_token", token).maybeSingle();
   return (data as SeanceRow) ?? null;
 }
 async function seanceParId(id: string): Promise<SeanceRow | null> {
   const { data } = await supabaseAdmin
     .from("planning")
-    .select("id, dossier_id, date_seance, demi_journee, signature_stagiaire_url, signature_formatrice_url, emarge_le")
+    .select("id, dossier_id, date_seance, demi_journee, centre, signature_stagiaire_url, signature_formatrice_url, emarge_le")
     .eq("id", id).maybeSingle();
   return (data as SeanceRow) ?? null;
 }
@@ -60,7 +69,7 @@ export async function GET(req: NextRequest) {
   if (!seance) return NextResponse.json({ ok: false, erreur: "Lien invalide." }, { status: 404 });
 
   const { data: dossier } = await supabaseAdmin
-    .from("dossiers").select("stagiaire:stagiaires!stagiaire_id ( prenom, nom )").eq("id", seance.dossier_id).maybeSingle();
+    .from("dossiers").select("centre, stagiaire:stagiaires!stagiaire_id ( prenom, nom )").eq("id", seance.dossier_id).maybeSingle();
   const st = (dossier as any)?.stagiaire;
 
   return NextResponse.json({
@@ -68,7 +77,9 @@ export async function GET(req: NextRequest) {
     prenom: st?.prenom ?? "", nom: st?.nom ?? "",
     date: dateFR(seance.date_seance),
     demi: LIBELLE_DEMI[seance.demi_journee] ?? seance.demi_journee,
-    lieu: "Gagny — 3 bis av. de Gagny, 93220",
+    // 17/09/2026 — le lieu vient de la séance. Le stagiaire signe une présence :
+    // lui afficher un centre où il n'est pas vide sa signature de son sens.
+    lieu: await libelleLieu(seance.centre ?? (dossier as any)?.centre ?? null),
     deja_signe_stagiaire: !!seance.signature_stagiaire_url,
     complet: !!seance.emarge_le,
   });

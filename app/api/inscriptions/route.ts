@@ -143,11 +143,17 @@ export async function POST(req: NextRequest) {
       date_validation_commande: inscription.dateCommandeValidee ?? null,
       formatrice_id: inscription.formatriceId,
       statut: "incomplet",
+      // 17/09/2026 — le centre du dossier, recopié sur chaque séance par la RPC.
+      // Sans lui, la feuille d'émargement n'a aucun lieu à imprimer.
+      centre: inscription.agenceInscription ?? null,
     },
     p_seances: seances.map((s: any) => ({
       date_seance: s.date,
       demi_journee: dbDemiJournee(s),
       heures: CRENEAUX[s.creneau as Creneau].heures,
+      // Une séance peut se tenir dans un autre centre que celui du dossier ;
+      // à défaut, la RPC retombe sur le centre du dossier.
+      centre: s.centre ?? null,
     })),
     p_declencher: declencher,
   });

@@ -1,7 +1,7 @@
 /**
  * MYSTORY — GET /api/emargement/jour/pdf?date=YYYY-MM-DD
  * Génère la feuille d'émargement PAPIER (vierge de signatures) du jour, à imprimer puis signer
- * en présentiel. Lieu unique : Gagny. Auth obligatoire.
+ * en présentiel, pour UN centre (paramètre ?centre=). Auth obligatoire.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, UnauthorizedError } from "@/lib/auth";
@@ -25,7 +25,10 @@ export async function GET(req: NextRequest) {
   const demiParam = (req.nextUrl.searchParams.get("demi") ?? "").trim();
   const demi = demiParam === "matin" || demiParam === "apres_midi" ? demiParam : undefined;
   try {
-    const { html } = await genererFeuillePapierJourHtml(date, demi);
+    // 17/09/2026 — une feuille par centre : mélanger Gagny, Sarcelles et Rosny
+    // sur une seule feuille ne donne aucune preuve signable.
+    const centre = (req.nextUrl.searchParams.get("centre") ?? "").trim().toUpperCase() || null;
+    const { html } = await genererFeuillePapierJourHtml(date, demi, centre);
     const pdf = await renderPdf(html);
     return new NextResponse(new Uint8Array(pdf), {
       status: 200,
