@@ -152,7 +152,7 @@ export function gabaritEmail(titre: string, corpsHtml: string): string {
     ${i.raison} · SIRET ${i.siret} · Déclaration d'activité n° ${i.nda} (ne vaut pas agrément de l'État)<br>
     Gagny : 3 bis av. de Gagny, 93220 · Sarcelles : 18 av. du 8 Mai 1945, 95200 · Rosny : 46 bis rue d'Estienne d'Orves, 93110<br>
     ${i.telephone} · ${i.email} · ${i.siteWeb}<br>
-    <span style="display:inline-block;margin-top:8px;color:#aab0bb;">Vos données sont traitées par MYSTORY (responsable de traitement) pour la gestion de votre formation, conservées 5 ans et jamais cédées. Vous disposez d'un droit d'accès, de rectification et d'effacement&nbsp;: ${i.email}. Politique de confidentialité&nbsp;: <a href="https://mystory-automatisation.vercel.app/politique-confidentialite" style="color:#aab0bb;">mystoryformation.fr/politique-confidentialite</a>. Médiateur de la consommation&nbsp;: ${i.mediateur}.</span>
+    <span style="display:inline-block;margin-top:8px;color:#aab0bb;">Vos données sont traitées par MYSTORY (responsable de traitement) pour la gestion de votre formation, conservées 5 ans et jamais cédées. Vous disposez d'un droit d'accès, de rectification et d'effacement&nbsp;: ${i.email}. Politique de confidentialité&nbsp;: <a href="https://www.mystoryformation.fr/politique-de-confidentialite" style="color:#aab0bb;">mystoryformation.fr/politique-de-confidentialite</a>. Médiateur de la consommation&nbsp;: ${i.mediateur}.</span>
   </div>
 </div>
 </body></html>`;

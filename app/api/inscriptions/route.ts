@@ -255,7 +255,7 @@ export async function POST(req: NextRequest) {
           <p>Tu viens d'enregistrer le dossier de <strong>${esc(inscription.prenom)} ${esc(inscription.nom)}</strong> (${certifLabel}, ${esc(inscription.financement)}).</p>
           <p>Le dossier est créé mais <strong>encore incomplet</strong>. Reste à faire :</p>
           <ul>${restes.map((r) => `<li>${r}</li>`).join("")}</ul>
-          <p>Suivi du dossier : <a href="https://mystory-automatisation.vercel.app/dossiers">ouvrir les dossiers</a>.</p>
+          <p>Suivi du dossier : <a href="https://crm.mystoryformation.fr/dossiers">ouvrir les dossiers</a>.</p>
           <p>— Notification automatique MYSTORY</p>`),
         entite: "dossier", entiteId: dossierId, auteur: "notif-interne",
       });

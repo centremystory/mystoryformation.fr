@@ -16,7 +16,9 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
-const APP_URL = process.env.APP_URL ?? "https://mystory-automatisation.vercel.app";
+const APP_URL = // 17/09/2026 — le repli s'alignait sur l'ancienne adresse Vercel : si APP_URL
+// manque, le lien de satisfaction envoyé au stagiaire pointe hors du domaine.
+process.env.APP_URL ?? "https://crm.mystoryformation.fr";
 
 export async function POST(req: NextRequest) {
   let u;
