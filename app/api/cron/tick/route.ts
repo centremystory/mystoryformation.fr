@@ -26,6 +26,7 @@ const CIBLES = [
   "/api/satisfaction-cours/envoyer",
   "/api/formation/relances-identite",
   "/api/formation/relances-sans-venue",
+  "/api/tests/relances-correction",
   "/api/prospects/relances",
   "/api/factures/relances",
   "/api/factures/renvoyer-echouees",

@@ -1,21 +1,23 @@
 /**
  * MYSTORY — Notation formatrice d'un test (expression écrite + orale).
  * GET  : liste des tests en attente de notation (auth pédagogique).
- * POST : { id, ee_sur10, eo_sur10, remarques? } → calcule le niveau /20, finalise, rattache au dossier.
- * Horodatage serveur (anti-antidatage). Niveau = (CE/10 + CO/10 + EE/10 + EO/10) / 2 → A0…B2.
+ * POST : { id, ee_sur10, eo_sur10, remarques? } → délègue à lib/noterEvaluation.ts.
+ *
+ * 17/09/2026 — le calcul du niveau, la pièce Qualiopi et les e-mails ont été sortis
+ * d'ici : la formatrice peut aussi noter depuis le lien signé reçu par e-mail
+ * (app/tests/corriger/[id]), et les deux chemins doivent produire le même résultat.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireRole, UnauthorizedError } from "@/lib/auth";
-import { niveauFromSur20, PALIERS, epreuveLaPlusFaible, type Palier } from "@/lib/tests";
-import { genererDocEvaluation } from "@/lib/evaluationDoc";
-import { journal } from "@/lib/examens";
-import { envoyerEmail, gabaritEmail } from "@/lib/email";
-import { conseilTest } from "@/lib/conseilsTest";
+import { noterEvaluation, echecNotation } from "@/lib/noterEvaluation";
 import { urlDeBase } from "@/lib/appUrl";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Le PDF de correction est rendu par Chromium avant l'envoi de l'e-mail interne :
+// la notation dure plus longtemps qu'un simple UPDATE.
+export const maxDuration = 60;
 
 const ROLES_NOTE = ["direction", "manager", "formatrice", "back_office"] as const;
 
@@ -60,158 +62,20 @@ export async function POST(req: NextRequest) {
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return NextResponse.json({ ok: false, erreur: "Requête invalide." }, { status: 400 }); }
 
-  const id = String(body.id ?? "").trim();
-  if (!id) return NextResponse.json({ ok: false, erreur: "Évaluation manquante." }, { status: 400 });
-  const ee = Number(body.ee_sur10), eo = Number(body.eo_sur10);
-  if (!(ee >= 0 && ee <= 10) || !(eo >= 0 && eo <= 10)) {
-    return NextResponse.json({ ok: false, erreur: "Les notes EE et EO doivent être comprises entre 0 et 10." }, { status: 422 });
-  }
-  const remarques = body.remarques == null ? null : (String(body.remarques).trim().slice(0, 4000) || null);
-
-  // Modalité orale explicite (remplace la déduction implicite depuis `auteur`/`oral_audios`).
-  // Facultatif : un client plus ancien qui n'envoie rien ne modifie pas la modalité existante.
-  const ORAL_MODES = ["remote_recording", "onsite_examiner", "not_required", "pending"];
-  const oralModeRaw = String(body.oral_evaluation_mode ?? "").trim();
-  const oralMode = ORAL_MODES.includes(oralModeRaw) ? oralModeRaw : null;
-  const clip = (v: unknown, n = 2000) => (v == null ? null : String(v).trim().slice(0, n) || null);
-
-  const { data: ev } = await supabaseAdmin
-    .from("evaluations").select("id, phase, dossier_id, ce_sur10, co_sur10, statut, civilite, nom, prenom, email, niveau_vise, niveau_calibre, heures_preconisees").eq("id", id).maybeSingle();
-  if (!ev) return NextResponse.json({ ok: false, erreur: "Évaluation introuvable." }, { status: 404 });
-  if (ev.statut !== "en_attente_formateur") return NextResponse.json({ ok: false, erreur: "Ce test n'est pas en attente de notation." }, { status: 409 });
-  if (ev.ce_sur10 == null || ev.co_sur10 == null) return NextResponse.json({ ok: false, erreur: "Scores de compréhension absents." }, { status: 409 });
-
-  const total = Math.round(((Number(ev.ce_sur10) + Number(ev.co_sur10) + ee + eo) / 2) * 10) / 10;
-
-  // 09/09/2026 — le niveau n'est plus une moyenne des quatre epreuves.
-  //
-  // Au TEF IRN, il faut tenir le score DANS LES QUATRE EPREUVES A LA FOIS : une
-  // seule epreuve faible fait tomber le niveau entier. Une moyenne donnait donc un
-  // resultat que l'examen reel dementirait — un candidat a l'aise a l'oral mais qui
-  // n'ecrit pas ressortait « B1 » puis echouait.
-  //
-  // On part du palier reellement tenu en comprehension (calibrer(), au moment de la
-  // soumission), et on l'abaisse d'un cran si une epreuve d'expression ne suit pas.
-  // On ne remonte jamais au-dessus : une bonne expression ne compense pas une
-  // comprehension insuffisante.
-  const SEUIL_EXPRESSION = 6;                    // sur 10, note par la formatrice
-  const calibre = (ev as any).niveau_calibre as Palier | null;
-  let niveau: string;
-  if (!calibre) {
-    // Le palier A2 n'etait deja pas tenu en comprehension : les expressions ne
-    // peuvent pas creer un niveau qui n'existe pas.
-    niveau = "En deça de A2";
-  } else if (Math.min(ee, eo) < SEUIL_EXPRESSION) {
-    const rang = PALIERS.indexOf(calibre);
-    niveau = rang > 0 ? PALIERS[rang - 1] : "En deça de A2";
-  } else {
-    niveau = calibre;
-  }
-  const faible = epreuveLaPlusFaible(Number(ev.ce_sur10), Number(ev.co_sur10), ee, eo);
-
-  // Évaluation orale granulaire (trace stable, ne réécrase jamais la modalité si non fournie).
-  const oralPatch: Record<string, unknown> = {
-    oral_score: eo,
-    oral_status: oralMode === "not_required" ? "not_applicable" : "evaluated",
-    oral_level_estimated: clip(body.oral_level_estimated, 16),
-    oral_strengths: clip(body.oral_strengths),
-    oral_improvement_areas: clip(body.oral_improvement_areas),
-    oral_recommendation: clip(body.oral_recommendation),
-    oral_examiner_comment: clip(body.oral_examiner_comment),
-    oral_examiner_id: u.email ?? null,
-    oral_evaluated_at: new Date().toISOString(),
-  };
-  if (oralMode) oralPatch.oral_evaluation_mode = oralMode;
-
-  const { error } = await supabaseAdmin.from("evaluations").update({
-    ee_sur10: ee, eo_sur10: eo, remarques, total_sur20: total, niveau_global: niveau,
-    statut: "complet", complete_le: new Date().toISOString(), notateur: u.email ?? null,
-    ...oralPatch,
-  }).eq("id", id);
-  if (error) return NextResponse.json({ ok: false, erreur: "Enregistrement impossible." }, { status: 502 });
-
-  // Rattachement au dossier : final → niveau atteint ; initial → niveau initial
-  if (ev.dossier_id) {
-    const champ = ev.phase === "final" ? "niveau_atteint" : "niveau_initial";
-    const { error: majNiveauErr } = await supabaseAdmin.from("dossiers").update({ [champ]: niveau }).eq("id", ev.dossier_id);
-    // Ne pas échouer silencieusement : le niveau du dossier doit refléter la notation. On trace.
-    if (majNiveauErr) await journal("dossier", ev.dossier_id, "niveau_maj_echouee", { champ, niveau, erreur: majNiveauErr.message }, u.email ?? null);
-
-    // Auto : la pièce de conformité « Évaluation » du dossier est générée depuis le test (best-effort).
-    if (ev.phase === "initial" || ev.phase === "final") {
-      try { await genererDocEvaluation(ev.dossier_id, ev.phase, u.email ?? null); } catch { /* non bloquant */ }
-    }
-  }
-
-  // Email récap AUTOMATIQUE au candidat (décision Direction 09/07 : envoi auto, zéro oubli).
-  // Test initial uniquement : niveau global + détail des 4 épreuves + conseils personnalisés + invitation RDV.
-  // Best-effort : un échec d'envoi ne bloque jamais la notation.
-  let emailEnvoye = false;
-  if (ev.phase === "initial" && ev.email) {
-    try {
-      const c = conseilTest(niveau, ev.niveau_vise ?? null);
-      const ligne = (lbl: string, n: number) =>
-        `<tr><td style="padding:6px 10px;border-bottom:1px solid #eef1f6;">${lbl}</td><td style="padding:6px 10px;border-bottom:1px solid #eef1f6;text-align:right;font-weight:bold;">${n}/10</td></tr>`;
-      const corps = `
-<p>Bonjour ${ev.civilite ? ev.civilite + " " : ""}${ev.prenom ?? ""} ${ev.nom ?? ""},</p>
-<p>Votre test de positionnement en français a été corrigé par notre formatrice. Voici vos résultats :</p>
-<div style="text-align:center;margin:14px 0;">
-  <span style="display:inline-block;background:#2F72DE;color:#fff;border-radius:12px;padding:10px 26px;font-size:26px;font-weight:bold;">Niveau ${niveau}</span>
-  <div style="color:#6b7280;font-size:12px;margin-top:6px;">Note globale : ${total}/20 (échelle CECRL)</div>
-</div>
-<table style="width:100%;border-collapse:collapse;font-size:13px;">
-${ligne("Compréhension écrite", Number(ev.ce_sur10))}
-${ligne("Compréhension orale", Number(ev.co_sur10))}
-${ligne("Expression écrite", ee)}
-${ligne("Expression orale", eo)}
-</table>
-<div style="background:#f0f6ff;border:1px solid #d7e6fb;border-radius:10px;padding:12px 14px;margin:16px 0;">
-  <div style="font-weight:bold;color:#2F72DE;margin-bottom:4px;">Nos conseils personnalisés</div>
-  <div>${c.message}</div>
-</div>
-<p><strong>Et maintenant ?</strong> Appelez-nous au <strong>06&nbsp;81&nbsp;43&nbsp;16&nbsp;54</strong> ou passez nous voir à Gagny (3&nbsp;bis av. de Gagny, 93220 — lun–sam 9h30–17h30) : un conseiller vous présentera la formule <strong>${c.formule} (${c.heures}&nbsp;h)</strong> et les possibilités de financement (CPF, personnel…).</p>
-<p>À très vite,<br>L'équipe MYSTORY Formation</p>`;
-      const envoi = await envoyerEmail({
-        a: ev.email,
-        objet: `Vos résultats — niveau ${niveau} · MYSTORY Formation`,
-        html: gabaritEmail("Résultats de votre test de positionnement", corps),
-        entite: "evaluations", entiteId: id, auteur: u.email ?? undefined,
-      });
-      emailEnvoye = !!envoi.ok;
-    } catch { /* non bloquant */ }
-  }
-
-  // Enchaînement TEST FINAL (décision Direction 09/07) : la satisfaction à chaud part
-  // AUTOMATIQUEMENT au stagiaire dès la notation. Best-effort ; la relance à froid (J+90)
-  // est déjà orchestrée par ailleurs. Ne se déclenche qu'une fois (notation verrouillée).
-  let satisfactionEnvoyee = false;
-  if (ev.phase === "final" && ev.dossier_id) {
-    try {
-      const { data: d } = await supabaseAdmin
-        .from("dossiers").select("id, token, stagiaires ( civilite, prenom, email )")
-        .eq("id", ev.dossier_id).maybeSingle();
-      const st: any = (d as any)?.stagiaires;
-      if (d && st?.email) {
-        const lien = `${urlDeBase(req)}/satisfaction?token=${(d as any).token}&type=chaud`;
-        const corpsSat = `
-<p>Bonjour ${st.prenom ?? ""},</p>
-<p>Votre formation chez MYSTORY touche à sa fin — bravo pour votre parcours ! Votre avis nous aide à progresser et fait partie de notre démarche qualité. Merci de prendre deux minutes :</p>
-<p style="text-align:center;margin:24px 0">
-  <a href="${lien}" style="background:#2F72DE;color:#fff;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:600;display:inline-block">Répondre au questionnaire</a>
-</p>
-<p style="font-size:13px;color:#667">Si le bouton ne fonctionne pas, copiez ce lien : <br>${lien}</p>
-<p>Merci, et belle réussite !<br>L'équipe MYSTORY Formation</p>`;
-        const env2 = await envoyerEmail({
-          a: st.email, objet: "Votre avis sur la formation",
-          html: gabaritEmail("Votre avis sur la formation", corpsSat),
-          entite: "dossiers", entiteId: ev.dossier_id, auteur: u.email ?? undefined,
-        });
-        satisfactionEnvoyee = !!env2.ok;
-        if (env2.ok) await journal("dossier", ev.dossier_id, "satisfaction_chaud_envoyee", { auto: true, email: st.email }, u.email ?? null);
-      }
-    } catch { /* non bloquant */ }
-  }
-
-  await journal("evaluation", id, "test_note", { total_sur20: total, niveau, email_recap_envoye: emailEnvoye, satisfaction_chaud_envoyee: satisfactionEnvoyee }, u.email ?? null);
-  return NextResponse.json({ ok: true, niveau, total_sur20: total, email_recap_envoye: emailEnvoye, satisfaction_chaud_envoyee: satisfactionEnvoyee });
+  const r = await noterEvaluation({
+    id: String(body.id ?? "").trim(),
+    ee: Number(body.ee_sur10),
+    eo: Number(body.eo_sur10),
+    remarques: body.remarques,
+    oral_evaluation_mode: body.oral_evaluation_mode,
+    oral_level_estimated: body.oral_level_estimated,
+    oral_strengths: body.oral_strengths,
+    oral_improvement_areas: body.oral_improvement_areas,
+    oral_recommendation: body.oral_recommendation,
+    oral_examiner_comment: body.oral_examiner_comment,
+    notateur: u.email ?? null,
+    urlBase: urlDeBase(req),
+  });
+  if (echecNotation(r)) return NextResponse.json({ ok: false, erreur: r.erreur }, { status: r.code });
+  return NextResponse.json(r);
 }

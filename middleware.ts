@@ -71,6 +71,11 @@ const CHEMINS_PUBLICS = [
   "/api/tests/audio",             // upload audio (jeton)
   "/api/tests/contact",           // coordonnées laissées en fin de test (jeton + statut vérifiés)
   "/api/tests/civique",           // enchaînement TEF IRN → examen civique (jeton)
+  // Notation par lien signé : la formatrice corrige EE/EO depuis son téléphone, sans
+  // compte. La signature HMAC de l'identifiant est vérifiée dans la route elle-même,
+  // et elle est distincte du jeton de passation que le candidat connaît.
+  "/tests/corriger",
+  "/api/tests/corriger",
 ];
 
 export async function middleware(req: NextRequest) {

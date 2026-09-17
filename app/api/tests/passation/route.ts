@@ -10,6 +10,7 @@ import { corrigerAuto, calibrer, heuresRecommandees, texteLibreOk,
 import { journal } from "@/lib/examens";
 import { envoyerEmail, gabaritEmail, EMAIL_ACTIF } from "@/lib/email";
 import { ipDe, limiteDepassee } from "@/lib/rateLimit";
+import { lienCorrection } from "@/lib/jetonCorrection";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -200,6 +201,10 @@ async function alerterCorrection(
 ): Promise<void> {
   const nom = [c.prenom, c.nom].filter(Boolean).join(" ") || "Candidat sans nom";
   const base = process.env.APP_URL || "https://crm.mystoryformation.fr";
+  // 17/09/2026 — lien signe vers l'ecran de notation : la formatrice corrige depuis
+  // son telephone, sans compte. Chaine vide si AUTH_SECRET manque (on ne fabrique
+  // jamais un lien forgeable) : on le dit alors franchement dans le courriel.
+  const lienNotation = lienCorrection(base, id);
   const surPlace = String(c.auteur || "").startsWith("sur_place");
 
   // Tout ce qui suit vient du candidat : nom, telephone, objectif, redaction. Ces
@@ -264,11 +269,21 @@ async function alerterCorrection(
         background:#fff;border:1px solid #e5e7eb;border-radius:6px">${
         esc(r.ecrit)}</div>`
       : `<p style="font-size:14px;color:#b45309">Aucune rédaction n'a été rendue.</p>`}
-    <p style="margin:22px 0 0">
-      <a href="${base}/tests/a-noter" style="display:inline-block;background:#2F72DE;color:#fff;
-        text-decoration:none;padding:11px 20px;border-radius:6px;font-weight:600">
-        Noter cette copie</a>
-      &nbsp;&nbsp;<a href="${base}/tests/${id}" style="color:#2F72DE">voir le détail</a>
+    ${lienNotation ? `
+    <p style="margin:22px 0 6px">
+      <a href="${lienNotation}" style="display:inline-block;background:#2F72DE;color:#fff;
+        text-decoration:none;padding:13px 24px;border-radius:6px;font-weight:600;font-size:15px">
+        Corriger l'écrit et l'oral</a>
+    </p>
+    <p style="margin:0 0 16px;font-size:13px;color:#6b7280">
+      Ce lien ouvre l'écran de notation <b>sans connexion</b> : il marche depuis un téléphone,
+      deux notes sur 10 suffisent. Il est propre à cette copie &mdash; ne le transférez pas au candidat.</p>`
+    : `<p style="margin:22px 0 6px;font-size:13px;color:#b45309">
+      Le lien direct de notation n'a pas pu être créé (secret d'application absent) :
+      passez par le back-office.</p>`}
+    <p style="margin:0">
+      <a href="${base}/tests/a-noter" style="color:#2F72DE">ouvrir dans le back-office</a>
+      &nbsp;&middot;&nbsp;<a href="${base}/tests/${id}" style="color:#2F72DE">voir le détail</a>
     </p>`;
 
   await envoyerEmail({

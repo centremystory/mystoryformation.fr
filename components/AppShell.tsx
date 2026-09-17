@@ -28,7 +28,7 @@ import { SITES, COOKIE_SITE, siteValide } from "@/lib/sites";
 //
 // 10/09/2026 : « /prescripteur » ajoute. Il manquait, et Secure Academy aurait vu
 // le menu complet des son premier acces.
-const PAGES_SANS_NAV = ["/connexion", "/qcm", "/positionnement", "/suivi", "/evaluation", "/fiche-besoin", "/emargement/signer", "/satisfaction", "/avis-cours", "/formateur-questionnaire", "/contact", "/partenaire", "/prescripteur", "/test"];
+const PAGES_SANS_NAV = ["/connexion", "/qcm", "/positionnement", "/suivi", "/evaluation", "/fiche-besoin", "/emargement/signer", "/satisfaction", "/avis-cours", "/formateur-questionnaire", "/contact", "/partenaire", "/prescripteur", "/test", "/tests/corriger"];
 
 // `membres` = pages fusionnées derrière ce lien (accessibles via sous-onglets de la page).
 // Le lien s'affiche si l'utilisateur accède à href OU à un membre ; il pointe alors vers

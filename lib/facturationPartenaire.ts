@@ -20,6 +20,19 @@ export type ResultatFacture =
   | { ok: true; facture: { id: string; numero: string; montant: number; places: number } }
   | { ok: false; erreur: string; code: number };
 
+/**
+ * Garde de type pour la branche d'échec.
+ *
+ * 17/09/2026 — `tsconfig` a `strict: false`, donc `strictNullChecks` est désactivé :
+ * dans ce mode, TypeScript ne SAIT PAS restreindre une union discriminée par un
+ * booléen (`ok: true` / `ok: false`). Un simple `if (r.ok) … else r.erreur` ne
+ * compile donc pas, et c'est ce qui cassait `next build` depuis le 15/09.
+ * Cette garde explicite fait le travail que le compilateur ne peut pas faire ici.
+ */
+export function echecFacture(r: ResultatFacture): r is Extract<ResultatFacture, { ok: false }> {
+  return r.ok === false;
+}
+
 /** Le tarif partenaire qui s'applique, selon le type d'examen de la session. */
 export function tarifPartenaire(p: any, typeSession: string): number {
   const civique = String(typeSession ?? "").toLowerCase().includes("civique");

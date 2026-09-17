@@ -18,7 +18,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole, UnauthorizedError, ForbiddenError } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { facturerSession, tarifPartenaire } from "@/lib/facturationPartenaire";
+import { facturerSession, tarifPartenaire, echecFacture } from "@/lib/facturationPartenaire";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -110,6 +110,6 @@ export async function POST(req: NextRequest) {
   // partagee avec le cron du jour d'examen (/api/cron/facturation-partenaire).
   // Deux implementations, ce sont deux series de numeros qui divergent un jour.
   const r = await facturerSession({ partenaireId, sessionId, auteur: u.email ?? null });
-  if (!r.ok) return NextResponse.json({ ok: false, erreur: r.erreur }, { status: r.code });
+  if (echecFacture(r)) return NextResponse.json({ ok: false, erreur: r.erreur }, { status: r.code });
   return NextResponse.json({ ok: true, facture: r.facture });
 }

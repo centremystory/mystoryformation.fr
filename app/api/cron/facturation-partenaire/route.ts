@@ -21,7 +21,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, UnauthorizedError, type SessionUser } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { facturerSession, tarifPartenaire } from "@/lib/facturationPartenaire";
+import { facturerSession, tarifPartenaire, echecFacture } from "@/lib/facturationPartenaire";
 import { journal } from "@/lib/examens";
 
 export const runtime = "nodejs";
@@ -162,11 +162,11 @@ export async function POST(req: NextRequest) {
     const r = await facturerSession({
       partenaireId: l.partenaire_id, sessionId: l.session_id, auteur,
     });
-    if (r.ok) {
+    if (echecFacture(r)) {
+      echecs.push({ partenaire: l.partenaire, erreur: r.erreur });
+    } else {
       emises.push({ partenaire: l.partenaire, numero: r.facture.numero,
                     montant: r.facture.montant, places: r.facture.places });
-    } else {
-      echecs.push({ partenaire: l.partenaire, erreur: r.erreur });
     }
   }
 
