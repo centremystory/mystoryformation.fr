@@ -209,7 +209,7 @@ export async function PUT(req: NextRequest) {
     } else {
       corps = `<p>Bonjour ${v.stagiaires?.prenom ?? ""},</p>
         <p>Vous étiez attendu(e) à la session d'examen du ${dateFR(date)} et nous n'avons pas pu vous accueillir.</p>
-        <p>Contactez-nous au 06 81 43 16 54 ou à contact@mystoryformation.fr pour faire le point sur votre situation.</p>
+        <p>Contactez-nous au 06 81 43 16 54 ou à secretariat@mystoryformation.fr pour faire le point sur votre situation.</p>
         <p>L'équipe MYSTORY</p>`;
     }
 

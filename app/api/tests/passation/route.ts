@@ -287,7 +287,7 @@ async function alerterCorrection(
     </p>`;
 
   await envoyerEmail({
-    a: process.env.EMAIL_CORRECTIONS || "contact@mystoryformation.fr",
+    a: process.env.EMAIL_CORRECTIONS || "secretariat@mystoryformation.fr",
     objet: objetSur(`Test de positionnement à corriger — ${nom}${c.telephone ? " · " + c.telephone : ""}`),
     html: gabaritEmail("Une copie attend sa correction", corps),
     entite: "evaluations", entiteId: id, auteur: "systeme",

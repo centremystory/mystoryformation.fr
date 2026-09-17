@@ -39,7 +39,7 @@ async function proposerPlaceLibre(sessionId: string | null | undefined, auteur: 
       const quand = s ? `${s.type ?? "l'examen"}${s.date_examen ? ` du ${new Date(s.date_examen + "T12:00:00Z").toLocaleDateString("fr-FR")}` : ""}${s.horaire ? ` (${s.horaire})` : ""}` : "l'examen demandé";
       const corps = `<p>Bonjour ${cand.prenom ?? ""} ${cand.nom ?? ""},</p>
         <p>Une place vient de se libérer pour <strong>${quand}</strong>, pour laquelle vous étiez en liste d'attente.</p>
-        <p>Pour confirmer votre inscription, contactez-nous rapidement au 06 81 43 16 54 ou à contact@mystoryformation.fr — la place est proposée en priorité mais n'est pas garantie.</p>
+        <p>Pour confirmer votre inscription, contactez-nous rapidement au 06 81 43 16 54 ou à secretariat@mystoryformation.fr — la place est proposée en priorité mais n'est pas garantie.</p>
         <p>L'équipe MYSTORY</p>`;
       await envoyerEmail({
         a: cand.email, objet: "Une place s'est libérée pour votre examen — MYSTORY",

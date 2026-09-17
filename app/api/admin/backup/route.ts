@@ -17,7 +17,9 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
-const DESTINATAIRE = process.env.BACKUP_EMAIL ?? "contact@mystoryformation.fr";
+// 17/09/2026 — le courrier d'exploitation arrive au SECRÉTARIAT. `contact@` est
+// réservé aux demandes entrantes des prospects et reste le point RGPD publié.
+const DESTINATAIRE = process.env.BACKUP_EMAIL ?? "secretariat@mystoryformation.fr";
 
 // Toutes les tables métier (rate_buckets = état transitoire, exclu).
 const TABLES = [

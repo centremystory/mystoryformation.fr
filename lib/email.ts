@@ -6,13 +6,24 @@
  * DRAPEAU : si les identifiants SMTP (SMTP_USER / SMTP_PASS) sont absents des variables
  * d'environnement Vercel, l'envoi est désactivé proprement (journalisé, jamais bloquant).
  *
+ * 17/09/2026 — décision d'Arudhan : tout le courrier d'EXPLOITATION (convocations,
+ * attestations, résultats de test, relances) part et revient au SECRÉTARIAT.
+ * `contact@` est réservé aux demandes entrantes des prospects, et reste l'adresse
+ * publiée pour les droits RGPD — c'est celle de la politique de confidentialité,
+ * elle ne change pas dans les mentions légales.
+ *
+ * ⚠️ SMTP_USER est le compte AUTHENTIFIÉ auprès d'IONOS. Il commande ce que le
+ * serveur accepte comme expéditeur : envoyer « from: secretariat@ » avec un login
+ * « contact@ » est refusé. Les trois variables se changent ENSEMBLE.
+ *
  * Variables Vercel attendues :
- *   SMTP_USER  = contact@mystoryformation.fr   (obligatoire)
- *   SMTP_PASS  = mot de passe de la boîte       (obligatoire)
- *   SMTP_HOST  = smtp.ionos.fr                  (défaut : smtp.ionos.fr)
- *   SMTP_PORT  = 465                            (défaut : 465)
- *   SMTP_SECURE= true                           (défaut : true pour 465 ; false => STARTTLS 587)
- *   SMTP_FROM  = "MYSTORY Formation <contact@mystoryformation.fr>" (défaut)
+ *   SMTP_USER  = secretariat@mystoryformation.fr (obligatoire — le compte authentifié)
+ *   SMTP_PASS  = mot de passe de CETTE boîte     (obligatoire)
+ *   SMTP_HOST  = smtp.ionos.fr                   (défaut : smtp.ionos.fr)
+ *   SMTP_PORT  = 465                             (défaut : 465)
+ *   SMTP_SECURE= true                            (défaut : true pour 465 ; false => STARTTLS 587)
+ *   SMTP_FROM  = "MYSTORY Formation <secretariat@mystoryformation.fr>"
+ *   SMTP_REPLY_TO = secretariat@mystoryformation.fr
  *
  * Chaque tentative (envoyée, échouée ou désactivée) est tracée dans `journal`.
  */
@@ -26,6 +37,9 @@ const SMTP_PORT = Number(process.env.SMTP_PORT ?? "465");
 const SMTP_SECURE = (process.env.SMTP_SECURE ?? "true").toLowerCase() !== "false";
 const SMTP_USER = process.env.SMTP_USER;
 const SMTP_PASS = process.env.SMTP_PASS;
+// Défauts volontairement laissés sur contact@ : ils ne servent que si les variables
+// Vercel sont absentes. Basculer le défaut sans avoir changé SMTP_USER ferait refuser
+// TOUS les envois par IONOS. La bascule se fait dans les variables, pas ici.
 const EXPEDITEUR = process.env.SMTP_FROM ?? "MYSTORY Formation <contact@mystoryformation.fr>";
 const REPONDRE_A = process.env.SMTP_REPLY_TO ?? "contact@mystoryformation.fr";
 

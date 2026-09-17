@@ -297,7 +297,7 @@ async function envoyerCorrectionInterne(
 <p style="margin:0 0 6px;font-size:14px"><b>La correction détaillée est en pièce jointe</b> — question par question, avec les bonnes réponses, la rédaction et l'oral.</p>
 <p style="margin:0;font-size:13px;color:#b45309"><b>Document interne.</b> Il contient les corrigés de la banque de questions : il se remet en main propre au candidat, il ne se transfère pas par e-mail.</p>`;
     const envoi = await envoyerEmail({
-      a: process.env.EMAIL_CORRECTIONS || "contact@mystoryformation.fr",
+      a: process.env.EMAIL_CORRECTIONS || "secretariat@mystoryformation.fr",
       objet: `Copie corrigée — ${nom} · niveau ${r.niveau}`,
       html: gabaritEmail("Correction détaillée", corps),
       piecesJointes: [{ nom: pdf.nom, contenu: pdf.contenu }],

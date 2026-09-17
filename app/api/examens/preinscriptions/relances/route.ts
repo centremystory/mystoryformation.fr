@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
         <p style="margin:18px 0"><a href="${p.lien_paiement}" style="background:#2F72DE;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600">Régler mon examen (${p.montant} €)</a></p>
         <p style="font-size:13px;color:#666">Lien : ${p.lien_paiement}</p>
         <p>⚠️ Sans paiement, votre place pourra être réattribuée.</p>
-        <p>Pour toute question : 06 81 43 16 54 · contact@mystoryformation.fr</p>
+        <p>Pour toute question : 06 81 43 16 54 · secretariat@mystoryformation.fr</p>
         <p>L'équipe MYSTORY</p>`;
       const env = await envoyerEmail({
         a: p.candidat_email,

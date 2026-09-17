@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
   // 4) Email avec le résultat en pièce jointe
   const corps = `<p>Bonjour ${civilite} ${nom} ${prenom},</p>
     <p>Vous trouverez ci-joint votre résultat d'examen.</p>
-    <p>Pour toute question, vous pouvez nous écrire à contact@mystoryformation.fr ou nous appeler au 06 81 43 16 54.</p>
+    <p>Pour toute question, vous pouvez nous écrire à secretariat@mystoryformation.fr ou nous appeler au 06 81 43 16 54.</p>
     <p>Bien cordialement,<br/>L'équipe MYSTORY Formation</p>`;
   const env = await envoyerEmail({
     a: email,

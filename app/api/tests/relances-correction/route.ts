@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
       Ce rappel revient chaque matin tant qu'une copie reste à corriger.</p>`;
 
   const envoi = await envoyerEmail({
-    a: process.env.EMAIL_CORRECTIONS || "contact@mystoryformation.fr",
+    a: process.env.EMAIL_CORRECTIONS || "secretariat@mystoryformation.fr",
     objet: `${copies.length} copie${copies.length > 1 ? "s" : ""} à corriger — la plus ancienne attend depuis ${copies[0].heures} h`,
     html: gabaritEmail("Des copies attendent leur note", corps),
     entite: "evaluations", auteur: "systeme",

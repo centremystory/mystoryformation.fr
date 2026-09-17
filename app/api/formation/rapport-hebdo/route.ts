@@ -1,7 +1,7 @@
 /**
  * MYSTORY — /api/formation/rapport-hebdo  (rapport hebdomadaire FORMATION — orchestré par n8n)
  * GET  — renvoie les chiffres de la semaine (contrôle, sans effet).
- * POST — calcule les chiffres des 7 derniers jours et les envoie par email à contact@mystoryformation.fr.
+ * POST — calcule les chiffres des 7 derniers jours et les envoie par email au secrétariat.
  * Protégé par requireUser (session équipe / Direction, ou Bearer JWT n8n sans rôle).
  */
 import { NextRequest, NextResponse } from "next/server";
@@ -14,7 +14,9 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
-const DEST = "contact@mystoryformation.fr";
+// 17/09/2026 — le courrier d'exploitation arrive au SECRÉTARIAT. `contact@` est
+// réservé aux demandes entrantes des prospects et reste le point RGPD publié.
+const DEST = process.env.SECRETARIAT_EMAIL ?? "secretariat@mystoryformation.fr";
 const estCpf = (d: any) => d.financement === "CPF" || d.origine_fonds === "CPF_CDC";
 
 async function garde(req: NextRequest): Promise<NextResponse | SessionUser> {

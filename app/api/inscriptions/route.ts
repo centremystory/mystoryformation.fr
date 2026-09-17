@@ -227,7 +227,7 @@ export async function POST(req: NextRequest) {
             <li>Vous allez recevoir votre <strong>convention</strong> à signer électroniquement (email séparé).</li>
             <li>Puis votre <strong>convocation</strong> et votre <strong>évaluation initiale</strong> de niveau.</li>
           </ul>
-          <p>Une question ? Écrivez-nous à contact@mystoryformation.fr ou au 06 81 43 16 54.</p>
+          <p>Une question ? Écrivez-nous à secretariat@mystoryformation.fr ou au 06 81 43 16 54.</p>
           <p>À très bientôt,<br>L'équipe MYSTORY Formation</p>`),
         entite: "dossier", entiteId: (data as any)?.dossier_id ?? null, auteur: "onboarding-auto",
       });

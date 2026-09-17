@@ -56,7 +56,7 @@ async function envoyerMailPreinscription(p: any, session: any | null): Promise<{
     ${lienBouton}
     <p>⚠️ Ce lien est valable <strong>24 à 48 h</strong>. Passé ce délai, la place pourra être réattribuée.</p>
     <p>Le jour de l'examen : présentez-vous à <strong>3 bis avenue de Gagny, 93220 Gagny</strong>, muni(e) d'une <strong>pièce d'identité en cours de validité</strong>. Une fois le paiement validé, vous recevrez votre convocation sous 24 h.</p>
-    <p>Pour toute question : 06 81 43 16 54 · contact@mystoryformation.fr</p>
+    <p>Pour toute question : 06 81 43 16 54 · secretariat@mystoryformation.fr</p>
     <p>L'équipe MYSTORY</p>`;
 
   return envoyerEmail({

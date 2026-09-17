@@ -15,7 +15,9 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
-const DESTINATAIRE = process.env.ANOMALIES_DIGEST_TO ?? "contact@mystoryformation.fr";
+// 17/09/2026 — le courrier d'exploitation arrive au SECRÉTARIAT. `contact@` est
+// réservé aux demandes entrantes des prospects et reste le point RGPD publié.
+const DESTINATAIRE = process.env.ANOMALIES_DIGEST_TO ?? "secretariat@mystoryformation.fr";
 const APP_URL = process.env.APP_URL ?? "https://crm.mystoryformation.fr";
 const MAX_LISTE = 15;
 

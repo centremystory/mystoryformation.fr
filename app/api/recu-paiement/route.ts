@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
     const corps = `
       <p>Bonjour ${data.prenom ?? ""},</p>
       <p>Vous trouverez ci-joint votre <strong>reçu de paiement</strong> pour votre inscription à l'examen.</p>
-      <p>Pour toute question : 06 81 43 16 54 · contact@mystoryformation.fr</p>
+      <p>Pour toute question : 06 81 43 16 54 · secretariat@mystoryformation.fr</p>
       <p>L'équipe MYSTORY</p>`;
     const res = await envoyerEmail({
       a: data.email,
