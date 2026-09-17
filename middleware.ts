@@ -53,6 +53,11 @@ const CHEMINS_PUBLICS = [
   "/contact",                     // formulaire public « Écrivez-nous » (prospects)
   "/api/contact",                 // dépôt message prospect (GET/PATCH protégés dans la route)
   "/pre-inscription",             // formulaire public de pré-inscription (prospects)
+  // 17/09/2026 — le droit d'opposition doit s'exercer SANS compte. Un lien de
+  // désinscription qui aboutit sur une page de connexion n'est pas un droit
+  // exerçable, c'est un obstacle — et la signature HMAC protège déjà l'adresse.
+  "/desinscription",
+  "/api/desinscription",
   "/api/pre-inscription",         // dépôt de la demande de pré-inscription (public, honeypot + rate-limit)
   "/partenaire",                  // portail partenaire par jeton (capability)
   "/api/partenaire",              // données + dépôts partenaire (jeton vérifié côté serveur)
