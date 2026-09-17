@@ -311,10 +311,16 @@ export function merge(template: string, fiche: FicheStagiaire, cfg: TemplateConf
   // Annexe 3 — Planning : injection HTML brute (avant l'échappement des {{...}}).
   html = html.split("<!--PLANNING_ROWS-->").join(buildPlanningRows(fiche.planning));
 
-  // Annexe 1 — Programme adapté à l'offre (A2/B1/B2/Intensif), déduite des heures prévues.
+  // Annexe 1 — Programme adapté à l'offre du dossier (A2 / B1 / B2).
+  //   17/09/2026 : l'offre vient du NIVEAU VISÉ, plus de la durée. Depuis le 09/09
+  //   les trois offres sont publiées à 36 h : la durée ne les distingue plus.
   //   Injection HTML brute AVANT l'échappement : les {{balises}} du fragment restent résolues.
   html = html.split("<!--PROGRAMME_OFFRE-->").join(
-    programmeTefIrnAnnexe({ certif: fiche.certif, heuresPrevues: fiche.heuresPrevues }),
+    programmeTefIrnAnnexe({
+      certif: fiche.certif,
+      heuresPrevues: fiche.heuresPrevues,
+      niveauVise: (fiche as any).niveauVise ?? null,
+    }),
   );
 
   // Feuille d'émargement : lignes par demi-journée (signatures vides).

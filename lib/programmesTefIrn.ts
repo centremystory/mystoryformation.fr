@@ -234,9 +234,24 @@ function renduOffre(offre: Offre): string {
  * Fallback : si le certif n'est pas TEF IRN ou si l'offre est indéterminée,
  * renvoie le programme TEF IRN générique (comportement historique préservé).
  */
-export function programmeTefIrnAnnexe(params: { certif: string; heuresPrevues?: number | null }): string {
+/** L'offre d'un dossier : le NIVEAU VISÉ d'abord, la durée seulement en repli. */
+export function offreDuDossier(
+  niveauVise?: string | null,
+  heuresPrevues?: number | null,
+): Offre | null {
+  const n = String(niveauVise ?? "").trim().toUpperCase();
+  if (n === "A2" || n === "B1" || n === "B2") return n as Offre;
+  // Repli : dossiers créés sous l'ancienne grille, où la durée identifiait l'offre.
+  return offreParHeures(heuresPrevues);
+}
+
+export function programmeTefIrnAnnexe(params: {
+  certif: string;
+  heuresPrevues?: number | null;
+  niveauVise?: string | null;
+}): string {
   if (params.certif !== "TEF_IRN") return PROGRAMME_GENERIQUE;
-  const offre = offreParHeures(params.heuresPrevues);
+  const offre = offreDuDossier(params.niveauVise, params.heuresPrevues);
   return offre ? renduOffre(offre) : PROGRAMME_GENERIQUE;
 }
 
