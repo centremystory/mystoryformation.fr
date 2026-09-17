@@ -17,6 +17,7 @@ import { envoyerEmail, gabaritEmail } from "@/lib/email";
 import { conseilTest } from "@/lib/conseilsTest";
 import { construireCorrectionPdf, estEchec } from "@/lib/correctionPdf";
 import { niveauLisible } from "@/lib/niveauLisible";
+import { ficheDemarche } from "@/lib/demarches";
 
 export type EntreeNotation = {
   id: string;
@@ -76,7 +77,7 @@ export async function noterEvaluation(e: EntreeNotation): Promise<ResultatNotati
 
   const { data: ev } = await supabaseAdmin
     .from("evaluations")
-    .select("id, token, phase, dossier_id, ce_sur10, co_sur10, statut, civilite, nom, prenom, email, telephone, niveau_vise, niveau_calibre, heures_preconisees")
+    .select("id, token, phase, dossier_id, ce_sur10, co_sur10, statut, civilite, nom, prenom, email, telephone, niveau_vise, niveau_calibre, heures_preconisees, demarche")
     .eq("id", id)
     .maybeSingle();
   if (!ev) return { ok: false, erreur: "Évaluation introuvable.", code: 404 };
@@ -180,6 +181,36 @@ async function envoyerRecapCandidat(
   try {
     const c = conseilTest(r.niveau, ev.niveau_vise ?? null);
     const n = niveauLisible(r.niveau);
+
+    /**
+     * 17/09/2026 — dire les DEUX examens de la démarche.
+     *
+     * Le courriel parlait du niveau de français et s'arrêtait là. Depuis le
+     * 1er janvier 2026, chacune de ces démarches réclame aussi l'examen civique,
+     * et par MENTION : quelqu'un qui passe « carte de résident » alors qu'il
+     * demande la nationalité a payé et s'est déplacé pour un résultat que la
+     * préfecture n'accepte pas. Ce n'est pas un détail commercial, c'est la
+     * différence entre un dossier qui aboutit et un dossier rejeté.
+     *
+     * Muet si la démarche est inconnue : annoncer la mauvaise mention serait
+     * pire que de ne rien annoncer.
+     */
+    const dem = ficheDemarche(ev.demarche ?? null);
+    const blocDemarche = dem ? `
+<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:22px 0 0;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:12px;">
+  <tr><td style="padding:16px 18px;">
+    <div style="font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:#64748b;">Votre démarche</div>
+    <div style="font-size:17px;font-weight:800;color:#0f172a;margin:5px 0 10px;">${dem.label}</div>
+    <div style="font-size:14px;color:#334155;line-height:1.6;margin-bottom:10px;">
+      Elle demande <b>deux examens</b>, et nous organisons les deux&nbsp;:
+    </div>
+    ${dem.examens.map((x) => `<div style="font-size:14px;color:#0f172a;line-height:1.6;padding:3px 0;">&bull;&nbsp; ${x}</div>`).join("")}
+    <div style="font-size:13px;color:#64748b;line-height:1.6;margin-top:10px;">
+      L'examen civique se passe <b>par mention</b>&nbsp;: celle-ci doit être exactement
+      celle de votre démarche, sinon le résultat ne vaut pas pour votre dossier.
+    </div>
+  </td></tr>
+</table>` : "";
     const lien = `${r.urlBase.replace(/\/+$/, "")}/pre-inscription${ev.token ? `?t=${encodeURIComponent(ev.token)}` : ""}`;
     const prenom = String(ev.prenom ?? "").trim();
 
@@ -280,6 +311,8 @@ ${epreuves.map(barre).join("")}
   Et si vous ne passez pas par le CPF, ce parcours se règle <b>en 3 ou 4 fois sans frais</b>,
   ou <b>en 10 fois</b> après étude.
 </p>
+
+${blocDemarche}
 
 <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:26px 0 0;">
   <tr><td align="center">

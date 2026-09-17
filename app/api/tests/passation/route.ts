@@ -11,6 +11,7 @@ import { journal } from "@/lib/examens";
 import { envoyerEmail, gabaritEmail, EMAIL_ACTIF } from "@/lib/email";
 import { ipDe, limiteDepassee } from "@/lib/rateLimit";
 import { lienCorrection } from "@/lib/jetonCorrection";
+import { ficheDemarche } from "@/lib/demarches";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -236,8 +237,9 @@ async function alerterCorrection(
       ${li("Candidat", nom)}
       ${li("Téléphone", c.telephone || "")}
       ${li("Courriel", c.email || "")}
-      ${li("Démarche", c.demarche || "")}
+      ${li("Démarche", ficheDemarche(c.demarche)?.label ?? (c.demarche || ""))}
       ${li("Niveau visé", c.niveau_vise || "")}
+      ${li("À vendre", ficheDemarche(c.demarche)?.examens.join(" + ") ?? "—")}
       ${li("Échéance annoncée", c.echeance || "")}
       ${li("Passation", surPlace ? "sur place" : "à distance")}
     </table>

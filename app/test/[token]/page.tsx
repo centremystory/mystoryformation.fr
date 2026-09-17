@@ -5,6 +5,7 @@
  * Le candidat répond ; la correction se fait côté serveur (les corrigés ne sont jamais envoyés ici).
  */
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ficheDemarche } from "@/lib/demarches";
 
 type Option = { cle: string; texte: string; image?: string };
 type Question = {
@@ -206,6 +207,32 @@ export default function Passation({ params }: { params: { token: string } }) {
                 fait tomber le niveau entier.
               </p>
             )}
+            {/* 17/09/2026 — les DEUX examens de la démarche, dits au candidat.
+                L'écran ne parlait que du français. Or la démarche exige aussi
+                l'examen civique, et par MENTION : passer « carte de résident »
+                quand on demande la nationalité, c'est payer et se déplacer pour
+                un résultat que la préfecture refuse. */}
+            {(() => {
+              const dem = ficheDemarche(coord.demarche);
+              if (!dem) return null;
+              return (
+                <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-3">
+                  <p className="text-sm font-semibold text-gray-900">
+                    Pour votre {dem.label.toLowerCase()}, il vous faut deux examens.
+                  </p>
+                  <ul className="mt-1.5 space-y-1">
+                    {dem.examens.map((x) => (
+                      <li key={x} className="text-sm text-gray-700">• {x}</li>
+                    ))}
+                  </ul>
+                  <p className="mt-2 text-xs text-gray-500">
+                    Nous organisons les deux dans notre centre agréé. L&apos;examen civique se
+                    passe <b>par mention</b> : ce doit être exactement celle de votre démarche.
+                  </p>
+                </div>
+              );
+            })()}
+
             <p className="mt-3 text-xs text-gray-500">
               Volume indicatif, confirmé avec vous après la correction de votre écrit et de
               votre oral. Le passage de l&apos;examen est compris dans nos parcours.
