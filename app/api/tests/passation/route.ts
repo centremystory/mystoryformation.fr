@@ -264,7 +264,8 @@ async function alerterCorrection(
       <li>Valider le niveau et le volume, puis rappeler le candidat.</li>
     </ol>
     ${r.ecrit ? `<h3 style="font-size:15px;margin:0 0 8px">Sa rédaction
-      (${String(r.ecrit).trim().split(/\s+/).length} mots)</h3>
+      (${(() => { const m = String(r.ecrit).trim().split(/\s+/).length;
+                  return `${m} mot${m > 1 ? "s" : ""}`; })()})</h3>
       <div style="white-space:pre-wrap;font-size:14px;line-height:1.6;padding:14px;
         background:#fff;border:1px solid #e5e7eb;border-radius:6px">${
         esc(r.ecrit)}</div>`
