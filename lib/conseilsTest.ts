@@ -1,15 +1,22 @@
 /**
- * MYSTORY — Conseils personnalisés après le test de positionnement.
- * Règle métier validée par la Direction (09/07/2026) :
- * écart entre le niveau visé (démarche) et le niveau atteint → formule recommandée.
- *   à niveau (ou au-dessus)  → Express 6 h (consolidation avant l'examen)
- *   −1 niveau                → Essentiel 18 h
- *   −2 niveaux               → Confort 30 h
- *   −3 niveaux ou débutant   → Réussite 42 h
- * Démarches : A2 = carte de séjour pluriannuelle · B1 = carte de résident · B2 = naturalisation.
+ * MYSTORY — Conseil personnalisé après le test de positionnement.
+ *
+ * 17/09/2026 — RÉÉCRIT. Ce fichier vendait encore les formules « Express 6 h,
+ * Essentiel 18 h, Confort 30 h, Réussite 42 h », supprimées du catalogue le
+ * 09/09 sur mise en demeure de la Caisse des dépôts. Chaque candidat qui
+ * terminait son test recevait donc, par e-mail, une recommandation pour une
+ * formule qui n'existe plus et qu'aucun conseiller ne pouvait lui vendre.
+ *
+ * Le catalogue déposé ne comporte plus que TROIS offres, une par niveau visé —
+ * A2, B1, B2 — publiées à leur durée maximale de 36 h (1 620 €). Le volume
+ * réellement facturé est arrêté après le test : 180 € + 40 € par heure.
+ *
+ * Le calcul des heures n'est pas refait ici : il vient de `heuresRecommandees`,
+ * qui sert déjà à l'écran de fin de test. Deux calculs, ce seraient deux
+ * réponses différentes pour le même candidat — celle de l'écran et celle du mail.
  */
+import { heuresRecommandees, type Palier } from "@/lib/tests";
 
-const ORDRE = ["A0", "A1", "A2", "B1", "B2"] as const;
 const DEMARCHE: Record<string, string> = {
   A2: "carte de séjour pluriannuelle",
   B1: "carte de résident",
@@ -17,65 +24,90 @@ const DEMARCHE: Record<string, string> = {
 };
 
 export type ConseilTest = {
+  /** Le nom de l'offre au catalogue, ex. « Parcours B1 ». */
   formule: string;
   heures: number;
-  /** Phrase de synthèse (email + encart CRM), sans HTML. */
+  /** Phrase de synthèse (e-mail + encart CRM), sans HTML. */
   message: string;
-  /** Écart de niveaux (visé − atteint), null si pas de niveau visé. */
+  /** Écart de paliers entre le niveau visé et le niveau constaté, null si pas d'objectif. */
   ecart: number | null;
 };
 
-function idx(niveau: string | null | undefined): number {
-  const i = ORDRE.indexOf(String(niveau ?? "").toUpperCase() as (typeof ORDRE)[number]);
-  return i < 0 ? -1 : i;
+const PALIERS: Palier[] = ["A2", "B1", "B2"];
+
+/** Le niveau constaté, ramené à un palier du catalogue. « En deçà de A2 » → null. */
+function palier(v: string | null | undefined): Palier | null {
+  const s = String(v ?? "").trim().toUpperCase();
+  return (PALIERS as string[]).includes(s) ? (s as Palier) : null;
 }
 
-export function conseilTest(niveauAtteint: string | null | undefined, niveauVise: string | null | undefined): ConseilTest {
-  const a = idx(niveauAtteint);
-  const v = idx(niveauVise);
-  const objectif = niveauVise && DEMARCHE[String(niveauVise).toUpperCase()]
-    ? `${String(niveauVise).toUpperCase()} (${DEMARCHE[String(niveauVise).toUpperCase()]})`
-    : niveauVise ? String(niveauVise).toUpperCase() : null;
+/** Prix TTC d'un parcours : 180 € pour le passage du TEF IRN + 40 € par heure. */
+function prix(heures: number): number {
+  return 180 + heures * 40;
+}
 
-  // Débutant complet : formule maximale quel que soit l'objectif.
-  if (a <= 0) {
+const eur = (n: number) => (n >= 1000 ? `${Math.floor(n / 1000)} ${String(n % 1000).padStart(3, "0")}` : String(n));
+
+export function conseilTest(
+  niveauAtteint: string | null | undefined,
+  niveauVise: string | null | undefined,
+): ConseilTest {
+  const constate = palier(niveauAtteint);
+  const vise = palier(niveauVise);
+
+  // Aucun objectif exprimé : on ne devine pas la démarche du candidat, c'est elle
+  // qui détermine le niveau à atteindre. On l'oriente vers le conseiller.
+  if (!vise) {
+    const h = constate ? 12 : 36;
     return {
-      formule: "Réussite", heures: 42, ecart: v >= 0 && a >= 0 ? v - a : null,
-      message: objectif
-        ? `Vous partez des bases : pour atteindre le niveau ${objectif}, nous recommandons la formule Réussite (42 h), le parcours complet pour progresser sereinement.`
-        : "Vous partez des bases : nous recommandons la formule Réussite (42 h), le parcours complet pour progresser sereinement.",
+      formule: constate ? `Parcours ${constate}` : "Parcours A2",
+      heures: h,
+      ecart: null,
+      message:
+        `Votre niveau actuel est ${constate ?? "en cours de consolidation, en dessous de A2"}. ` +
+        "Le nombre d'heures dépend de votre démarche : carte de séjour pluriannuelle (A2), " +
+        "carte de résident (B1) ou naturalisation (B2). Dites-nous laquelle vous concerne et " +
+        "nous arrêtons le volume exact avec vous.",
     };
   }
 
-  // Pas d'objectif exprimé : conseil générique selon le niveau atteint.
-  if (v < 0) {
+  const r = heuresRecommandees(constate, vise);
+  const objectif = `${vise} (${DEMARCHE[vise]})`;
+  const offre = `Parcours ${r.prochain === "A1" ? "A2" : r.prochain}`;
+  const tarif = `${eur(prix(r.heures))} €`;
+
+  // Le niveau visé est déjà tenu en compréhension : il reste l'examen à sécuriser.
+  if (r.etapes === 0) {
     return {
-      formule: "Essentiel", heures: 18, ecart: null,
-      message: `Votre niveau actuel est ${ORDRE[a]}. Selon votre projet (carte de séjour, carte de résident, naturalisation), nos conseillers vous orienteront vers la formule adaptée — la formule Essentiel (18 h) est un bon point de départ pour franchir un niveau.`,
+      formule: offre, heures: r.heures, ecart: 0,
+      message:
+        `Bonne nouvelle : votre niveau tient déjà le palier ${objectif}. ` +
+        `Nous recommandons ${r.heures} heures (${tarif}, passage du TEF IRN compris) pour ` +
+        "sécuriser le jour J : méthode des quatre épreuves, gestion du temps, et travail " +
+        "sur l'expression écrite, qui est l'épreuve qui fait échouer le plus de candidats.",
     };
   }
 
-  const ecart = v - a;
-  if (ecart <= 0) {
+  // Un seul palier à franchir : le cas standard.
+  if (r.etapes === 1) {
     return {
-      formule: "Express", heures: 6, ecart,
-      message: `Bonne nouvelle : votre niveau actuel (${ORDRE[a]}) correspond déjà à votre objectif ${objectif}. La formule Express (6 h) vous prépare aux conditions réelles de l'examen pour le réussir du premier coup.`,
+      formule: offre, heures: r.heures, ecart: 1,
+      message:
+        `Il vous reste un palier à franchir pour atteindre ${objectif}. ` +
+        `Nous recommandons notre ${offre}, jusqu'à ${r.heures} heures (${tarif}, passage du ` +
+        "TEF IRN compris). Le volume exact est arrêté avec vous après ce test : vous ne " +
+        "financez que les heures retenues.",
     };
   }
-  if (ecart === 1) {
-    return {
-      formule: "Essentiel", heures: 18, ecart,
-      message: `Il vous reste un niveau à franchir pour atteindre votre objectif ${objectif} (niveau actuel : ${ORDRE[a]}). La formule Essentiel (18 h) est conçue exactement pour cela.`,
-    };
-  }
-  if (ecart === 2) {
-    return {
-      formule: "Confort", heures: 30, ecart,
-      message: `Deux niveaux vous séparent de votre objectif ${objectif} (niveau actuel : ${ORDRE[a]}). La formule Confort (30 h) vous donne le rythme et l'accompagnement pour y arriver.`,
-    };
-  }
+
+  // Plusieurs paliers : on ne vend QUE le premier, et on le dit. Promettre le
+  // niveau final en une seule formation serait vendre un échec.
   return {
-    formule: "Réussite", heures: 42, ecart,
-    message: `Votre objectif ${objectif} demande une belle progression depuis votre niveau actuel (${ORDRE[a]}). La formule Réussite (42 h) est le parcours complet pour y parvenir pas à pas.`,
+    formule: offre, heures: r.heures, ecart: r.etapes,
+    message:
+      `Votre objectif ${objectif} demande ${r.etapes} parcours successifs : on ne franchit ` +
+      `qu'un palier à la fois. Ce premier parcours vous mène jusqu'à ${r.prochain} — notre ` +
+      `${offre}, jusqu'à ${r.heures} heures (${tarif}, passage du TEF IRN compris). Vous ` +
+      "repasserez ensuite le TEF IRN, puis nous verrons la suite ensemble.",
   };
 }

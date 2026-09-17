@@ -102,10 +102,10 @@ export async function noterEvaluation(e: EntreeNotation): Promise<ResultatNotati
   const calibre = (ev as any).niveau_calibre as Palier | null;
   let niveau: string;
   if (!calibre) {
-    niveau = "En deça de A2";
+    niveau = "En deçà de A2";
   } else if (Math.min(ee, eo) < SEUIL_EXPRESSION) {
     const rang = PALIERS.indexOf(calibre);
-    niveau = rang > 0 ? PALIERS[rang - 1] : "En deça de A2";
+    niveau = rang > 0 ? PALIERS[rang - 1] : "En deçà de A2";
   } else {
     niveau = calibre;
   }
@@ -182,10 +182,15 @@ async function envoyerRecapCandidat(
     const corps = `
 <p>Bonjour ${ev.civilite ? ev.civilite + " " : ""}${ev.prenom ?? ""} ${ev.nom ?? ""},</p>
 <p>Votre test de positionnement en français a été corrigé par notre formatrice. Voici vos résultats :</p>
-<div style="text-align:center;margin:14px 0;">
+${r.niveau === "En deçà de A2"
+  ? `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:14px 16px;margin:14px 0;">
+  <div style="font-weight:bold;color:#92400e;font-size:15px;margin-bottom:4px;">Le palier A2 n'est pas encore tenu</div>
+  <div style="color:#7c3f12;font-size:13px;">Cela veut dire que, sur les épreuves passées, les bases ne sont pas encore assez solides pour valider le premier niveau officiel (A2). Ce n'est pas un échec : c'est un point de départ, et il se travaille. Note globale : ${r.total}/20.</div>
+</div>`
+  : `<div style="text-align:center;margin:14px 0;">
   <span style="display:inline-block;background:#2F72DE;color:#fff;border-radius:12px;padding:10px 26px;font-size:26px;font-weight:bold;">Niveau ${r.niveau}</span>
   <div style="color:#6b7280;font-size:12px;margin-top:6px;">Note globale : ${r.total}/20 (échelle CECRL)</div>
-</div>
+</div>`}
 <table style="width:100%;border-collapse:collapse;font-size:13px;">
 ${ligne("Compréhension écrite", Number(ev.ce_sur10))}
 ${ligne("Compréhension orale", Number(ev.co_sur10))}
@@ -196,7 +201,7 @@ ${ligne("Expression orale", r.eo)}
   <div style="font-weight:bold;color:#2F72DE;margin-bottom:4px;">Nos conseils personnalisés</div>
   <div>${c.message}</div>
 </div>
-<p><strong>Et maintenant ?</strong> Appelez-nous au <strong>06&nbsp;81&nbsp;43&nbsp;16&nbsp;54</strong> : un conseiller vous présentera la formule <strong>${c.formule} (${c.heures}&nbsp;h)</strong> et les possibilités de financement (CPF, personnel…). La correction commentée de votre rédaction vous est remise lors de ce rendez-vous.</p>
+<p><strong>Et maintenant ?</strong> Appelez-nous au <strong>06&nbsp;81&nbsp;43&nbsp;16&nbsp;54</strong> : un conseiller vous présentera notre <strong>${c.formule}</strong> (jusqu'à ${c.heures}&nbsp;h, passage du TEF IRN compris) et les possibilités de financement (CPF, fonds propres). La correction commentée de votre rédaction vous est remise lors de ce rendez-vous.</p>
 <p>À très vite,<br>L'équipe MYSTORY Formation</p>`;
     const envoi = await envoyerEmail({
       a: ev.email,
