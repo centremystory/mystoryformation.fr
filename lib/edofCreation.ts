@@ -17,6 +17,7 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { journal } from "@/lib/examens";
 import { CATALOGUE } from "@/lib/inscriptions/regles";
+import { rattacherTestAuDossier } from "@/lib/rattacherTest";
 
 /** Statuts EDOF qui décrivent un dossier encore vivant, donc à suivre dans le CRM. */
 export const STATUTS_VIVANTS = ["Validé", "En formation", "Service fait déclaré"];
@@ -190,6 +191,16 @@ export async function creerDossiersManquants(
     rap.crees_dossiers++;
     await journal("dossiers", num, "cree_depuis_edof",
       { numero_edof: num, heures, montant, statut_edof: c.statut_edof }, opts.auteur ?? "import_edof");
+
+    // 17/09/2026 — si la personne a déjà passé son test de positionnement en ligne,
+    // on le rattache tout de suite : le niveau d'entrée et la pièce Qualiopi
+    // « évaluation initiale » n'ont plus à être ressaisis. Best-effort : un
+    // rattachement qui échoue ne doit jamais faire échouer la création du dossier.
+    try {
+      const { data: d } = await supabaseAdmin
+        .from("dossiers").select("id").eq("numero_edof", num).maybeSingle();
+      if (d?.id) await rattacherTestAuDossier(d.id, opts.auteur ?? "import_edof");
+    } catch { /* non bloquant */ }
   }
   return rap;
 }
