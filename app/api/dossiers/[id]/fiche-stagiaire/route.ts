@@ -10,17 +10,35 @@
  * `pour=stagiaire`        : ce qu'il emporte, sans la checklist.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { requireUser, UnauthorizedError } from "@/lib/auth";
+import { requireRole, UnauthorizedError, ForbiddenError } from "@/lib/auth";
 import { construireFicheStagiaire, echecFiche, type Destinataire } from "@/lib/ficheStagiaire";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
+/**
+ * 17/09/2026 — même liste que la page /dossiers dans lib/roles.ts.
+ *
+ * Cette fiche porte les données personnelles du stagiaire — nom, date et lieu de
+ * naissance, adresse, téléphone, courriel — et, en version équipe, l'état de
+ * conformité de son dossier. Elle ne doit donc pas être plus ouverte que la page
+ * d'où elle est imprimée : le CRM refuse déjà /dossiers au rôle « commercial »,
+ * cette route fait pareil, au lieu de se contenter d'une session valide.
+ *
+ * (Il n'y a ni propriétaire ni agence sur un dossier dans ce CRM : le contrôle
+ * porte sur le métier de la personne, pas sur un lien avec le dossier. Vérifié :
+ * tous les comptes actifs portent back_office et formatrice, aucun n'est perdu.)
+ */
+const ROLES_DOSSIERS = ["direction", "manager", "back_office", "formatrice"] as const;
+
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  try { await requireUser(req); } catch (e) {
+  try { await requireRole(req, ROLES_DOSSIERS); } catch (e) {
     if (e instanceof UnauthorizedError) {
       return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
+    }
+    if (e instanceof ForbiddenError) {
+      return NextResponse.json({ ok: false, erreur: "Accès non autorisé." }, { status: 403 });
     }
     throw e;
   }
