@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <style>
-  @page { size: A4; margin: 16mm 16mm 24mm 16mm; }
+  @page { size: A4; margin: 16mm 16mm 16mm 16mm; }
   * { box-sizing: border-box; }
   body { font-family: "Helvetica Neue", Arial, sans-serif; color: #1c2433; font-size: 10pt; line-height: 1.45; margin: 0; }
   .brandbar { height: 5px; background: #2F72DE; border-radius: 3px; }
@@ -35,7 +35,12 @@
   .ofsign .sig-img { max-height: 50px; margin-top: 6px; display: block; }
   .cachet { position: absolute; right: 8px; top: 8px; width: 74px; height: 74px; border: 2px solid #2F72DE; border-radius: 50%; color: #2F72DE; font-size: 6pt; line-height: 1.25; text-align: center; display: flex; align-items: center; justify-content: center; transform: rotate(-9deg); opacity: .9; padding: 4px; }
   .cachet-img { position: absolute; right: 6px; top: 6px; width: 80px; height: auto; opacity: .95; }
-  footer { position: fixed; bottom: 6mm; left: 0; right: 0; background: #fff; border-top: 1px solid #e3e8f0; padding-top: 4px; font-size: 6.6pt; color: #7a8290; text-align: center; line-height: 1.3; }
+  .ofsign, .sign, .sign .box, .signbox, .cachet-wrap { break-inside: avoid; page-break-inside: avoid; }
+  footer { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #e3e8f0; padding-top: 4px; font-size: 6.6pt; color: #7a8290; text-align: center; line-height: 1.3; }
+  table.sheet { width: 100%; border-collapse: collapse; }
+  table.sheet > tbody > tr > td, table.sheet > tfoot > tr > td { padding: 0; border: none; }
+  table.sheet > tfoot { display: table-footer-group; }
+  table.sheet > tfoot td { height: 15mm; }
 
   .rgpd { margin-top: 14px; font-size: 7.4pt; color: #5b6472; border-top: 1px solid #e3e8f0; padding-top: 6px; }
   .check { font-size: 10pt; margin: 6px 0; }
@@ -51,10 +56,9 @@
 </style>
 </head>
 <body>
-  <footer>
-    MYSTORY — SASU · {{of_rcs}} · SIRET {{of_siret}} · Déclaration d'activité n° {{of_nda}} (ne vaut pas agrément de l'État)<br>
-    Gagny : 3 bis av. de Gagny, 93220 · Sarcelles : 18 av. du 8 Mai 1945, 95200 · Rosny : 46 bis rue d'Estienne d'Orves, 93110 Rosny-sous-Bois · {{of_tel}} · {{of_email}}
-  </footer>
+<table class="sheet"><tfoot><tr><td></td></tr></tfoot><tbody><tr><td>
+
+  
 
   <div class="brandbar"></div>
   <header>
@@ -110,5 +114,11 @@
     <div><div class="sigwho">Signature du stagiaire — {{prenom}} {{nom}}</div><div class="sigline">&nbsp;</div></div>
   </div>
   <p class="rgpd"><strong>Données personnelles (RGPD).</strong> Données traitées par MYSTORY (SASU) pour le suivi de la formation et les obligations liées au financement CPF. Conservation : 5 ans. Droits d'accès, rectification, effacement, opposition : {{of_email}} — réclamation possible auprès de la CNIL (www.cnil.fr).</p>
+
+</td></tr></tbody></table>
+<footer>
+    MYSTORY — SASU · {{of_rcs}} · SIRET {{of_siret}} · Déclaration d'activité n° {{of_nda}} (ne vaut pas agrément de l'État)<br>
+    Gagny : 3 bis av. de Gagny, 93220 · Sarcelles : 18 av. du 8 Mai 1945, 95200 · Rosny : 46 bis rue d'Estienne d'Orves, 93110 Rosny-sous-Bois · {{of_tel}} · {{of_email}}
+  </footer>
 </body>
 </html>
