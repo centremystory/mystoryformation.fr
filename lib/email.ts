@@ -102,18 +102,27 @@ function transport(): Transporter {
 /**
  * Une panne de réseau est-elle passagère ?
  *
- * 17/09/2026 — sur les sept derniers jours, DEUX envois sur huit ont échoué sur
- * « Unexpected socket close », soit un quart des convocations. Ce n'est pas un
- * refus du serveur : c'est la connexion qui tombe en cours de route, typiquement
- * quand IONOS ferme un canal resté ouvert entre deux invocations chaudes de la
- * même fonction. Un second essai sur une connexion NEUVE passe.
+ * 18/09/2026 — CE MOTIF A ÉTÉ ÉCRIT DEUX FOIS, et la première version était
+ * fausse. Elle listait des codes d'erreur Node (ETIMEDOUT, ECONNRESET…) au lieu
+ * des messages que nodemailer produit réellement. Sur les quatre échecs observés
+ * en production — « Connection timeout », « Timeout », « Unexpected socket
+ * close », « 421 … command timeout » — un seul correspondait. Trois envois sur
+ * quatre n'étaient donc jamais réessayés, alors que le second essai existait.
  *
- * On ne réessaie que ces cas-là. Une adresse invalide ou un refus
- * d'authentification ne s'arrangeront pas en insistant — et insister sur un rejet
- * d'authentification est le meilleur moyen de faire bloquer le compte.
+ * La leçon vaut d'être écrite : un motif de reprise se construit à partir des
+ * messages relevés dans le journal, jamais depuis la documentation.
+ *
+ * Le 421 d'IONOS mérite une mention : « Service closing transmission channel »
+ * est un refus TEMPORAIRE au sens de la norme SMTP — le serveur dit « pas
+ * maintenant », pas « jamais ». Il se réessaie.
+ *
+ * Restent exclus, et c'est volontaire : les adresses invalides et les refus
+ * d'authentification. Ils ne s'arrangent pas en insistant, et insister sur un
+ * refus d'authentification est le meilleur moyen de faire bloquer le compte.
  */
 function pannePassagere(message: string): boolean {
-  return /socket close|ETIMEDOUT|ECONNRESET|ECONNREFUSED|EPIPE|Greeting never received|Connection closed/i
+  if (/invalid|no recipients|550|553|authentication|auth failed|EAUTH/i.test(message)) return false;
+  return /timeout|timed out|socket close|socket hang up|ETIMEDOUT|ECONNRESET|ECONNREFUSED|EPIPE|ESOCKET|Greeting never received|Connection closed|\b421\b|\b45\d\b/i
     .test(message);
 }
 
@@ -122,18 +131,43 @@ function pannePassagere(message: string): boolean {
  * l'appelant décide (la vente/le document restent valides même si l'email échoue).
  */
 /**
- * Exécute l'envoi, et le retente UNE fois sur connexion neuve si la connexion a
- * lâché. Le transporteur est jeté avant le second essai : le reprendre
- * réutiliserait la socket morte qui vient d'échouer.
+ * Transporteur de SECOURS, sur l'autre port.
+ *
+ * IONOS écoute en 465 (TLS d'emblée) et en 587 (STARTTLS). Les échecs observés
+ * le sont tous sur le port configuré ; rien n'indique que le serveur soit en
+ * panne, plutôt qu'une de ses façades soit saturée. Réessayer sur le MÊME port
+ * reproduit souvent le même échec — passer sur l'autre est ce qui distingue une
+ * reprise utile d'une reprise cosmétique.
  */
-async function avecSecondEssai<T>(envoi: () => Promise<T>): Promise<T> {
+function transportSecours(): Transporter {
+  const alternatif = SMTP_PORT === 465 ? { port: 587, secure: false } : { port: 465, secure: true };
+  return nodemailer.createTransport({
+    host: SMTP_HOST,
+    ...alternatif,
+    auth: { user: SMTP_USER, pass: SMTP_PASS },
+    connectionTimeout: 15_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 25_000,
+  });
+}
+
+/**
+ * Exécute l'envoi et, si la connexion a lâché, le retente sur l'AUTRE port.
+ *
+ * Le transporteur principal est jeté au passage : le reprendre réutiliserait la
+ * configuration qui vient d'échouer. On ne tente qu'une seule fois — au-delà,
+ * on n'a plus affaire à un incident mais à une panne, et il vaut mieux la voir
+ * dans le journal que la masquer sous des réessais.
+ */
+async function avecSecondEssai<T>(envoi: (t: Transporter) => Promise<T>): Promise<T> {
   try {
-    return await envoi();
+    return await envoi(transport());
   } catch (err: any) {
-    if (!pannePassagere(String(err?.message ?? ""))) throw err;
+    const message = String(err?.message ?? "");
+    if (!pannePassagere(message)) throw err;
     _transport = null;
     await new Promise((r) => setTimeout(r, 900));
-    return await envoi();
+    return await envoi(transportSecours());
   }
 }
 
@@ -145,7 +179,7 @@ export async function envoyerEmail(e: EnvoiEmail): Promise<{ ok: boolean; erreur
   }
 
   try {
-    const info = await avecSecondEssai(() => transport().sendMail({
+    const info = await avecSecondEssai((t) => t.sendMail({
       from: EXPEDITEUR,
       to: e.a,
       ...(e.copieCachee ? { bcc: e.copieCachee } : {}),

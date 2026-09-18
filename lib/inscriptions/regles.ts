@@ -32,8 +32,20 @@ export const OFFRES: { code: Offre; label: string; niveauVise: string }[] = [
   { code: "B2", label: "B2 — Argumenter et évoluer (naturalisation)", niveauVise: "B2" },
 ];
 
-/** Volumes finançables : de 12 h (plancher CPF) à 36 h (durée publiée), par pas de 3 h. */
-export const VOLUMES_CPF = [12, 15, 18, 21, 24, 27, 30, 33, 36] as const;
+/**
+ * Les cinq volumes proposés à la vente (décision du 18/09/2026).
+ *
+ * Le catalogue déposé autorise un pas de 3 heures, et le CRM les offrait tous :
+ * neuf choix dans une liste déroulante. C'est trop pour un entretien de vente —
+ * un conseiller devant neuf options n'arbitre plus, il hésite, et le contenu
+ * pédagogique n'existe de toute façon que pour ces cinq-là.
+ *
+ * Le plancher CPF (12 h) et la durée publiée (36 h) sont conservés ; entre les
+ * deux on avance par pas de 6 h. Une durée intermédiaire reste défendable au
+ * dossier si un cas le justifie — elle se saisit alors à la main, en connaissance
+ * de cause, plutôt que d'être offerte par défaut à tout le monde.
+ */
+export const VOLUMES_CPF = [12, 18, 24, 30, 36] as const;
 
 /** `A2_12H` … `B2_36H` — une entrée par offre et par volume finançable. */
 export type CodeFormule = `${Offre}_${number}H`;
