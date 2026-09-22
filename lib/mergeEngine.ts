@@ -58,7 +58,23 @@ export interface TemplateConfig {
   id: string;
   durationSource: DurationSource;
   required: string[];
+  /**
+   * Balises qui sont des CASES À COCHER du formulaire papier, pas des données.
+   * Non renseignées, elles sortent en « ☐ » — jamais en {{balise}} imprimée.
+   */
+  checkboxes?: string[];
+  /**
+   * Balises qui sont des CHAMPS LIBRES à remplir à la main pendant l'entretien.
+   * Non renseignées, elles sortent en trait à compléter.
+   */
+  blanks?: string[];
 }
+
+/** Rendu des formulaires papier. Caractères Unicode : aucune police à charger. */
+const CASE_VIDE = "☐";    // ☐
+const CASE_COCHEE = "☑";  // ☑
+const TRAIT_A_COMPLETER =
+  '<span style="display:inline-block;min-width:55mm;border-bottom:.5px solid #9aa4b4">&nbsp;</span>';
 
 export interface MergeResult {
   html: string;
@@ -329,14 +345,23 @@ export function merge(template: string, fiche: FicheStagiaire, cfg: TemplateConf
   // Sections conditionnelles {{#if balise}}...{{/if}}
   html = html.replace(/\{\{#if\s+([a-z][a-z0-9_]*)\s*\}\}([\s\S]*?)\{\{\/if\}\}/g, (_m, key, body) => {
     const v = values[key];
-    const keep = v !== null && v !== "" && !neutralisees.has(key);
+    // `undefined` = balise absente du modèle de données → la section ne doit PAS
+    // être gardée : sinon son corps sort avec ses {{balises}} imprimées telles quelles.
+    const keep = v !== undefined && v !== null && v !== "" && !neutralisees.has(key);
     return keep ? body : "";
   });
 
   // Balises simples {{cle}} ([a-z_]+ uniquement → les tags DocuSeal restent intacts)
+  const cases = new Set(cfg.checkboxes ?? []);
+  const traits = new Set(cfg.blanks ?? []);
   const missing: string[] = [];
   html = html.replace(/\{\{\s*([a-z][a-z0-9_]*)\s*\}\}/g, (_m, key) => {
     const v = values[key];
+    // Formulaire papier : une case se rend TOUJOURS en case, cochée ou non —
+    // jamais en {{balise}} imprimée. Testé AVANT le repli ci-dessous, qui reste
+    // le garde-fou des clés réellement inconnues du modèle de données.
+    if (cases.has(key)) return v ? CASE_COCHEE : CASE_VIDE;
+    if (traits.has(key) && (v === undefined || v === null || v === "")) return TRAIT_A_COMPLETER;
     if (v === undefined) return _m;
     if (v === null) {
       if (cfg.required.includes(key)) missing.push(key);
@@ -408,6 +433,27 @@ export const TEMPLATES: Record<string, TemplateConfig> = {
     id: "fiche_analyse_besoin",
     durationSource: "prevues",
     required: ["nom", "prenom", "email", "telephone"],
+    // La fiche est un FORMULAIRE rempli avec le stagiaire pendant l'entretien.
+    // Ces 53 balises ne sont pas des données du dossier : sans ces deux listes,
+    // elles s'imprimaient telles quelles ({{dispo_matin}}) sur la fiche remise.
+    checkboxes: [
+      "adm_aucun", "adm_sejour", "adm_resident", "adm_naturalisation",
+      "sit_salarie", "sit_de", "sit_chef", "sit_autre",
+      "obj_emploi", "obj_evolution", "obj_maintien", "obj_creation",
+      "est_infra", "est_a1", "est_a2", "est_b1", "est_b2", "est_c1",
+      "vise_a2", "vise_b1", "vise_b2", "vise_c1",
+      "pos_test", "pos_attest", "pos_autre",
+      "dispo_1", "dispo_2", "dispo_3", "dispo_4", "dispo_5", "dispo_6",
+      "dispo_matin", "dispo_aprem", "dispo_soir", "dispo_samedi",
+      "cert_tef", "cert_leveltel",
+      "fin_cpf", "fin_opco", "fin_perso",
+      "comp_oui", "comp_non",
+    ],
+    blanks: [
+      "situation_detail", "projet", "positionnement_detail", "positionnement_resultat",
+      "duree_justification", "examen_prevu", "reste_a_charge", "compensation_detail",
+      "commentaires", "auteur_completion", "debut_souhaite",
+    ],
   },
   evaluation_finale: {
     id: "evaluation_finale",
