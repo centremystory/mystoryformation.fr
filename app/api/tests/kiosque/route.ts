@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { ipDe, limiteDepassee } from "@/lib/rateLimit";
 import { journal } from "@/lib/examens";
+import { adresseValide } from "@/lib/email";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,6 +36,14 @@ export async function POST(req: NextRequest) {
   const cp = body.cp ? String(body.cp).trim().slice(0, 12) : null;
   const ville = body.ville ? String(body.ville).trim().slice(0, 120) : null;
   if (!nom || !prenom) return NextResponse.json({ ok: false, erreur: "Nom et prénom requis." }, { status: 400 });
+  // On refuse à la saisie plutôt que de découvrir l'adresse cassée au moment d'envoyer
+  // le résultat : à ce moment-là le candidat est reparti et plus personne ne la corrige.
+  if (email && !adresseValide(email)) {
+    return NextResponse.json(
+      { ok: false, erreur: "Cette adresse e-mail ne semble pas valide. Vérifiez qu'elle contient bien une arobase." },
+      { status: 400 },
+    );
+  }
 
   const { data: t } = await supabaseAdmin
     // 08/09/2026 : sans filtre sur certif, tout nouveau test de phase « initial »

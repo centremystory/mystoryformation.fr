@@ -45,6 +45,16 @@ const REPONDRE_A = process.env.SMTP_REPLY_TO ?? "contact@mystoryformation.fr";
 
 export const EMAIL_ACTIF = !!(SMTP_USER && SMTP_PASS);
 
+/**
+ * Une adresse saisie au kiosque peut être n'importe quoi. Le 18/09/2026, un candidat
+ * a tapé « daadaaaladin gmail.com » — sans arobase : nodemailer a rendu « No recipients
+ * defined », une erreur qui ne dit rien de la cause. On valide donc en amont, et on
+ * journalise l'adresse fautive : c'est elle qu'il faut corriger, pas le serveur.
+ */
+export function adresseValide(v: unknown): boolean {
+  return /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(String(v ?? "").trim());
+}
+
 export interface PieceJointe {
   nom: string;      // ex. "Convocation_TEF_DUPONT.pdf"
   contenu: Buffer;  // contenu binaire (PDF…)
@@ -175,6 +185,15 @@ export async function envoyerEmail(e: EnvoiEmail): Promise<{ ok: boolean; erreur
   if (!EMAIL_ACTIF) {
     const erreur = "Envoi désactivé : identifiants SMTP (SMTP_USER / SMTP_PASS) absents des variables d'environnement Vercel.";
     await journaliser("email_non_envoye_drapeau_inactif", e, { erreur });
+    return { ok: false, erreur };
+  }
+
+  // Adresse inexploitable : on le dit clairement plutôt que de laisser nodemailer
+  // répondre « No recipients defined », qui ne désigne pas le coupable.
+  const cibles = String(e.a ?? "").split(/[,;]/).map((x) => x.trim()).filter(Boolean);
+  if (!cibles.length || !cibles.every(adresseValide)) {
+    const erreur = `Adresse destinataire invalide : « ${String(e.a ?? "")} »`;
+    await journaliser("email_adresse_invalide", e, { erreur });
     return { ok: false, erreur };
   }
 
