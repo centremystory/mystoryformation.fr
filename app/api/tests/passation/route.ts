@@ -168,13 +168,28 @@ export async function POST(req: NextRequest) {
   // L'envoi ne doit jamais faire echouer la soumission du candidat — mais un echec
   // SILENCIEUX est pire : le 09/09/2026, l'alerte n'est jamais partie et rien dans
   // le journal ne permettait de savoir pourquoi. On trace donc systematiquement.
-  void alerterCorrection(ev.id, token, evFiche, {
-    ceSur10, coSur10, paliers, niveau, vise, reco, faible, ecrit, sujetEcrit, detail,
-    correction,
-  }).catch(async (err: any) => {
-    await journal("evaluation", ev.id, "alerte_correction_echec",
-      { raison: String(err?.message ?? err), email_actif: EMAIL_ACTIF }, "systeme");
-  });
+  // 22/09/2026 — elle était lancée en `void`, donc APRÈS la réponse HTTP. Sur Vercel
+  // (Next 14 : ni `after()` ni `waitUntil`), l'instance peut être gelée à cet instant
+  // et la promesse ne s'exécute jamais — sans erreur, sans trace au journal. Mesuré :
+  // les jours à un seul test (03, 08, 13 et 22/09), AUCUNE alerte n'est partie ; les
+  // jours chargés, l'instance restait chaude et ça passait. On attend donc l'envoi,
+  // mais borné : le candidat ne doit pas rester sur un écran figé si IONOS traîne.
+  const PLAFOND_MS = 8_000;
+  await Promise.race([
+    alerterCorrection(ev.id, token, evFiche, {
+      ceSur10, coSur10, paliers, niveau, vise, reco, faible, ecrit, sujetEcrit, detail,
+      correction,
+    }).catch(async (err: any) => {
+      await journal("evaluation", ev.id, "alerte_correction_echec",
+        { raison: String(err?.message ?? err), email_actif: EMAIL_ACTIF }, "systeme");
+    }),
+    new Promise<void>((r) => setTimeout(r, PLAFOND_MS)).then(async () => {
+      // Dépassement : on rend la main au candidat et on le DIT. Le digest quotidien
+      // (/api/tests/relances-correction) reste le filet si l'envoi n'aboutit pas.
+      await journal("evaluation", ev.id, "alerte_correction_lente",
+        { plafond_ms: PLAFOND_MS, email_actif: EMAIL_ACTIF }, "systeme");
+    }),
+  ]);
   return NextResponse.json({
     ok: true,
     niveau_calibre: niveau,             // A2 | B1 | B2 | null (palier non tenu)

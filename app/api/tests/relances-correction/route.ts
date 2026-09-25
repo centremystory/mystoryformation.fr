@@ -25,8 +25,14 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-/** Au-delà de ce délai, la copie est en retard sur ce qu'on a promis au candidat. */
-const SEUIL_HEURES = 24;
+/** Au-delà de ce délai, la copie est en retard sur ce qu'on a promis au candidat.
+ *
+ *  22/09/2026 — ramené de 24 h à 3 h. Le digest part à 7 h 10 : avec un seuil de 24 h,
+ *  une copie déposée la veille à 10 h n'en avait que 21 et passait à travers ; elle
+ *  n'apparaissait que le SURLENDEMAIN, à 45 h. Autrement dit le filet laissait passer
+ *  précisément les copies de la journée écoulée — celles qu'il fallait rattraper.
+ *  À 3 h, tout ce qui date de la veille remonte dès le lendemain matin. */
+const SEUIL_HEURES = 3;
 
 async function garde(req: NextRequest): Promise<NextResponse | SessionUser> {
   try { return await requireUser(req); }

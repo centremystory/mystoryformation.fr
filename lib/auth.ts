@@ -86,11 +86,20 @@ export class ForbiddenError extends Error {
  * du middleware de page). Lève UnauthorizedError (→401) si non connecté, ForbiddenError (→403)
  * si le rôle individuel n'est pas autorisé. Filet de transition : la session équipe ("staff")
  * et les tokens de service sans rôle (n8n/cron) passent toujours.
+ *
+ * 25/09/2026 — ajout de l'exemption AUTOMATE, qui manquait ici alors que `requireProprietaire`
+ * l'applique depuis le début. Un jeton de service n8n porte un rôle HORS matrice staff : il ne
+ * tombait donc ni dans `rs.length === 0`, ni dans "staff", ni dans la liste autorisée, et toutes
+ * les routes gardées par rôle lui répondaient 403. Constaté sur `/api/classement` (le classement
+ * vendeurs du back-office n'était plus alimenté) ET sur `/api/incidents` (aucun échec de robot
+ * n'était consigné). `estAutomate` exige un JWT valide signé par AUTH_SECRET dont AUCUN rôle
+ * n'appartient à la matrice : un humain porte toujours un rôle de la matrice, l'exemption ne
+ * peut donc pas être usurpée en rejouant un cookie de session en en-tête Bearer.
  */
 export async function requireRole(req: Request, roles: readonly string[]): Promise<SessionUser> {
   const user = await requireUser(req);
   const rs = user.roles && user.roles.length > 0 ? user.roles : (user.role ? [user.role] : []);
-  if (rs.length === 0 || rs.includes("staff")) return user; // filet de transition
+  if (rs.length === 0 || rs.includes("staff") || estAutomate(rs)) return user; // filet de transition + automates
   // Multi-rôles : autorisé si AU MOINS UN rôle est dans la liste permise.
   if (!rs.some((r) => roles.includes(r))) throw new ForbiddenError();
   return user;
