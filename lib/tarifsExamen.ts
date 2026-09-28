@@ -13,17 +13,30 @@
 
 export type TypeExamen = "TEF_IRN" | "Examen_civique";
 
-/** Une inscription prise à moins de 7 jours de la session relève du tarif d'urgence. */
-export const DELAI_TARIF_PUBLIC_JOURS = 7;
+/**
+ * Une inscription prise à moins de 7 jours OUVRÉS de la session relève du tarif d'urgence.
+ *
+ * 28/09/2026 — ce sont bien des jours OUVRÉS, pas des jours calendaires (règle rappelée par
+ * Arudhan). L'écart n'est pas anodin : 7 jours ouvrés font 9 à 11 jours calendaires selon
+ * l'endroit où tombe le week-end. Compter en jours calendaires ferait payer 185 € une
+ * inscription qui relève des 250 €.
+ *
+ * Samedi et dimanche sont exclus. ⚠️ MYSTORY reçoit le samedi : si la direction considère
+ * le samedi comme ouvré, changer JOURS_OUVRES ci-dessous — c'est le seul endroit à toucher.
+ */
+export const DELAI_TARIF_PUBLIC_JOURS_OUVRES = 7;
 
-/** Tarifs d'une inscription prise au moins 7 jours à l'avance. */
+/** Jours de la semaine comptés comme ouvrés (0 = dimanche … 6 = samedi). */
+const JOURS_OUVRES = new Set([1, 2, 3, 4, 5]);
+
+/** Tarifs d'une inscription prise au moins 7 jours OUVRÉS à l'avance. */
 export const TARIFS_PUBLICS: Record<TypeExamen, number> = {
   TEF_IRN: 185,
   Examen_civique: 80,
 };
 
 /**
- * Tarifs d'une inscription prise À MOINS DE 7 JOURS.
+ * Tarifs d'une inscription prise À MOINS DE 7 JOURS OUVRÉS.
  *
  * Ce n'est pas une pénalité : caler un candidat sur une liste déjà arrêtée suppose
  * de la rouvrir, de prévenir la CCI et de produire la convocation dans la journée.
@@ -39,12 +52,28 @@ export const PLATEFORMES: Record<string, { libelle: string; prix: number }> = {
   prepcivique: { libelle: "Prepcivique — entraînement examen civique", prix: 20 },
 };
 
-/** Nombre de jours pleins entre aujourd'hui (Paris) et la date d'examen. */
-export function joursAvant(dateExamen: string): number {
-  const cible = new Date(`${dateExamen}T00:00:00+02:00`);
-  const auj = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" }));
-  auj.setHours(0, 0, 0, 0);
-  return Math.round((cible.getTime() - auj.getTime()) / 86_400_000);
+/**
+ * Nombre de jours OUVRÉS entre aujourd'hui (Paris) et la date d'examen.
+ *
+ * On compte du lendemain jusqu'au jour de l'examen inclus : c'est le nombre de jours
+ * de travail dont l'équipe dispose réellement pour inscrire le candidat à la CCI et
+ * produire sa convocation. Un examen déjà passé renvoie 0.
+ */
+export function joursOuvresAvant(dateExamen: string): number {
+  const cible = new Date(`${dateExamen}T00:00:00`);
+  cible.setHours(0, 0, 0, 0);
+  const jour = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+  jour.setHours(0, 0, 0, 0);
+  if (cible <= jour) return 0;
+
+  let n = 0;
+  // Borne de sécurité : au-delà d'un an, la réponse ne change plus la décision.
+  for (let i = 0; i < 400; i++) {
+    jour.setDate(jour.getDate() + 1);
+    if (JOURS_OUVRES.has(jour.getDay())) n += 1;
+    if (jour.getTime() >= cible.getTime()) break;
+  }
+  return n;
 }
 
 export type Devis = {
@@ -64,15 +93,15 @@ export function calculerMontant(
   dateExamen: string,
   plateformes: string[] = [],
 ): Devis {
-  const jours = joursAvant(dateExamen);
-  const urgence = jours < DELAI_TARIF_PUBLIC_JOURS;
+  const jours = joursOuvresAvant(dateExamen);
+  const urgence = jours < DELAI_TARIF_PUBLIC_JOURS_OUVRES;
   const prixExamen = urgence ? TARIFS_URGENCE[type] : TARIFS_PUBLICS[type];
 
   const detail: Array<{ libelle: string; prix: number }> = [
     {
       libelle:
         (type === "TEF_IRN" ? "Examen TEF IRN" : "Examen civique") +
-        (urgence ? " — tarif d'urgence (session à moins de 7 jours)" : ""),
+        (urgence ? " — tarif d'urgence (session à moins de 7 jours ouvrés)" : ""),
       prix: prixExamen,
     },
   ];
