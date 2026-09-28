@@ -461,6 +461,49 @@ async function absencesAJustifierCount(): Promise<number> {
   } catch { return 0; }
 }
 
+/** Une couleur par centre, reprise dans la pastille de chaque colonne. */
+const COULEUR_CENTRE: Record<string, string> = {
+  Rosny: "bg-blue-500",
+  Sarcelles: "bg-emerald-500",
+  Gagny: "bg-amber-500",
+};
+
+/** « 29/09 14:30 », ou « 29/09 · journée » pour un événement sur la journée entière. */
+function formatRdv(r: { debut: string; journee_entiere: boolean }): string {
+  const d = new Date(r.debut);
+  const jour = d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", timeZone: "Europe/Paris" });
+  if (r.journee_entiere) return `${jour} · journée`;
+  return `${jour} ${d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })}`;
+}
+
+/**
+ * Rendez-vous des 3 centres, 7 jours glissants.
+ *
+ * Lit `rdv_centres`, miroir local des agendas Google alimenté par n8n toutes les 15 min.
+ * Les agendas Google restent PRIVÉS (arbitrage du 28/09/2026) : les rendre publics aurait
+ * exposé les noms de stagiaires à quiconque possède le lien. Ils ne sont donc lisibles
+ * qu'ici, par une personne déjà authentifiée sur le CRM.
+ */
+async function rdvCentres(site: SiteFiltre) {
+  try {
+    const depuis = new Date(Date.now() - 3600_000).toISOString(); // le RDV en cours reste affiché
+    const jusqu = new Date(Date.now() + 7 * 86400_000).toISOString();
+    let q = supabaseAdmin
+      .from("rdv_centres")
+      .select("centre, titre, debut, journee_entiere")
+      .eq("annule", false)
+      .gte("debut", depuis)
+      .lte("debut", jusqu)
+      .order("debut", { ascending: true })
+      .limit(90);
+    if (site) q = q.eq("centre", site);
+    const { data } = await q;
+    return (data ?? []) as { centre: string; titre: string | null; debut: string; journee_entiere: boolean }[];
+  } catch {
+    return [];
+  }
+}
+
 export default async function Accueil() {
   const site = siteValide(cookies().get(COOKIE_SITE)?.value);
 
@@ -474,11 +517,12 @@ export default async function Accueil() {
   const voir = (href: string) => peutVoirPage(role, href);
   const estDirection = role === "direction" || role === "manager" || role === "staff" || !role;
 
-  const [c, t, cf, ex, cl, tk, an, testsDist, convListe, reclaListe, dir, testsSansSuite, mesTaches, remb, absencesAJust] = await Promise.all([
+  const [c, t, cf, ex, cl, tk, an, testsDist, convListe, reclaListe, dir, testsSansSuite, mesTaches, remb, absencesAJust, rdv] = await Promise.all([
     compter(site), aTraiter(site), conformiteFormateurs(), examenSemaine(site), classementAccueil(), tachesAccueil(site),
     anomaliesAccueil(site), testsADistanceCount(), conventionsListe(), reclamationsListe(site),
     estDirection ? cockpitDirection(site) : Promise.resolve(null),
     testsInitiauxSansSuiteCount(), mesTachesCount(user?.id), remboursementsEnAttenteCount(), absencesAJustifierCount(),
+    rdvCentres(site),
   ]);
 
   // Notifications « à traiter » (réclamations, remboursements, messages, tâches agence + perso).
@@ -595,6 +639,42 @@ export default async function Accueil() {
           <Kpi libelle="Places TEF IRN (semaine)" valeur={String(ex.placesTef)} accent={ex.placesTef === 0 ? "ambre" : undefined} href="/examens/sessions" />
           <Kpi libelle="Places civique (semaine)" valeur={String(ex.placesCiv)} accent={ex.placesCiv === 0 ? "ambre" : undefined} href="/examens/sessions" />
           <Kpi libelle="Liens de paiement en attente" valeur={String(ex.liens)} accent={ex.liens > 0 ? "ambre" : undefined} href="/examens/preinscriptions" />
+        </div>
+      </div>
+
+      {/* Rendez-vous des centres — miroir des agendas Google privés, synchronisé par n8n. */}
+      <div className="mb-8">
+        <h2 className="mb-2 text-sm font-semibold text-gray-700">Rendez-vous — 7 prochains jours</h2>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          {(["Rosny", "Sarcelles", "Gagny"] as const)
+            .filter((centre) => !site || site === centre)
+            .map((centre) => {
+              const liste = rdv.filter((r) => r.centre === centre);
+              return (
+                <div key={centre} className="rounded-xl border border-gray-200 bg-white p-3">
+                  <div className="mb-2 flex items-center gap-2">
+                    <span className={`h-2.5 w-2.5 rounded-full ${COULEUR_CENTRE[centre]}`} />
+                    <span className="text-sm font-semibold text-gray-800">{centre}</span>
+                    <span className="ml-auto text-xs tabular-nums text-gray-500">{liste.length}</span>
+                  </div>
+                  {liste.length === 0 ? (
+                    <p className="text-xs text-gray-400">Aucun rendez-vous.</p>
+                  ) : (
+                    <ul className="space-y-1.5">
+                      {liste.slice(0, 6).map((r, i) => (
+                        <li key={i} className="flex gap-2 text-xs">
+                          <span className="w-[5.5rem] shrink-0 tabular-nums text-gray-500">{formatRdv(r)}</span>
+                          <span className="truncate text-gray-800">{r.titre || "Rendez-vous"}</span>
+                        </li>
+                      ))}
+                      {liste.length > 6 && (
+                        <li className="text-xs text-gray-400">… et {liste.length - 6} autre(s)</li>
+                      )}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
         </div>
       </div>
 
