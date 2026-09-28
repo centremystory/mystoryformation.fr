@@ -225,8 +225,90 @@ export async function envoyerEmail(e: EnvoiEmail): Promise<{ ok: boolean; erreur
   } catch (err: any) {
     const erreur = err?.message || "Erreur SMTP lors de l'envoi.";
     await journaliser("email_echec", e, { erreur });
-    await consignerIncident("email", `Échec d'envoi : ${e.objet}`, erreur, { a: e.a });
+    const enFile = await mettreEnFile(e, erreur);
+    await consignerIncident("email", `Échec d'envoi : ${e.objet}`, erreur, { a: e.a, mis_en_file: enFile });
     return { ok: false, erreur };
+  }
+}
+
+/** Taille maximale des pièces jointes conservées en file (base64). Au-delà, on ne
+ *  met pas en file : stocker plusieurs mégaoctets par message ferait de la table
+ *  une décharge, et un renvoi tronqué serait pire qu'un échec signalé. */
+const MAX_PJ_B64 = 4_000_000;
+
+/**
+ * Conserve un envoi raté pour le rejouer plus tard.
+ *
+ * 28/09/2026 — les deux tentatives directes (ports 465 et 587) échouaient parfois
+ * toutes les deux : 16 messages perdus en septembre, dont 8 accusés de réception
+ * de test de positionnement. Ils n'étaient rejoués par personne.
+ *
+ * On ne met en file QUE les pannes passagères. Une adresse invalide ou un refus
+ * d'authentification n'a rien à y faire : réessayer n'y changerait rien, et
+ * insister sur un refus d'authentification fait bloquer le compte.
+ *
+ * Ne lève jamais : un échec de mise en file ne doit pas masquer l'échec d'envoi
+ * qu'il accompagne.
+ */
+async function mettreEnFile(e: EnvoiEmail, erreur: string): Promise<boolean> {
+  if (!pannePassagere(erreur)) return false;
+  try {
+    let pieces: { nom: string; contenu_b64: string }[] | null = null;
+    if (e.piecesJointes?.length) {
+      const encodees = e.piecesJointes.map((p) => ({ nom: p.nom, contenu_b64: p.contenu.toString("base64") }));
+      const poids = encodees.reduce((n, p) => n + p.contenu_b64.length, 0);
+      if (poids > MAX_PJ_B64) {
+        await journaliser("email_file_refusee", e, { erreur, motif: `pièces jointes trop lourdes (${Math.round(poids / 1000)} ko)` });
+        return false;
+      }
+      pieces = encodees;
+    }
+    const { error } = await supabaseAdmin.from("emails_en_attente").insert({
+      destinataire: e.a,
+      copie_cachee: e.copieCachee ?? null,
+      objet: e.objet,
+      html: e.html,
+      pieces_jointes: pieces,
+      entite: e.entite ?? null,
+      entite_id: e.entiteId ?? null,
+      auteur: e.auteur ?? null,
+      derniere_erreur: erreur,
+    });
+    if (error) return false;
+    await journaliser("email_mis_en_file", e, { erreur });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Renvoi d'un message déjà en file. N'appelle PAS mettreEnFile : c'est la reprise
+ * qui gère le compteur d'essais et l'écart croissant, sinon un même message
+ * s'empilerait autant de fois qu'il échoue.
+ */
+export async function reenvoyerDepuisFile(m: {
+  destinataire: string; copie_cachee: string | null; objet: string; html: string;
+  pieces_jointes: { nom: string; contenu_b64: string }[] | null;
+}): Promise<{ ok: boolean; erreur?: string }> {
+  if (!EMAIL_ACTIF) return { ok: false, erreur: "Envoi désactivé (identifiants SMTP absents)." };
+  try {
+    await avecSecondEssai((t) => t.sendMail({
+      from: EXPEDITEUR,
+      to: m.destinataire,
+      ...(m.copie_cachee ? { bcc: m.copie_cachee } : {}),
+      replyTo: REPONDRE_A,
+      subject: m.objet,
+      html: m.html,
+      attachments: (m.pieces_jointes ?? []).map((p) => ({
+        filename: p.nom,
+        content: Buffer.from(p.contenu_b64, "base64"),
+        contentType: "application/pdf",
+      })),
+    }));
+    return { ok: true };
+  } catch (err: any) {
+    return { ok: false, erreur: err?.message || "Erreur SMTP lors du renvoi." };
   }
 }
 
