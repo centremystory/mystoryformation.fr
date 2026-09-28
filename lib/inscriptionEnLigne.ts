@@ -32,11 +32,23 @@ export const MENTIONS_CIVIQUE = [
   "Naturalisation",
 ] as const;
 
-export const CENTRES: Record<string, string> = {
-  Rosny: "Rosny-sous-Bois",
-  Gagny: "Gagny",
-  Sarcelles: "Sarcelles",
+/**
+ * Nom d'affichage d'un centre.
+ *
+ * La base stocke « ROSNY » en majuscules, le reste du code écrit « Rosny » : on
+ * compare donc en minuscules. Sans ça la page annonçait « ROSNY » au candidat.
+ */
+const NOMS_CENTRES: Record<string, string> = {
+  rosny: "Rosny-sous-Bois",
+  gagny: "Gagny",
+  sarcelles: "Sarcelles",
+  pantin: "Pantin",
 };
+
+export function nomCentre(code: string): string {
+  const c = String(code ?? "").trim();
+  return NOMS_CENTRES[c.toLowerCase()] ?? c;
+}
 
 export type SessionPublique = {
   id: string;
@@ -87,7 +99,7 @@ export async function lireSession(id: string): Promise<SessionPublique | null> {
     date_examen: String((s as any).date_examen),
     horaire: String((s as any).horaire ?? ""),
     centre,
-    centre_nom: CENTRES[centre] ?? centre,
+    centre_nom: nomCentre(centre),
     places_restantes: restantes,
   };
 }
