@@ -7,6 +7,7 @@
  * refus incompréhensibles pour le candidat.
  */
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { occupationDe } from "@/lib/occupationSessions";
 import type { TypeExamen } from "@/lib/tarifsExamen";
 
 /**
@@ -80,16 +81,26 @@ export async function lireSession(id: string): Promise<SessionPublique | null> {
   auj.setHours(0, 0, 0, 0);
   if (new Date(`${(s as any).date_examen}T00:00:00+02:00`) < auj) return null;
 
-  // Places : inscriptions réelles + pré-inscriptions encore en attente. Compter les
-  // secondes évite de vendre deux fois la dernière place à deux candidats qui
-  // remplissent le formulaire en même temps.
-  const [{ count: vendues }, { count: reservees }] = await Promise.all([
+  // Places restantes. Trois sources, et la première est la seule qui compte vraiment :
+  //   1. l'occupation RÉELLE lue dans le classeur Examens — `ventes_examen` ne contient
+  //      qu'une vente du 1er juillet, s'y fier annoncerait toutes les sessions vides ;
+  //   2. les ventes présentes dans Supabase, au cas où elles reprendraient un jour ;
+  //   3. les pré-inscriptions encore en attente, sinon deux candidats simultanés
+  //      achètent le même siège.
+  const [occ, { count: vendues }, { count: reservees }] = await Promise.all([
+    occupationDe(id),
     supabaseAdmin.from("ventes_examen").select("id", { count: "exact", head: true })
       .eq("session_id", id),
     supabaseAdmin.from("preinscriptions_examen").select("id", { count: "exact", head: true })
       .eq("session_id", id).eq("statut", "en_attente"),
   ]);
-  const restantes = Math.max(0, ((s as any).capacite ?? 0) - (vendues ?? 0) - (reservees ?? 0));
+
+  // Occupation périmée = on ne vend pas. Mieux vaut un candidat qui appelle qu'un candidat
+  // convoqué sur une place qui n'existe plus.
+  if (!occ.fiable) return null;
+
+  const occupees = Math.max(occ.inscrits, vendues ?? 0) + (reservees ?? 0);
+  const restantes = Math.max(0, ((s as any).capacite ?? 0) - occupees);
   if (restantes <= 0) return null;
 
   const centre = String((s as any).centre ?? "");
