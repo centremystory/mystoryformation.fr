@@ -15,7 +15,7 @@
  *    fois le même siège.
  *
  * 3. **Rien n'est compté comme vendu.** La pré-inscription reste « en_attente » tant
- *    que Qonto n'a pas confirmé l'encaissement. C'est exactement l'erreur qu'on a
+ *    que Mollie n'a pas confirmé l'encaissement. C'est exactement l'erreur qu'on a
  *    passé la journée à réparer en aval : une inscription enregistrée avant paiement,
  *    c'est un candidat attendu qui n'a peut-être jamais réglé.
  *
@@ -29,6 +29,8 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { calculerMontant } from "@/lib/tarifsExamen";
 import { lireSession, MOTIVATIONS_CCI, MENTIONS_CIVIQUE, jourLisible, euros } from "@/lib/inscriptionEnLigne";
 import { envoyerEmail, gabaritEmail, adresseValide } from "@/lib/email";
+import { creerPaiement, molliePret } from "@/lib/mollie";
+import { urlDeBase } from "@/lib/appUrl";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -149,7 +151,7 @@ export async function POST(req: NextRequest) {
     `${session.type === "TEF_IRN" ? "Examen TEF IRN" : "Examen civique"} — ` +
     `${jourLisible(session.date_examen)}, ${session.horaire}, ${session.centre_nom}`;
 
-  const lien = await lienDePaiement(ref, devis.montant, intitule, email);
+  const lien = await lienDePaiement(req, ref, devis.montant, intitule, email);
 
   if (lien) {
     await supabaseAdmin.from("preinscriptions_examen")
@@ -166,7 +168,7 @@ export async function POST(req: NextRequest) {
     html: gabaritEmail(
       "Lien de paiement à envoyer",
       `<p>Une inscription en ligne vient d'être enregistrée, mais le lien de paiement n'a pas pu être
-       créé automatiquement. <b>Merci d'envoyer un lien Qonto de ${euros(devis.montant)}</b> depuis la
+       créé automatiquement. <b>Merci d'envoyer un lien de paiement de ${euros(devis.montant)}</b> depuis la
        page Pré-inscriptions du CRM.</p>
        <p><b>${s((corps as any).nom).toUpperCase()} ${s((corps as any).prenom)}</b><br>
        ${intitule}<br>${email} · ${s((corps as any).telephone)}</p>`,
@@ -182,34 +184,36 @@ export async function POST(req: NextRequest) {
 }
 
 /**
- * Demande un lien de paiement Qonto au relais n8n.
+ * Crée le paiement chez Mollie et renvoie la page de règlement.
  *
- * Le CRM n'a pas de clé Qonto ; n8n en a une depuis juillet. Plutôt que de dupliquer un
- * secret bancaire dans un second environnement, on passe par lui.
+ * Choisi contre Qonto le 29/09/2026 : Qonto exige une application OAuth2 pour créer un lien
+ * de paiement, et un lien Qonto générique ne sait pas qui paie. Mollie rattache l'encaissement
+ * au candidat par nos métadonnées, et se pilote avec une simple clé API.
  *
- * Tant que `N8N_PAIEMENT_URL` n'est pas défini, cette fonction renvoie null — et
- * l'appelant bascule proprement sur l'envoi manuel. Aucune inscription n'est perdue.
+ * Renvoie null si la clé manque ou si Mollie refuse — l'appelant bascule alors sur l'envoi
+ * manuel, et aucune inscription n'est perdue.
  */
 async function lienDePaiement(
-  reference: string, montant: number, intitule: string, email: string,
+  req: NextRequest, reference: string, montant: number, intitule: string, email: string,
 ): Promise<string | null> {
-  const url = process.env.N8N_PAIEMENT_URL;
-  if (!url) return null;
+  if (!molliePret()) return null;
+  const base = urlDeBase(req);
   try {
-    const r = await fetch(url, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        ...(process.env.N8N_PAIEMENT_SECRET ? { authorization: `Bearer ${process.env.N8N_PAIEMENT_SECRET}` } : {}),
-      },
-      body: JSON.stringify({ reference, montant, intitule, email }),
-      signal: AbortSignal.timeout(12_000),
+    const p = await creerPaiement({
+      montant,
+      description: `MYSTORY — ${intitule}`,
+      reference,
+      email,
+      urlRetour: `${base}/inscription-examen/merci?r=${encodeURIComponent(reference)}`,
+      urlWebhook: `${base}/api/paiements/mollie`,
     });
-    if (!r.ok) return null;
-    const j = await r.json().catch(() => null);
-    const lien = j && typeof j.lien === "string" ? j.lien : null;
-    return lien && /^https:\/\//.test(lien) ? lien : null;
-  } catch {
+    await supabaseAdmin.from("preinscriptions_examen")
+      .update({ reference_paiement: p.id }).eq("id", reference);
+    return p.url;
+  } catch (e) {
+    await journal("paiement_mollie_echec", reference, {
+      erreur: e instanceof Error ? e.message : "inconnue", montant,
+    });
     return null;
   }
 }

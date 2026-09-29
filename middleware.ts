@@ -61,6 +61,7 @@ const CHEMINS_PUBLICS = [
   "/api/pre-inscription",         // dépôt de la demande de pré-inscription (public, honeypot + rate-limit)
   "/inscription-examen",          // page publique d'inscription à une session (28/09/2026)
   "/api/inscription-examen",      // dépôt du formulaire d'inscription en ligne (honeypot + rate-limit)
+  "/api/paiements/mollie",        // webhook Mollie : ne transmet qu'un identifiant, l'état est relu à la source
   "/partenaire",                  // portail partenaire par jeton (capability)
   "/api/partenaire",              // données + dépôts partenaire (jeton vérifié côté serveur)
   // Portail des organismes prescripteurs. Public au sens du middleware d'ÉQUIPE
