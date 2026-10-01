@@ -71,12 +71,18 @@ async function rafraichir(): Promise<number | null> {
       const date = String(l?.date_examen ?? "").trim();
       const horaire = String(l?.horaire ?? "").trim();
       const type = String(l?.type ?? "").trim();
+      // 01/10/2026 — le CENTRE fait partie de la clé, et ce n'est pas un détail :
+      // 65 créneaux futurs existent à la fois à Gagny et à Rosny avec la même date,
+      // le même horaire et le même type. Sans ce filtre, le compte de Gagny (0, le
+      // centre est fermé) écrasait celui de Rosny (jusqu'à 12 inscrits) et le
+      // formulaire vendait des places déjà prises.
+      const centre = String(l?.centre ?? "").trim().toUpperCase();
       const inscrits = Number(l?.inscrits);
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !horaire || !type || !isFinite(inscrits)) continue;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !horaire || !type || !centre || !isFinite(inscrits)) continue;
       const { data } = await supabaseAdmin
         .from("sessions_examen")
         .update({ inscrits_reels: Math.max(0, Math.round(inscrits)), occupation_maj_le: maintenant })
-        .eq("date_examen", date).eq("horaire", horaire).eq("type", type)
+        .eq("date_examen", date).eq("horaire", horaire).eq("type", type).eq("centre", centre)
         .select("id");
       n += data?.length ?? 0;
     }
