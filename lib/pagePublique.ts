@@ -155,7 +155,12 @@ export const CSS_VARIABLES = `:root{
 const CSS_CHARTE = `
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--mys-gris-100);color:var(--mys-gris-900);
+/* La colonne flex sert à une seule chose : coller le pied de page en bas de l'écran
+   sur les pages courtes (session indisponible, commande refusée, page de retour).
+   Sans elle, le bloc légal flottait au milieu, sur un fond gris qui faisait page
+   inachevée — et une page de paiement inachevée, personne n'y laisse sa carte. */
+body{margin:0;min-height:100vh;display:flex;flex-direction:column;
+ background:var(--mys-gris-100);color:var(--mys-gris-900);
  font-family:var(--mys-texte);font-size:16px;line-height:1.6;overflow-wrap:break-word;
  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 
@@ -192,7 +197,7 @@ body{margin:0;background:var(--mys-gris-100);color:var(--mys-gris-900);
  font-size:12px;font-weight:600;color:rgba(255,255,255,.9)}
 .atouts i{font-style:normal;color:${CHARTE.rouge[300]};font-weight:800}
 
-.enveloppe,.env{max-width:var(--mys-largeur);margin:0 auto;padding:22px 16px 48px}
+.enveloppe,.env{flex:1;width:100%;max-width:var(--mys-largeur);margin:0 auto;padding:22px 16px 48px}
 
 .carte{background:#fff;border:1px solid var(--mys-gris-200);border-radius:var(--mys-rayon);
  padding:22px 20px;margin-bottom:16px;box-shadow:var(--mys-ombre)}
