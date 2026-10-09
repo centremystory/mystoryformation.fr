@@ -102,11 +102,52 @@ export const MONTANT_MAX = 4500;
  * (FLOA_3XP, FLOA_4XP, FLOA_10XP existent bien). Le suffixe `P` désigne les frais
  * PARTAGÉS ; les variantes `…XG` existent aussi et ne sont pas celles retenues.
  */
-export const ECHEANCIERS = [
+/**
+ * 🔀 QUI PAIE LES FRAIS DE FINANCEMENT — l'interrupteur, et il n'y en a qu'un.
+ *
+ * Décision du dirigeant le 09/10/2026 au soir : passer aux variantes où MYSTORY paie,
+ * pour que le « 2, 3 ou 4 fois SANS FRAIS » promis à l'article 5.2 des CGV devienne
+ * vrai. Aujourd'hui les CGV promettent « sans frais » et le client paie 1,59 % à 7 % :
+ * c'est cette contradiction qu'on ferme.
+ *
+ * Le suffixe du code FLOA porte cette information :
+ *   — `…XP` : frais PARTAGÉS, le client paie un pourcentage (ce qui est en service) ;
+ *   — `…XG` : frais à la charge du MARCHAND, le client paie le prix affiché, point.
+ *
+ * ⚠️ RESTE À FAIRE AVANT DE BASCULER — deux faits que seul Lenbox peut donner, et
+ * qu'on ne devine pas :
+ *   1. les codes `…XG` sont-ils ACTIVÉS sur le compte MYSTORY ? Ils existent dans
+ *      `PaymentOptionsEnum` du schéma OpenAPI, ce qui ne veut pas dire qu'ils sont
+ *      ouverts pour nous. L'API n'expose aucun endpoint qui liste les options
+ *      autorisées : la seule vérification est d'ouvrir une session d'essai.
+ *   2. quelle COMMISSION MARCHAND s'applique alors ? Elle n'est écrite nulle part de
+ *      notre côté. Basculer sans la connaître, c'est changer sa marge à l'aveugle.
+ *
+ * Quand les deux réponses sont là : passer `FRAIS_A_LA_CHARGE_DU_CLIENT` à false.
+ * Tout le reste — codes envoyés, mensualités affichées, règle des 14 jours — en
+ * découle. Rien d'autre n'est à modifier, et c'est le but de cette constante.
+ */
+export const FRAIS_A_LA_CHARGE_DU_CLIENT = true;
+
+/**
+ * ⚠️ Les taux ci-dessous sont ceux du client. En variante `…XG` ils tombent à zéro :
+ * c'est le marchand qui est débité, et le candidat paie exactement le prix affiché.
+ */
+const ECHEANCIERS_FRAIS_CLIENT = [
   { code: "FLOA_3XP", fois: 3, tauxClient: 0.0159, libelle: "3 fois" },
   { code: "FLOA_4XP", fois: 4, tauxClient: 0.024, libelle: "4 fois" },
   { code: "FLOA_10XP", fois: 10, tauxClient: 0.07, libelle: "10 fois" },
 ] as const;
+
+const ECHEANCIERS_FRAIS_MARCHAND = [
+  { code: "FLOA_3XG", fois: 3, tauxClient: 0, libelle: "3 fois" },
+  { code: "FLOA_4XG", fois: 4, tauxClient: 0, libelle: "4 fois" },
+  { code: "FLOA_10XG", fois: 10, tauxClient: 0, libelle: "10 fois" },
+] as const;
+
+export const ECHEANCIERS: readonly {
+  code: string; fois: number; tauxClient: number; libelle: string;
+}[] = FRAIS_A_LA_CHARGE_DU_CLIENT ? ECHEANCIERS_FRAIS_CLIENT : ECHEANCIERS_FRAIS_MARCHAND;
 
 /**
  * 🔴 DÉLAI DE RÉTRACTATION — 14 jours CALENDAIRES, et c'est ce qui interdit le
@@ -155,6 +196,9 @@ export type Echeancier = {
   code: string;
   fois: number;
   libelle: string;
+  /** Taux de frais SUPPORTÉ PAR LE CLIENT. Zéro = variante `…XG`, frais marchand —
+      et c'est ce zéro qui fait sortir le 3×/4× du régime du crédit. */
+  tauxClient: number;
   /** Ce que le candidat paiera au total, frais client compris. */
   totalClient: number;
   /** La mensualité, frais compris. C'est CE chiffre qu'on affiche. */
@@ -179,7 +223,15 @@ const cents = (n: number) => Math.round(n * 100) / 100;
  */
 export function fractionnePour(
   total: number, dateExamenLaPlusProche: string | null,
-): { echeanciers: Echeancier[]; motif: string | null } {
+): {
+  echeanciers: Echeancier[];
+  motif: string | null;
+  /** Vrai quand l'examen tombe dans les 14 jours : la vente à distance impose alors
+      de recueillir la renonciation expresse de l'art. L. 221-25 avant d'encaisser. */
+  renonciationRequise?: boolean;
+  /** Jours calendaires avant l'examen, pour rédiger cette renonciation. */
+  jours?: number;
+} {
   if (!lenboxPret()) return { echeanciers: [], motif: null };
 
   if (!isFinite(total) || total < SEUIL_FRACTIONNE) {
@@ -211,7 +263,41 @@ export function fractionnePour(
   if (!dateExamenLaPlusProche) return { echeanciers: [], motif: null };
 
   const jours = joursCalendairesAvant(dateExamenLaPlusProche);
-  if (jours <= DELAI_RETRACTATION_JOURS) {
+  if (jours > DELAI_RETRACTATION_JOURS) return { echeanciers: echeanciersPour(total), motif: null };
+
+  /* ── SESSION PROCHE : seuls les échéanciers HORS RÉGIME DU CRÉDIT survivent ──────
+   *
+   * Décision du dirigeant, 09/10/2026 : « on applique cette règle, mais on dit bien
+   * qu'en acceptant le paiement en 3 fois ou 4 fois, le client ne pourra pas se
+   * rétracter si l'examen prévu est dans moins d'une semaine. »
+   *
+   * Le raisonnement : l'article L. 312-4 du code de la consommation EXCLUT du régime
+   * du crédit à la consommation les financements remboursables en moins de trois mois
+   * et assortis d'aucun intérêt ni frais pour l'emprunteur. Un 3× ou 4× dont MYSTORY
+   * paie les frais n'est donc plus un crédit — et le délai de rétractation de 14 jours
+   * du crédit ne s'applique plus. Le 10×, lui, dépasse trois mois : il reste un crédit
+   * et reste refusé sur une session proche, quoi qu'il arrive.
+   *
+   * ⚠️ MAIS IL RESTE UN AUTRE DROIT DE RÉTRACTATION, ET CE N'EST PAS LE MÊME.
+   * Sortir du régime du crédit ne supprime pas la rétractation de la VENTE À DISTANCE
+   * (art. L. 221-18) : 14 jours sur l'achat du service lui-même, financé ou non. La
+   * seule façon régulière de passer outre est prévue par l'art. L. 221-25 : le client
+   * DEMANDE EXPRESSÉMENT l'exécution avant la fin du délai et RECONNAÎT qu'il perdra
+   * son droit une fois la prestation pleinement exécutée. C'est une case à cocher
+   * dédiée, jamais pré-cochée, dont le libellé est repris ci-dessous et confirmé sur
+   * support durable. Afficher « vous ne pourrez pas vous rétracter » SANS recueillir
+   * cette renonciation ne protège de rien : c'est la renonciation qui vaut, pas
+   * l'avertissement.
+   *
+   * ⚠️ Tant que `FRAIS_A_LA_CHARGE_DU_CLIENT` vaut true, RIEN de tout cela ne
+   * s'active : le client paie des frais, donc c'est un crédit, donc les 14 jours
+   * s'appliquent. La bascule attend les deux réponses de Lenbox (codes `…XG` ouverts
+   * sur le compte, et commission marchand). Voir `FRAIS_A_LA_CHARGE_DU_CLIENT`. */
+  const horsCredit = echeanciersPour(total).filter(
+    (e) => e.tauxClient === 0 && e.fois <= ECHEANCES_MAX_HORS_CREDIT,
+  );
+
+  if (horsCredit.length === 0) {
     return {
       echeanciers: [],
       motif:
@@ -223,7 +309,29 @@ export function fractionnePour(
     };
   }
 
-  return { echeanciers: echeanciersPour(total), motif: null };
+  return { echeanciers: horsCredit, motif: null, renonciationRequise: true, jours };
+}
+
+/**
+ * Au-delà de 3 échéances mensuelles, le remboursement dépasse trois mois et le
+ * financement redevient un crédit à la consommation (art. L. 312-4 c. conso) : le
+ * délai de rétractation de 14 jours s'applique de nouveau. Le 4× tient parce que ses
+ * trois dernières échéances tombent dans les 90 jours du contrat ; le 10× ne tient pas.
+ */
+const ECHEANCES_MAX_HORS_CREDIT = 4;
+
+/**
+ * Le libellé EXACT de la renonciation, au sens de l'art. L. 221-25 du code de la
+ * consommation. À afficher sur une case à cocher dédiée, JAMAIS pré-cochée, et à
+ * reprendre dans la confirmation envoyée au candidat.
+ */
+export function libelleRenonciation(jours: number, dateExamen: string): string {
+  return (
+    `Mon examen a lieu dans ${jours} jour${jours > 1 ? "s" : ""} (le ${dateExamen}), ` +
+    `donc avant la fin du délai de rétractation de 14 jours. Je demande expressément ` +
+    `que ma prestation commence immédiatement et je reconnais que je perdrai mon droit ` +
+    `de rétractation une fois celle-ci pleinement exécutée.`
+  );
 }
 
 /**
@@ -240,7 +348,7 @@ export function echeanciersPour(total: number): Echeancier[] {
     const mensualite = cents(totalClient / e.fois);
     // La dernière échéance porte le reliquat : n × arrondi ne fait pas toujours le total.
     const derniere = cents(totalClient - mensualite * (e.fois - 1));
-    return { code: e.code, fois: e.fois, libelle: e.libelle, totalClient, mensualite, derniere };
+    return { code: e.code, fois: e.fois, libelle: e.libelle, tauxClient: e.tauxClient, totalClient, mensualite, derniere };
   });
 }
 
