@@ -24,7 +24,7 @@ import { envoyerEmail, gabaritEmail } from "@/lib/email";
 import { euros, jourLisible } from "@/lib/inscriptionEnLigne";
 import {
   MATINEE_HORAIRE, PREPARATION_TAUX_HORAIRE, reassurerMatinees,
-  CENTRE_MATINEES_PAR_DEFAUT,
+  CENTRE_MATINEES_PAR_DEFAUT, declarationDepuisLigne, declarationLisible,
 } from "@/lib/commande";
 import { ech, enTete } from "@/lib/html";
 
@@ -256,6 +256,38 @@ async function prevenirSecretariat(c: any, lignesOuvertes: number, moyen: string
        conversion de la pré-inscription.</p>`
     : "";
 
+  /* ── LA DÉCLARATION DE CARENCE, DANS L'E-MAIL QUE LE SECRÉTARIAT LIT ────────
+   *
+   * 09/10/2026. Le site écrit au candidat que ses réponses « sont vérifiées par
+   * notre secrétariat ». Cet e-mail-ci est le seul que le secrétariat reçoive
+   * pour CHAQUE vente réellement encaissée : c'est donc ici que la déclaration
+   * devient vérifiable, et nulle part ailleurs.
+   *
+   * On n'affiche QUE ce qui a été déclaré, sans reconstituer de verdict : le
+   * verdict a déjà été calculé et envoyé à la création de la commande (sujet
+   * « Carence déclarée NON TENUE »), et il est dans le journal. Le recalculer
+   * ici supposerait de relire les deux sessions, et surtout il pourrait dire
+   * autre chose que le premier e-mail — deux verdicts sur la même commande,
+   * c'est le défaut qu'on évite partout ailleurs dans ce dossier.
+   *
+   * Un passage récent ANNONCÉ est encadré : c'est le seul cas qui demande un
+   * coup d'œil avant de convoquer. Une réponse « non » reste en texte simple,
+   * pour qu'on sache que la question a bien été posée. */
+  const decl = declarationDepuisLigne(c);
+  const declLignes = declarationLisible(decl, !!c.session_tef_id, !!c.session_civique_id);
+  const positive = decl.tef === true || decl.civique === true;
+  const blocDeclaration = declLignes.length
+    ? positive
+      ? `<p style="background:#fff4e5;border:1px solid #ffd9a8;padding:12px;border-radius:8px">
+         <b>⚠️ Le candidat déclare un passage récent</b><br>
+         ${declLignes.map((l) => ech(l)).join("<br>")}<br><br>
+         👉 Vérifiez le délai avant de convoquer. C'est une déclaration, pas une preuve :
+         si la date est juste et que le délai n'est pas tenu, le certificateur refusera
+         le résultat — il faut replacer le candidat sur une session ultérieure.</p>`
+      : `<p style="color:#555;font-size:13px">Déclaration du candidat :<br>
+         ${declLignes.map((l) => ech(l)).join("<br>")}</p>`
+    : "";
+
   await envoyerEmail({
     a: process.env.EMAIL_CORRECTIONS || "secretariat@mystoryformation.fr",
     objet: enTete(`Commande en ligne payée — ${ech(c.candidat_nom)} ${ech(c.candidat_prenom)} · ${euros(Number(c.montant))}`),
@@ -264,6 +296,7 @@ async function prevenirSecretariat(c: any, lignesOuvertes: number, moyen: string
       <p><b>${ech(c.candidat_nom)} ${ech(c.candidat_prenom)}</b><br>
       ${ech(c.candidat_email)} · ${ech(c.candidat_telephone ?? "")}<br>
       Total : <b>${euros(Number(c.montant))}</b></p>
+      ${blocDeclaration}
       <p>${lignesOuvertes} inscription${lignesOuvertes > 1 ? "s" : ""} ${lignesOuvertes > 1 ? "sont" : "est"}
       ouverte${lignesOuvertes > 1 ? "s" : ""} à la conversion : attestation, convocation et facture
       partent automatiquement dans les minutes qui suivent. Rien à faire de ce côté, sauf si une

@@ -43,6 +43,56 @@ function ajoutJours(iso: string, n: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   LES DEUX CARENCES, ISOLÉES EN FONCTIONS PURES
+   ─────────────────────────────────────────────────────────────────────────────
+   09/10/2026. `checkInscriptionExamen()` ci-dessous reste LA garde : elle lit
+   l'historique du candidat en base et c'est elle qui refuse une conversion.
+   Mais la page publique `/commande` a besoin du MÊME calcul avant qu'un
+   candidat existe en base — elle n'a qu'une date déclarée par le visiteur et
+   aucune ligne à interroger.
+
+   Ces deux fonctions sont donc l'arithmétique, et une seule fois. Sans elles,
+   `/commande` aurait recopié « 20 jours calendaires » et « 48 h ouvrées », et
+   les deux copies auraient divergé au premier ajustement de barème — c'est
+   exactement le défaut qu'on passe nos journées à corriger ailleurs.
+
+   ⚠️ Elles ne disent QUE si le délai est tenu. Elles ne savent pas d'où vient
+   la date (notre historique ou une déclaration du candidat), et c'est voulu :
+   c'est l'appelant qui sait ce que vaut sa source.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Le délai entre deux TEF IRN est-il tenu ? `reEligible` est la première date
+ * qui le tiendrait — on la rend toujours, parce qu'un refus sans date de repli
+ * fait fermer l'onglet.
+ */
+export function carenceTefTenue(
+  dernierPassage: string, dateExamen: string,
+): { ok: boolean; reEligible: string } {
+  const ecartJours = Math.round((Date.parse(dateExamen) - Date.parse(dernierPassage)) / 86400000);
+  return {
+    ok: ecartJours >= CARENCE_TEF_JOURS,
+    reEligible: ajoutJours(dernierPassage, CARENCE_TEF_JOURS),
+  };
+}
+
+/**
+ * Le délai entre deux examens civiques est-il tenu ?
+ *
+ * Compté en jours OUVRÉS (week-ends et fériés sautés), parce que 48 h entre
+ * deux épreuves n'a de sens que si les deux journées existent : un passage le
+ * vendredi et un autre le lundi sont à 72 h d'horloge mais à zéro jour ouvré
+ * d'intervalle. Aucune date de repli n'est rendue : elle dépend du calendrier
+ * des jours fériés, et l'appelant a mieux à proposer — nos sessions réelles.
+ */
+export function carenceCiviqueTenue(dernierPassage: string, dateExamen: string): boolean {
+  const ouvresEntre = joursOuvresEntre(
+    new Date(dernierPassage + "T00:00:00Z"), new Date(dateExamen + "T00:00:00Z"),
+  );
+  return ouvresEntre >= CARENCE_CIVIQUE_MIN_JOURS_OUVRES;
+}
+
 export async function checkInscriptionExamen(p: {
   candidatId: string;
   type: string; // TEF_IRN | Examen_civique | Vente_plateforme
@@ -75,9 +125,8 @@ export async function checkInscriptionExamen(p: {
     if (p.declaratifTefDate && p.declaratifTefDate < p.dateExamen!) dates.push(p.declaratifTefDate);
     const dernier = dates.sort().at(-1);
     if (dernier) {
-      const ecartJours = Math.round((Date.parse(p.dateExamen!) - Date.parse(dernier)) / 86400000);
-      if (ecartJours < CARENCE_TEF_JOURS) {
-        const reEligible = ajoutJours(dernier, CARENCE_TEF_JOURS);
+      const { ok, reEligible } = carenceTefTenue(dernier, p.dateExamen!);
+      if (!ok) {
         recap.push(
           `Carence TEF IRN non respectée : dernier passage le ${jfr(dernier)} ` +
             `(il faut ${CARENCE_TEF_JOURS} jours entre deux TEF IRN). ` +
@@ -92,8 +141,7 @@ export async function checkInscriptionExamen(p: {
     const ant = passages.filter((x) => x.type === "Examen_civique" && x.date < p.dateExamen!).map((x) => x.date);
     const dernier = ant.sort().at(-1);
     if (dernier) {
-      const ouvresEntre = joursOuvresEntre(new Date(dernier + "T00:00:00Z"), new Date(p.dateExamen + "T00:00:00Z"));
-      if (ouvresEntre < CARENCE_CIVIQUE_MIN_JOURS_OUVRES) {
+      if (!carenceCiviqueTenue(dernier, p.dateExamen!)) {
         recap.push(
           `Carence examen civique non respectée : dernier passage le ${jfr(dernier)} ` +
             `(il faut au moins 48 h ouvrées entre deux examens civiques). Choisissez une session ultérieure.`,

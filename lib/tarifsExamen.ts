@@ -46,25 +46,32 @@ export const TARIFS_URGENCE: Record<TypeExamen, number> = {
   Examen_civique: 100,
 };
 
-/**
- * Options d'entraînement, ajoutées au montant de l'examen.
- *
- * 09/10/2026 — `prepcivique` RETIRÉ d'ici : décision du dirigeant, « ne propose
- * nulle part prepcivique.fr ». MYSTORY ne dispense aucune formation civique (le
- * contrat d'intégration républicaine relève exclusivement de l'OFII) : nous
- * faisons passer l'examen civique, nous ne le préparons pas. Un tarif de vente
- * pour une plateforme d'entraînement au civique n'a donc plus lieu d'être, même
- * dans une table que personne n'appelle.
- *
- * ⚠️ Cette table est effectivement SANS APPELANT aujourd'hui : les deux seuls
- * appels à `calculerMontant()` (`app/inscription-examen/route.ts` et
- * `app/api/inscription-examen/route.ts`) passent `[]`. Le prix de 15 € pour
- * Passetontef est d'ailleurs un reliquat — le site vend 35 € — et l'écart est
- * signalé à la direction plutôt que corrigé ici au passage.
- */
-export const PLATEFORMES: Record<string, { libelle: string; prix: number }> = {
-  passetontef: { libelle: "Passetontef — entraînement TEF IRN", prix: 15 },
-};
+/* ─────────────────────────────────────────────────────────────────────────────
+   🗑️ LA TABLE DES PLATEFORMES A ÉTÉ SUPPRIMÉE D'ICI — 09/10/2026
+   ─────────────────────────────────────────────────────────────────────────────
+   Elle annonçait « Passetontef, 15 € » alors que le site en vend 35 €, et le
+   prix de ce fichier est censé être celui qui FACTURE. Vérification faite avant
+   de toucher quoi que ce soit :
+
+     · `PLATEFORMES` n'était lue que par `calculerMontant()`, juste en dessous ;
+     · les deux seuls appels à `calculerMontant()` — `app/inscription-examen/route.ts`
+       et `app/api/inscription-examen/route.ts` — passaient `[]`.
+
+   La table était donc morte, et son prix faux. On ne l'a pas « corrigée à 35 € » :
+   il existe déjà un barème vivant et déduit des packs publiés, `PLATEFORMES_COMMANDE`
+   dans `lib/commande.ts` (PasseTonTEF 35 €, PrepMyFuture 65 €), et deux tables qui
+   annoncent le même prix finissent toujours par se contredire — c'est précisément
+   ce qui a produit l'écart 15 ≠ 35.
+
+   Un prix faux qui dort finit par se réveiller : le plus sûr est qu'il n'existe
+   plus. Le paramètre `plateformes` de `calculerMontant()` disparaît avec elle,
+   pour qu'aucun appelant ne puisse croire qu'il sait facturer une plateforme.
+   Le seul chemin qui en vend est `/commande`, qui ne passe pas par ici.
+
+   `prepcivique` avait déjà été retiré le même jour (décision du dirigeant, « ne
+   propose nulle part prepcivique.fr ») : MYSTORY ne dispense aucune formation
+   civique, le contrat d'intégration républicaine relevant exclusivement de l'OFII.
+   ───────────────────────────────────────────────────────────────────────────── */
 
 /**
  * Nombre de jours OUVRÉS entre aujourd'hui (Paris) et la date d'examen.
@@ -97,16 +104,14 @@ export type Devis = {
 };
 
 /**
- * Calcule ce que doit payer un candidat. Seule source du montant encaissé.
+ * Calcule ce que doit payer un candidat pour UNE session d'examen. Seule source
+ * du montant encaissé sur ce chemin-là.
  *
- * `plateformes` est filtré sur les clés connues : une valeur inventée est ignorée
- * plutôt que de faire échouer l'inscription — le candidat n'y est pour rien.
+ * Ne sait facturer que l'examen, délibérément : une plateforme d'entraînement ne
+ * se vend que par `/commande`, qui a son propre barème (`PLATEFORMES_COMMANDE`
+ * dans `lib/commande.ts`). Voir le pavé ci-dessus pour le pourquoi.
  */
-export function calculerMontant(
-  type: TypeExamen,
-  dateExamen: string,
-  plateformes: string[] = [],
-): Devis {
+export function calculerMontant(type: TypeExamen, dateExamen: string): Devis {
   const jours = joursOuvresAvant(dateExamen);
   const urgence = jours < DELAI_TARIF_PUBLIC_JOURS_OUVRES;
   const prixExamen = urgence ? TARIFS_URGENCE[type] : TARIFS_PUBLICS[type];
@@ -119,13 +124,6 @@ export function calculerMontant(
       prix: prixExamen,
     },
   ];
-
-  for (const cle of plateformes) {
-    const p = PLATEFORMES[String(cle).toLowerCase()];
-    if (p && !detail.some((d) => d.libelle === p.libelle)) {
-      detail.push({ libelle: p.libelle, prix: p.prix });
-    }
-  }
 
   return { montant: detail.reduce((n, d) => n + d.prix, 0), urgence, detail };
 }

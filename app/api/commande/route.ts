@@ -46,7 +46,7 @@ import {
   lireCommande, reserverMatinees, libererMatinees, resumeCommande,
   MATINEE_HORAIRE, PREPARATION_TAUX_HORAIRE, dateExamenLaPlusProche,
   libererReservationsPerimees, COMMANDES_IMPAYEES_MAX_PAR_EMAIL, RESERVATION_MINUTES,
-  type Commande,
+  declarationLisible, type Commande,
 } from "@/lib/commande";
 import { ech, enTete } from "@/lib/html";
 
@@ -157,6 +157,14 @@ export async function POST(req: NextRequest) {
     preparation: s(b.preparation) || null,
     matinees: s(b.matinees) || null,
     options: s(b.options) || null,
+    /* La déclaration de carence, relue ICI aussi — comme le montant et comme les
+       places. Le formulaire la renvoie, mais c'est `lireDeclaration()` qui décide
+       de ce qui est exploitable : une date fabriquée à la main dans la requête ne
+       doit pas plus être crue qu'un prix. */
+    carence_tef: s(b.carence_tef) || null,
+    carence_tef_dernier: s(b.carence_tef_dernier) || null,
+    carence_civique: s(b.carence_civique) || null,
+    carence_civique_dernier: s(b.carence_civique_dernier) || null,
   });
   if (!lu.ok) {
     return NextResponse.json({ ok: false, erreur: lu.erreurs.join(" ") }, { status: lu.statut });
@@ -227,6 +235,14 @@ export async function POST(req: NextRequest) {
       matinees: c.matinees,
       options: c.options,
       centre_matinees: c.centreMatinees,
+      /* La déclaration de carence, CONSERVÉE. C'est tout l'objet du correctif du
+         09/10 : le site promettait au candidat que ses réponses partaient avec sa
+         réservation, et elles n'arrivaient nulle part. `null` reste `null` — une
+         absence de réponse n'est pas un « non ». */
+      carence_tef_declaree: c.declaration.tef,
+      carence_tef_dernier_passage: c.declaration.tefDernier,
+      carence_civique_declaree: c.declaration.civique,
+      carence_civique_dernier_passage: c.declaration.civiqueDernier,
       montant: c.montant,
       detail: c.lignes,
       urgence: c.urgence,
@@ -308,7 +324,39 @@ export async function POST(req: NextRequest) {
   await journal("commande_creee", ref, {
     montant: c.montant, lignes: aConvertir.length, heures: c.heures,
     matinees: c.matinees, email, moyen: echeancier ?? "mollie",
+    /* La déclaration ET le verdict dans le journal : c'est la trace de ce qu'on
+       a su, et de ce qu'on en a dit, au moment où on a encaissé. Dans six mois,
+       si un résultat est refusé pour carence, c'est la seule pièce qui dira si
+       le candidat l'avait déclaré ou non. */
+    declaration: c.declaration,
+    carence_non_tenue: c.carenceNonTenue,
+    carence_a_verifier: c.carenceAVerifier,
   });
+
+  /* ── La déclaration de carence qui pose problème : on prévient TOUT DE SUITE ──
+   *
+   * Pas à la validation du paiement, et c'est délibéré : le candidat vient de lire
+   * « appelez-nous avant de payer », et quelqu'un doit pouvoir décrocher. Attendre
+   * l'encaissement, c'est attendre le moment où l'erreur n'est plus réparable
+   * gratuitement.
+   *
+   * Le volume ne pose pas de problème : le site REFUSE d'avancer sur une carence
+   * non tenue, donc une commande qui arrive ici dans cet état vient d'une URL
+   * recopiée à la main. C'est rare par construction — et le jour où ça ne l'est
+   * plus, c'est que le parcours a un défaut, et cet e-mail est précisément ce qui
+   * nous l'apprendra.
+   *
+   * On NE REFUSE PAS la commande pour autant : une déclaration est un signal, pas
+   * une preuve, et la garde dure reste à la conversion (voir lib/commande.ts). */
+  if (c.carenceNonTenue.length || c.carenceAVerifier.length) {
+    await alerterSecretariat(
+      ref, c, identite,
+      c.carenceNonTenue.length
+        ? "⚠️ Carence déclarée NON TENUE — à rappeler avant l'examen"
+        : "Déclaration de carence incomplète — à vérifier",
+      false,
+    );
+  }
 
   // ── 6. Le paiement ────────────────────────────────────────────────────────
   const lien = await lienDePaiement(req, ref, c, echeancier, identite);
@@ -461,10 +509,53 @@ async function alerterSecretariat(
        ${euros(c.montant)}</b>.</p>` : ""}
       <p><b>${ech(identite.candidat_nom)} ${ech(identite.candidat_prenom)}</b><br>
       ${ech(identite.candidat_email)} · ${ech(identite.candidat_telephone)}</p>
+      ${blocCarence(c)}
       <pre style="font-family:inherit;white-space:pre-wrap;background:#f4f6fb;padding:12px;border-radius:8px">${ech(resumeCommande(c))}</pre>
       ${heures}
       <p style="color:#888;font-size:12px">Commande ${ech(ref)}</p>`),
     entite: "commandes_en_ligne",
     entiteId: ref,
   });
+}
+
+/**
+ * La déclaration de carence, en haut de l'e-mail et pas en annexe.
+ *
+ * C'est tout l'objet du correctif : le site PROMET au candidat que ses réponses
+ * « sont vérifiées par notre secrétariat ». Une déclaration rangée dans le pavé
+ * de récapitulatif, sous le total, n'est pas vérifiée — elle est lue en diagonale
+ * une fois sur dix. Un bloc coloré au-dessus du devis l'est.
+ *
+ * Rouge quand le délai n'est pas tenu (le certificateur refuserait le résultat),
+ * ambre quand on ne peut rien conclure, ambre léger quand la réponse est « oui »
+ * mais que le délai tient — ce dernier cas ne demande aucune action, il est là
+ * pour que personne ne découvre la chose après coup.
+ */
+function blocCarence(c: Commande): string {
+  const lignes = declarationLisible(c.declaration, !!c.tef, !!c.civique);
+  const positive = c.declaration.tef === true || c.declaration.civique === true;
+  if (!lignes.length && !c.carenceNonTenue.length && !c.carenceAVerifier.length) return "";
+  if (!positive && !c.carenceNonTenue.length && !c.carenceAVerifier.length) return "";
+
+  const grave = c.carenceNonTenue.length > 0;
+  const cadre = grave
+    ? "background:#fdecec;border:1px solid #f3b7b7"
+    : "background:#fff4e5;border:1px solid #ffd9a8";
+  const titre = grave
+    ? "🔴 Carence déclarée NON TENUE — le résultat serait refusé"
+    : c.carenceAVerifier.length
+      ? "⚠️ Déclaration de carence incomplète"
+      : "Déclaration de carence — passage récent annoncé";
+
+  return `<p style="${cadre};padding:12px;border-radius:8px">
+    <b>${titre}</b><br>
+    ${lignes.map((l) => ech(l)).join("<br>")}
+    ${[...c.carenceNonTenue, ...c.carenceAVerifier].map((a) => `<br><br>${ech(a)}`).join("")}
+    ${grave || c.carenceAVerifier.length
+      ? `<br><br>👉 <b>Appelez le candidat avant de le convoquer.</b> C'est une déclaration,
+         pas une preuve : la date est peut-être mal saisie. Si elle est juste, replacez-le sur
+         une session qui respecte le délai — il a payé, et un résultat refusé ne se rattrape pas.`
+      : `<br><br>Rien à faire si la date est exacte : le délai est tenu. Noté ici pour que
+         personne ne le découvre après l'épreuve.`}
+  </p>`;
 }

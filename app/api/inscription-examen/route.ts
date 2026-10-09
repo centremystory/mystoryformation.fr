@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, erreur: "Motif d'examen invalide." }, { status: 400 });
   }
 
-  const devis = calculerMontant(session.type, session.date_examen, []);
+  const devis = calculerMontant(session.type, session.date_examen);
 
   const { data: pre, error } = await supabaseAdmin
     .from("preinscriptions_examen")

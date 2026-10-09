@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const devis = calculerMontant(s.type, s.date_examen, []);
+  const devis = calculerMontant(s.type, s.date_examen);
   const estTef = s.type === "TEF_IRN";
 
   const lignes = devis.detail

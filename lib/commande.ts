@@ -30,6 +30,10 @@ import {
   DELAI_TARIF_PUBLIC_JOURS_OUVRES, type TypeExamen,
 } from "@/lib/tarifsExamen";
 import { lireSession, jourLisible, type SessionPublique } from "@/lib/inscriptionEnLigne";
+import {
+  CARENCE_TEF_JOURS, CARENCE_CIVIQUE_MIN_JOURS_OUVRES,
+  carenceTefTenue, carenceCiviqueTenue,
+} from "@/lib/examenCarence";
 
 /* ─────────────────────────────────────────────────────────────────────────────
    LA PRÉPARATION
@@ -438,10 +442,12 @@ export type ClePlateforme = "passetontef" | "prepmyfuture";
  * (Les deux packs à 320 € et 350 € qui portaient PrepCivique ont été retirés du
  * site le même jour — ils ne servaient qu'à déduire le prix de PrepCivique.)
  *
- * ⚠️ `PLATEFORMES` de `tarifsExamen.ts` annonce Passetontef à 15 € : c'est un reliquat,
- * cette table n'est appelée par AUCUN appelant (l'inscription à une session passe
- * `[]`). On ne la corrige pas ici pour ne pas changer le comportement d'un fichier
- * partagé — l'écart 15 ≠ 35 est signalé à la direction, qui tranchera.
+ * ✔ 09/10/2026 — c'est désormais le SEUL barème de plateforme du dépôt.
+ * `tarifsExamen.ts` en portait un second, qui annonçait Passetontef à 15 € ; il
+ * était mort (aucun appelant ne lui passait de clé) et il a été supprimé plutôt
+ * que réaligné sur 35 €. Deux tables qui annoncent le même prix finissent
+ * toujours par se contredire, et c'est exactement ce qui avait produit l'écart.
+ * ⚠️ Ne pas en recréer une ailleurs : la déduction ci-dessus est la règle.
  *
  * `sousType` reprend VERBATIM les libellés de `PLATEFORMES` dans `lib/examens.ts` :
  * c'est la valeur que la conversion inscrit dans `ventes_examen.sous_type`, et elle
@@ -473,6 +479,218 @@ export const MENTIONS_PAR_CODE: Record<string, string> = {
   CR: "Carte de résident",
   NAT: "Naturalisation",
 };
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   LA DÉCLARATION DE CARENCE
+   ─────────────────────────────────────────────────────────────────────────────
+   09/10/2026. Le site vitrine pose deux questions au candidat à l'étape
+   « Déclaration » — « avez-vous passé un test de français dans les 20 derniers
+   jours ? », « un examen civique dans les 48 dernières heures ? » — et lui
+   écrit noir sur blanc : « ces réponses partent avec votre réservation et sont
+   vérifiées par notre secrétariat ».
+
+   C'ÉTAIT FAUX. Le site envoyait bien les quatre paramètres dans l'URL, mais
+   cette route n'en lisait aucun : la déclaration n'arrivait nulle part,
+   personne ne la voyait, rien ne la stockait. Une promesse écrite au candidat
+   qui ne se réalisait pas — et la promesse n'est pas le pire.
+
+   ── POURQUOI CE N'EST PAS UNE FORMALITÉ ────────────────────────────────────
+   Ce sont les règles du CERTIFICATEUR, pas les nôtres : 20 jours calendaires
+   entre deux TEF IRN, 48 heures entre deux examens civiques. Un résultat
+   obtenu en violant une carence est REFUSÉ. Le candidat a payé, s'est déplacé,
+   passé l'épreuve — et n'a rien. C'est nous qui avons encaissé.
+
+   Et c'est la SEULE fenêtre qu'on ait sur un passage effectué ailleurs :
+   `checkInscriptionExamen()` ne voit que nos propres ventes. Un candidat qui a
+   passé son TEF chez un concurrent la semaine dernière est invisible pour nous
+   — sauf s'il le déclare ici.
+
+   ── ON AVERTIT, ON NE BLOQUE PAS ───────────────────────────────────────────
+   Décision assumée, et ce n'est pas de la complaisance commerciale :
+
+     1. c'est une DÉCLARATION, pas une preuve. Un candidat qui se trompe
+        d'année en saisissant sa date serait refusé sans recours ;
+     2. une déclaration qui bloque la vente devient une déclaration à laquelle
+        on répond toujours « non ». On perdrait alors exactement ce qu'on vient
+        de gagner : la fenêtre sur le passage extérieur ;
+     3. le site, lui, BLOQUE DÉJÀ à l'étape de déclaration — il refuse
+        d'avancer et propose ses sessions compatibles. Une commande incohérente
+        qui arrive ici vient donc d'une URL recopiée à la main, pas du
+        parcours ;
+     4. et les deux carences ne se comptent pas tout à fait pareil des deux
+        côtés : le site retient 3 jours CALENDAIRES pour le civique (48 h + un
+        jour de marge, l'heure du précédent passage étant inconnue), le CRM
+        ≥ 1 jour OUVRÉ. Refuser durement ici écarterait des commandes que le
+        site a légitimement acceptées. Aligner les deux règles est un arbitrage
+        pour le dirigeant, pas un effet de bord de ce correctif.
+
+   Le contrôle DUR reste donc là où il porte sur des faits : à la conversion,
+   sur l'historique réel du candidat (`checkInscriptionExamen`, et le trigger
+   `ventes_examen_carence_bloquante` en base). Ici on conserve, on affiche, et
+   on alerte nommément le secrétariat — qui appelle avant la convocation.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Ce que le candidat a déclaré, tel qu'on le conserve.
+ *
+ * `null` sur une réponse signifie « question non posée ou non transmise », et
+ * ce n'est PAS « non » : un défaut à `false` ferait passer une absence de
+ * réponse pour une réponse rassurante.
+ */
+export type DeclarationCarence = {
+  tef: boolean | null;
+  /** Date du précédent TEF, seulement si `tef` vaut true et qu'elle est lisible. */
+  tefDernier: string | null;
+  civique: boolean | null;
+  civiqueDernier: string | null;
+};
+
+export const DECLARATION_VIDE: DeclarationCarence = {
+  tef: null, tefDernier: null, civique: null, civiqueDernier: null,
+};
+
+/** `oui` / `non`, et rien d'autre. Tout le reste est « pas de réponse ». */
+function ouiNon(v: string | null | undefined): boolean | null {
+  const t = String(v ?? "").trim().toLowerCase();
+  if (t === "oui") return true;
+  if (t === "non") return false;
+  return null;
+}
+
+/**
+ * Une date AAAA-MM-JJ réelle, et PAS dans le futur.
+ *
+ * Une date future n'est pas une faute de frappe anodine : elle produirait une
+ * « première date éligible » fantaisiste, et surtout elle signifie que le
+ * candidat a mal lu la question. On la jette plutôt que de calculer dessus —
+ * et l'absence de date sous une réponse « oui » est elle-même signalée au
+ * secrétariat (voir `avertissementsCarence`).
+ *
+ * Le contrôle vit ici et non en base : une contrainte `<= current_date` n'est
+ * pas immuable et une sauvegarde refuserait de se restaurer le lendemain.
+ */
+function datePassageLisible(v: string | null | undefined, maintenant: Date): string | null {
+  const t = String(v ?? "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) return null;
+  const [a, m, j] = t.split("-").map(Number);
+  const d = new Date(Date.UTC(a, m - 1, j));
+  if (d.getUTCFullYear() !== a || d.getUTCMonth() !== m - 1 || d.getUTCDate() !== j) return null;
+  if (t > maintenant.toLocaleDateString("en-CA", { timeZone: "Europe/Paris" })) return null;
+  return t;
+}
+
+/** Lit la déclaration depuis les paramètres bruts. Ne juge rien, ne refuse rien. */
+export function lireDeclaration(p: ParamsCommande, maintenant = new Date()): DeclarationCarence {
+  const tef = ouiNon(p.carence_tef);
+  const civique = ouiNon(p.carence_civique);
+  return {
+    tef,
+    // Une date sous une réponse « non » se contredit elle-même : on ne la garde pas.
+    tefDernier: tef === true ? datePassageLisible(p.carence_tef_dernier, maintenant) : null,
+    civique,
+    civiqueDernier: civique === true ? datePassageLisible(p.carence_civique_dernier, maintenant) : null,
+  };
+}
+
+/**
+ * La déclaration mise en phrases, pour l'écran ET pour le secrétariat.
+ *
+ * Un seul texte pour les deux : il n'existe qu'une version de ce que le
+ * candidat a déclaré. On n'émet une ligne que pour une épreuve réellement
+ * commandée et réellement répondue — un « non répondu » affiché au candidat
+ * qui n'a commandé qu'un TEF l'inquiéterait pour rien.
+ */
+export function declarationLisible(
+  d: DeclarationCarence, avecTef: boolean, avecCivique: boolean,
+): string[] {
+  const lignes: string[] = [];
+  if (avecTef && d.tef !== null) {
+    lignes.push(
+      `Test de français passé dans les ${CARENCE_TEF_JOURS} derniers jours : ${d.tef ? "OUI" : "non"}` +
+      (d.tefDernier ? ` — dernier passage le ${jourLisible(d.tefDernier)}` : ""),
+    );
+  }
+  if (avecCivique && d.civique !== null) {
+    lignes.push(
+      `Examen civique passé dans les 48 dernières heures : ${d.civique ? "OUI" : "non"}` +
+      (d.civiqueDernier ? ` — dernier passage le ${jourLisible(d.civiqueDernier)}` : ""),
+    );
+  }
+  return lignes;
+}
+
+/**
+ * Ce que la déclaration oblige à DIRE, en DEUX listes qui ne disent pas la
+ * même chose. Les mélanger produirait un message faux dans un cas sur deux.
+ *
+ *   — `nonTenue` : le délai du certificateur n'est PAS tenu d'après la date
+ *     déclarée. C'est le cas grave : le résultat serait refusé. Il ne peut
+ *     venir que d'une URL recopiée à la main, puisque le site refuse déjà
+ *     d'avancer sur ce choix.
+ *   — `aVerifier` : on ne peut RIEN conclure. Soit « oui » sans date
+ *     exploitable (date absente, illisible, ou dans le futur), soit une
+ *     épreuve commandée sans aucune réponse — symptôme d'un lien fabriqué
+ *     hors du parcours. Dans les deux cas un humain doit retrouver la date,
+ *     et il serait faux d'annoncer au candidat que son délai n'est pas tenu :
+ *     on n'en sait rien.
+ *
+ * Aucune des deux ne refuse la commande. Les délais et l'arithmétique viennent
+ * de `lib/examenCarence.ts` — les mêmes fonctions que la garde de conversion.
+ * Deux règles de carence finiraient par se contredire, et c'est celle qu'on ne
+ * relit pas qui laisserait passer.
+ */
+export function avertissementsCarence(
+  d: DeclarationCarence, tef: SessionPublique | null, civique: SessionPublique | null,
+): { nonTenue: string[]; aVerifier: string[] } {
+  const nonTenue: string[] = [];
+  const aVerifier: string[] = [];
+
+  if (tef) {
+    if (d.tef === null) {
+      aVerifier.push(
+        `Aucune déclaration sur un précédent test de français : la question n'a pas été transmise. ` +
+        `Il faut ${CARENCE_TEF_JOURS} jours calendaires entre deux passages du TEF IRN.`,
+      );
+    } else if (d.tef && !d.tefDernier) {
+      aVerifier.push(
+        `Le candidat déclare avoir passé un test de français récemment, sans date exploitable ` +
+        `(absente, illisible ou dans le futur) : la carence de ${CARENCE_TEF_JOURS} jours n'a pas ` +
+        `pu être vérifiée.`,
+      );
+    } else if (d.tefDernier) {
+      const { ok, reEligible } = carenceTefTenue(d.tefDernier, tef.date_examen);
+      if (!ok) {
+        nonTenue.push(
+          `Carence TEF IRN non tenue d'après la déclaration : dernier passage le ` +
+          `${jourLisible(d.tefDernier)}, examen le ${jourLisible(tef.date_examen)} — il faut ` +
+          `${CARENCE_TEF_JOURS} jours calendaires. Ré-éligible à partir du ${jourLisible(reEligible)}.`,
+        );
+      }
+    }
+  }
+
+  if (civique) {
+    if (d.civique === null) {
+      aVerifier.push(
+        `Aucune déclaration sur un précédent examen civique : la question n'a pas été transmise. ` +
+        `Il faut 48 heures entre deux passages.`,
+      );
+    } else if (d.civique && !d.civiqueDernier) {
+      aVerifier.push(
+        `Le candidat déclare avoir passé l'examen civique récemment, sans date exploitable ` +
+        `(absente, illisible ou dans le futur) : la carence de 48 heures n'a pas pu être vérifiée.`,
+      );
+    } else if (d.civiqueDernier && !carenceCiviqueTenue(d.civiqueDernier, civique.date_examen)) {
+      nonTenue.push(
+        `Carence examen civique non tenue d'après la déclaration : dernier passage le ` +
+        `${jourLisible(d.civiqueDernier)}, examen le ${jourLisible(civique.date_examen)} — il faut ` +
+        `au moins ${CARENCE_CIVIQUE_MIN_JOURS_OUVRES} jour ouvré entre les deux (48 h).`,
+      );
+    }
+  }
+
+  return { nonTenue, aVerifier };
+}
 
 /* ─────────────────────────────────────────────────────────────────────────────
    LA COMMANDE : LECTURE, CONTRÔLES, DEVIS
@@ -526,6 +744,18 @@ export type Commande = {
    * `lireSession()`. On ne les recopie pas.
    */
   matineesRestantes: number[];
+  /**
+   * Ce que le candidat a déclaré sur ses précédents passages, et ce qu'il
+   * faut en dire. Conservé sur la commande, affiché au candidat avant qu'il
+   * paie, et remonté nommément au secrétariat (voir la section « LA
+   * DÉCLARATION DE CARENCE » plus haut pour le pourquoi du « on avertit,
+   * on ne bloque pas »).
+   */
+  declaration: DeclarationCarence;
+  /** Le délai du certificateur n'est pas tenu d'après la date déclarée. */
+  carenceNonTenue: string[];
+  /** On ne peut rien conclure : déclaration absente, illisible ou sans date. */
+  carenceAVerifier: string[];
   lignes: LigneCommande[];
   montant: number;
   urgence: boolean;
@@ -557,6 +787,12 @@ export type ParamsCommande = {
   preparation?: string | null;
   matinees?: string | null;
   options?: string | null;
+  /* La déclaration de carence (09/10/2026). Les noms sont EXACTEMENT ceux que le
+     site émet : un paramètre renommé en route est un paramètre perdu en silence. */
+  carence_tef?: string | null;
+  carence_tef_dernier?: string | null;
+  carence_civique?: string | null;
+  carence_civique_dernier?: string | null;
 };
 
 const TEL = "06 81 43 16 54";
@@ -810,12 +1046,23 @@ export async function lireCommande(
     );
   }
 
+  /* La déclaration de carence, lue et appréciée MAINTENANT — avec les sessions
+     réellement retenues, puisque c'est la date d'examen qui décide si le délai
+     est tenu. Elle n'entre dans aucun prix et ne refuse rien : voir la section
+     « LA DÉCLARATION DE CARENCE » pour le pourquoi. */
+  const declaration = lireDeclaration(p, maintenant);
+  const avis = avertissementsCarence(declaration, tef, civique);
+
   return {
     ok: true,
     commande: {
       tef, civique, mention,
       heures, matinees: matineesRetenues,
-      options, centreMatinees, matineesRestantes, lignes,
+      options, centreMatinees, matineesRestantes,
+      declaration,
+      carenceNonTenue: avis.nonTenue,
+      carenceAVerifier: avis.aVerifier,
+      lignes,
       montant: lignes.reduce((n, l) => n + l.prix, 0),
       urgence: tefUrgent || civiqueUrgent,
     },
@@ -847,6 +1094,24 @@ export function paramsDepuisLigne(c: any): ParamsCommande {
     preparation: c?.preparation_heures ? String(c.preparation_heures) : null,
     matinees: Array.isArray(c?.matinees) ? c.matinees.join(",") : null,
     options: Array.isArray(c?.options) ? c.options.join(",") : null,
+    /* La déclaration repart telle qu'elle est arrivée : `oui`/`non` et une date
+       ISO. Relire une commande doit redonner EXACTEMENT ce qu'on a encaissé,
+       déclaration comprise — sinon un récapitulatif rejoué six mois plus tard
+       dirait autre chose que l'e-mail envoyé le jour même. */
+    carence_tef: c?.carence_tef_declaree == null ? null : (c.carence_tef_declaree ? "oui" : "non"),
+    carence_tef_dernier: c?.carence_tef_dernier_passage ?? null,
+    carence_civique: c?.carence_civique_declaree == null ? null : (c.carence_civique_declaree ? "oui" : "non"),
+    carence_civique_dernier: c?.carence_civique_dernier_passage ?? null,
+  };
+}
+
+/** La déclaration relue depuis la ligne enregistrée, pour un e-mail. */
+export function declarationDepuisLigne(c: any): DeclarationCarence {
+  return {
+    tef: c?.carence_tef_declaree ?? null,
+    tefDernier: c?.carence_tef_dernier_passage ? String(c.carence_tef_dernier_passage) : null,
+    civique: c?.carence_civique_declaree ?? null,
+    civiqueDernier: c?.carence_civique_dernier_passage ? String(c.carence_civique_dernier_passage) : null,
   };
 }
 
@@ -855,6 +1120,11 @@ export function resumeCommande(c: Commande): string {
   const l = c.lignes.map((x) => `· ${x.libelle} — ${x.prix.toFixed(2)} €`);
   if (c.matinees.length) {
     l.push(`Matinées retenues (${MATINEE_HORAIRE}, ${c.centreMatinees}) : ${c.matinees.map(jourLisible).join(" · ")}`);
+  }
+  /* La déclaration dans le résumé, et pas en annexe : c'est le bloc que le
+     secrétariat lit, et une déclaration enfouie plus bas ne serait pas vue. */
+  for (const ligne of declarationLisible(c.declaration, !!c.tef, !!c.civique)) {
+    l.push(ligne);
   }
   l.push(`Total : ${c.montant.toFixed(2)} €`);
   return l.join("\n");
