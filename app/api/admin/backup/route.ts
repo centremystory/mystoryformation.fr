@@ -7,7 +7,7 @@
  *      Le hash des mots de passe est expurgé (sécurité). Plan gratuit = pas de PITR managé.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { requireUser, UnauthorizedError, type SessionUser } from "@/lib/auth";
+import { requireRole, UnauthorizedError, ForbiddenError, type SessionUser } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { envoyerEmail, gabaritEmail, EMAIL_ACTIF } from "@/lib/email";
 import { journal } from "@/lib/examens";
@@ -34,8 +34,6 @@ const TABLES = [
   "incidents_techniques", "remarques", "formules", "completions",
   "webhook_events", "journal", "classement_cache",
 ];
-
-const estDirection = (u: SessionUser) => !u.role || u.role === "staff" || u.role === "direction";
 
 async function dumpTable(t: string): Promise<any[]> {
   const out: any[] = [];
@@ -89,17 +87,36 @@ function nomFichier(): string {
   return `mystory_backup_${d}.zip`;
 }
 
+/**
+ * Garde de la route : Direction UNIQUEMENT, plus le jeton de service n8n/cron.
+ *
+ * 09/10/2026 — POURQUOI ce changement. Cette route vérifiait le rôle elle-même avec un
+ * helper local qui n'acceptait que « pas de rôle », "staff" ou "direction". Or le jeton
+ * de service n8n porte un rôle HORS matrice staff : il ne tombait dans aucun des trois
+ * cas, et la sauvegarde hebdomadaire se faisait refuser en 403 « Réservé à la Direction. »
+ * à CHAQUE passage. Le workflow n8n n'avait pas d'errorWorkflow : 4 dimanches de suite
+ * (13, 20, 27/09 et 04/10/2026) la base MYSTORY n'a eu AUCUNE sauvegarde, en silence.
+ *
+ * On aligne donc la garde sur celle de `/api/incidents` et `/api/factures` : `requireRole`
+ * porte depuis le 25/09 l'exemption « automate de confiance » (`estAutomate` dans
+ * lib/roles), qui exige un JWT valide signé par AUTH_SECRET dont AUCUN rôle n'appartient
+ * à la matrice staff. Un humain porte toujours un rôle de la matrice : l'exemption ne peut
+ * donc pas être usurpée en rejouant un cookie de session dans un en-tête Bearer.
+ *
+ * ⚠️ On n'ouvre RIEN d'autre. Pas de session anonyme, aucun rôle supplémentaire : un
+ * compte individuel non-Direction reste refusé en 403, exactement comme avant.
+ */
 async function garde(req: NextRequest): Promise<NextResponse | SessionUser> {
-  try { return await requireUser(req); }
+  try { return await requireRole(req, ["direction"]); }
   catch (e) {
     if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
+    if (e instanceof ForbiddenError) return NextResponse.json({ ok: false, erreur: "Réservé à la Direction." }, { status: 403 });
     throw e;
   }
 }
 
 export async function GET(req: NextRequest) {
   const u = await garde(req); if (u instanceof NextResponse) return u;
-  if (!estDirection(u)) return NextResponse.json({ ok: false, erreur: "Réservé à la Direction." }, { status: 403 });
   const { buffer } = await construireZip();
   await journal("systeme", null, "sauvegarde_telechargee", { par: u.email ?? null }, u.email ?? null);
   return new NextResponse(new Uint8Array(buffer), {
@@ -114,7 +131,6 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const u = await garde(req); if (u instanceof NextResponse) return u;
-  if (!estDirection(u)) return NextResponse.json({ ok: false, erreur: "Réservé à la Direction." }, { status: 403 });
   const { buffer, resume, total } = await construireZip();
   const fichier = nomFichier();
 
