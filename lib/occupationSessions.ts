@@ -107,9 +107,52 @@ async function rafraichir(): Promise<number | null> {
  * `fiable` à false = l'appelant ne doit PAS vendre. C'est volontairement strict : mieux vaut
  * un candidat qui appelle qu'un candidat convoqué sur une place inexistante.
  */
+/**
+ * Un seul rafraîchissement à la fois, partagé par tous les appels en cours.
+ *
+ * 09/10/2026 — une commande TEF + civique appelle `occupationDe()` DEUX fois, et les
+ * deux appels partent en parallèle (`Promise.all` dans `lireCommande`). Sans ce verrou,
+ * les deux déclenchaient chacun un rafraîchissement complet du classeur.
+ */
+let rafraichissementEnCours: Promise<number | null> | null = null;
+
+function rafraichirUneSeuleFois(): Promise<number | null> {
+  if (!rafraichissementEnCours) {
+    rafraichissementEnCours = rafraichir().finally(() => {
+      rafraichissementEnCours = null;
+    });
+  }
+  return rafraichissementEnCours;
+}
+
 export async function occupationDe(sessionId: string): Promise<Occupation> {
   const age = await ageCopie();
-  if (age === null || age >= FRAICHEUR_MINUTES) await rafraichir();
+
+  /* 🔴 09/10/2026 — ON N'ATTEND LE RAFRAÎCHISSEMENT QUE S'IL EST INDISPENSABLE.
+   *
+   * Mesuré ce soir en production : la page `/commande` mettait 1,5 à 2,5 s avant le
+   * premier octet, et le dirigeant s'en est plaint deux fois. La cause est ici :
+   * `rafraichir()` fait UN UPDATE PAR LIGNE du classeur, en série — de l'ordre de
+   * 139 allers-retours Supabase — et il partait dès que la copie avait 10 minutes.
+   * Autrement dit, un candidat sur deux payait le rafraîchissement de sa poche, en
+   * temps d'attente, avant de voir son récapitulatif.
+   *
+   * Deux seuils, et ils ne servent pas à la même chose :
+   *   — `FRAICHEUR_MINUTES` (10) dit quand la copie MÉRITE d'être rafraîchie ;
+   *   — `PEREMPTION_MINUTES` (60) dit à partir de quand elle n'est plus FIABLE,
+   *     et c'est le seul qui conditionne la vente (`fiable` plus bas).
+   * Entre les deux, la copie est encore digne de confiance : on sert tout de suite et
+   * on rafraîchit SANS attendre. Au-delà, ou si la copie n'existe pas, on attend —
+   * mieux vaut deux secondes qu'un candidat convoqué sur une place inexistante.
+   *
+   * ⚠️ NE PAS « simplifier » en attendant toujours, ni en n'attendant jamais : le
+   * premier cas est le défaut qu'on vient de corriger, le second vend des places qui
+   * n'existent plus. */
+  if (age === null || age >= PEREMPTION_MINUTES) {
+    await rafraichirUneSeuleFois();
+  } else if (age >= FRAICHEUR_MINUTES) {
+    void rafraichirUneSeuleFois();
+  }
 
   const { data } = await supabaseAdmin
     .from("sessions_examen")
