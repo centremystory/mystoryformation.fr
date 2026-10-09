@@ -171,7 +171,7 @@ body{margin:0;min-height:100vh;display:flex;flex-direction:column;
 .entete{max-width:var(--mys-largeur);margin:0 auto;padding:14px 16px;
  display:flex;align-items:center;justify-content:space-between;gap:12px}
 .marque{display:inline-flex;align-items:center;gap:11px;min-height:44px;text-decoration:none;color:#fff}
-.marque img{display:block;width:36px;height:34px;object-fit:contain}
+.marque img{display:block;width:40px;height:32px;object-fit:contain}
 .marque .nom{font-family:var(--mys-titre);font-weight:800;font-size:17px;letter-spacing:.03em;line-height:1.05}
 .marque .bl{display:block;font-size:10px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
  color:rgba(255,255,255,.55);margin-top:3px}
@@ -182,7 +182,7 @@ body{margin:0;min-height:100vh;display:flex;flex-direction:column;
    largeur, le nom et le numéro suffisent — c'est de la place rendue au contenu. */
 @media(max-width:430px){
  .marque .bl{display:none}
- .marque img{width:32px;height:30px}
+ .marque img{width:35px;height:28px}
  .marque .nom{font-size:16px}
  .appel{padding:0 14px;font-size:13.5px}
  .atouts{gap:6px}
@@ -314,9 +314,19 @@ button:disabled{opacity:.6;cursor:progress;box-shadow:none}
  * Le PNG d'origine pèse 125 ko — sur une page ouverte depuis une publicité TikTok en
  * 4G, c'est du temps de chargement payé pour un logo de 36 pixels. La même image par
  * `/_next/image` sort en WebP de 3 ko.
+ *
+ * ⚠️ 09/10/2026 — on sert l'EMBLÈME SEUL (toque + globe), pas le logo complet.
+ * Le fichier `logo-mystory-blanc.png` est correct et joli : c'est l'emblème SURMONTÉ
+ * du mot « MYSTORY ». Mais réduit à 36 px dans l'en-tête, ce mot devenait une bouillie
+ * illisible — et il était en plus REDONDANT, puisque l'en-tête écrit déjà « MYSTORY »
+ * en lettres juste à côté. Le dirigeant l'a signalé comme « le logo ne fonctionne pas ».
+ *
+ * `embleme-blanc.png` existait déjà dans `public/` — il servait de favicon et personne
+ * ne l'avait branché ici. C'est exactement le même dessin sans le mot. Servi un peu
+ * plus grand : un pictogramme lisible plutôt qu'un logo écrasé.
  */
-const LOGO = "/_next/image?url=%2Flogo-mystory-blanc.png&w=96&q=75";
-const LOGO_2X = "/_next/image?url=%2Flogo-mystory-blanc.png&w=192&q=75";
+const LOGO = "/_next/image?url=%2Fembleme-blanc.png&w=96&q=75";
+const LOGO_2X = "/_next/image?url=%2Fembleme-blanc.png&w=192&q=75";
 
 /** L'en-tête de marque, commun aux cinq pages publiques. */
 function chapeau(atouts: boolean): string {
@@ -324,7 +334,7 @@ function chapeau(atouts: boolean): string {
 <div class="chapeau">
   <div class="entete">
     <a class="marque" href="${SITE}">
-      <img src="${LOGO}" srcset="${LOGO} 1x, ${LOGO_2X} 2x" width="36" height="34" alt="" aria-hidden="true">
+      <img src="${LOGO}" srcset="${LOGO} 1x, ${LOGO_2X} 2x" width="40" height="32" alt="" aria-hidden="true">
       <span class="nom">MYSTORY<span class="bl">Votre histoire, notre fierté</span></span>
     </a>
     <a class="appel" href="tel:${TEL_LIEN}">${TEL_PUBLIC}</a>
