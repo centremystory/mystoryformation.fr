@@ -13,7 +13,7 @@
  */
 
 import { jwtVerify } from "jose";
-import { estProprietaire, estAutomate } from "./roles";
+import { estProprietaire, estAutomate, audienceHorsEquipe } from "./roles";
 
 const AUTH_SECRET = process.env.AUTH_SECRET ?? "";
 const AUTH_COOKIE = process.env.AUTH_COOKIE ?? "mystory_session";
@@ -48,13 +48,55 @@ function extractToken(req: Request): string | null {
   return null;
 }
 
-/** Vérifie la session. Renvoie l'utilisateur ou null. Fail-closed si AUTH_SECRET absent. */
+/**
+ * Vérifie la session. Renvoie l'utilisateur ou null. Fail-closed si AUTH_SECRET absent.
+ *
+ * ⚠️ UNE SIGNATURE VALIDE NE DIT PAS À QUEL PUBLIC LE JETON ÉTAIT DESTINÉ.
+ * Tous les jetons du CRM sont signés avec le MÊME AUTH_SECRET. Avant le
+ * 09/10/2026, cette fonction se contentait de vérifier la signature : un jeton
+ * du portail PARTENAIRE, présenté dans un en-tête `Authorization: Bearer`,
+ * ressortait donc ici comme une session d'équipe valide (simplement sans rôle).
+ * Et comme « sans rôle » valait filet de transition partout, un partenaire
+ * atteignait le back-office, les incidents, le classement, les factures et
+ * toutes les routes gardées par `requireUser` — dont l'identité complète des
+ * candidats. Le middleware global, qui appelle cette fonction, ne voyait rien.
+ *
+ * ÉMETTEURS DE JETONS SIGNÉS AVEC AUTH_SECRET — inventaire du 09/10/2026
+ * (relevé dans le code, pour que le prochain lecteur n'ait pas à le refaire) :
+ *   1. app/api/auth/login — connexion individuelle : AUCUNE audience, rôle(s) de
+ *      la matrice staff (les 7 comptes actifs portent tous au moins un rôle) ;
+ *   2. app/api/auth/login — filet « mot de passe d'équipe » : AUCUNE audience,
+ *      rôle "staff", sub "equipe-mystory", pas de `nom` ;
+ *   3. app/api/cron/tick — jeton de service éphémère (5 min) du cron Vercel :
+ *      AUCUNE audience, AUCUN rôle. Il POSTe sur ses 10 routes de relance, qui
+ *      sont gardées par `requireUser` (+ `peutAgir`), jamais par `requireRole` ;
+ *   4. lib/prescripteurAuth — portail des organismes prescripteurs : audience
+ *      "prescripteur", aucun rôle. SEUL public étranger à l'équipe à ce jour ;
+ *   5. n8n, credential « MYSTORY Service JWT (Bearer) » (hPCAPKxg9pkXdUbW) :
+ *      jeton fabriqué HORS du dépôt, donc non lisible (l'API n8n ne rend jamais
+ *      le secret d'un credential). MESURÉ le 09/10/2026 en interrogeant la prod
+ *      avec ce credential : /api/classement 200, /api/incidents 200, mais
+ *      /api/factures/pdf 403. Il PORTE donc un ou des rôles, tous HORS matrice
+ *      staff — il passe par `estAutomate`, jamais par le filet « sans rôle ».
+ *      Son audience, elle, reste inconnue.
+ *
+ * D'où la forme du verrou : on refuse les audiences DÉCLARÉES étrangères
+ * (`AUDIENCES_HORS_EQUIPE` dans lib/roles) plutôt que d'exiger une audience
+ * d'équipe. Exiger `aud: "equipe"` serait plus strict, mais aucun des émetteurs
+ * 1-3 n'en pose et l'audience du jeton n8n (5) n'est pas mesurable : on
+ * couperait d'un coup tous les robots. Ce resserrage-là suppose de refaire le
+ * credential n8n, puis les émetteurs 1-3, dans cet ordre — pas en vendredi
+ * après-midi. La liste noire, elle, est sûre quel que soit le jeton n8n.
+ */
 export async function verifySession(req: Request): Promise<SessionUser | null> {
   if (!AUTH_SECRET) return null; // pas de secret = on refuse (jamais d'accès par défaut)
   const token = extractToken(req);
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, new TextEncoder().encode(AUTH_SECRET));
+    // Jeton destiné à un AUTRE public (portail partenaire…) : il ne produit JAMAIS
+    // une session d'équipe, même présenté en Bearer et même parfaitement signé.
+    if (audienceHorsEquipe(payload.aud)) return null;
     const id = (payload.sub ?? payload.id) as string | undefined;
     if (!id) return null;
     const rolesArr = Array.isArray(payload.roles)
@@ -85,7 +127,19 @@ export class ForbiddenError extends Error {
  * Garde par rôle, à appeler en tête d'une route sensible (défense en profondeur, en plus
  * du middleware de page). Lève UnauthorizedError (→401) si non connecté, ForbiddenError (→403)
  * si le rôle individuel n'est pas autorisé. Filet de transition : la session équipe ("staff")
- * et les tokens de service sans rôle (n8n/cron) passent toujours.
+ * passe toujours, ainsi que les automates de confiance.
+ *
+ * 09/10/2026 — le filet « AUCUN rôle = tous les droits » (`rs.length === 0`) est RETIRÉ.
+ * Il n'était plus porté par personne, et il faisait de n'importe quel jeton sans rôle un
+ * passe-partout : c'est par lui qu'un jeton du portail partenaire atteignait /api/incidents
+ * et /api/classement. Mesuré avant de le retirer :
+ *   — les 7 comptes humains actifs portent TOUS au moins un rôle (table `utilisateurs`) ;
+ *     le « filet équipe » est le rôle "staff", pas une absence de rôle ;
+ *   — le jeton de service n8n porte des rôles hors matrice → il passe par `estAutomate` ;
+ *   — le jeton éphémère du cron Vercel (app/api/cron/tick) est, lui, SANS rôle, mais ses
+ *     10 cibles sont gardées par `requireUser` / `peutAgir`, aucune par `requireRole`.
+ * Conséquence à connaître : si l'on garde un jour une cible du cron par `requireRole`, il
+ * faudra d'abord donner un rôle hors matrice au jeton du tick (il deviendra un automate).
  *
  * 25/09/2026 — ajout de l'exemption AUTOMATE, qui manquait ici alors que `requireProprietaire`
  * l'applique depuis le début. Un jeton de service n8n porte un rôle HORS matrice staff : il ne
@@ -99,7 +153,7 @@ export class ForbiddenError extends Error {
 export async function requireRole(req: Request, roles: readonly string[]): Promise<SessionUser> {
   const user = await requireUser(req);
   const rs = user.roles && user.roles.length > 0 ? user.roles : (user.role ? [user.role] : []);
-  if (rs.length === 0 || rs.includes("staff") || estAutomate(rs)) return user; // filet de transition + automates
+  if (rs.includes("staff") || estAutomate(rs)) return user; // filet équipe + automates de confiance
   // Multi-rôles : autorisé si AU MOINS UN rôle est dans la liste permise.
   if (!rs.some((r) => roles.includes(r))) throw new ForbiddenError();
   return user;

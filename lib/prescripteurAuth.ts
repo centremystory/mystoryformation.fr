@@ -14,9 +14,13 @@
  */
 import { SignJWT, jwtVerify } from "jose";
 import { supabaseAdmin } from "./supabaseAdmin";
+import { AUDIENCE_PRESCRIPTEUR } from "./roles";
 
 export const COOKIE_PRESCRIPTEUR = "mystory_partenaire";
-const AUDIENCE = "prescripteur";           // ce qui empeche la confusion des deux publics
+// Source unique de verite : la meme constante sert ici (emission + lecture) et dans
+// `verifySession` (lib/auth), qui REFUSE cette audience cote equipe. Si elle etait
+// recopiee, un renommage d'un seul cote rouvrirait la confusion des deux publics.
+const AUDIENCE = AUDIENCE_PRESCRIPTEUR;    // ce qui empeche la confusion des deux publics
 const DUREE = 60 * 60 * 24 * 7;            // 7 jours : un partenaire se reconnecte souvent
 
 export interface SessionPrescripteur {

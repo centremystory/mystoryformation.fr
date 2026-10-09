@@ -11,6 +11,36 @@
 export const ROLES = ["direction", "manager", "commercial", "formatrice", "back_office"] as const;
 export type Role = (typeof ROLES)[number];
 
+/* ────────────────────────────────────────────────────────────────────────
+ * AUDIENCES JWT — DEUX PUBLICS, UN SEUL SECRET DE SIGNATURE.
+ *
+ * Tous les jetons du CRM sont signés avec le MÊME AUTH_SECRET. La signature
+ * ne dit donc PAS à quel public un jeton était destiné : seule l'audience
+ * (claim `aud`) le dit. Déclarer ici toute audience qui n'est PAS celle de
+ * l'équipe, pour que `verifySession` (lib/auth) la refuse.
+ *
+ * ⚠️ TOUT NOUVEAU PUBLIC (nouveau portail, nouvel espace candidat à session…)
+ * DOIT poser une audience ET l'ajouter à `AUDIENCES_HORS_EQUIPE`. Sinon son
+ * jeton, présenté dans un en-tête `Authorization: Bearer`, ressortira de
+ * `verifySession` comme une session d'équipe. C'est exactement le défaut
+ * corrigé le 09/10/2026.
+ *
+ * Constantes ici (module pur, sans dépendance) parce que lib/auth tourne dans
+ * le middleware Edge : importer lib/prescripteurAuth (qui tire supabaseAdmin)
+ * y ferait entrer tout le client Supabase.
+ * ──────────────────────────────────────────────────────────────────────── */
+/** Audience des jetons du portail des organismes prescripteurs (lib/prescripteurAuth). */
+export const AUDIENCE_PRESCRIPTEUR = "prescripteur";
+
+/** Audiences qui ne sont PAS celles de l'équipe : refusées par `verifySession`. */
+export const AUDIENCES_HORS_EQUIPE: readonly string[] = [AUDIENCE_PRESCRIPTEUR];
+
+/** Le jeton porte-t-il une audience destinée à un AUTRE public que l'équipe ? */
+export function audienceHorsEquipe(aud: unknown): boolean {
+  const liste = Array.isArray(aud) ? aud : typeof aud === "string" ? [aud] : [];
+  return liste.some((a) => AUDIENCES_HORS_EQUIPE.includes(String(a)));
+}
+
 export const ROLE_LABEL: Record<Role, string> = {
   direction: "Direction",
   manager: "Manager de site",

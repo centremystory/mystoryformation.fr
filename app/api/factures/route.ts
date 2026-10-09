@@ -31,9 +31,20 @@ const refusFacturation = () => NextResponse.json(
   { ok: false, erreur: "Action réservée à la Direction et au Secrétariat (facturation)." },
   { status: 403 },
 );
-/** Les tokens de service (n8n/cron, sans rôle) et la session équipe passent ; un rôle individuel non autorisé est bloqué. */
+/**
+ * Droit d'émettre / marquer payée / renvoyer. La session équipe ("staff") et les rôles
+ * portant l'action « facturation » (Direction / Manager / Back-office) passent.
+ *
+ * 09/10/2026 — le filet `!u.role` est RETIRÉ. Il donnait la facturation à TOUT jeton sans
+ * rôle, donc au jeton du portail partenaire présenté en Bearer (même AUTH_SECRET, audience
+ * "prescripteur", payload sans rôle) : un partenaire pouvait lire et émettre des factures
+ * nominatives. L'audience est désormais refusée en amont, dans `verifySession` ; ce filet-ci
+ * n'avait de toute façon aucun ayant droit — mesuré le 09/10/2026 : le jeton de service n8n
+ * porte des rôles (il reçoit déjà 403 ici, inchangé), et le jeton du cron Vercel, lui sans
+ * rôle, ne vise que /api/factures/relances et /renvoyer-echouees (gardées par `peutAgir`).
+ */
 function peutFacturer(u: SessionUser): boolean {
-  return !u.role || peut(u.roles ?? u.role, "facturation");
+  return peut(u.roles ?? u.role, "facturation");
 }
 
 export async function GET(req: NextRequest) {

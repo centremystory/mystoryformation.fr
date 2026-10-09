@@ -18,9 +18,12 @@ async function garde(req: NextRequest): Promise<NextResponse | SessionUser> {
     throw e;
   }
 }
-// Tokens de service (n8n/cron, sans rôle) et session équipe passent ; un rôle individuel non autorisé est bloqué.
+// Session équipe ("staff") et rôles portant « facturation » seulement.
+// 09/10/2026 — filet `!u.role` retiré, comme dans /api/factures : il ouvrait la facture
+// nominative à tout jeton sans rôle, dont celui du portail partenaire présenté en Bearer.
+// Mesuré ce jour : le jeton de service n8n reçoit déjà 403 ici — aucun robot ne régresse.
 function peutFacturer(u: SessionUser): boolean {
-  return !u.role || peut(u.roles ?? u.role, "facturation");
+  return peut(u.roles ?? u.role, "facturation");
 }
 
 export async function GET(req: NextRequest) {
