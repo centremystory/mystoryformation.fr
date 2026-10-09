@@ -227,8 +227,29 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
-    // Création de la vente (paiement Qonto = CB / Payé).
+    // Création de la vente (paiement par carte = CB / Payé).
     const venduPar = (p as any).cree_par ?? u.email ?? null;
+
+    /**
+     * L'ORIGINE RÉELLE, pas celle d'il y a quinze jours.
+     *
+     * 09/10/2026. Cette ligne disait « Pré-inscription téléphone (paiement Qonto) »
+     * sur TOUTES les ventes, y compris les 4 ventes encaissées seules par le site :
+     * ni téléphone, ni Qonto. Le lien Qonto a été abandonné le 29/09 au profit de
+     * Mollie, et Lenbox finance en 3× ou 4× depuis le 09/10. Un contrôleur ou un
+     * comptable lisait une origine fausse sur la pièce la plus facile à vérifier.
+     *
+     * `origine` vaut `'en_ligne'` dès que la pré-inscription vient du site ;
+     * `reference_paiement` dit quel prestataire a encaissé — Mollie préfixe `tr_`,
+     * Lenbox rend l'identifiant de son dossier.
+     */
+    const ref = String((p as any).reference_paiement ?? "");
+    const commentaireOrigine =
+      (p as any).origine === "en_ligne"
+        ? ref && !ref.startsWith("tr_")
+          ? "Vente en ligne (site) — financée en plusieurs fois (Lenbox)"
+          : "Vente en ligne (site) — réglée par carte (Mollie)"
+        : "Pré-inscription par téléphone — réglée par lien de paiement";
     const { data: vente, error: vErr } = await supabaseAdmin.from("ventes_examen").insert({
       candidat_id: candidatId,
       session_id: estPlat ? null : sessionId,
@@ -236,7 +257,7 @@ export async function PATCH(req: NextRequest) {
       montant: Number((p as any).montant), mode_paiement: "CB", dont_cb: null,
       statut_paiement: "Payé", reste_a_payer: 0,
       vendu_par: venduPar, agence: (p as any).agence,
-      commentaire: "Pré-inscription téléphone (paiement Qonto)",
+      commentaire: commentaireOrigine,
       carence_forcee: carenceAppliquee, carence_forcee_motif: carenceAppliquee ? carenceMotif : null,
       numero_attestation: "ATTRIBUE_PAR_LE_SERVEUR",
     }).select("id, numero_attestation").single();
