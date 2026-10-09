@@ -240,22 +240,40 @@ function SauvegardeSection() {
       setMsg(j.ok ? `Sauvegarde envoyée par email (${j.total} lignes, ${j.tables} tables).` : (j.erreur || "Erreur."));
     } catch { setMsg("Erreur réseau."); } finally { setBusy(false); }
   }
+  // Tant qu'on ne sait pas, on n'affiche RIEN de cette section : mieux vaut un
+  // instant de vide qu'un bouton proposé puis retiré sous le curseur.
+  if (proprietaire === null) return null;
+
   return (
     <section className="mt-6 border border-gray-200 rounded-xl bg-white p-5">
       <h2 className="text-lg font-semibold text-gray-900 mb-1">Sauvegarde de la base</h2>
-      <p className="text-sm text-gray-500 mb-3">
-        Export complet des données (un ZIP de fichiers JSON), à conserver hors de Supabase. Une sauvegarde automatique est aussi envoyée chaque semaine par email.
-      </p>
-      <div className="flex flex-wrap gap-2">
-        <a href="/api/admin/backup" className="btn-primary">⬇️ Télécharger une sauvegarde</a>
-        <button onClick={envoyer} disabled={busy} className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm bg-white disabled:opacity-50">
-          {busy ? "Envoi…" : "✉️ Envoyer par email maintenant"}
-        </button>
-      </div>
-      {msg && <p className="mt-2 text-sm text-gray-700">{msg}</p>}
-      <p className="text-xs text-gray-400 mt-3">
-        Les PDF du bucket et les mots de passe ne sont pas inclus. Pour une restauration à un instant T, le plan Supabase Pro (backups quotidiens + PITR) reste recommandé.
-      </p>
+      {proprietaire ? (
+        <>
+          <p className="text-sm text-gray-500 mb-3">
+            Export complet des données (un ZIP de fichiers JSON), à conserver hors de Supabase. Une sauvegarde automatique est aussi envoyée chaque semaine par email.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <a href="/api/admin/backup" className="btn-primary">⬇️ Télécharger une sauvegarde</a>
+            <button onClick={envoyer} disabled={busy} className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm bg-white disabled:opacity-50">
+              {busy ? "Envoi…" : "✉️ Envoyer par email maintenant"}
+            </button>
+          </div>
+          {msg && <p className="mt-2 text-sm text-gray-700">{msg}</p>}
+          <p className="text-xs text-gray-400 mt-3">
+            Les PDF du bucket et les mots de passe ne sont pas inclus. Pour une restauration à un instant T, le plan Supabase Pro (backups quotidiens + PITR) reste recommandé.
+          </p>
+        </>
+      ) : (
+        /* 09/10/2026 — EXPLIQUER, et non laisser un bouton qui finit en 403 brut dans
+           l'onglet du navigateur. Le téléchargement est un simple <a href> : il n'y a
+           personne pour rattraper l'erreur et la traduire. */
+        <p className="text-sm text-gray-500">
+          L&apos;export de la base contient l&apos;identité complète des candidats, numéros de pièce
+          d&apos;identité compris. Il est <strong>réservé au propriétaire du compte</strong> et n&apos;est
+          pas accessible depuis cet écran. Une sauvegarde automatique est envoyée chaque semaine
+          par e-mail au secrétariat.
+        </p>
+      )}
     </section>
   );
 }
