@@ -24,7 +24,7 @@
  * mêmes bornes. Si les deux divergent un jour, c'est CE fichier qui a raison : lui
  * seul voit la base.
  */
-import { createHmac, timingSafeEqual } from "crypto";
+import { randomBytes } from "crypto";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -175,8 +175,18 @@ export const DELAI_MINIMUM_HEURES = 2;
      borner le dégât ; le captcha, lui, borne le chiffre d'affaires.
    ───────────────────────────────────────────────────────────────────────────── */
 
-/** Plafond de rendez-vous à venir pour une même adresse e-mail (anti-abus). */
-export const RDV_MAX_PAR_EMAIL = 3;
+/*
+   ⚠️ IL N'Y A PLUS DE PLAFOND PAR ADRESSE E-MAIL QUI REFUSE UNE RÉSERVATION.
+
+   Il y en avait un — « vous avez déjà 3 rendez-vous à venir avec cette adresse » —
+   et c'était un ORACLE : il suffisait de poster l'adresse de quelqu'un pour
+   apprendre s'il a rendez-vous chez nous. Sur un public de candidats à la
+   naturalisation, c'est une information qu'on ne confirme à personne.
+
+   Le plafond par adresse ne porte donc plus que sur les COURRIELS envoyés
+   (`RDV_MAIL_MAX_PAR_EMAIL`), ce qui ne distingue aucun cas dans la réponse rendue
+   au visiteur : la réservation est acceptée pareil, c'est l'envoi qui s'arrête.
+*/
 
 /**
  * Combien de temps un rendez-vous NON CONFIRMÉ retient son créneau : 12 heures.
@@ -215,15 +225,31 @@ export const DELAI_CONFIRMATION_HEURES = 12;
 export const RDV_MAX_PAR_AGENCE_ET_JOUR = 8;
 
 /**
- * Plafond global de réservations en ligne sur 24 heures, tous centres confondus : 40.
+ * 🔴 UN BUDGET DE COURRIELS, ET SURTOUT PAS UN PLAFOND DE RÉSERVATIONS.
  *
- * C'est ce chiffre, et lui seul, qui borne le nombre de courriels que nous pouvons
- * être amenés à envoyer vers des adresses non prouvées en une journée. Il protège
- * la réputation d'expéditeur du domaine — donc l'arrivée des convocations. Il est
- * très au-dessus du volume attendu : il ne se verra que le jour où quelque chose
- * ne va pas.
+ * Première version : « au-delà de 40 réservations par 24 h, tous centres confondus,
+ * la route répond 503 ». Une revue l'a signalé, et c'était une faute de conception,
+ * pas un réglage à ajuster : **un plafond GLOBAL donne à un inconnu un bouton
+ * « éteindre les rendez-vous »**. Il lui suffisait d'atteindre le plafond seul pour
+ * fermer la réservation en ligne à tout le monde, nous y compris. Une protection qui
+ * se retourne en arme est pire que pas de protection.
+ *
+ * La leçon : **un plafond doit porter sur l'abuseur, jamais sur le service.** Ce qui
+ * borne le dégât sur les créneaux, c'est `RDV_MAX_PAR_AGENCE_ET_JOUR` (8 par agence
+ * et par jour, donc 24 au plus sur le réseau) et la péremption des réservations non
+ * confirmées — l'une et l'autre laissent toujours un autre jour et une autre agence
+ * ouverts.
+ *
+ * Reste à borner les COURRIELS partant vers des adresses non prouvées : c'est la
+ * réputation d'expéditeur du domaine qui est en jeu, donc l'arrivée des convocations
+ * d'examen (panne vécue les 09 et 10/09/2026). Ces deux budgets ne refusent AUCUNE
+ * réservation : quand ils sont atteints, le rendez-vous est enregistré, le
+ * récapitulatif part quand même au secrétariat — qui a le téléphone du candidat —
+ * et c'est la confirmation au candidat qui n'est pas envoyée. Le service dégradé est
+ * l'envoi, pas la réservation.
  */
-export const RDV_MAX_PAR_JOUR_TOUS_CENTRES = 40;
+export const RDV_MAIL_MAX_PAR_JOUR = 60;
+export const RDV_MAIL_MAX_PAR_EMAIL = 3;
 
 /** Date du jour à Paris, en AAAA-MM-JJ. */
 function isoParis(d: Date): string {
@@ -526,6 +552,9 @@ export type ResultatReservation = {
   ok: boolean;
   /** Renseigné quand ok. */
   id?: string;
+  /** Le jeton de confirmation tiré pour CE rendez-vous. Ne sort jamais d'ici que
+   *  pour être mis dans le courriel du candidat. */
+  jeton?: string;
   /** Renseigné quand !ok. « pris » = la course a été perdue, pas une anomalie. */
   raison?: "pris" | "erreur";
   detail?: string;
@@ -535,9 +564,11 @@ export async function reserverCreneau(d: DemandeRdv): Promise<ResultatReservatio
   // Idem avant d'écrire : le créneau qu'on s'apprête à prendre est peut-être
   // retenu par une réservation jamais confirmée, faite il y a treize heures.
   await libererRendezVousNonConfirmes();
+  const jeton = nouveauJeton();
   const { data, error } = await supabaseAdmin
     .from("rendez_vous")
     .insert({
+      jeton,
       agence: d.agence,
       date_rdv: d.date,
       heure: d.heure,
@@ -556,22 +587,11 @@ export async function reserverCreneau(d: DemandeRdv): Promise<ResultatReservatio
     .select("id")
     .single();
 
-  if (!error && data) return { ok: true, id: String((data as { id: string }).id) };
+  if (!error && data) return { ok: true, id: String((data as { id: string }).id), jeton };
   if ((error as { code?: string } | null)?.code === "23505") {
     return { ok: false, raison: "pris" };
   }
   return { ok: false, raison: "erreur", detail: error?.message };
-}
-
-/** Combien de rendez-vous à venir cette adresse a-t-elle déjà ? (plafond anti-abus) */
-export async function rdvAVenirPourEmail(email: string, maintenant = new Date()): Promise<number> {
-  const { count } = await supabaseAdmin
-    .from("rendez_vous")
-    .select("id", { count: "exact", head: true })
-    .eq("email", email)
-    .neq("statut", "annule")
-    .gte("date_rdv", isoParis(maintenant));
-  return Number(count ?? 0);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -615,78 +635,106 @@ export async function libererRendezVousNonConfirmes(): Promise<void> {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   LE LIEN DE CONFIRMATION — ce qui prouve que l'adresse existe
+   LE JETON DE CONFIRMATION — ce qui prouve que l'adresse existe
    ───────────────────────────────────────────────────────────────────────────── */
 
-const SECRET = process.env.AUTH_SECRET ?? "";
-/** Domaine de signature explicite : une signature de rendez-vous ne peut pas être
- *  rejouée ailleurs (session, lien de correction d'évaluation…) même si la même clé
- *  sert partout. Motif repris de `lib/jetonCorrection.ts`. */
-const DOMAINE = "mystory:rendez-vous:v1";
-
 /**
- * Signature d'un rendez-vous. Chaîne vide si aucun secret n'est configuré : sans
- * secret on ne fabrique PAS de lien, plutôt que d'en fabriquer un forgeable.
+ * 🔴 UN JETON ALÉATOIRE STOCKÉ, ET NON UNE SIGNATURE DE L'IDENTIFIANT.
  *
- * Pas de colonne en base pour le jeton, volontairement : une signature dérivée ne
- * coûte aucune migration, ne peut pas être lue en base par erreur, et se révoque en
- * faisant tourner `AUTH_SECRET`.
+ * La première version signait l'identifiant du rendez-vous — `HMAC(secret, id)`,
+ * sur le modèle de `lib/jetonCorrection.ts`. Une revue l'a contestée, et à raison
+ * pour cet usage-ci : ce lien est la SEULE chose qui prouve que l'adresse e-mail
+ * appartient au demandeur. S'il est contournable, le double opt-in ne protège plus
+ * rien et ne laisse que de la complexité en plus.
+ *
+ * Quatre propriétés sont exigées d'un tel jeton, et une signature dérivée n'en
+ * tenait que deux :
+ *
+ *   — IMPRÉVISIBLE ✓ (l'HMAC l'était aussi, sans le secret) ;
+ *   — LIÉ À CE RENDEZ-VOUS ✓ (les deux) ;
+ *   — EXPIRANT ✗ — une signature de l'identifiant ne périme jamais. Elle reste
+ *     valable des mois après, dans un courriel transféré ou un journal de proxy ;
+ *   — À USAGE UNIQUE ✗ — et surtout : comme elle est une FONCTION de l'identifiant,
+ *     elle ne peut pas être révoquée sans faire tourner `AUTH_SECRET`, ce qui
+ *     casserait du même coup tous les autres liens signés du CRM.
+ *
+ * Un jeton tiré au hasard et rangé en base les tient toutes les quatre : 32 octets
+ * d'aléa cryptographique (256 bits — rien à deviner), unique par index, périmé avec
+ * la réservation qu'il confirme, et effacé après usage. Il coûte une colonne.
+ *
+ * ⚠️ Il ne contient AUCUNE information : ni l'identifiant du rendez-vous, ni
+ * l'adresse. C'est volontaire — le lien atterrit dans des boîtes, des journaux de
+ * serveur et des antivirus de messagerie. Il sert de clé, pas de message.
  */
-export function signerRdv(id: string): string {
-  if (!SECRET || !id) return "";
-  return createHmac("sha256", SECRET).update(`${DOMAINE}:${id}`).digest("base64url").slice(0, 32);
-}
-
-/** Vérification à temps constant. Refuse toujours si le secret manque. */
-export function jetonRdvValide(id: string, signature: unknown): boolean {
-  const attendue = signerRdv(id);
-  if (!attendue) return false;
-  const fournie = String(signature ?? "");
-  if (fournie.length !== attendue.length) return false;
-  try {
-    return timingSafeEqual(Buffer.from(fournie), Buffer.from(attendue));
-  } catch {
-    return false;
-  }
+export function nouveauJeton(): string {
+  return randomBytes(32).toString("base64url");
 }
 
 /** Le lien complet à mettre dans le courriel du candidat. */
-export function lienConfirmation(base: string, id: string): string {
-  const sig = signerRdv(id);
-  if (!sig) return "";
-  return `${base.replace(/\/+$/, "")}/api/rendez-vous/confirmer?r=${encodeURIComponent(id)}&s=${sig}`;
+export function lienConfirmation(base: string, jeton: string): string {
+  if (!jeton) return "";
+  return `${base.replace(/\/+$/, "")}/api/rendez-vous/confirmer?j=${encodeURIComponent(jeton)}`;
 }
 
 /**
  * Le candidat a cliqué : le rendez-vous devient ferme.
  *
- * Idempotent — un lien cliqué deux fois (l'anti-virus du client de messagerie le
- * fait tout seul) ne doit pas produire d'erreur ni réécrire la date de confirmation.
- * Et un rendez-vous ANNULÉ ne se réveille pas par un clic tardif : si la péremption
- * a déjà rendu le créneau, il a peut-être été repris par quelqu'un d'autre, et le
- * ressusciter mettrait deux personnes sur la même chaise.
+ * ── UNE SEULE RÉPONSE POUR TOUS LES REFUS ───────────────────────────────────────
+ * Jeton inconnu, jeton périmé, rendez-vous déjà annulé : la fonction rend le même
+ * `refuse`. Distinguer les cas donnerait un oracle — et la règle vaut partout dans
+ * ce chantier : **une réponse ne doit pas dire laquelle des hypothèses est la
+ * bonne.** Ici l'enjeu est réel : nos candidats sont des personnes en démarche de
+ * naturalisation, et « cette personne a rendez-vous chez vous » est une information
+ * qu'on ne confirme à personne.
+ *
+ * ── CE QUI EST IDEMPOTENT, ET CE QUI NE L'EST PAS ───────────────────────────────
+ * Le jeton est à usage unique : il est EFFACÉ à la confirmation. Un second clic —
+ * les antivirus de messagerie préchargent les liens, et les gens cliquent deux
+ * fois — ne retrouve donc plus rien. C'est pourquoi `confirme` est rendu avec le
+ * rendez-vous : l'appelant peut afficher « c'est confirmé » sans distinguer le
+ * premier clic du second, alors que la base, elle, n'a été écrite qu'une fois.
+ *
+ * ⚠️ Un rendez-vous ANNULÉ ne se réveille pas par un clic tardif : si la péremption
+ * a rendu le créneau, il a peut-être été repris, et le ressusciter mettrait deux
+ * personnes sur la même chaise.
  */
-export async function confirmerRdv(id: string): Promise<
-  { ok: boolean; etat: "confirme" | "deja_confirme" | "perime" | "inconnu"; rdv?: Record<string, unknown> }
-> {
+export async function confirmerParJeton(
+  jeton: string, maintenant = new Date(),
+): Promise<{ ok: boolean; rdv?: Record<string, unknown> }> {
+  if (!jeton || jeton.length < 20) return { ok: false };
+
+  // Les réservations périmées sont d'abord annulées : un jeton dont le rendez-vous
+  // vient d'expirer doit être refusé, pas honoré à la seconde près.
+  await libererRendezVousNonConfirmes();
+
   const { data } = await supabaseAdmin
     .from("rendez_vous")
     .select("*")
-    .eq("id", id)
+    .eq("jeton", jeton)
     .maybeSingle();
-  if (!data) return { ok: false, etat: "inconnu" };
+  if (!data) return { ok: false };
+
   const r = data as Record<string, unknown>;
+  if (r.statut === "annule") return { ok: false };
 
-  if (r.statut === "annule") return { ok: false, etat: "perime", rdv: r };
-  if (r.confirme_le) return { ok: true, etat: "deja_confirme", rdv: r };
+  // Expiration explicite, en plus de la péremption : si le balayage n'a pas encore
+  // eu lieu, un jeton trop vieux est refusé quand même. La fenêtre est la même.
+  const limite = new Date(String(r.cree_le)).getTime() + DELAI_CONFIRMATION_HEURES * 3_600_000;
+  if (maintenant.getTime() > limite) return { ok: false };
 
-  const { error } = await supabaseAdmin
+  /* Écriture conditionnée sur `jeton` : si deux clics arrivent en même temps, la
+     seconde mise à jour ne trouve plus la ligne (le jeton a été effacé) et n'écrit
+     rien. C'est la base qui tranche, encore une fois — pas l'ordre des appels. */
+  await supabaseAdmin
     .from("rendez_vous")
-    .update({ confirme_le: new Date().toISOString() })
-    .eq("id", id)
-    .is("confirme_le", null);
-  if (error) return { ok: false, etat: "inconnu", rdv: r };
-  return { ok: true, etat: "confirme", rdv: r };
+    .update({
+      confirme_le: r.confirme_le ?? maintenant.toISOString(),
+      jeton_utilise_le: maintenant.toISOString(),
+      jeton: null,
+    })
+    .eq("jeton", jeton);
+
+  return { ok: true, rdv: r };
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -706,22 +754,5 @@ export async function rdvDansAgenceLeJour(codeAgence: string, dateIso: string): 
     .eq("agence", codeAgence)
     .eq("date_rdv", dateIso)
     .neq("statut", "annule");
-  return Number(count ?? 0);
-}
-
-/**
- * Combien de réservations en ligne sur les 24 dernières heures, tous centres.
- *
- * ⚠️ On compte ici les rendez-vous CRÉÉS, y compris ceux déjà périmés ou annulés :
- * c'est le nombre de COURRIELS qu'on a envoyés qu'on veut borner, et un message
- * parti ne se dé-envoie pas. Filtrer sur les rendez-vous vivants laisserait une
- * boucle d'abandons envoyer autant de messages qu'elle veut.
- */
-export async function rdvCreesDernieres24h(): Promise<number> {
-  const depuis = new Date(Date.now() - 86_400_000).toISOString();
-  const { count } = await supabaseAdmin
-    .from("rendez_vous")
-    .select("id", { count: "exact", head: true })
-    .gte("cree_le", depuis);
   return Number(count ?? 0);
 }

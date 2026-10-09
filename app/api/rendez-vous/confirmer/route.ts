@@ -1,41 +1,48 @@
 /**
- * MYSTORY — GET /api/rendez-vous/confirmer  (PUBLIC, lien signé)
+ * MYSTORY — GET /api/rendez-vous/confirmer?j=<jeton>  (PUBLIC)
  *
  * Le candidat clique le bouton de son courriel : son rendez-vous devient ferme.
  *
  * ── POURQUOI CE DÉTOUR EXISTE ──────────────────────────────────────────────────
- * Une revue de sécurité a relevé, le 09/10/2026, qu'une réservation en ligne sans
- * preuve d'adresse ouvre deux dégâts : on peut saturer les agendas des trois agences
- * pour des semaines (et un rendez-vous ne se périmait jamais), et on peut nous faire
- * envoyer des courriels à des tiers depuis notre domaine — ce qui, si
+ * Une réservation en ligne sans preuve d'adresse ouvre deux dégâts : on peut saturer
+ * les agendas des trois agences (et un rendez-vous ne se périmait jamais), et on peut
+ * nous faire envoyer des courriels à des tiers depuis notre domaine — ce qui, si
  * contact@mystoryformation.fr se fait classer en indésirable, ferait cesser d'arriver
- * les CONVOCATIONS D'EXAMEN. On a déjà vécu cette panne les 09 et 10/09/2026.
+ * les CONVOCATIONS D'EXAMEN. On a vécu cette panne les 09 et 10/09/2026.
  *
- * Un clic sur un lien signé règle les deux : seul quelqu'un qui lit vraiment la boîte
- * indiquée peut rendre un créneau définitif, et un créneau non confirmé retombe au
- * bout de `DELAI_CONFIRMATION_HEURES` (voir `libererRendezVousNonConfirmes`).
+ * Un clic sur un lien que seul le titulaire de la boîte a reçu règle les deux : un
+ * créneau non confirmé se rend tout seul au bout de `DELAI_CONFIRMATION_HEURES`.
+ *
+ * ── 🔴 UNE SEULE RÉPONSE POUR TOUS LES REFUS ───────────────────────────────────
+ * Jeton inconnu, jeton déjà consommé, jeton périmé, rendez-vous annulé : la page est
+ * la MÊME. Distinguer les cas donnerait un oracle, et sur ce public-là l'enjeu est
+ * réel — nos candidats sont des personnes en démarche de naturalisation, et
+ * « cette personne a rendez-vous chez vous » est une information qu'on ne confirme à
+ * personne, pas même par une nuance de formulation.
+ *
+ * Le détail du refus est JOURNALISÉ, pas affiché.
  *
  * ── CE QUI EST DÉLIBÉRÉMENT ABSENT ─────────────────────────────────────────────
- * Aucun CAPTCHA, ici comme à la réservation. La stratégie du dirigeant est un
- * parcours qui réserve sans conseiller et sans faire fuir personne ; un CAPTCHA à
- * l'entrée d'un rendez-vous commercial coûterait plus de rendez-vous qu'il n'en
- * protégerait. Les plafonds et la péremption bornent déjà le dégât.
+ * Aucun CAPTCHA, ici comme à la réservation : la stratégie du dirigeant est un
+ * parcours qui réserve sans conseiller et sans faire fuir personne. Un jeton de
+ * 256 bits n'a pas besoin d'être protégé contre le devinage — il y a 10⁷⁷ valeurs.
  *
  * ── POURQUOI UNE PAGE HTML DANS UNE ROUTE D'API ────────────────────────────────
  * Parce que ce lien est cliqué depuis un client de messagerie, sur un téléphone. Ce
- * qui arrive à l'écran doit être lisible par un humain, pas du JSON. Une page de
- * quelques lignes, sans dépendance, répond mieux qu'une page Next qu'il faudrait
- * router, protéger et styler.
+ * qui arrive à l'écran doit être lisible par un humain, pas du JSON.
  *
- * ⚠️ Méthode GET, donc rejouable : des clients de messagerie PRÉ-CHARGENT les liens
- * pour les analyser, et le candidat clique parfois deux fois. `confirmerRdv()` est
- * donc idempotente, et un second appel répond « déjà confirmé » sans rien réécrire.
+ * ⚠️ Méthode GET, donc rejouable : des antivirus de messagerie PRÉ-CHARGENT les
+ * liens, et les gens cliquent deux fois. Le jeton est à usage unique en base (il est
+ * effacé), mais `confirmerParJeton` rend quand même le rendez-vous au premier appel
+ * — l'écran est donc identique au premier et au second clic, alors que la base n'a
+ * été écrite qu'une fois. Le second clic, lui, tombe sur le refus commun : c'est le
+ * prix d'un jeton à usage unique, et il vaut mieux que l'inverse.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { ech } from "@/lib/html";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import {
-  jetonRdvValide, confirmerRdv, agence, jourLisible, heureLisible,
+  confirmerParJeton, agence, jourLisible, heureLisible,
   situationTitre, DUREE_RDV_MINUTES,
 } from "@/lib/rendezVous";
 
@@ -45,44 +52,22 @@ export const dynamic = "force-dynamic";
 const TEL = "06 81 43 16 54";
 
 export async function GET(req: NextRequest) {
-  const id = req.nextUrl.searchParams.get("r") ?? "";
-  const signature = req.nextUrl.searchParams.get("s") ?? "";
+  const jeton = req.nextUrl.searchParams.get("j") ?? "";
 
-  // 🔴 La signature AVANT toute lecture en base. Sans elle, cette route serait un
-  // moyen de confirmer le rendez-vous de n'importe qui en devinant un identifiant —
-  // et surtout de contourner exactement la preuve d'adresse qu'elle sert à établir.
-  if (!id || !jetonRdvValide(id, signature)) {
+  const r = await confirmerParJeton(jeton);
+
+  if (!r.ok) {
+    /* On ne dit NI pourquoi, NI si ce jeton a jamais existé. Un seul message, pour
+       tous les cas — et une sortie qui ne laisse personne sans solution. */
+    await journal(null, "rdv_confirmation_refusee", { longueur_jeton: jeton.length });
     return page(
-      "Ce lien n'est pas valable",
-      `<p>Le lien a peut-être été coupé par votre logiciel de messagerie. Réessayez en
-        cliquant directement sur le bouton du message, ou appelez-nous au
-        <a href="tel:+33681431654">${TEL}</a> : nous confirmons votre rendez-vous
-        en trente secondes.</p>`,
-      400,
-    );
-  }
-
-  const r = await confirmerRdv(id);
-
-  if (r.etat === "inconnu") {
-    return page(
-      "Rendez-vous introuvable",
-      `<p>Nous ne retrouvons pas ce rendez-vous. Appelez-nous au
-        <a href="tel:+33681431654">${TEL}</a>, nous le reprenons avec vous.</p>`,
-      404,
-    );
-  }
-
-  if (r.etat === "perime") {
-    // On ne ressuscite PAS un rendez-vous annulé : le créneau a pu être repris
-    // entre-temps, et le réveiller mettrait deux personnes sur la même chaise.
-    return page(
-      "Ce créneau a été rendu",
-      `<p>Faute de confirmation à temps, votre créneau a été rendu — il est peut-être
-        déjà pris par quelqu'un d'autre.</p>
-       <p>Vous pouvez en choisir un autre tout de suite sur
+      "Ce lien n'est plus valable",
+      `<p>Il a peut-être déjà servi, ou votre créneau a été rendu faute de
+        confirmation à temps.</p>
+       <p>Reprenez un rendez-vous en trente secondes sur
         <a href="https://www.mystoryformation.fr/rendez-vous">mystoryformation.fr/rendez-vous</a>,
-        ou nous appeler au <a href="tel:+33681431654">${TEL}</a>.</p>`,
+        ou appelez-nous au <a href="tel:+33681431654">${TEL}</a> — nous le prenons
+        avec vous.</p>`,
       410,
     );
   }
@@ -94,12 +79,12 @@ export async function GET(req: NextRequest) {
     ? `${jourLisible(String(rdv.date_rdv))} à ${heureLisible(String(rdv.heure))}`
     : "";
 
-  if (r.etat === "confirme") {
-    await journal(id, "rdv_confirme_par_le_candidat", { agence: rdv.agence, date: rdv.date_rdv, heure: rdv.heure });
-  }
+  await journal(String(rdv.id ?? ""), "rdv_confirme_par_le_candidat", {
+    agence: rdv.agence, date: rdv.date_rdv, heure: rdv.heure,
+  });
 
   return page(
-    r.etat === "deja_confirme" ? "C'était déjà confirmé" : "C'est confirmé, merci !",
+    "C'est confirmé, merci !",
     `<p style="font-size:17px"><b>${ech(quand)}</b><br>
       ${a ? `${ech(a.nom)} — ${ech(a.adresse)}` : ""}</p>
      <p style="color:#4b5563">Comptez environ ${DUREE_RDV_MINUTES} minutes sur place.</p>
@@ -113,10 +98,10 @@ export async function GET(req: NextRequest) {
   );
 }
 
-async function journal(id: string, evenement: string, detail: Record<string, unknown>) {
+async function journal(id: string | null, evenement: string, detail: Record<string, unknown>) {
   try {
     await supabaseAdmin.from("journal").insert({
-      entite: "rendez_vous", entite_id: id, evenement,
+      entite: "rendez_vous", entite_id: id || null, evenement,
       nouvelle_valeur: detail, auteur: "candidat",
     });
   } catch {
@@ -131,13 +116,15 @@ async function journal(id: string, evenement: string, detail: Record<string, unk
  * qu'elle a à faire, c'est s'afficher du premier coup.
  *
  * `noindex` : cette page porte une date de rendez-vous, elle n'a rien à faire dans un
- * moteur de recherche.
+ * moteur de recherche. `Referrer-Policy` : sans elle, le jeton partirait dans
+ * l'en-tête `Referer` de chaque lien sortant de cette page.
  */
 function page(titre: string, corps: string, status = 200): NextResponse {
   const html = `<!DOCTYPE html><html lang="fr"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
 <title>${ech(titre)} — MYSTORY FORMATION</title>
 </head>
 <body style="margin:0;background:#f4f6fb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;color:#1f2430">
@@ -157,6 +144,11 @@ function page(titre: string, corps: string, status = 200): NextResponse {
 </body></html>`;
   return new NextResponse(html, {
     status,
-    headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" },
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store",
+      // Le jeton est dans l'URL : il ne doit pas voyager dans un `Referer`.
+      "Referrer-Policy": "no-referrer",
+    },
   });
 }

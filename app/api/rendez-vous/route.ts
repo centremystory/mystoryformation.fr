@@ -46,6 +46,7 @@
  * CRM. Ici, faire sortir le candidat du site pour prendre un rendez-vous gratuit
  * serait un abandon de plus pour rien : il réserve sans quitter la page.
  */
+import { createHash } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { envoyerEmail, gabaritEmail, adresseValide } from "@/lib/email";
@@ -54,11 +55,11 @@ import { ipDeConfiance, limiteDepassee } from "@/lib/rateLimit";
 import { blocLegalComplet } from "@/lib/identiteLegale";
 import {
   AGENCES_RDV, agence, disponibilites, creneauOuvert, reserverCreneau,
-  rdvAVenirPourEmail, situationTitre, libelleMotif, libelleObjectif,
+  situationTitre, libelleMotif, libelleObjectif,
   jourLisible, heureLisible, heuresDuJour, DUREE_RDV_MINUTES, FENETRE_RDV_JOURS,
-  OUVERTURE, FERMETURE, RDV_MAX_PAR_EMAIL, RDV_MAX_PAR_AGENCE_ET_JOUR,
-  RDV_MAX_PAR_JOUR_TOUS_CENTRES, DELAI_CONFIRMATION_HEURES,
-  rdvDansAgenceLeJour, rdvCreesDernieres24h, lienConfirmation,
+  OUVERTURE, FERMETURE, RDV_MAX_PAR_AGENCE_ET_JOUR, DELAI_CONFIRMATION_HEURES,
+  RDV_MAIL_MAX_PAR_JOUR, RDV_MAIL_MAX_PAR_EMAIL,
+  rdvDansAgenceLeJour, lienConfirmation,
 } from "@/lib/rendezVous";
 
 export const runtime = "nodejs";
@@ -177,10 +178,16 @@ export async function GET(req: NextRequest) {
       req,
     );
   } catch (e) {
+    await journal("rdv_calendrier_indisponible", null, {
+      agence: a.code, detail: e instanceof Error ? e.message : "inconnue",
+    });
     // Une panne de base ne doit pas rendre la page inutilisable : le site affiche son
     // repli avec le téléphone. Mieux vaut un calendrier vide et un numéro qu'une erreur.
     return reponse(
-      { ok: false, erreur: "Le calendrier est momentanément indisponible.", detail: e instanceof Error ? e.message : null },
+      /* ⚠️ On ne rend PAS le message d'erreur de la base. Il nomme des tables, des
+         colonnes et parfois des contraintes : c'est une carte de notre schéma
+         offerte à qui provoque la panne. Il est journalisé, pas publié. */
+      { ok: false, erreur: "Le calendrier est momentanément indisponible." },
       req,
       503,
     );
@@ -194,6 +201,16 @@ export async function GET(req: NextRequest) {
 const OBLIGATOIRES = ["agence", "date", "heure", "nom", "prenom", "email", "telephone", "situation"] as const;
 
 const s = (v: unknown) => String(v ?? "").trim();
+
+/**
+ * L'empreinte d'une adresse, pour servir de clé de compteur.
+ *
+ * `rate_buckets` est une table de comptage, pas un fichier de clients : y ranger des
+ * adresses e-mail en clair y accumulerait des données personnelles dont on n'a aucun
+ * besoin — il suffit de savoir que « c'est la même adresse que tout à l'heure ».
+ * Une empreinte le dit, et ne dit rien d'autre.
+ */
+const empreinte = (v: string) => createHash("sha256").update(v).digest("base64url").slice(0, 24);
 
 /**
  * 🔴 LES COMPTEURS SONT EN BASE, PAS EN MÉMOIRE.
@@ -312,7 +329,7 @@ export async function POST(req: NextRequest) {
     return reponse({ ok: false, erreur: "Objectif inconnu." }, req, 400);
   }
 
-  const email = s(b.email).toLowerCase();
+  const email = s(b.email).toLowerCase().slice(0, 254);
   if (!adresseValide(email)) {
     return reponse(
       { ok: false, erreur: "Cette adresse e-mail ne semble pas valide — c'est par là que part votre confirmation." },
@@ -338,31 +355,30 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Plafond par adresse : la limite par IP arrête un formulaire qui s'emballe, celle-ci
-  // arrête quelqu'un qui réserve tous les créneaux de la semaine depuis son téléphone.
-  // Doublée d'un compteur de débit en base sur la même adresse : sans lui, il suffirait
-  // d'annuler pour recommencer indéfiniment — et chaque essai envoie un courriel.
-  if (
-    (await rdvAVenirPourEmail(email)) >= RDV_MAX_PAR_EMAIL ||
-    (await limiteDepassee(`rdv:email:${email}`, RDV_MAX_PAR_EMAIL, 86_400))
-  ) {
-    return reponse(
-      {
-        ok: false,
-        erreur: `Vous avez déjà ${RDV_MAX_PAR_EMAIL} rendez-vous à venir avec cette adresse. Appelez-nous au ${TEL} pour en déplacer un.`,
-      },
-      req,
-      429,
-    );
-  }
+  /* ─────────────────────────────────────────────────────────────────────────────
+     🔴 CE QUI BORNE LE DÉGÂT — et ce qui a été RETIRÉ d'ici.
 
-  /* 🔴 LA SOUPAPE QUI PROTÈGE L'AGENDA. Les limites ci-dessus visent un appelant ;
-     celles-ci bornent le DÉGÂT, quel que soit l'appelant et quel que soit le nombre
-     d'adresses IP qu'il contrôle. C'est le point faible qu'une revue de sécurité a
-     relevé : un agenda saturé de faux rendez-vous, c'est du chiffre d'affaires perdu
-     que personne ne voit venir avant le jour J.
+     Deux garde-fous se trouvaient à cet endroit. Les deux ont été retirés après
+     revue, et il faut dire pourquoi pour que personne ne les remette :
 
-     Elles sont comptées EN BASE, donc vraies pour toutes les instances. */
+     — « vous avez déjà 3 rendez-vous à venir avec cette adresse » (429). C'était un
+       ORACLE : poster l'adresse de quelqu'un et lire la réponse apprenait s'il a
+       rendez-vous chez nous. Nos candidats sont des personnes en démarche de
+       naturalisation ; c'est une information qu'on ne confirme à personne ;
+
+     — « au-delà de 40 réservations par 24 h, tous centres confondus » (503). C'était
+       un COUPE-CIRCUIT à la disposition de n'importe qui : atteindre ce plafond seul
+       fermait la réservation en ligne pour tout le monde. Un plafond doit porter sur
+       l'abuseur, jamais sur le service.
+
+     Ce qui reste, et qui suffit :
+       — la limite par IP, plus haut (5 / 15 min, compteur en base, IP de confiance) ;
+       — le plafond PAR AGENCE ET PAR JOUR, ci-dessous : il laisse toujours ouverts
+         les autres jours et les deux autres agences, donc il ne ferme jamais le
+         service. Il borne le dégât à 8 créneaux par agence et par jour ;
+       — la PÉREMPTION des réservations non confirmées (12 h) : un créneau pris par
+         quelqu'un qui ne lit pas sa boîte se rend tout seul.
+     ───────────────────────────────────────────────────────────────────────────── */
   if ((await rdvDansAgenceLeJour(a.code, date)) >= RDV_MAX_PAR_AGENCE_ET_JOUR) {
     return reponse(
       {
@@ -374,30 +390,41 @@ export async function POST(req: NextRequest) {
       409,
     );
   }
-  if ((await rdvCreesDernieres24h()) >= RDV_MAX_PAR_JOUR_TOUS_CENTRES) {
-    /* Ce plafond borne aussi le nombre de courriels partant vers des adresses non
-       prouvées : c'est la réputation d'expéditeur du domaine qu'il protège, donc
-       l'arrivée des convocations d'examen. Il ne se verra que si quelque chose ne va
-       pas — le volume normal en est très loin. */
-    await journal("rdv_plafond_journalier_atteint", null, { agence: a.code, date, heure: s(b.heure), ip });
-    return reponse(
-      { ok: false, erreur: `La réservation en ligne est momentanément indisponible. Appelez-nous au ${TEL}, nous prenons votre rendez-vous tout de suite.` },
-      req,
-      503,
-    );
-  }
 
-  const nom = s(b.nom);
-  const prenom = s(b.prenom);
-  const telephone = s(b.telephone);
+  /* LE BUDGET DE COURRIELS. Il ne refuse AUCUNE réservation — il décide seulement si
+     la confirmation part au candidat. C'est ce qui protège la réputation
+     d'expéditeur du domaine, donc l'arrivée des convocations d'examen (panne vécue
+     les 09 et 10/09/2026), sans donner à personne le moyen de fermer le service.
+
+     Quand il est atteint : le rendez-vous est enregistré, le récapitulatif part
+     quand même au secrétariat — qui a le téléphone du candidat — et le créneau
+     reste périssable faute de confirmation. Service dégradé sur l'ENVOI, jamais sur
+     la réservation.
+
+     ⚠️ Les deux compteurs sont incrémentés ici, à chaque tentative : c'est voulu.
+     Compter les envois réussis seulement laisserait une boucle d'échecs relancer
+     autant d'envois qu'elle veut. */
+  const budgetMail =
+    !(await limiteDepassee("rdv:mail:global", RDV_MAIL_MAX_PAR_JOUR, 86_400)) &&
+    !(await limiteDepassee(`rdv:mail:${empreinte(email)}`, RDV_MAIL_MAX_PAR_EMAIL, 86_400));
+
+  /* Les champs libres sont BORNÉS. Aucune de ces colonnes n'a de longueur maximale
+     en base, et rien n'oblige un appelant à envoyer des valeurs raisonnables : sans
+     ces bornes, un seul POST peut ranger plusieurs mégaoctets dans la table et dans
+     le courriel que le secrétariat ouvre. Les longueurs sont généreuses — personne
+     n'a un nom de 80 caractères — et ce qui dépasse est coupé, pas refusé : on ne
+     bloque pas une réservation pour un numéro de téléphone mal collé. */
+  const nom = s(b.nom).slice(0, 80);
+  const prenom = s(b.prenom).slice(0, 80);
+  const telephone = s(b.telephone).slice(0, 30);
+  const civilite = s(b.civilite).slice(0, 12);
+  const messageLibre = s(b.message).slice(0, 1000);
 
   const pris = await reserverCreneau({
     agence: a.code, date, heure,
-    civilite: s(b.civilite), nom, prenom, email, telephone,
+    civilite, nom, prenom, email, telephone,
     motif, objectif, situation: situation.id,
-    // Le message libre est borné : au-delà, ce n'est plus un complément, c'est un
-    // dépôt de contenu dans notre base et dans notre boîte.
-    message: s(b.message).slice(0, 1000),
+    message: messageLibre,
   });
 
   if (!pris.ok) {
@@ -424,10 +451,18 @@ export async function POST(req: NextRequest) {
   const ref = pris.id;
   await journal("rdv_reserve_en_ligne", ref, { agence: a.code, date, heure, email, situation: situation.id });
 
+  /* Le lien de confirmation porte le JETON, jamais l'identifiant du rendez-vous :
+     32 octets d'aléa tirés à l'insertion, uniques, périssables, effacés après usage
+     (voir `nouveauJeton` et `confirmerParJeton`). Une signature de l'identifiant —
+     ce qu'il y avait d'abord ici — ne périme ni ne se révoque. */
   const contexte = {
-    ref, agence: a, date, heure, civilite: s(b.civilite), nom, prenom, email, telephone,
-    motif, objectif, situation, message: s(b.message).slice(0, 1000),
-    lienConfirmer: lienConfirmation(baseCrm(), ref),
+    ref, agence: a, date, heure, civilite, nom, prenom, email, telephone,
+    motif, objectif, situation, message: messageLibre,
+    lienConfirmer: budgetMail ? lienConfirmation(baseCrm(), pris.jeton ?? "") : "",
+    /* Le secrétariat doit savoir s'il doit rappeler : quand le budget d'envoi est
+       atteint, le candidat ne reçoit RIEN et son créneau se rendra dans 12 heures.
+       Sans cette ligne dans le récapitulatif, personne ne le saurait. */
+    aRappeler: CONFIRMATION_AU_CANDIDAT && !budgetMail,
   };
 
   /* Le récapitulatif interne part TOUT DE SUITE, avant toute confirmation du
@@ -442,32 +477,40 @@ export async function POST(req: NextRequest) {
     envoi.ok ? { recap_envoye_le: new Date().toISOString() } : { recap_erreur: envoi.erreur ?? "échec inconnu" },
   ).eq("id", ref);
 
-  if (CONFIRMATION_AU_CANDIDAT) {
+  const confirmationPossible = CONFIRMATION_AU_CANDIDAT && !!contexte.lienConfirmer;
+
+  if (confirmationPossible) {
     const c = await confirmationCandidat(contexte);
     if (c.ok) {
       await supabaseAdmin.from("rendez_vous")
         .update({ confirmation_envoyee_le: new Date().toISOString() }).eq("id", ref);
     }
+  } else if (!CONFIRMATION_AU_CANDIDAT) {
+    /* La confirmation est éteinte par configuration : sans elle, le rendez-vous se
+       périmerait au bout de `DELAI_CONFIRMATION_HEURES` sans que PERSONNE ne puisse
+       le confirmer. On le confirme donc nous-mêmes. C'est le seul cas où l'on
+       renonce à la preuve d'adresse, et il est le fruit d'une décision interne, pas
+       d'une requête du dehors. */
+    await supabaseAdmin.from("rendez_vous")
+      .update({ confirme_le: new Date().toISOString() }).eq("id", ref);
+    await journal("rdv_confirme_doffice", ref, { motif: "confirmation_au_candidat_desactivee" });
+  } else {
+    /* 🔴 LE BUDGET D'ENVOI EST ATTEINT (ou aucun jeton n'a pu être tiré). On
+       n'écrit PAS `confirme_le` : le créneau reste périssable, et il se rendra tout
+       seul dans 12 heures. C'est précisément ce qu'on veut sous abus — sinon un
+       attaquant obtiendrait des rendez-vous FERMES en épuisant le budget de
+       courriels, c'est-à-dire l'inverse du but.
+
+       Le candidat légitime pris dans cette fenêtre n'est pas perdu pour autant : le
+       récapitulatif est parti au secrétariat avec son téléphone, et l'alerte
+       ci-dessous dit qu'il faut l'appeler. */
+    await journal("rdv_confirmation_non_envoyee", ref, { motif: "budget_envoi_atteint" });
   }
 
   /* 🔴 On rend « ok » MÊME SI un courriel a échoué : le créneau est pris, c'est un
      fait. Dire au candidat que ça n'a pas marché le ferait recommencer et occuper un
      second créneau. L'échec est tracé dans `recap_erreur` — c'est au secrétariat de
-     le rattraper, pas au candidat.
-
-     ⚠️ MAIS si la confirmation n'a pas pu partir (pas de secret de signature, panne
-     SMTP), le rendez-vous se périmerait au bout de `DELAI_CONFIRMATION_HEURES` sans
-     que personne ne puisse le confirmer. Dans ce cas on le confirme NOUS-MÊMES : le
-     récapitulatif est parti au secrétariat, l'intention est donc tracée chez nous, et
-     il vaut mieux un rendez-vous ferme à rappeler qu'un créneau qui disparaît. */
-  const confirmationPossible = CONFIRMATION_AU_CANDIDAT && !!contexte.lienConfirmer;
-  if (!confirmationPossible) {
-    await supabaseAdmin.from("rendez_vous")
-      .update({ confirme_le: new Date().toISOString() }).eq("id", ref);
-    await journal("rdv_confirme_doffice", ref, {
-      motif: contexte.lienConfirmer ? "confirmation_au_candidat_desactivee" : "aucun_secret_de_signature",
-    });
-  }
+     le rattraper, pas au candidat. */
 
   return reponse(
     {
@@ -507,9 +550,11 @@ type Contexte = {
   motif: string; objectif: string;
   situation: { id: string; option: string; marcheASuivre: string; aApporter: string };
   message: string;
-  /** Lien signé de confirmation. Vide si `AUTH_SECRET` manque — on ne fabrique
-   *  alors AUCUN lien plutôt qu'un lien forgeable. */
+  /** Lien de confirmation (jeton aléatoire). Vide quand le budget d'envoi est
+   *  atteint : aucun courriel ne part alors au candidat. */
   lienConfirmer: string;
+  /** Le candidat n'a pas été prévenu : il faut l'appeler. */
+  aRappeler: boolean;
 };
 
 /**
@@ -566,6 +611,17 @@ async function recapitulatifInterne(c: Contexte): Promise<{ ok: boolean; erreur?
       "Rendez-vous pris sur le site",
       `<p style="font-size:15px;margin-top:0">Un candidat a réservé seul son rendez-vous sur
         <b>mystoryformation.fr/rendez-vous</b>. Rien à faire de notre côté : la place est prise.</p>
+
+       ${c.aRappeler
+          ? `<p style="background:#fde8e8;border-left:3px solid #dc2626;padding:10px 12px;border-radius:6px;font-size:13px;color:#7f1d1d">
+               ☎️ <b>À APPELER — le candidat n'a reçu aucun message de notre part.</b>
+               Le budget d'envois automatiques est atteint pour aujourd'hui (garde-fou
+               anti-abus). Son créneau est retenu mais sera rendu dans
+               ${DELAI_CONFIRMATION_HEURES} h faute de confirmation : appelez-le pour
+               le confirmer, et signalez-le à la direction — ce plafond ne s'atteint
+               pas en temps normal.
+             </p>`
+          : ""}
 
        ${c.lienConfirmer
           ? `<p style="background:#f4f6fb;border-left:3px solid #9aa1ad;padding:10px 12px;border-radius:6px;font-size:12.5px;color:#4b5563">
