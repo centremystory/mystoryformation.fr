@@ -93,6 +93,14 @@ export async function sessionsOuvertes(p: Prescripteur, jours = 60) {
     .select("id, type, date_examen, horaire, capacite, centre")
     .gte("date_examen", debut).lte("date_examen", fin)
     .in("horaire", p.horaires_autorises)
+    // Une session FERMEE n'est jamais reservable — 09/10/2026 : la requete ne filtrait
+    // pas sur `ouverte`, et 142 sessions fermees sont encore a venir, dont UNE sur le
+    // creneau exact de SECURE ACADEMY (Rosny, mardi/mercredi, 14h-17h). Le jour ou le
+    // partenaire se connecte, il pouvait y placer un candidat.
+    // Le correctif tient ici et nulle part ailleurs : POST /api/prescripteur/portail
+    // revalide la session en rappelant cette meme fonction, donc le filtre protege a la
+    // fois la liste proposee et l'inscription elle-meme.
+    .eq("ouverte", true)
     .order("date_examen", { ascending: true }).order("horaire", { ascending: true });
   if (p.centre) q = q.eq("centre", p.centre);
 
