@@ -49,7 +49,7 @@ import {
   FENETRE_MATINEES_JOURS, MENTIONS_PAR_CODE, dateExamenLaPlusProche,
   declarationLisible, type Commande,
 } from "@/lib/commande";
-import { fractionnePour } from "@/lib/lenbox";
+import { fractionnePour, joursCalendairesAvant, libelleRenonciation, DELAI_RETRACTATION_JOURS } from "@/lib/lenbox";
 import { ech } from "@/lib/html";
 import { pagePublique, adresseCentre, TEL_PUBLIC } from "@/lib/pagePublique";
 
@@ -271,6 +271,62 @@ function declaration(c: Commande): string {
  * cher pour le candidat parce qu'il rapporte serait exactement le genre de défaut
  * qu'on ne veut pas avoir écrit.
  */
+/**
+ * Les deux cases à cocher, et pourquoi elles sont DEUX.
+ *
+ * 09/10/2026, demande du dirigeant : « qu'il coche les cases qu'il accepte les CGV »,
+ * et « si la date est à moins de 7 jours et le financement accepté, aucun
+ * remboursement n'est possible ».
+ *
+ * 🔴 Une seule case ne suffirait pas, et c'est le point à ne pas perdre.
+ * Accepter des conditions générales N'EST PAS renoncer au droit de rétractation.
+ * L'article L. 221-25 du code de la consommation exige, pour un service exécuté
+ * avant la fin du délai, une DEMANDE EXPRESSE du client et la RECONNAISSANCE qu'il
+ * perdra son droit — un engagement distinct, formulé pour lui-même, jamais fondu
+ * dans l'acceptation des CGV ni pré-coché. D'où deux cases :
+ *   1. l'acceptation des CGV — toujours, c'est le contrat ;
+ *   2. la renonciation — SEULEMENT quand l'épreuve tombe dans les 14 jours, parce
+ *      qu'en dehors de ce cas elle n'a aucun objet et ne ferait qu'alourdir.
+ *
+ * ⚠️ La renonciation ne vaut que pour la rétractation de la VENTE À DISTANCE. Celle
+ * du CRÉDIT (14 jours, art. L. 312-19) est d'ordre public : aucune case ne peut y
+ * faire renoncer. C'est pourquoi le fractionné reste refusé sur une session proche
+ * tant que le client paie des frais — il faut d'abord qu'il sorte du régime du
+ * crédit, c'est-à-dire la bascule vers les variantes sans frais client. Voir
+ * `FRAIS_A_LA_CHARGE_DU_CLIENT` dans lib/lenbox.ts.
+ *
+ * Le texte coché est renvoyé au serveur avec la commande : une case cochée dont on
+ * ne garde pas le libellé ne prouve rien le jour où quelqu'un conteste.
+ */
+function blocEngagements(c: Commande): string {
+  const d = dateExamenLaPlusProche(c);
+  const jours = d ? joursCalendairesAvant(d) : null;
+  const proche = jours !== null && jours <= DELAI_RETRACTATION_JOURS;
+  const texteRenonciation = d && jours !== null ? libelleRenonciation(jours, jourLisible(d)) : "";
+
+  return `<div class="engagements">
+    <label class="engagement">
+      <input type="checkbox" name="cgv" value="1" required>
+      <span>J'ai lu et j'accepte les
+      <a href="https://www.mystoryformation.fr/conditions-generales-de-vente" target="_blank"
+         rel="noopener">conditions générales de vente</a>.</span>
+    </label>
+    ${proche ? `<label class="engagement">
+      <input type="checkbox" name="renonciation" value="1" required>
+      <span>${ech(texteRenonciation)}</span>
+    </label>` : ""}
+    <p class="note"><b>Annulation et report.</b> Le remboursement n'est possible que
+    jusqu'à <b>7 jours ouvrés</b> avant la date de l'épreuve, <b>quel que soit le moyen
+    de paiement</b> — en une fois comme en plusieurs fois. Passé ce délai, et en cas
+    d'absence le jour de l'épreuve, l'inscription reste due. Un report n'est accordé
+    que sur <b>justificatif valable accepté par la CCI Paris Île-de-France</b> : la
+    décision appartient au certificateur, pas à nous.</p>
+    <p class="note"><b>Aucun retard n'est toléré.</b> Au-delà de <b>10 minutes</b>,
+    l'accès à la salle est refusé et la session est perdue. En deçà, l'accès relève de
+    la seule décision du surveillant ou de l'examinateur.</p>
+  </div>`;
+}
+
 function moyensDePaiement(c: Commande, paiementDemande: string | null): string {
   const total = c.montant;
   const { echeanciers, motif } = fractionnePour(total, dateExamenLaPlusProche(c));
@@ -431,6 +487,8 @@ ${recapitulatif(c)}
   <input type="hidden" name="carence_tef_dernier" value="${ech(c.declaration.tefDernier ?? "")}">
   <input type="hidden" name="carence_civique" value="${c.declaration.civique === null ? "" : (c.declaration.civique ? "oui" : "non")}">
   <input type="hidden" name="carence_civique_dernier" value="${ech(c.declaration.civiqueDernier ?? "")}">
+
+  ${blocEngagements(c)}
 
   <button id="b" type="submit">Continuer vers le paiement · ${euros(c.montant)}</button>
   <p class="note">En validant, vous acceptez que ces informations servent à votre inscription à

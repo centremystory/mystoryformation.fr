@@ -39,7 +39,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { envoyerEmail, gabaritEmail, adresseValide } from "@/lib/email";
 import { creerPaiement, molliePret } from "@/lib/mollie";
-import { creerSessionLenbox, lenboxPret, fractionnePour } from "@/lib/lenbox";
+import { creerSessionLenbox, lenboxPret, fractionnePour, joursCalendairesAvant, DELAI_RETRACTATION_JOURS } from "@/lib/lenbox";
 import { urlDeBase } from "@/lib/appUrl";
 import { MOTIVATIONS_CCI, euros, jourLisible } from "@/lib/inscriptionEnLigne";
 import {
@@ -170,6 +170,32 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, erreur: lu.erreurs.join(" ") }, { status: lu.statut });
   }
   const c = lu.commande as Commande;
+
+  /* 09/10/2026 — LES ENGAGEMENTS SONT REVÉRIFIÉS ICI, et c'est le seul endroit qui
+     compte. `required` dans le formulaire est une commodité d'affichage : il se
+     contourne en trois secondes avec les outils du navigateur, et cette route est
+     appelée directement par d'autres chemins. Une case cochée qui n'est pas exigée
+     côté serveur ne prouve rien le jour où un candidat conteste.
+
+     Deux engagements, et ils ne se confondent pas : l'acceptation des CGV est le
+     contrat ; la renonciation de l'art. L. 221-25 est un acte distinct, exigé
+     SEULEMENT quand l'épreuve tombe dans le délai de rétractation. */
+  if (s(b.cgv) !== "1") {
+    return NextResponse.json(
+      { ok: false, erreur: "Merci d'accepter les conditions générales de vente." },
+      { status: 400 },
+    );
+  }
+  {
+    const dEx = dateExamenLaPlusProche(c);
+    const j = dEx ? joursCalendairesAvant(dEx) : null;
+    if (j !== null && j <= DELAI_RETRACTATION_JOURS && s(b.renonciation) !== "1") {
+      return NextResponse.json(
+        { ok: false, erreur: "Votre épreuve a lieu dans moins de quatorze jours : merci de confirmer que vous demandez son exécution immédiate." },
+        { status: 400 },
+      );
+    }
+  }
 
   // La motivation TEF part telle quelle à la CCI : elle doit appartenir à leur liste.
   const sousTypeTef = s(b.sous_type);

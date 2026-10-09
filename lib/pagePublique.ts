@@ -299,6 +299,10 @@ button:disabled{opacity:.6;cursor:progress;box-shadow:none}
 .pied .dedans{max-width:var(--mys-largeur);margin:0 auto}
 .pied a{color:rgba(255,255,255,.78)}
 .ou.rare{color:var(--mys-rouge-600);font-weight:700}
+.engagements{margin:18px 0 6px;padding:14px 16px;border:1px solid var(--mys-marine-200,#d7dce6);border-radius:12px;background:#fbfcfe}
+.engagement{display:flex;gap:10px;align-items:flex-start;margin:0 0 10px;font-size:13.5px;line-height:1.55;cursor:pointer}
+.engagement input{margin:3px 0 0;width:18px;height:18px;flex:0 0 18px;accent-color:var(--mys-marine-900)}
+.engagement a{color:var(--mys-marine-900);font-weight:600}
 .pied .liens{display:flex;flex-wrap:wrap;gap:6px 18px;margin:0 0 12px;padding:0;list-style:none}
 .pied .liens a{font-weight:600;text-decoration:none}
 .pied .liens a:hover{text-decoration:underline}
