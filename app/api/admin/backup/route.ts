@@ -7,7 +7,8 @@
  *      Le hash des mots de passe est expurgé (sécurité). Plan gratuit = pas de PITR managé.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, UnauthorizedError, ForbiddenError, type SessionUser } from "@/lib/auth";
+import { requireUser, UnauthorizedError, type SessionUser } from "@/lib/auth";
+import { estAutomate, estProprietaire } from "@/lib/roles";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { envoyerEmail, gabaritEmail, EMAIL_ACTIF } from "@/lib/email";
 import { journal } from "@/lib/examens";
@@ -88,35 +89,77 @@ function nomFichier(): string {
 }
 
 /**
- * Garde de la route : Direction UNIQUEMENT, plus le jeton de service n8n/cron.
- *
- * 09/10/2026 — POURQUOI ce changement. Cette route vérifiait le rôle elle-même avec un
- * helper local qui n'acceptait que « pas de rôle », "staff" ou "direction". Or le jeton
- * de service n8n porte un rôle HORS matrice staff : il ne tombait dans aucun des trois
- * cas, et la sauvegarde hebdomadaire se faisait refuser en 403 « Réservé à la Direction. »
- * à CHAQUE passage. Le workflow n8n n'avait pas d'errorWorkflow : 4 dimanches de suite
- * (13, 20, 27/09 et 04/10/2026) la base MYSTORY n'a eu AUCUNE sauvegarde, en silence.
- *
- * On aligne donc la garde sur celle de `/api/incidents` et `/api/factures` : `requireRole`
- * porte depuis le 25/09 l'exemption « automate de confiance » (`estAutomate` dans
- * lib/roles), qui exige un JWT valide signé par AUTH_SECRET dont AUCUN rôle n'appartient
- * à la matrice staff. Un humain porte toujours un rôle de la matrice : l'exemption ne peut
- * donc pas être usurpée en rejouant un cookie de session dans un en-tête Bearer.
- *
- * ⚠️ On n'ouvre RIEN d'autre. Pas de session anonyme, aucun rôle supplémentaire : un
- * compte individuel non-Direction reste refusé en 403, exactement comme avant.
+ * AUTHENTIFICATION (qui appelle ?) — inchangee : `requireUser` exige un JWT valide
+ * signe par AUTH_SECRET (cookie d equipe OU en-tete Bearer). Sans jeton valide : 401,
+ * et le middleware global refuse deja la route en amont. Aucun acces anonyme.
  */
-async function garde(req: NextRequest): Promise<NextResponse | SessionUser> {
-  try { return await requireRole(req, ["direction"]); }
+async function authentifier(req: NextRequest): Promise<NextResponse | SessionUser> {
+  try { return await requireUser(req); }
   catch (e) {
-    if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
-    if (e instanceof ForbiddenError) return NextResponse.json({ ok: false, erreur: "Réservé à la Direction." }, { status: 403 });
+    if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Non authentifie." }, { status: 401 });
     throw e;
   }
 }
 
+/**
+ * AUTORISATION (a-t-il le DROIT d exporter la base ?) — volontairement PLUS STRICTE
+ * que la garde par role generique, et plus stricte que ce que cette route faisait
+ * avant le 09/10/2026.
+ *
+ * Ce que produit cette route : un export JSON de TOUTES les tables, soit l identite
+ * complete de plus de mille candidats (nom, date et lieu de naissance, nationalite,
+ * adresse, telephone, e-mail, numero de piece d identite). Donnee personnelle sensible
+ * au sens du RGPD, sur un public dont le titre de sejour depend de nous. La garde doit
+ * donc etre nominative, jamais « large par defaut ».
+ *
+ * 09/10/2026 — DEUX problemes DISTINCTS, corriges separement.
+ *
+ * 1) AUTORISATION TROP FERMEE pour l automate. Le jeton de service n8n etait refuse
+ *    (403 « Reserve a la Direction. ») parce que la garde locale n acceptait que
+ *    « aucun role », "staff" ou "direction", alors que ce jeton porte un role HORS
+ *    matrice staff. Resultat : 4 dimanches de suite (13, 20, 27/09 et 04/10/2026),
+ *    AUCUNE sauvegarde de la base, et aucune alerte n8n pour le signaler.
+ *    -> on admet desormais l automate de confiance (`estAutomate`), comme /api/incidents.
+ *
+ * 2) AUTORISATION TROP OUVERTE pour les jetons SANS role. La garde d origine admettait
+ *    tout jeton sans role (`!u.role`). Or `verifySession` ne verifie pas l audience du
+ *    JWT : un jeton du portail PARTENAIRE (lib/prescripteurAuth — signe avec le MEME
+ *    AUTH_SECRET, audience "prescripteur", payload sans role) presente dans un en-tete
+ *    `Authorization: Bearer` ressort de `verifySession` comme une session d equipe sans
+ *    role, et passait. Un partenaire pouvait donc exporter la base entiere. Ce defaut est
+ *    ANTERIEUR a aujourd hui et n est PAS propre a cette route : il vient de
+ *    `verifySession`, donc il vaut aussi pour requireRole (/api/incidents, /api/classement)
+ *    et pour peutFacturer (/api/factures). Signale pour correction de fond.
+ *    -> ici on le ferme tout de suite, en SUPPRIMANT le filet « aucun role ».
+ *
+ * Passent donc, et RIEN d autre :
+ *   - le proprietaire (Arudhan), par e-mail exact ;
+ *   - un compte portant le role "direction" ;
+ *   - la session d equipe partagee "staff" (etat d avant, conserve pour ne pas casser
+ *     le telechargement depuis le back-office) ;
+ *   - un automate de confiance : JWT valide dont AUCUN role n appartient a la matrice
+ *     staff. Un humain porte toujours un role de la matrice : l exemption ne peut donc
+ *     pas etre usurpee en rejouant un cookie de session dans un en-tete Bearer.
+ *
+ * Sont REFUSES, y compris ce qui passait avant : tout jeton SANS role (jeton partenaire,
+ * jeton ephemere du cron — qui ne vise pas cette route), et tout compte individuel dont
+ * le role appartient a la matrice sans etre "direction".
+ */
+function autoriseExport(u: SessionUser): boolean {
+  const rs = u.roles && u.roles.length > 0 ? u.roles : (u.role ? [u.role] : []);
+  if (estProprietaire(u.email)) return true;
+  if (rs.includes("direction") || rs.includes("staff")) return true;
+  return estAutomate(rs); // faux sur une liste vide : aucun filet « sans role »
+}
+
+const refusExport = () => NextResponse.json(
+  { ok: false, erreur: "Reserve a la Direction." },
+  { status: 403 },
+);
+
 export async function GET(req: NextRequest) {
-  const u = await garde(req); if (u instanceof NextResponse) return u;
+  const u = await authentifier(req); if (u instanceof NextResponse) return u;
+  if (!autoriseExport(u)) return refusExport();
   const { buffer } = await construireZip();
   await journal("systeme", null, "sauvegarde_telechargee", { par: u.email ?? null }, u.email ?? null);
   return new NextResponse(new Uint8Array(buffer), {
@@ -130,7 +173,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const u = await garde(req); if (u instanceof NextResponse) return u;
+  const u = await authentifier(req); if (u instanceof NextResponse) return u;
+  if (!autoriseExport(u)) return refusExport();
   const { buffer, resume, total } = await construireZip();
   const fichier = nomFichier();
 
