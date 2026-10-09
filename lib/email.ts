@@ -31,6 +31,7 @@ import nodemailer, { type Transporter } from "nodemailer";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { consignerIncident } from "@/lib/incidents";
 import { identiteLegale } from "@/lib/identiteLegale";
+import { ech } from "@/lib/html";
 
 const SMTP_HOST = process.env.SMTP_HOST ?? "smtp.ionos.fr";
 const SMTP_PORT = Number(process.env.SMTP_PORT ?? "465");
@@ -312,14 +313,39 @@ export async function reenvoyerDepuisFile(m: {
   }
 }
 
-/** Gabarit HTML maison : bandeau bleu MYSTORY + pied légal (3 sites, jamais Paris). */
+/**
+ * Gabarit HTML maison : bandeau bleu MYSTORY + pied légal (3 sites, jamais Paris).
+ *
+ * ⚠️ `corpsHtml` est inséré TEL QUEL. Toute valeur qui n'est pas une constante littérale
+ * — a fortiori ce qui vient d'un formulaire public ou de la base — doit passer par
+ * `ech()` de `lib/html.ts` AVANT d'arriver ici, et un objet de message par `enTete()`.
+ * Un nom de candidat contenant `<b>` casse la mise en forme ; `<img src=x onerror=…>`
+ * fait entrer du balisage actif dans une boîte que le secrétariat ouvre tous les jours.
+ *
+ * 09/10/2026 — les gabarits de `app/api/commande` et `lib/commandePaiement.ts` le font.
+ * Les autres appelants (une quarantaine) n'ont PAS encore été repris : c'est un chantier
+ * à part, à mener sur sa propre branche, pas en marge d'une route de paiement.
+ *
+ * ✅ `titre`, EN REVANCHE, EST ÉCHAPPÉ ICI, pour tous les appelants d'un coup.
+ *
+ * Trois fois de suite, une revue a trouvé une donnée d'origine externe arrivant dans
+ * un e-mail par son titre — à chaque fois à un endroit différent. Le correctif
+ * ponctuel ne tient pas : un gabarit qui n'échappe pas ce qu'on lui donne est un
+ * piège permanent, qu'il suffit d'oublier une fois. Un gabarit qui échappe toujours
+ * ne peut plus être mal utilisé.
+ *
+ * Aucun appelant n'a besoin de HTML dans son titre : c'est une ligne de sous-titre
+ * dans un bandeau. Si le besoin apparaissait, il passerait par un paramètre explicite
+ * — et non par le retrait de cet échappement.
+ */
 export function gabaritEmail(titre: string, corpsHtml: string): string {
   const i = identiteLegale();
+  const titreSur = ech(titre);
   return `<!DOCTYPE html><html lang="fr"><body style="margin:0;background:#f4f6fb;font-family:Arial,Helvetica,sans-serif;color:#1f2430;">
 <div style="max-width:560px;margin:0 auto;padding:20px 14px;">
   <div style="background:#2F72DE;color:#ffffff;border-radius:12px;padding:18px 20px;">
     <div style="font-size:18px;font-weight:bold;">MYSTORY Formation</div>
-    <div style="font-size:13px;opacity:.92;">${titre}</div>
+    <div style="font-size:13px;opacity:.92;">${titreSur}</div>
   </div>
   <div style="background:#ffffff;border:1px solid #e6e9f0;border-radius:12px;padding:18px 20px;margin-top:12px;font-size:14px;line-height:1.6;">
     ${corpsHtml}
