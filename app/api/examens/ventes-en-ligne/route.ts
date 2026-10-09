@@ -29,11 +29,54 @@
  * écrite serait inventer un problème avant de l'avoir.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { requireUser, UnauthorizedError } from "@/lib/auth";
+import { requireRole, UnauthorizedError, ForbiddenError } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+/**
+ * NEUTRALISER CE QUI PART DANS UN CLASSEUR. Une seule fonction, appliquée à TOUTES
+ * les valeurs texte en sortie — jamais champ par champ : champ par champ, on en
+ * oublie un, et c'est toujours celui-là qui sert.
+ *
+ * Presque tout ce que rend cette route vient d'un formulaire PUBLIC : nom, prénom,
+ * lieu de naissance, adresse, n° de pièce. Une cellule de tableur qui commence par
+ * `=`, `+`, `-`, `@`, une tabulation ou un retour chariot est une FORMULE — de quoi
+ * poser un `IMPORTDATA` dans l'onglet Examens, ou simplement un `#REF!`. Et l'onglet
+ * Examens est le pire endroit pour ça : le robot des primes refuse de calculer quoi
+ * que ce soit s'il y lit moins de 50 numéros d'attestation. Une cellule cassée
+ * arrêterait les primes de TOUT LE MONDE.
+ *
+ * ⚠️ On RETIRE le caractère d'amorce, on ne préfixe PAS d'apostrophe. L'écriture se
+ * fait en `valueInputOption=RAW` (vérifié dans le sous-robot « UTIL — MAJ ligne
+ * Examens v2 ») : l'apostrophe y serait stockée telle quelle et s'afficherait dans
+ * chaque cellule — un nom sur deux deviendrait `'DUPONT`, et un numéro d'attestation
+ * `'MYS-2026-…` ne serait plus reconnu par la numérotation du robot d'intake, qui
+ * basculerait en numéros « URG ». Le remède serait pire que le mal.
+ *
+ * RAW protège déjà des formules aujourd'hui. Cette fonction est la ceinture qui tient
+ * encore si quelqu'un passe un jour l'écriture en `USER_ENTERED` sans y penser.
+ */
+function texteSheet(valeur: string): string {
+  const sansControle = valeur
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, " ")
+    .replace(/[\t\r\n]+/g, " ")
+    .trim();
+
+  /* On ne retire l'amorce que si ce qui suit peut VRAIMENT être une formule, c'est-à-dire
+     s'il reste une lettre ou une parenthèse : `=HYPERLINK(…)`, `@IMPORTDATA`, `-A1`.
+     Sans ce garde-fou, `+33601079540` — un vrai numéro de téléphone, présent dans les
+     données du 02/10 — perdrait son indicatif international. `=1+1` resterait, et c'est
+     très bien : du texte en RAW, un 2 en USER_ENTERED, rien d'exfiltrable ni de cassé. */
+  if (/^[=+\-@]/.test(sansControle) && /[A-Za-z(]/.test(sansControle.slice(1))) {
+    return texteSheet(sansControle.slice(1));
+  }
+  return sansControle;
+}
+
+/** Les champs numériques du gabarit : ils doivent rester des nombres, pas du texte. */
+const CHAMPS_NUMERIQUES = ["montant", "montant_cb", "prime", "row_number"];
 
 /** Le libellé de type attendu par l'onglet (colonne C), qui n'est pas celui de Supabase. */
 const TYPE_ONGLET: Record<string, string> = {
@@ -75,11 +118,20 @@ function modePaiement(moyenCommande: string | null, reference: string | null): s
 }
 
 export async function GET(req: NextRequest) {
+  /* Garde alignée sur `/api/incidents` : la Direction et les automates de confiance,
+     personne d'autre. Cette route rend l'identité complète des candidats — date et
+     lieu de naissance, adresse, numéro de pièce d'identité. `requireUser` seul
+     l'aurait ouverte à n'importe quelle session d'équipe, y compris des rôles qui
+     n'ont aucune raison de lire ça. `requireRole` laisse passer le jeton de service
+     n8n (exemption `estAutomate` du 25/09/2026), donc le robot fonctionne. */
   try {
-    await requireUser(req);
+    await requireRole(req, ["direction"]);
   } catch (e) {
     if (e instanceof UnauthorizedError) {
       return NextResponse.json({ ok: false, erreur: "Non authentifié" }, { status: 401 });
+    }
+    if (e instanceof ForbiddenError) {
+      return NextResponse.json({ ok: false, erreur: "Réservé à la Direction" }, { status: 403 });
     }
     throw e;
   }
@@ -221,5 +273,21 @@ export async function GET(req: NextRequest) {
     };
   });
 
-  return NextResponse.json({ ok: true, ventes: out });
+  /* LE SEUL POINT DE SORTIE. Tout ce qui est texte passe par `texteSheet`, ici et
+     nulle part ailleurs : une valeur ajoutée plus tard au gabarit sera neutralisée
+     sans que personne ait à y penser. Les champs numériques sont laissés tels quels,
+     sinon le classeur recevrait « 185 » au lieu de 185 et les primes s'additionneraient
+     comme du texte. */
+  const propre = out.map((ligne) =>
+    Object.fromEntries(
+      Object.entries(ligne).map(([cle, valeur]) => [
+        cle,
+        typeof valeur === "string" && !CHAMPS_NUMERIQUES.includes(cle)
+          ? texteSheet(valeur)
+          : valeur,
+      ]),
+    ),
+  );
+
+  return NextResponse.json({ ok: true, ventes: propre });
 }
