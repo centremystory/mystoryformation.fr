@@ -22,7 +22,7 @@ import { CSS_VARIABLES, POLICES_HREF, TEL_PUBLIC, TEL_LIEN, MENTIONS_LEGALES, CO
 const CHAMP =
   "w-full min-h-[48px] rounded-xl border border-[var(--mys-gris-300)] bg-white px-3.5 py-3 text-[16px] " +
   "text-[var(--mys-gris-900)] placeholder-[var(--mys-gris-500)] outline-none transition " +
-  "focus:border-[var(--mys-marine-500)] focus:ring-[3px] focus:ring-[var(--mys-marine-500)]/20";
+  "focus:border-[var(--mys-marine-500)] focus:ring-[3px] focus:ring-[rgba(40,97,160,0.2)]";
 
 export default function AccueilTestPage() {
   const router = useRouter();
@@ -137,7 +137,8 @@ export default function AccueilTestPage() {
                 {mode === "sur_place" && (
                   <input value={f.accompagnant} onChange={(e) => set("accompagnant", e.target.value)}
                     placeholder="Prénom du conseiller / de la formatrice (facultatif)"
-                    className={`col-span-2 ${CHAMP} border-[var(--mys-marine-200)] bg-[var(--mys-marine-50)]`} />
+                    className={`col-span-2 ${CHAMP}`}
+                    style={{ borderColor: "var(--mys-marine-200)", background: "var(--mys-marine-50)" }} />
                 )}
               </div>
 
