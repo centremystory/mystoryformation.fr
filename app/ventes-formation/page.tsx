@@ -10,6 +10,9 @@ type Vente = {
   id: string; date_inscription: string | null; agence: string | null; formule: string | null; heures: number | null;
   nom: string; email: string | null; telephone: string | null; vendeur: string | null; statut: string | null;
   fond_propre: boolean | null; commentaire: string | null; href: string | null; montant: number | null;
+  // Dossier de formation issu de cette vente, s'il existe. `null` = la vente n'a produit
+  // aucune liasse Qualiopi : ni convention, ni émargement, ni certificat.
+  dossierId: string | null;
 };
 
 function dateFr(iso: string | null): string {
@@ -29,6 +32,7 @@ export default function VentesFormationPage() {
   const [fStatut, setFStatut] = useState("tous");
   const [fVendeur, setFVendeur] = useState("tous");
   const [relance, setRelance] = useState(false); // ?relance=impaye (depuis le cockpit) = statut « à payer / reste à payer »
+  const [sansDossier, setSansDossier] = useState(false); // ventes qui n'ont encore produit aucune liasse Qualiopi
   const [nbAffiche, setNbAffiche] = useState(100);
 
   useEffect(() => {
@@ -58,10 +62,15 @@ export default function VentesFormationPage() {
       if (fStatut !== "tous" && (v.statut ?? "") !== fStatut) return false;
       if (fVendeur !== "tous" && (v.vendeur ?? "") !== fVendeur) return false;
       if (relance && !/payer/i.test(v.statut ?? "")) return false;
+      if (sansDossier && v.dossierId) return false;
       if (t && !`${v.nom} ${v.email ?? ""} ${v.formule ?? ""}`.toLowerCase().includes(t)) return false;
       return true;
     });
-  }, [ventes, q, fAgence, fStatut, fVendeur, relance]);
+  }, [ventes, q, fAgence, fStatut, fVendeur, relance, sansDossier]);
+
+  // Ventes qui n'ont produit aucun dossier. C'est le reste à faire de la chaîne Formation,
+  // et il se compte tout seul : personne n'a rien à saisir pour que ce chiffre soit juste.
+  const nbSansDossier = useMemo(() => ventes.filter((v) => !v.dossierId).length, [ventes]);
 
   const totalMontant = useMemo(
     () => (voitMontants ? visibles.reduce((s, v) => s + (Number(v.montant) || 0), 0) : 0),
@@ -79,6 +88,24 @@ export default function VentesFormationPage() {
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
           <span>Filtre <strong>à relancer</strong> (reste à payer / à payer) — {visibles.length}</span>
           <button onClick={() => setRelance(false)} className="ml-auto rounded-full border border-amber-300 bg-white px-2 py-0.5 text-xs hover:bg-amber-100">✕ enlever le filtre</button>
+        </div>
+      )}
+
+      {/* Le reste à faire de la chaîne Formation, rendu visible sans que personne ne saisisse
+          rien. Une vente sans dossier n'a ni convention, ni émargement, ni certificat de
+          réalisation — donc rien à présenter au contrôle. */}
+      {!charge && nbSansDossier > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          <span>
+            <strong>{nbSansDossier}</strong> vente{nbSansDossier > 1 ? "s" : ""} sans dossier de formation
+            <span className="text-amber-700"> — ni convention, ni émargement, ni certificat</span>
+          </span>
+          <button
+            onClick={() => setSansDossier((v) => !v)}
+            className={`ml-auto rounded-full border px-2 py-0.5 text-xs ${sansDossier ? "border-amber-400 bg-amber-200" : "border-amber-300 bg-white hover:bg-amber-100"}`}
+          >
+            {sansDossier ? "✕ voir toutes les ventes" : "N'afficher que celles-là"}
+          </button>
         </div>
       )}
 
@@ -119,6 +146,7 @@ export default function VentesFormationPage() {
                   <th className="px-3 py-2">Statut</th>
                   <th className="px-3 py-2">Vendeur</th>
                   <th className="px-3 py-2">Agence</th>
+                  <th className="px-3 py-2">Dossier</th>
                   {voitMontants && <th className="px-3 py-2">Montant</th>}
                 </tr>
               </thead>
@@ -133,12 +161,29 @@ export default function VentesFormationPage() {
                     <td className="px-3 py-2 text-gray-600">{v.heures ?? "—"} h</td>
                     <td className="px-3 py-2 text-gray-600">{v.statut ?? "—"}</td>
                     <td className="px-3 py-2 text-gray-500">{v.vendeur ?? "—"}</td>
-                    <td className="px-3 py-2 text-gray-500">{v.agence ?? "—"}</td>
+                    <td className="px-3 py-2">
+                      {v.dossierId ? (
+                        <Link href={`/dossiers/${v.dossierId}/suivi`} className="badge bg-emerald-50 text-emerald-700 hover:bg-emerald-100">
+                          ✓ ouvert
+                        </Link>
+                      ) : v.href ? (
+                        // Le bouton de création vit sur la fiche client, qui porte tout le
+                        // contexte (formule, montant, financement) : on y renvoie plutôt que
+                        // de redemander ici ce que la fiche sait déjà.
+                        <Link href={v.href} className="badge bg-amber-100 text-amber-800 hover:bg-amber-200">
+                          à créer →
+                        </Link>
+                      ) : (
+                        <span className="badge bg-gray-100 text-gray-400" title="Cette vente n'est rattachée à aucune fiche client.">
+                          sans client
+                        </span>
+                      )}
+                    </td>
                     {voitMontants && <td className="px-3 py-2 text-gray-700">{euro(v.montant)}</td>}
                   </tr>
                 ))}
                 {visibles.length === 0 && (
-                  <tr><td colSpan={voitMontants ? 8 : 7} className="px-3 py-6 text-center text-gray-400">Aucune vente ne correspond aux filtres.</td></tr>
+                  <tr><td colSpan={voitMontants ? 9 : 8} className="px-3 py-6 text-center text-gray-400">Aucune vente ne correspond aux filtres.</td></tr>
                 )}
               </tbody>
             </table>

@@ -27,8 +27,27 @@ export async function GET(req: NextRequest) {
     .order("id")
     .range(from, to));
 
+  // Quelles ventes ont déjà donné un dossier de formation.
+  //
+  // POURQUOI ICI — mesuré le 09/10/2026 : 158 ventes, 4 dossiers. Tant qu'une vente n'a pas
+  // de dossier, elle n'a ni convention, ni émargement, ni certificat de réalisation : donc
+  // aucune preuve au contrôle. C'était invisible, et donc jamais traité.
+  //
+  // Le rapprochement se lit sur `dossiers.vente_formation_id` — la base, pas un
+  // rapprochement par nom ou par montant, qui est exactement ce qui a produit
+  // les 354 doublons nettoyés le 06/10.
+  const dossiers = await fetchAllRows<any>((from, to) => supabaseAdmin
+    .from("dossiers")
+    .select("id, vente_formation_id")
+    .not("vente_formation_id", "is", null)
+    .order("id")
+    .range(from, to));
+  const dossierParVente = new Map<string, string>();
+  dossiers.forEach((d: any) => { if (d.vente_formation_id) dossierParVente.set(d.vente_formation_id, d.id); });
+
   const ventes = lignes.map((v: any) => ({
     id: v.id,
+    dossierId: dossierParVente.get(v.id) ?? null,
     date_inscription: v.date_inscription,
     agence: v.agence_vente,
     formule: v.formule_label,
