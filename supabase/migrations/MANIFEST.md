@@ -83,3 +83,5 @@
 | 76 | 20260709125928 | tests_sujets_ecrit_choix |
 | 77 | 20260709140905 | index_cles_etrangeres_chaudes |
 | 78 | 20261009180000 | commandes_en_ligne_et_matinees |
+| 79 | 20261009210000 | rendez_vous_en_ligne |
+| 80 | 20261009213000 | rendez_vous_confirmation_et_peremption |

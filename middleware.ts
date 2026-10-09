@@ -67,6 +67,13 @@ const CHEMINS_PUBLICS = [
   // que des sessions publiques. Aucun montant ne circule dans l'URL, tout est recalculé.
   "/commande",                    // page publique de commande + sa page de retour /commande/merci
   "/api/commande",                // dépôt du formulaire + webhook /api/commande/paiement (honeypot + rate-limit)
+  // 09/10/2026 — le rendez-vous au bureau, réservé seul depuis le site vitrine.
+  // Appelée EN CROSS-ORIGIN par mystoryformation.fr (site 100 % statique, donc
+  // incapable de recevoir un POST). La route porte sa propre défense : liste
+  // fermée d'origines, honeypot, limite par IP, plafond par adresse e-mail, et
+  // revalidation du créneau contre la grille d'ouverture. Le GET ne rend que des
+  // heures — jamais un nom, un téléphone ou une situation de titre de séjour.
+  "/api/rendez-vous",
   // Récepteur Lenbox (paiement fractionné). Public par nécessité : Lenbox appelle sans
   // s'authentifier. ⚠️ La route ne croit JAMAIS le corps du POST — aucune signature
   // n'existe côté Lenbox — elle relit le statut du dossier à la source. Voir la route.

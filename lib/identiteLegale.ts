@@ -50,6 +50,43 @@ export function identiteLegale(): IdentiteLegale {
   return cache;
 }
 
+/**
+ * Le bloc légal COMPLET exigé par l'art. R. 123-237 du code de commerce.
+ *
+ * 09/10/2026. Les pieds de courriel du parc sont incomplets : `gabaritEmail()`
+ * (lib/email.ts) et `piedLegal()` ci-dessous publient la raison sociale, le SIRET et
+ * le NDA — mais ni le RCS, ni le SIÈGE SOCIAL, ni la TVA intracommunautaire. Leur
+ * omission sur un document émis par la société est une contravention de 4e classe.
+ *
+ * Ce bloc-ci est conforme. Il est introduit comme un AJOUT, sans toucher aux deux
+ * fonctions existantes : elles ont une quarantaine d'appelants, et les reprendre est
+ * un chantier à mener sur sa propre branche. La première route à s'en servir est
+ * `/api/rendez-vous`. Toute nouvelle route doit l'utiliser.
+ *
+ * ⚠️ TROIS PIÈGES, tous déjà tombés dans ce dépôt :
+ *   1. La dénomination au greffe est « MY STORY » (deux mots) ; « MYSTORY » est
+ *      l'enseigne commerciale. Le bloc légal porte la dénomination.
+ *   2. Le SIREN est 913 423 083 et la TVA FR55 913 423 083. Le SIREN
+ *      « 844 214 569 » et la TVA « FR06844214569 » sont FAUX et traînent encore
+ *      dans de vieux documents : ils ne doivent jamais être reproduits.
+ *   3. Le siège social est 14 rue Bichat, 75010 Paris. Ce n'est PAS un lieu
+ *      d'accueil — on n'y reçoit personne — mais c'est l'adresse que la loi exige
+ *      ici. Les adresses des centres se publient ailleurs.
+ *
+ * Capital, TVA et siège sont écrits en littéral : ils ne figurent pas dans la table
+ * `parametres`, et les y ajouter sans que /reglages sache les éditer donnerait une
+ * fausse impression de configurabilité.
+ */
+export function blocLegalComplet(): string {
+  const i = identiteLegale();
+  return (
+    `MY STORY (enseigne MYSTORY) — SASU au capital de 1 000 € · ${i.rcs} · ` +
+    `SIRET ${i.siret} · TVA FR55 913 423 083 · Siège social : 14 rue Bichat, 75010 Paris · ` +
+    `Déclaration d'activité n° ${i.nda} auprès du préfet de région d'Île-de-France — ` +
+    `cet enregistrement ne vaut pas agrément de l'État.`
+  );
+}
+
 /** Ligne de pied de page légal prête à imprimer (documents + emails). */
 export function piedLegal(): string {
   const i = identiteLegale();
