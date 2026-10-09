@@ -10,7 +10,9 @@ export type IdentiteLegale = {
 };
 
 const DEFAUT: IdentiteLegale = {
-  raison: "MYSTORY — SASU au capital de 1 000 €",
+  // La dénomination au greffe est « MY STORY » (deux mots) ; « MYSTORY » est l'enseigne.
+  // Un bloc légal porte la dénomination — voir blocLegalComplet() plus bas.
+  raison: "MY STORY (enseigne MYSTORY) — SASU au capital de 1 000 €",
   siret: "913 423 083 00017",
   rcs: "RCS Paris 913 423 083",
   nda: "11756521775",
@@ -53,15 +55,23 @@ export function identiteLegale(): IdentiteLegale {
 /**
  * Le bloc légal COMPLET exigé par l'art. R. 123-237 du code de commerce.
  *
- * 09/10/2026. Les pieds de courriel du parc sont incomplets : `gabaritEmail()`
- * (lib/email.ts) et `piedLegal()` ci-dessous publient la raison sociale, le SIRET et
- * le NDA — mais ni le RCS, ni le SIÈGE SOCIAL, ni la TVA intracommunautaire. Leur
- * omission sur un document émis par la société est une contravention de 4e classe.
+ * 09/10/2026 (matin). Les pieds de courriel du parc étaient incomplets :
+ * `gabaritEmail()` (lib/email.ts) et `piedLegal()` ci-dessous publiaient la raison
+ * sociale, le SIRET et le NDA — mais ni le RCS, ni le SIÈGE SOCIAL, ni la TVA
+ * intracommunautaire. Leur omission sur un document émis par la société est une
+ * contravention de 4e classe. Ce bloc-ci avait alors été introduit comme un AJOUT.
  *
- * Ce bloc-ci est conforme. Il est introduit comme un AJOUT, sans toucher aux deux
- * fonctions existantes : elles ont une quarantaine d'appelants, et les reprendre est
- * un chantier à mener sur sa propre branche. La première route à s'en servir est
- * `/api/rendez-vous`. Toute nouvelle route doit l'utiliser.
+ * 09/10/2026 (après-midi). Le chantier a été mené : `piedLegal()` et le pied de
+ * `gabaritEmail()` sont désormais CONSTRUITS À PARTIR D'ICI. C'est le point unique
+ * d'où sort l'identité légale du CRM — toute nouvelle route doit l'utiliser, et
+ * personne ne doit réécrire ces mentions à la main ailleurs.
+ *
+ * ⚠️ Il subsiste UNE seconde source dans le dépôt : la constante `BLOC_LEGAL` de
+ * `lib/pagePublique.ts`, statique et au même texte. Les deux sont alignées mot pour
+ * mot mais rien ne le garantit dans le temps. La fusion n'a pas été faite ici parce
+ * que `pagePublique.ts` était en cours de modification par ailleurs ; le sens de la
+ * fusion est de faire appeler `blocLegalComplet()` par `pagePublique.ts`, et non
+ * l'inverse (cette fonction-ci lit `parametres`, l'autre est figée).
  *
  * ⚠️ TROIS PIÈGES, tous déjà tombés dans ce dépôt :
  *   1. La dénomination au greffe est « MY STORY » (deux mots) ; « MYSTORY » est
@@ -87,8 +97,13 @@ export function blocLegalComplet(): string {
   );
 }
 
-/** Ligne de pied de page légal prête à imprimer (documents + emails). */
+/**
+ * Ligne de pied de page légal prête à imprimer (documents + emails).
+ *
+ * = le bloc complet ci-dessus, suivi des coordonnées. On ne réécrit PAS les mentions
+ * légales ici : elles n'ont qu'une seule source, `blocLegalComplet()`.
+ */
 export function piedLegal(): string {
   const i = identiteLegale();
-  return `${i.raison} · ${i.rcs} · SIRET ${i.siret} · Déclaration d'activité n° ${i.nda} (ne vaut pas agrément de l'État) · ${i.telephone} · ${i.email}`;
+  return `${blocLegalComplet()} · ${i.telephone} · ${i.email}`;
 }
