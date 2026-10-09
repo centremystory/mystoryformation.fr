@@ -184,8 +184,13 @@ async function accuserReception(id: string, email: string, prenom: string | null
     <p style="margin:0 0 14px;font-size:15px">
       <a href="https://passetontef.fr" style="color:#2F72DE">passetontef.fr</a> reprend les
       quatre épreuves du TEF IRN au format réel.
-      Si vous devez aussi passer l'examen civique,
-      <a href="https://prepcivique.fr" style="color:#2F72DE">prepcivique.fr</a> vous y prépare.</p>
+      Si vous devez aussi passer l'examen civique, révisez sur les documents du ministère
+      de l'Intérieur :
+      <a href="https://formation-civique.interieur.gouv.fr" style="color:#2F72DE">formation-civique.interieur.gouv.fr</a>
+      (listes officielles de questions pour les mentions CSP et CR, fiches par thème) et,
+      pour la naturalisation, le livret du citoyen sur
+      <a href="https://www.immigration.interieur.gouv.fr/" style="color:#2F72DE">immigration.interieur.gouv.fr</a>.
+      Ils sont gratuits.</p>
     <p style="margin:22px 0 0;font-size:15px">À très bientôt,<br>L'équipe MYSTORY Formation</p>`;
 
   await envoyerEmail({

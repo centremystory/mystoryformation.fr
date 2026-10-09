@@ -46,10 +46,24 @@ export const TARIFS_URGENCE: Record<TypeExamen, number> = {
   Examen_civique: 100,
 };
 
-/** Options d'entraînement, ajoutées au montant de l'examen. */
+/**
+ * Options d'entraînement, ajoutées au montant de l'examen.
+ *
+ * 09/10/2026 — `prepcivique` RETIRÉ d'ici : décision du dirigeant, « ne propose
+ * nulle part prepcivique.fr ». MYSTORY ne dispense aucune formation civique (le
+ * contrat d'intégration républicaine relève exclusivement de l'OFII) : nous
+ * faisons passer l'examen civique, nous ne le préparons pas. Un tarif de vente
+ * pour une plateforme d'entraînement au civique n'a donc plus lieu d'être, même
+ * dans une table que personne n'appelle.
+ *
+ * ⚠️ Cette table est effectivement SANS APPELANT aujourd'hui : les deux seuls
+ * appels à `calculerMontant()` (`app/inscription-examen/route.ts` et
+ * `app/api/inscription-examen/route.ts`) passent `[]`. Le prix de 15 € pour
+ * Passetontef est d'ailleurs un reliquat — le site vend 35 € — et l'écart est
+ * signalé à la direction plutôt que corrigé ici au passage.
+ */
 export const PLATEFORMES: Record<string, { libelle: string; prix: number }> = {
   passetontef: { libelle: "Passetontef — entraînement TEF IRN", prix: 15 },
-  prepcivique: { libelle: "Prepcivique — entraînement examen civique", prix: 20 },
 };
 
 /**

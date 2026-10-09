@@ -25,6 +25,29 @@ export const MOTIVATIONS_TEF = [
   "06. Carte de résident en France",
   "10. Naturalisation française",
 ];
+/**
+ * Les applications d'entraînement telles qu'elles s'écrivent dans
+ * `ventes_examen.sous_type`.
+ *
+ * ⚠️ « Prepcivique » N'EST PLUS VENDU depuis le 09/10/2026 (décision du
+ * dirigeant : « ne propose nulle part prepcivique.fr »). Il a été retiré du
+ * site et du catalogue de la vente en ligne (`PLATEFORMES_COMMANDE`, dans
+ * `lib/commande.ts`), où une URL le demandant est désormais refusée.
+ *
+ * Il reste listé ICI, et seulement ici, parce que cette liste sert aussi à
+ * RELIRE et à corriger des ventes DÉJÀ enregistrées : les écrans
+ * `/examens/corrections`, `/examens/preinscriptions` et `/examens/vente-groupe`
+ * la rendent en liste déroulante, et les routes d'API s'en servent comme liste
+ * blanche de validation. L'en retirer ferait disparaître la valeur courante
+ * d'un enregistrement historique de sa propre liste déroulante — donc l'écraser
+ * au premier enregistrement. On casse l'historique comptable pour ne rien
+ * gagner : la vente nouvelle est déjà fermée en amont.
+ *
+ * Interdire aussi la SAISIE INTERNE de nouvelles ventes Prepcivique suppose de
+ * distinguer « valeur encore valide » de « valeur encore affichable » dans ces
+ * trois écrans. C'est une décision à faire trancher, pas un effet de bord à
+ * provoquer ici.
+ */
 export const PLATEFORMES = ["Passetontef", "Prepcivique", "Prepmyfuture"];
 
 function escapeHtml(s: string): string {

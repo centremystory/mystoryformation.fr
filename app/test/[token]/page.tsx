@@ -495,6 +495,13 @@ export default function Passation({ params }: { params: { token: string } }) {
         {/* ── L'entrainement, et le second examen. Depuis 2026 une carte de sejour,
             une carte de resident et une naturalisation exigent AUSSI l'examen
             civique : le candidat l'ignore souvent, et c'est ici qu'il y pense. */}
+        {/* 09/10/2026 — prepcivique.fr RETIRÉ de cette page (décision du dirigeant :
+            « ne propose nulle part prepcivique.fr »). MYSTORY ne dispense aucune
+            formation civique : le contrat d'intégration républicaine relève
+            exclusivement de l'OFII. Nous faisons passer l'examen, nous ne le préparons
+            pas — recommander une plateforme payante d'entraînement au civique revenait
+            à le faire par la bande. La carte est remplacée par les documents du
+            ministère, qui sont gratuits et qui sont la vraie bonne réponse. */}
         <div className="mb-4">
           <p className="mb-2 text-sm font-semibold text-gray-900">En attendant, entraînez-vous</p>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -511,16 +518,21 @@ export default function Passation({ params }: { params: { token: string } }) {
               <span className="mt-2 inline-block text-sm font-semibold text-mystory">S&apos;entraîner →</span>
             </a>
 
-            <a href="https://prepcivique.fr" target="_blank" rel="noopener noreferrer"
+            <a href="https://formation-civique.interieur.gouv.fr/examen-civique/"
+               target="_blank" rel="noopener noreferrer"
                className="block rounded-2xl border-2 border-gray-200 bg-white p-4 transition hover:border-mystory hover:shadow-sm">
               <div className="mb-1 flex items-baseline gap-1">
-                <span className="text-lg font-extrabold tracking-tight text-mystory">prepcivique</span>
-                <span className="text-lg font-light text-gray-400">.fr</span>
+                <span className="text-lg font-extrabold tracking-tight text-mystory">
+                  Examen civique
+                </span>
+                <span className="text-sm font-light text-gray-400">— ministère de l&apos;Intérieur</span>
               </div>
               <p className="text-sm text-gray-600">
-                L&apos;examen civique : valeurs, institutions, histoire et vie quotidienne.
+                Les documents officiels, gratuits : listes de questions pour les mentions
+                CSP et CR, fiches par thème. Pour la naturalisation, la référence est le
+                livret du citoyen.
               </p>
-              <span className="mt-2 inline-block text-sm font-semibold text-mystory">S&apos;entraîner →</span>
+              <span className="mt-2 inline-block text-sm font-semibold text-mystory">Réviser →</span>
             </a>
           </div>
         </div>

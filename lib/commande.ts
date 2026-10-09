@@ -400,21 +400,43 @@ export async function matineesDisponibles(
    LES PLATEFORMES D'ENTRAÎNEMENT
    ───────────────────────────────────────────────────────────────────────────── */
 
-export type ClePlateforme = "passetontef" | "prepmyfuture" | "prepcivique";
+export type ClePlateforme = "passetontef" | "prepmyfuture";
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   🔴 PREPCIVIQUE A ÉTÉ RETIRÉ DE LA VENTE — 09/10/2026, décision du dirigeant
+   ─────────────────────────────────────────────────────────────────────────────
+   « Ne propose nulle part prepcivique.fr […] je préfère prendre 0 risque. »
+
+   Ce n'est pas un arbitrage commercial, c'est la MÊME ligne que celle tenue
+   quinze lignes plus bas dans `lireCommande()` : MYSTORY ne dispense AUCUNE
+   formation civique. Le contrat d'intégration républicaine est délivré
+   exclusivement par l'OFII ; nous faisons PASSER l'examen civique, nous ne le
+   préparons pas. Vendre un abonnement à une plateforme d'entraînement à
+   l'examen civique, c'était faire par la bande ce que le même fichier refuse
+   par la face — et c'est précisément le genre d'écart qu'un contrôle relève.
+
+   ⚠️ NE PAS LE REMETTRE pour « compléter le panier ». Les deux plateformes qui
+   restent (PasseTonTEF, PrepMyFuture) préparent le TEF IRN, qui est une
+   certification de LANGUE : elles ne touchent pas à cette ligne.
+
+   Conséquence voulue : `estClePlateforme()` ne reconnaît plus la valeur, donc
+   une vieille URL en circulation portant `&options=prepcivique` est REFUSÉE
+   avec « Option inconnue : prepcivique. » au lieu d'ajouter la ligne en
+   silence. C'est le comportement attendu : on préfère un refus qui se voit à
+   une vente qu'on ne voulait plus faire.
+   ───────────────────────────────────────────────────────────────────────────── */
 
 /**
  * Le prix des plateformes n'est écrit nulle part : il se DÉDUIT des packs publiés
- * sur le site (`EXAMEN_CIVIQUE_PRICING`). Déduction refaite ici à la main, et vérifiée
- * par deux chemins indépendants pour PrepCivique :
+ * sur le site (`EXAMEN_CIVIQUE_PRICING`). Déduction refaite ici à la main :
  *
  *   PasseTonTEF  = 220 − 185 (TEF IRN seul)                       = 35 €
  *   PrepMyFuture = 250 − 185                                      = 65 €
- *   PrepCivique  = 320 − 265 (pack 2 examens) − 35 (PasseTonTEF)  = 20 €
- *            et  = 350 − 265 − 65 (PrepMyFuture)                  = 20 €   ✔ concordant
  *
- * Les deux chemins donnent 20 € : on n'invente rien. Le pack « 2 examens » à 265 €
- * n'est d'ailleurs pas une remise — 185 + 80 = 265 au centime — ce qui explique
- * pourquoi la soustraction tombe juste.
+ * Ces deux déductions ne dépendent QUE des packs « TEF IRN + <plateforme> », qui
+ * sont inchangés : le retrait de PrepCivique ne déplace aucun de ces deux prix.
+ * (Les deux packs à 320 € et 350 € qui portaient PrepCivique ont été retirés du
+ * site le même jour — ils ne servaient qu'à déduire le prix de PrepCivique.)
  *
  * ⚠️ `PLATEFORMES` de `tarifsExamen.ts` annonce Passetontef à 15 € : c'est un reliquat,
  * cette table n'est appelée par AUCUN appelant (l'inscription à une session passe
@@ -430,7 +452,6 @@ export const PLATEFORMES_COMMANDE: Record<
 > = {
   passetontef: { libelle: "Plateforme PasseTonTEF", prix: 35, sousType: "Passetontef", pour: "TEF_IRN" },
   prepmyfuture: { libelle: "Plateforme PrepMyFuture", prix: 65, sousType: "Prepmyfuture", pour: "TEF_IRN" },
-  prepcivique: { libelle: "Plateforme PrepCivique", prix: 20, sousType: "Prepcivique", pour: "Examen_civique" },
 };
 
 function estClePlateforme(v: string): v is ClePlateforme {
@@ -486,6 +507,25 @@ export type Commande = {
   matinees: string[];
   options: ClePlateforme[];
   centreMatinees: string;
+  /**
+   * Places encore libres sur chacune des matinées retenues, dans le MÊME ordre
+   * que `matinees`. Vide quand il n'y a pas de préparation.
+   *
+   * 09/10/2026. Arudhan : « en mettant le nombre de places disponibles ».
+   * Ce compte est RECALCULÉ ici, à la même seconde que le devis, contre
+   * `CAPACITE_MATINEE` et les réservations réellement posées — ce n'est donc
+   * pas un argument d'affichage, c'est le compteur qui décide aussi du refus
+   * quelques lignes plus haut. On l'expose pour que la page puisse le dire sans
+   * avoir à recompter de son côté : deux comptes qui se recalculent séparément
+   * finissent toujours par se contredire, et une fausse rareté affichée est
+   * une pratique commerciale trompeuse (art. L. 121-2 du code de la
+   * consommation).
+   *
+   * ⚠️ Les places d'une SESSION D'EXAMEN ne sont pas ici : elles voyagent déjà
+   * sur `tef.places_restantes` / `civique.places_restantes`, calculées par
+   * `lireSession()`. On ne les recopie pas.
+   */
+  matineesRestantes: number[];
   lignes: LigneCommande[];
   montant: number;
   urgence: boolean;
@@ -758,12 +798,24 @@ export async function lireCommande(
     });
   }
 
+  /* Les places restantes des matinées retenues, recomptées au moment du devis.
+     Un seul aller-retour, et seulement s'il y a une préparation : sans matinée,
+     il n'y a rien à compter et rien à afficher. */
+  const matineesRetenues = Array.from(new Set(matinees));
+  let matineesRestantes: number[] = [];
+  if (matineesRetenues.length > 0) {
+    const prises = await placesPrisesMatinees(matineesRetenues, centreMatinees);
+    matineesRestantes = matineesRetenues.map(
+      (d) => Math.max(0, CAPACITE_MATINEE - (prises.get(d) ?? 0)),
+    );
+  }
+
   return {
     ok: true,
     commande: {
       tef, civique, mention,
-      heures, matinees: Array.from(new Set(matinees)),
-      options, centreMatinees, lignes,
+      heures, matinees: matineesRetenues,
+      options, centreMatinees, matineesRestantes, lignes,
       montant: lignes.reduce((n, l) => n + l.prix, 0),
       urgence: tefUrgent || civiqueUrgent,
     },
