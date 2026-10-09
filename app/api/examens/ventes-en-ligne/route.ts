@@ -21,6 +21,22 @@
  * déjà pour les ventes des conseillères : on ne réinvente pas un second écrivain,
  * on alimente celui qui existe.
  *
+ * ── DEUX LECTEURS, UN SEUL FORMAT (09/10/2026, après-midi) ──────────────────────
+ * Un second robot lit maintenant cette route : « Paiements du site → onglet Paiements
+ * site », qui alimente un onglet NEUF de suivi des encaissements. Il a besoin de ce que
+ * le gabarit A→AF ne porte pas : la date d'encaissement, la référence du paiement, le
+ * moyen réel, la série de facturation.
+ *
+ * Tout cela est rendu dans des champs préfixés `_`. Ce n'est pas une coquetterie : le
+ * robot des primes SAUTE toute clé commençant par `_` avant de passer la ligne au
+ * sous-robot d'écriture, qui refuse une ligne qui ne fait pas exactement 32 colonnes.
+ * Un champ nouveau non préfixé casserait donc l'écriture des primes. 🔴 Tout ajout
+ * futur se nomme `_…`.
+ *
+ * Le paramètre `?moyen=detail` (optionnel) fait relire les paiements chez Mollie pour
+ * connaître le moyen employé — carte, Klarna, iDEAL. Le robot des primes ne le passe
+ * PAS, et ne doit jamais le passer : voir le commentaire au point d'appel.
+ *
  * ── CE QU'ELLE NE REND PAS ──────────────────────────────────────────────────────
  * Les ventes remboursées ou annulées. Le classeur se corrige alors ligne par ligne
  * (opérations `remboursement` / `annulation` du sous-robot), pas en ajoutant une
@@ -31,6 +47,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole, UnauthorizedError, ForbiddenError } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { lireMoyen } from "@/lib/mollie";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -119,6 +136,97 @@ function modePaiement(moyenCommande: string | null, reference: string | null): s
   return "En ligne";
 }
 
+/**
+ * `2026-10-08T20:24:47Z` → `08/10/2026 22:24` (heure de Paris).
+ *
+ * L'heure compte ici : un suivi de PAIEMENTS se rapproche d'un relevé bancaire, et deux
+ * encaissements du même jour doivent pouvoir se distinguer. Le fuseau est forcé à
+ * Europe/Paris — un horodatage UTC afficherait 22 h 24 comme 20 h 24, et Arudhan
+ * chercherait longtemps un paiement « de 20 h » dans son relevé.
+ */
+function jjmmaaaaHeure(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(String(iso));
+  if (isNaN(d.getTime())) return String(iso);
+  const p = new Intl.DateTimeFormat("fr-FR", {
+    timeZone: "Europe/Paris",
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit", hour12: false,
+  }).format(d);
+  /* `Intl` rend « 08/10/2026 22:24 » en fr-FR, mais insère parfois une virgule selon la
+     version d'ICU embarquée dans le runtime. On la retire plutôt que d'en dépendre. */
+  return p.replace(",", "").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Les codes de moyen de paiement rendus par Mollie, en clair.
+ *
+ * 🔴 Pourquoi ces libellés sont LONGS et pas ceux de la colonne Z de l'onglet Examens :
+ * ils ne vont pas dans l'onglet Examens. Ils vont dans l'onglet « Paiements site », qui
+ * est NEUF et n'a aucun vocabulaire hérité à respecter. Là-bas, le but est inverse : ne
+ * plus se demander ce que « En ligne » recouvre.
+ *
+ * Un code inconnu n'est pas masqué : il est rendu tel quel, préfixé. Mollie ajoute des
+ * moyens (et nous en activons) sans nous prévenir ; un `switch` muet ferait croire à un
+ * paiement par carte.
+ */
+const MOYEN_MOLLIE: Record<string, string> = {
+  creditcard: "Carte bancaire (Mollie)",
+  klarna: "Klarna (différé/fractionné)",
+  ideal: "iDEAL (Mollie)",
+  bancontact: "Bancontact (Mollie)",
+  paypal: "PayPal (Mollie)",
+  applepay: "Apple Pay (Mollie)",
+  banktransfer: "Virement (Mollie)",
+  directdebit: "Prélèvement (Mollie)",
+  giftcard: "Carte cadeau (Mollie)",
+  voucher: "Titre/voucher (Mollie)",
+};
+
+/**
+ * Le moyen de paiement en clair pour l'onglet de suivi.
+ *
+ * `moyenMollie` n'est renseigné que si l'appelant a demandé `?moyen=detail` ET que Mollie
+ * a répondu. Sans lui, on ne SAIT PAS si la carte ou Klarna a servi — et on le dit, au
+ * lieu d'écrire « Carte bancaire » au hasard. Un suivi de paiements qui affirme un moyen
+ * qu'il ignore est pire qu'un suivi qui l'avoue.
+ */
+function moyenLisible(
+  moyenCommande: string | null,
+  reference: string | null,
+  moyenMollie: string | null,
+): string {
+  if (moyenCommande === "lenbox") return "Lenbox — paiement fractionné";
+  /* Repli quand la commande ne dit rien : Mollie préfixe ses paiements par `tr_`, Lenbox non. */
+  if (moyenCommande !== "mollie" && reference && !reference.startsWith("tr_")) {
+    return "Lenbox — paiement fractionné";
+  }
+  if (moyenMollie) return MOYEN_MOLLIE[moyenMollie] ?? `Mollie — ${moyenMollie}`;
+  return "Mollie (carte ou Klarna — non distingué)";
+}
+
+/**
+ * Ce qui a été acheté, en une ligne lisible.
+ *
+ * Pour une vente isolée, le type et le sous-type suffisent. Pour une vente issue d'une
+ * COMMANDE COMPOSÉE, le `detail` de la commande est la seule trace de ce que le candidat
+ * a réellement payé en un seul versement (deux examens + préparation + plateformes) :
+ * sans lui, Arudhan verrait trois lignes de 185 €, 100 € et 60 € sans comprendre qu'un
+ * unique paiement de 345 € les couvre. On rend donc le détail de la commande en plus.
+ */
+function detailCommande(detail: unknown): string {
+  if (!Array.isArray(detail)) return "";
+  const bouts = detail
+    .map((l: any) => {
+      const lib = String(l?.libelle ?? l?.label ?? "").trim();
+      if (!lib) return "";
+      const prix = Number(l?.prix ?? l?.montant);
+      return isFinite(prix) ? `${lib} ${prix} €` : lib;
+    })
+    .filter((s) => s !== "");
+  return bouts.join(" + ");
+}
+
 export async function GET(req: NextRequest) {
   /* Garde alignée sur `/api/incidents` : la Direction et les automates de confiance,
      personne d'autre. Cette route rend l'identité complète des candidats — date et
@@ -146,7 +254,7 @@ export async function GET(req: NextRequest) {
     .select(
       "id, vente_id, commande_id, civilite, genre, date_naissance, lieu_naissance, " +
         "langue_maternelle, nationalite, adresse, code_postal, ville, pays, " +
-        "piece_identite, plateforme, reference_paiement, candidat_telephone",
+        "piece_identite, plateforme, reference_paiement, candidat_telephone, paye_le",
     )
     .eq("origine", "en_ligne")
     .eq("statut", "convertie")
@@ -184,7 +292,10 @@ export async function GET(req: NextRequest) {
      (vérifié le 09/10/2026 sur les 5 ventes existantes). */
   const { data: factures } = await supabaseAdmin
     .from("factures")
-    .select("vente_id, numero, email_envoye_le")
+    /* `serie` et `statut` sont lus pour l'onglet de suivi : c'est là qu'on voit si une
+       facture d'examen porte encore un numéro pris dans la série des ATTESTATIONS
+       (`MYS-2026-…`) au lieu de la série qui lui revient (`MYS-EX-2026-…`). */
+    .select("vente_id, numero, serie, statut, email_envoye_le")
     .in("vente_id", idsVente);
   const parFacture = new Map<string, any>();
   for (const f of factures ?? []) parFacture.set(String((f as any).vente_id), f);
@@ -192,10 +303,44 @@ export async function GET(req: NextRequest) {
   const idsCommande = [...new Set((pres ?? []).map((p: any) => p.commande_id).filter(Boolean))];
   const { data: commandes } = await supabaseAdmin
     .from("commandes_en_ligne")
-    .select("id, moyen_paiement")
+    .select("id, moyen_paiement, lenbox_session_id, montant, detail, paye_le")
     .in("id", idsCommande.length ? idsCommande : ["00000000-0000-0000-0000-000000000000"]);
   const parCommande = new Map<string, any>();
   for (const c of commandes ?? []) parCommande.set(String((c as any).id), c);
+
+  /* ── LE MOYEN RÉEL, SUR DEMANDE SEULEMENT ────────────────────────────────────────
+     `?moyen=detail` fait relire chaque paiement chez Mollie pour connaître le moyen
+     employé (carte, Klarna, iDEAL…). Cette information n'est stockée nulle part chez
+     nous : le webhook n'enregistre que la référence et la date.
+
+     🔴 POURQUOI C'EST OPTIONNEL, ET PAS LE COMPORTEMENT PAR DÉFAUT. Le robot des primes
+     (`Ventes du site → onglet Examens`, CDc38BWgTOtwZdmA) appelle cette route toutes les
+     20 minutes et n'a aucun besoin du moyen : sa colonne Z emploie un vocabulaire fermé
+     (« En ligne », « Lenbox »). Rendre l'appel à Mollie systématique ajouterait N requêtes
+     réseau sur SON chemin : un ralentissement ou une panne chez Mollie ferait expirer son
+     appel HTTP (30 s) et les ventes du site cesseraient d'entrer au classement des primes.
+     Un confort d'affichage ne doit pas pouvoir casser une chaîne qui marche.
+
+     Plafonné à 60 relectures par appel, et par paquets de 6 : au-delà, l'onglet de suivi
+     n'a de toute façon plus besoin d'être enrichi (les lignes anciennes sont déjà écrites,
+     et l'écriture est définitive). Chaque échec rend `null` et retombe sur le libellé
+     générique — jamais d'erreur propagée. */
+  const moyenParReference = new Map<string, string>();
+  if (req.nextUrl.searchParams.get("moyen") === "detail") {
+    const refs = [...new Set(
+      (ventes ?? [])
+        .map((v: any) => String(parVente.get(String(v.id))?.reference_paiement ?? ""))
+        .filter((r) => r.startsWith("tr_")),
+    )].slice(0, 60);
+    for (let i = 0; i < refs.length; i += 6) {
+      const lot = refs.slice(i, i + 6);
+      const res = await Promise.all(lot.map((r) => lireMoyen(r)));
+      lot.forEach((r, k) => {
+        const m = res[k];
+        if (m) moyenParReference.set(r, m);
+      });
+    }
+  }
 
   const out = (ventes ?? []).map((v: any) => {
     const p = parVente.get(String(v.id)) ?? {};
@@ -267,11 +412,51 @@ export async function GET(req: NextRequest) {
       prime: Math.round(montant) / 100,
       commentaire: `${origine}${f?.numero ? ` · facture ${f.numero}` : ""} · ${marque}`,
 
-      /* Hors gabarit : lu par le robot pour sa déduplication et ses alertes. */
+      /* ── HORS GABARIT ──────────────────────────────────────────────────────────────
+         Tout champ préfixé `_` est IGNORÉ par le robot des primes : son nœud de
+         rapprochement saute les clés commençant par `_` avant de passer la ligne au
+         sous-robot d'écriture, qui exige exactement 32 colonnes. C'est ce qui rend ces
+         ajouts sans danger pour lui — et c'est la raison de la convention : un champ
+         nouveau se nomme `_…`, jamais autrement, sous peine de casser le gabarit A→AF. */
       _marque: marque,
       _vente_id: v.id,
       _facture: f?.numero ?? null,
       _facture_envoyee_le: f?.email_envoye_le ?? null,
+
+      /* ── POUR L'ONGLET « Paiements site » (09/10/2026) ─────────────────────────────
+         Un suivi de PAIEMENTS, pas un second journal de ventes : ce qui compte est
+         l'encaissement — quand, par quel moyen, sous quelle référence — et à quelles
+         pièces légales il se rattache. */
+
+      /* La date de l'ENCAISSEMENT, pas celle de l'inscription. Les deux diffèrent :
+         `date_inscription` est une date de gestion (jour de la conversion), `paye_le` est
+         l'instant où l'argent est parti du compte du candidat. C'est `paye_le` qui se
+         rapproche du relevé Mollie et du versement Qonto. La commande fait foi quand elle
+         existe : c'est elle qui porte LE paiement unique d'une commande composée. */
+      _paye_le: jjmmaaaaHeure(cmd?.paye_le ?? p.paye_le ?? null),
+      /* La référence du paiement : `tr_…` chez Mollie, identifiant de dossier chez Lenbox.
+         C'est la seule chaîne qui permette de retrouver l'encaissement chez le
+         prestataire — donc la clé du rapprochement bancaire. */
+      _reference_paiement: p.reference_paiement ?? "",
+      _moyen: moyenLisible(
+        cmd?.moyen_paiement ?? null,
+        p.reference_paiement ?? null,
+        moyenParReference.get(String(p.reference_paiement ?? "")) ?? null,
+      ),
+      /* Lenbox distingue la SESSION (créée au clic) de la DEMANDE (notifiée au
+         financement) : conserver l'identifiant de session est ce qui permet de vérifier
+         qu'un dossier financé correspond bien à cette commande et pas à celle d'un tiers. */
+      _lenbox_session: cmd?.lenbox_session_id ?? "",
+      /* Le détail de la commande composée, et son total. Rendus pour que trois lignes de
+         suivi issues d'UN SEUL paiement ne se lisent pas comme trois encaissements. */
+      _commande_detail: detailCommande(cmd?.detail),
+      _commande_total: cmd?.montant != null ? Number(cmd.montant) : null,
+      /* La série de facturation telle qu'elle est en base, et le numéro émis. L'écart
+         entre les deux est exactement ce que l'onglet doit rendre visible : une facture
+         d'examen numérotée `MYS-2026-…` a pris son numéro dans la séquence des
+         ATTESTATIONS, alors qu'elle devrait porter `MYS-EX-2026-…`. */
+      _facture_serie: f?.serie ?? "",
+      _facture_statut: f?.statut ?? "",
     };
   });
 

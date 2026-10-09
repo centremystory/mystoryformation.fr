@@ -211,3 +211,32 @@ export async function lirePaiement(id: string): Promise<EtatPaiement> {
     reference: j?.metadata?.reference ? String(j.metadata.reference) : null,
   };
 }
+
+/**
+ * Le MOYEN réellement employé par le candidat : `creditcard`, `klarna`, `ideal`…
+ *
+ * 09/10/2026. Ajouté pour l'onglet de suivi des paiements du site : Arudhan veut
+ * distinguer une carte d'un Klarna, et cette information n'existe NULLE PART chez nous.
+ * Le webhook (`/api/paiements/mollie`) n'enregistre que `reference_paiement` et
+ * `paye_le` ; le moyen n'est connu que de Mollie.
+ *
+ * 🔴 POURQUOI UNE LECTURE À LA DEMANDE, ET PAS UNE COLONNE EN BASE. Persister le moyen
+ * demanderait de toucher le webhook — c'est-à-dire le chemin de l'argent : une colonne
+ * manquante au moment du déploiement y ferait échouer l'`update`, et une inscription
+ * payée ne serait jamais validée. Un confort de reporting ne vaut pas ce risque. On
+ * relit donc Mollie au moment d'afficher, et jamais au moment d'encaisser.
+ *
+ * ⚠️ Rend `null` sur le moindre refus (clé absente, paiement inconnu, Mollie indisponible)
+ * et NE LÈVE JAMAIS : l'appelant doit pouvoir se replier sur un libellé générique. Un
+ * suivi de paiements qui tombe parce que Mollie tousse ne sert à rien.
+ */
+export async function lireMoyen(id: string): Promise<string | null> {
+  if (!process.env.MOLLIE_API_KEY?.trim()) return null;
+  try {
+    const j = await mollie(`/payments/${encodeURIComponent(id)}`);
+    const m = j?.method;
+    return m ? String(m) : null;
+  } catch {
+    return null;
+  }
+}
