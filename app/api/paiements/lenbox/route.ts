@@ -331,3 +331,32 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ ok: true });
 }
+
+/*
+ * GET / HEAD — répondre « je suis là », et rien d'autre.
+ *
+ * 09/10/2026. Avant ceci, la route n'exposait que POST : un GET repartait en
+ * **405 Method Not Allowed**. Or un tableau de bord qui enregistre une adresse
+ * de webhook commence presque toujours par l'appeler en GET ou en HEAD pour
+ * vérifier qu'elle existe — et un 405 se lit, côté interface, comme
+ * « URL invalide ». C'est ce qui a fait échouer l'enregistrement de cette
+ * adresse chez Lenbox, et on a cherché la cause ailleurs.
+ *
+ * 🔴 Ce point d'entrée ne fait RIEN et ne doit jamais rien faire. Il ne lit
+ * aucun paramètre, ne touche à aucune commande, n'écrit nulle part. Un GET
+ * n'est pas authentifié et son adresse est connue de quiconque l'a vue passer :
+ * tout ce qu'on lui ferait faire serait déclenchable par un inconnu. La seule
+ * chose qu'il révèle, c'est que le chemin existe — ce que le POST révélait
+ * déjà.
+ *
+ * Volontairement sans cache : une réponse mise en cache par un intermédiaire
+ * ferait croire le point d'entrée vivant alors qu'il serait tombé.
+ */
+export async function GET() {
+  return NextResponse.json(
+    { ok: true, service: "webhook Lenbox", methode_attendue: "POST" },
+    { headers: { "cache-control": "no-store" } },
+  );
+}
+
+export const HEAD = GET;
