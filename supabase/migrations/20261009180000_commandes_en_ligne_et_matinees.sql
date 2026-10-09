@@ -2,9 +2,13 @@
 -- Commandes composées en ligne + matinées de préparation
 -- Date : 09/10/2026
 --
--- ⚠️ MIGRATION NON APPLIQUÉE. Écrite pour que la direction décide avant d'agir.
---    Tant qu'elle n'est pas passée, la route /commande ne peut pas fonctionner
---    (elle écrit dans les deux tables créées ici).
+-- ✅ APPLIQUÉE le 09/10/2026 sur le projet svepgknbbonrtwyvzaar, en deux temps
+--    (`commandes_en_ligne_et_matinees`, puis `matinees_preparation_et_lien_preinscriptions`).
+--    Les trois contraintes ont été ÉPROUVÉES en production, par trois insertions
+--    interdites jouées dans un bloc annulé : préparation sur un civique seul,
+--    commande sans examen, 9 h déclarées pour 2 matinées. Les trois ont été
+--    refusées par la base, et rien n'est resté écrit.
+--    Les 8 pré-inscriptions existantes sont intactes, `commande_id` à NULL.
 --
 -- ── POURQUOI DEUX NOUVELLES TABLES, ET PAS UNE COLONNE JSON ─────────────────
 --
@@ -209,6 +213,5 @@ alter table preinscriptions_examen
 create index if not exists idx_preinscriptions_commande on preinscriptions_examen (commande_id);
 
 -- ============================================================================
--- APRÈS APPLICATION : reporter la ligne dans migrations/MANIFEST.md
---   | 78 | 20261009180000 | commandes_en_ligne_et_matinees |
+-- Reporté dans migrations/MANIFEST.md sous le n° 78.
 -- ============================================================================
