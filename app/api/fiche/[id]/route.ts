@@ -36,6 +36,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
        heures_prevues, heures_realisees, date_debut, date_fin,
        service_fait_valide, numero_edof,
        participation_forfaitaire_reglee, participation_forfaitaire_exemptee, cpf_identite_ok,
+       vente_formation_id,
        created_at`
     )
     .eq("stagiaire_id", id)

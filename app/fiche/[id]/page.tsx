@@ -27,6 +27,9 @@ type Dossier = {
   numero_edof: string | null;
   participation_forfaitaire_reglee: boolean | null; participation_forfaitaire_exemptee: boolean | null;
   cpf_identite_ok: boolean | null;
+  // Vente dont ce dossier est issu : c'est elle qui permet de savoir, plus bas, quelles
+  // ventes n'ont pas encore de dossier (et donc pour lesquelles il reste un bouton).
+  vente_formation_id: string | null;
 };
 type Examen = {
   id: string; type_examen: string | null; sous_type: string | null; statut_paiement: string | null;
@@ -109,6 +112,175 @@ const LABEL_PIECE: Record<string, string> = {
   justificatif_participation: "Justificatif participation", justificatif_examen: "Justificatif examen",
 };
 
+/**
+ * Transforme une VENTE de formation en DOSSIER de formation.
+ *
+ * POURQUOI CE BOUTON — mesuré le 09/10/2026 : 158 ventes de formation en base, 4 dossiers,
+ * 56 pièces toutes « manquant », 0 convention signée depuis juillet. La chaîne Qualiopi du
+ * CRM était complète et correcte depuis des mois ; il n'existait simplement AUCUN chemin
+ * entre une vente et un dossier. C'est ce chemin, et rien d'autre.
+ *
+ * Derrière ce bouton, la chaîne s'allume seule : les 14 pièces obligatoires se sèment, la
+ * convention devient envoyable en signature, l'émargement devient possible, le certificat
+ * devient émettable.
+ *
+ * LE CRM DOIT SIMPLIFIER — trois saisies, et trois seulement :
+ *   le niveau visé (liste, pré-remplie depuis le test de niveau s'il existe),
+ *   le centre (liste, pré-remplie depuis l'agence de vente),
+ *   la date de début.
+ * Les heures, le montant, le financement, le vendeur et la date de commande sont REPRIS de
+ * la ligne de vente : ce qui est déjà connu n'est jamais redemandé. Les heures ne sont
+ * demandées que si la formule n'en porte pas (lignes « Fond propre »).
+ */
+function CreerDossierDepuisVente({
+  vente, niveauSuggere, onCree,
+}: {
+  vente: ImpFormation;
+  niveauSuggere: string | null;
+  onCree: () => void;
+}) {
+  const [ouvert, setOuvert] = useState(false);
+  const [niveau, setNiveau] = useState(niveauSuggere ?? "");
+  const [centre, setCentre] = useState("");
+  const [dateDebut, setDateDebut] = useState("");
+  const [heures, setHeures] = useState("");
+  const [resteAccepte, setResteAccepte] = useState(false);
+  const [resteDemande, setResteDemande] = useState(false);
+  const [centres, setCentres] = useState<{ code: string; nom: string }[]>([]);
+  const [envoi, setEnvoi] = useState(false);
+  const [erreur, setErreur] = useState<string | null>(null);
+
+  // Les heures ne sont saisies que si la formule n'en porte pas.
+  const heuresManquantes = vente.heures == null || Number(vente.heures) <= 0;
+
+  // Les centres viennent de la base (`?formation=1` = ceux qui accueillent de la formation),
+  // jamais d'une liste figée dans le code : Pantin a été retiré le 06/10, et c'est la table
+  // qui doit en décider, pas cette page.
+  useEffect(() => {
+    if (!ouvert || centres.length) return;
+    (async () => {
+      try {
+        const r = await fetch("/api/centres?formation=1", { cache: "no-store" });
+        const j = await r.json();
+        const liste = (j.centres ?? []) as any[];
+        setCentres(liste.map((c) => ({ code: c.code, nom: c.nom })));
+        // Pré-remplissage depuis l'agence de vente : « Gagny » → GAGNY, « Sarcelles » → SARCELLES.
+        const depuisAgence = (vente.agence_vente ?? "").trim().toUpperCase();
+        if (depuisAgence && liste.some((c) => c.code === depuisAgence)) setCentre(depuisAgence);
+      } catch { setCentres([]); }
+    })();
+  }, [ouvert, centres.length, vente.agence_vente]);
+
+  async function creer() {
+    setEnvoi(true); setErreur(null);
+    try {
+      const r = await fetch("/api/dossiers/depuis-vente", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          venteId: vente.id,
+          niveauVise: niveau,
+          centre,
+          dateDebut,
+          heures: heuresManquantes ? heures : undefined,
+          resteAChargeAccepte: resteAccepte,
+        }),
+      });
+      const j = await r.json();
+      if (!j.ok) {
+        // Plafond CPF : la base refuse un dossier CPF au-delà de 1 500 € sans acceptation
+        // du reste à charge. On fait apparaître la case plutôt que de renvoyer une erreur.
+        if (j.resteAChargeRequis) setResteDemande(true);
+        throw new Error(j.erreur || "Création impossible.");
+      }
+      onCree();
+    } catch (e: any) {
+      setErreur(e?.message || "Création impossible.");
+    } finally { setEnvoi(false); }
+  }
+
+  const pret = niveau && centre && dateDebut && (!heuresManquantes || Number(heures) > 0)
+    && (!resteDemande || resteAccepte);
+
+  if (!ouvert) {
+    return (
+      <button onClick={() => setOuvert(true)} className="badge bg-emerald-600 text-white hover:bg-emerald-700" style={{ cursor: "pointer" }}>
+        + Créer le dossier de formation
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-2 w-full rounded-lg border border-emerald-200 bg-emerald-50/50 p-3">
+      <div className="mb-2 text-xs text-gray-600">
+        Repris de la vente : <strong>{vente.formule_label ?? "—"}</strong>
+        {!heuresManquantes && <> · <strong>{vente.heures} h</strong></>}
+        {vente.montant_eur != null && <> · <strong>{euro(vente.montant_eur)}</strong></>}
+        {" · "}<strong>{vente.fond_propre ? "fonds propres" : "CPF"}</strong>
+        {vente.vendu_par && <> · vendu par {vente.vendu_par}</>}
+      </div>
+
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="text-xs text-gray-600">
+          <span className="block mb-0.5">Niveau visé</span>
+          <select value={niveau} onChange={(e) => setNiveau(e.target.value)} className="input !py-1 !text-sm">
+            <option value="">— choisir —</option>
+            {["A1", "A2", "B1", "B2"].map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </label>
+
+        <label className="text-xs text-gray-600">
+          <span className="block mb-0.5">Centre</span>
+          <select value={centre} onChange={(e) => setCentre(e.target.value)} className="input !py-1 !text-sm">
+            <option value="">— choisir —</option>
+            {centres.map((c) => <option key={c.code} value={c.code}>{c.nom}</option>)}
+          </select>
+        </label>
+
+        <label className="text-xs text-gray-600">
+          <span className="block mb-0.5">Date de début</span>
+          <input type="date" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)} className="input !py-1 !text-sm" />
+        </label>
+
+        {heuresManquantes && (
+          <label className="text-xs text-gray-600">
+            <span className="block mb-0.5">Heures</span>
+            <input type="number" min={1} step={1} value={heures} onChange={(e) => setHeures(e.target.value)}
+              placeholder="ex. 12" className="input !py-1 !text-sm w-24" />
+          </label>
+        )}
+
+        <button onClick={creer} disabled={!pret || envoi}
+          className="badge bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+          style={{ cursor: pret && !envoi ? "pointer" : "not-allowed" }}>
+          {envoi ? "Création…" : "Créer le dossier"}
+        </button>
+        <button onClick={() => setOuvert(false)} className="badge bg-white text-gray-500 border border-gray-200 hover:bg-gray-50" style={{ cursor: "pointer" }}>
+          Annuler
+        </button>
+      </div>
+
+      {heuresManquantes && (
+        <p className="mt-2 text-xs text-gray-500">
+          La formule « {vente.formule_label ?? "—"} » ne porte pas de durée : indiquez le nombre d'heures vendues.
+        </p>
+      )}
+
+      {resteDemande && (
+        <label className="mt-2 flex items-start gap-2 text-xs text-amber-800">
+          <input type="checkbox" checked={resteAccepte} onChange={(e) => setResteAccepte(e.target.checked)} className="mt-0.5" />
+          <span>
+            Le stagiaire a <strong>accepté le reste à charge</strong>. Obligatoire au-delà de 1 500 € sur un dossier CPF
+            (notre catalogue est à 1 620 € : c'est le cas normal).
+          </span>
+        </label>
+      )}
+
+      {erreur && <p className="mt-2 text-xs text-red-600">{erreur}</p>}
+    </div>
+  );
+}
+
 /** Ouvre un document archivé du dossier (URL signée 1 h via /api/documents/url). */
 function DocButton({ dossierId, piece, variant }: { dossierId: string; piece: string; variant: string }) {
   const [busy, setBusy] = useState(false);
@@ -188,12 +360,36 @@ export default function PageFiche() {
       .finally(() => setChargement(false));
   }, [id]);
 
+  /**
+   * Relecture complète de la fiche. Après la création d'un dossier, un patch local ne
+   * suffirait pas : le dossier arrive avec ses 14 pièces semées par la base et, le cas
+   * échéant, le test de positionnement déjà rattaché. On relit plutôt que de deviner.
+   */
+  async function recharger() {
+    try {
+      const j = await (await fetch(`/api/fiche/${id}`, { cache: "no-store" })).json();
+      if (j.ok) setFiche(j);
+    } catch { /* la fiche affichée reste celle qu'on avait */ }
+  }
+
   if (chargement) return <div className="p-6 text-gray-500">Chargement de la fiche…</div>;
   if (erreur || !fiche) return <div className="p-6 text-rose-600">{erreur ?? "Fiche introuvable."}</div>;
 
   const s = fiche.stagiaire;
   const nomComplet = `${s.prenom ?? ""} ${s.nom}`.trim();
   const rechercheDossiers = `/dossiers?q=${encodeURIComponent(nomComplet)}`;
+
+  // Ventes de formation qui n'ont pas encore donné de dossier. Le rattachement se lit
+  // sur `dossiers.vente_formation_id` : c'est la base qui dit ce qui est déjà converti,
+  // pas un rapprochement par nom ou par montant.
+  const ventesConverties = new Set(
+    fiche.dossiers.map((d) => d.vente_formation_id).filter(Boolean) as string[]
+  );
+  const ventesSansDossier = (fiche.importe?.formations ?? []).filter((v) => !ventesConverties.has(v.id));
+
+  // Niveau visé déjà connu par un test de niveau passé : on le propose par défaut plutôt
+  // que de le faire ressaisir. Le plus récent d'abord (l'API trie déjà par date).
+  const niveauSuggere = fiche.evaluations.find((e) => e.niveau_vise)?.niveau_vise ?? null;
 
   const totalFormation = fiche.dossiers.reduce((acc, d) => acc + (Number(d.montant) || 0), 0);
   const encaisse = fiche.dossiers.reduce((acc, d) => acc + (Number(d.montant_encaisse) || 0), 0);
@@ -247,9 +443,38 @@ export default function PageFiche() {
           <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Formation ({fiche.dossiers.length})</h2>
           <Link href={rechercheDossiers} className="text-sm hover:underline" style={{ color: BLEU }}>Ouvrir dans Dossiers ↗</Link>
         </div>
-        {fiche.dossiers.length === 0 ? (
+        {/* Ventes de formation qui n'ont PAS encore de dossier.
+            C'est le trou qu'on a mesuré le 09/10/2026 : 158 ventes, 4 dossiers. Tant qu'une
+            vente n'a pas de dossier, elle n'a ni convention, ni émargement, ni certificat —
+            donc aucune preuve au contrôle. On le rend VISIBLE ici, à côté du bouton qui le
+            comble, plutôt que dans un onglet tenu à la main. */}
+        {ventesSansDossier.length > 0 && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+            <div className="text-sm font-medium text-amber-900">
+              {ventesSansDossier.length === 1
+                ? "1 vente de formation sans dossier"
+                : `${ventesSansDossier.length} ventes de formation sans dossier`}
+            </div>
+            <p className="mt-0.5 text-xs text-amber-800">
+              Sans dossier, il n'y a ni convention, ni émargement, ni certificat de réalisation — donc aucune preuve au contrôle.
+            </p>
+            <div className="mt-3 space-y-3">
+              {ventesSansDossier.map((v) => (
+                <div key={v.id} className="flex flex-wrap items-center gap-2 border-t border-amber-200 pt-3 first:border-0 first:pt-0">
+                  <span className="text-sm text-gray-700">
+                    {dateFr(v.date_inscription)} · <strong>{v.formule_label ?? "—"}</strong>
+                    {v.agence_vente && <span className="text-gray-500"> · {v.agence_vente}</span>}
+                  </span>
+                  <CreerDossierDepuisVente vente={v} niveauSuggere={niveauSuggere} onCree={recharger} />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {fiche.dossiers.length === 0 && ventesSansDossier.length === 0 ? (
           <div className="empty-state text-sm text-gray-400">Aucun dossier de formation.</div>
-        ) : (
+        ) : fiche.dossiers.length === 0 ? null : (
           fiche.dossiers.map((d) => (
             <div key={d.id} className="card p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
