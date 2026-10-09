@@ -27,7 +27,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { requireUser } from "@/lib/auth";
+import { requireRole, UnauthorizedError, ForbiddenError } from "@/lib/auth";
 import {
   TYPES_LIEN, type TypeLien, creerLien, lienCandidat, contexteDossier,
   etatParticipation, DUREE_JOURS, TICKET_MODERATEUR,
@@ -42,8 +42,22 @@ const estType = (v: unknown): v is TypeLien =>
   (TYPES_LIEN as readonly string[]).includes(String(v ?? ""));
 
 export async function GET(req: NextRequest) {
-  const auth = await requireUser(req).catch(() => null);
-  if (!auth) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
+  /* 09/10/2026 — `requireUser` ne suffisait PAS ici, et une revue de sécurité l'a
+     relevé. Cette route FABRIQUE les jetons : un lien qu'elle émet fait accepter un
+     devis et ouvre un paiement, et sa lecture expose le nom et le courriel du
+     candidat. Toute session authentifiée pouvait en demander un, pour N'IMPORTE quel
+     dossier. Or on a mesuré le 09/10 qu'un jeton de portail partenaire ouvrait déjà
+     des pages du back-office : « authentifié » ne veut pas dire « habilité ».
+     Même garde que `dossiers/depuis-vente`, qui est l'acte voisin : conseillères,
+     secrétariat, encadrement. Pas les formatrices, qui n'envoient pas de devis. */
+  let auth;
+  try {
+    auth = await requireRole(req, ["direction", "manager", "commercial", "back_office"]);
+  } catch (e) {
+    if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
+    if (e instanceof ForbiddenError) return NextResponse.json({ ok: false, erreur: "Action réservée à l'équipe commerciale, au secrétariat et à la direction." }, { status: 403 });
+    throw e;
+  }
 
   const dossier = req.nextUrl.searchParams.get("dossier") ?? "";
   if (!dossier) return NextResponse.json({ ok: false, erreur: "Paramètre `dossier` manquant." }, { status: 400 });
@@ -96,8 +110,22 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireUser(req).catch(() => null);
-  if (!auth) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
+  /* 09/10/2026 — `requireUser` ne suffisait PAS ici, et une revue de sécurité l'a
+     relevé. Cette route FABRIQUE les jetons : un lien qu'elle émet fait accepter un
+     devis et ouvre un paiement, et sa lecture expose le nom et le courriel du
+     candidat. Toute session authentifiée pouvait en demander un, pour N'IMPORTE quel
+     dossier. Or on a mesuré le 09/10 qu'un jeton de portail partenaire ouvrait déjà
+     des pages du back-office : « authentifié » ne veut pas dire « habilité ».
+     Même garde que `dossiers/depuis-vente`, qui est l'acte voisin : conseillères,
+     secrétariat, encadrement. Pas les formatrices, qui n'envoient pas de devis. */
+  let auth;
+  try {
+    auth = await requireRole(req, ["direction", "manager", "commercial", "back_office"]);
+  } catch (e) {
+    if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Non authentifié." }, { status: 401 });
+    if (e instanceof ForbiddenError) return NextResponse.json({ ok: false, erreur: "Action réservée à l'équipe commerciale, au secrétariat et à la direction." }, { status: 403 });
+    throw e;
+  }
 
   const corps = await req.json().catch(() => null);
   if (!corps || typeof corps !== "object") {

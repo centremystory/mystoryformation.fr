@@ -52,16 +52,16 @@ const BASE = "https://dashboard-api.lenbox.io/api";
  *
  * Les trois variables sont posées dans Vercel par le dirigeant : LENBOX_AGENCY_ID,
  * LENBOX_EMAIL, LENBOX_PASSWORD. Tant qu'il en manque une, la page de commande
- * n'affiche tout simplement pas le fractionné — pas de bouton mort. On exige aussi
- * les identifiants, et pas seulement l'agence : sans jeton, la création de session
- * échouerait APRÈS que le candidat a cliqué, ce qui est le pire moment.
+ * n'affiche tout simplement pas le fractionné — pas de bouton mort.
+ *
+ * 09/10/2026 — on n'exige plus que l'IDENTIFIANT D'AGENCE. On exigeait aussi le
+ * couple e-mail / mot de passe « parce que sans jeton la création de session
+ * échouerait » : c'était faux, mesuré contre l'API de production — la création se
+ * fait avec le seul `agency_id`. Exiger des identifiants inutiles ne protégeait de
+ * rien et masquait le vrai défaut. Ils restent utilisés par les relectures.
  */
 export function lenboxPret(): boolean {
-  return (
-    !!process.env.LENBOX_AGENCY_ID?.trim() &&
-    !!process.env.LENBOX_EMAIL?.trim() &&
-    !!process.env.LENBOX_PASSWORD?.trim()
-  );
+  return !!process.env.LENBOX_AGENCY_ID?.trim();
 }
 
 /** Un dossier de test ne doit jamais valider une inscription en production. */
@@ -433,7 +433,22 @@ export async function creerSessionLenbox(args: {
   urlSucces: string;
   urlEchec: string;
 }): Promise<SessionLenbox> {
-  const t = await jeton();
+  /* 🔴 09/10/2026 — PLUS DE JETON ICI, et c'est ce qui débloque tout le fractionné.
+   *
+   * Mesuré ce soir contre l'API de production : `POST /api/demandes/session/` crée
+   * une session (HTTP 201 avec `session_url`) en présentant le SEUL `agency_id`,
+   * sans aucun en-tête d'autorisation. L'identifiant d'agence EST l'authentifiant.
+   *
+   * Or ce fichier appelait `jeton()` avant chaque création, et `POST /api/token/`
+   * répondait HTTP 401 : l'erreur tombait AVANT la création, donc aucune session
+   * Lenbox n'a jamais pu être ouverte depuis la mise en service. Le journal le
+   * confirme : 0 succès, 4 `lenbox_identifiant_invalide`, 4 `paiement_lenbox_echec`
+   * en 401. On réparait l'authentification d'un appel dont on n'avait pas besoin.
+   *
+   * ⚠️ Les deux fonctions de RELECTURE plus bas gardent `jeton()` : elles lisent des
+   * données de l'agence, et rien ne dit qu'elles s'en passent. Si elles échouent,
+   * elles échouent APRÈS l'encaissement — c'est gênant, jamais bloquant pour la
+   * vente. Ne pas leur retirer le jeton sans l'avoir mesuré comme ici. */
 
   /* Champs conformes à `SessionDataRequest` du schéma OpenAPI. Les obligatoires sont
      `agency_id`, `payment_options`, `requested_amount` et `title` : rien d'autre ne
@@ -441,7 +456,6 @@ export async function creerSessionLenbox(args: {
      et l'adresse évite de la redemander au candidat dans le parcours Lenbox. */
   const j = await appel("/demandes/session/", {
     method: "POST",
-    headers: { authorization: `Bearer ${t}` },
     body: JSON.stringify({
       agency_id: agence(),
       // ⚠️ CENTIMES, et un ENTIER. Voir l'avertissement en tête de fichier.

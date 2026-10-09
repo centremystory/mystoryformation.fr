@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireProprietaire, UnauthorizedError, ForbiddenError } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { TICKET_MODERATEUR } from "@/lib/inscriptions/regles";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,7 +39,15 @@ export async function GET(req: NextRequest) {
   for (const d of dos ?? []) {
     const x = d as any;
     const nonRegle = x.participation_forfaitaire_reglee !== true && x.participation_forfaitaire_exemptee !== true;
-    const reste = Number(x.reste_a_charge_accepte) || 0;
+    /* 09/10/2026 — ici se cachait une erreur de montant. La ligne disait
+       `Number(x.reste_a_charge_accepte) || 0`, or `reste_a_charge_accepte` est un
+       BOOLÉEN : `Number(true)` vaut 1. Chaque dossier à reste à charge accepté
+       pesait donc 1 € dans « à collecter » au lieu de 150 €.
+       Sans effet visible jusqu'ici — aucun dossier ne porte encore le drapeau — mais
+       le chiffre devenait faux à la première ligne, et rien ne l'aurait signalé.
+       Le montant ne se déduit pas d'un booléen : c'est le ticket modérateur, le
+       même pour tous, et il se lit à sa source. */
+    const reste = x.reste_a_charge_accepte === true ? TICKET_MODERATEUR : 0;
     if (nonRegle && reste > 0) {
       const s = x.stagiaires || {};
       items.push({ qui: `${s.nom || ""} ${s.prenom || ""}`.trim() || "(stagiaire)", montant: reste, type: "reste-à-charge CPF" });
