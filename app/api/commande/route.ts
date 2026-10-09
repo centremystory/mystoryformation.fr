@@ -534,7 +534,9 @@ async function alerterSecretariat(
 function blocCarence(c: Commande): string {
   const lignes = declarationLisible(c.declaration, !!c.tef, !!c.civique);
   const positive = c.declaration.tef === true || c.declaration.civique === true;
-  if (!lignes.length && !c.carenceNonTenue.length && !c.carenceAVerifier.length) return "";
+  /* Rien à encadrer quand tout est « non » et que rien ne cloche : la déclaration
+     reste dans le résumé juste en dessous, et un cadre de plus par commande finit
+     par ne plus être lu du tout. */
   if (!positive && !c.carenceNonTenue.length && !c.carenceAVerifier.length) return "";
 
   const grave = c.carenceNonTenue.length > 0;
