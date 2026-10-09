@@ -183,7 +183,24 @@ export function fractionnePour(
   if (!lenboxPret()) return { echeanciers: [], motif: null };
 
   if (!isFinite(total) || total < SEUIL_FRACTIONNE) {
-    return { echeanciers: [], motif: null }; // trop petit : inutile d'en parler
+    /* 09/10/2026 (soir) — ce cas renvoyait `motif: null`, avec pour commentaire
+       « trop petit : inutile d'en parler ». Conséquence mesurée le jour même :
+       sur une commande d'examen seul à 185 €, la page ne disait RIEN du
+       fractionné, et le dirigeant lui-même en a conclu que Lenbox n'était pas
+       en service. Un client en tire la même conclusion — sauf que lui ne
+       revient pas le dire.
+
+       On l'annonce donc, et on l'annonce comme une ouverture : le candidat qui
+       hésite sur une préparation apprend ici qu'en l'ajoutant il peut étaler
+       son règlement. C'est la seule phrase du tunnel qui transforme une règle
+       invisible en information utile. */
+    return {
+      echeanciers: [],
+      motif:
+        `Il est proposé à partir de ${SEUIL_FRACTIONNE} € de commande. ` +
+        `Votre total est de ${total.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} € : ` +
+        `en ajoutant une préparation, vous pourriez régler en 3, 4 ou 10 fois.`,
+    };
   }
   if (total < MONTANT_MIN || total > MONTANT_MAX) {
     return {
