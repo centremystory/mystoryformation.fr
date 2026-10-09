@@ -99,22 +99,24 @@ function jjmmaaaa(iso: string | null | undefined): string {
  * profit de Mollie, et depuis le 09/10 Lenbox encaisse aussi en 3× ou 4×. Un
  * contrôleur qui lit « Qonto » sur une vente carte Mollie lit une origine fausse.
  *
- * La seule marque fiable dont on dispose : `reference_paiement`. Mollie préfixe tous
- * ses paiements par `tr_`, Lenbox rend l'identifiant de son dossier. Quand la vente
- * vient d'une commande composée, `commandes_en_ligne.moyen_paiement` le dit en clair
- * et fait foi — on le préfère.
+ * ⚠️ ON N'INVENTE PAS DE LIBELLÉ. La colonne Z emploie déjà un vocabulaire fermé,
+ * relevé le 09/10/2026 sur les 571 lignes de l'onglet : `CB` (230), `En ligne` (159),
+ * `Espèces` (80), `Élève CPF` (75), `Mixte` (11), `Lenbox` (2), `CB (Lenbox 4x)` (2),
+ * `Virement` (1). « En ligne » est exactement ce qu'on veut dire, et c'est déjà ce que
+ * les conseillères écrivent quand un candidat règle par lien. Ajouter une dixième
+ * valeur (« CB en ligne (Mollie) ») fragmenterait une colonne sur laquelle on filtre
+ * et on compte. Le prestataire, lui, est dit dans le commentaire.
  *
- * ⚠️ « CB » est conservé en tête du libellé : c'est le seul vocabulaire que les
- * anciennes lignes du classeur emploient, et l'agrégation des primes ne regarde cette
- * colonne que pour y chercher « cpf ». Préciser le prestataire derrière ne casse rien
- * et rend la ligne lisible pour un humain.
+ * La marque qui distingue les deux : `reference_paiement`. Mollie préfixe tous ses
+ * paiements par `tr_`, Lenbox rend l'identifiant de son dossier. Quand la vente vient
+ * d'une commande composée, `commandes_en_ligne.moyen_paiement` le dit en clair et fait
+ * foi — on le préfère.
  */
 function modePaiement(moyenCommande: string | null, reference: string | null): string {
-  if (moyenCommande === "lenbox") return "CB — paiement fractionné (Lenbox)";
-  if (moyenCommande === "mollie") return "CB en ligne (Mollie)";
-  if (reference && reference.startsWith("tr_")) return "CB en ligne (Mollie)";
-  if (reference) return "CB — paiement fractionné (Lenbox)";
-  return "CB en ligne";
+  if (moyenCommande === "lenbox") return "Lenbox";
+  if (moyenCommande === "mollie") return "En ligne";
+  if (reference && !reference.startsWith("tr_")) return "Lenbox";
+  return "En ligne";
 }
 
 export async function GET(req: NextRequest) {
