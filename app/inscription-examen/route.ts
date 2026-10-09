@@ -20,55 +20,17 @@ import {
   MOTIVATIONS_CCI, MENTIONS_CIVIQUE, lireSession, jourLisible, euros,
 } from "@/lib/inscriptionEnLigne";
 import { ech } from "@/lib/html";
+import { pagePublique, adresseCentre } from "@/lib/pagePublique";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const BLEU = "#2F72DE";
-
 // 09/10/2026 — l'échappement vit désormais dans lib/html.ts : il était en double
 // dans ce dépôt, et deux copies finissent par diverger. Comportement identique.
 
-function page(titre: string, corps: string) {
-  return `<!DOCTYPE html><html lang="fr"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex, nofollow"><title>${ech(titre)} — MYSTORY Formation</title>
-<style>
-  :root{--bleu:${BLEU};}
-  *{box-sizing:border-box;}
-  body{margin:0;background:#f4f6fb;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:#1f2430;}
-  .bandeau{background:var(--bleu);color:#fff;padding:18px 20px;}
-  .bandeau b{font-size:17px;letter-spacing:.2px;}
-  .enveloppe{max-width:720px;margin:0 auto;padding:22px 16px 60px;}
-  .carte{background:#fff;border:1px solid #e3e8f2;border-radius:14px;padding:20px;margin-bottom:16px;}
-  h1{font-size:21px;margin:0 0 6px;}
-  h2{font-size:15px;margin:22px 0 2px;color:#334;}
-  .sous{color:#667;font-size:14px;margin:0 0 14px;line-height:1.5;}
-  label{display:block;font-size:13px;font-weight:600;margin:14px 0 5px;}
-  input,select,textarea{width:100%;padding:11px 12px;border:1px solid #cfd6e4;border-radius:9px;font-size:16px;background:#fff;font-family:inherit;color:inherit;}
-  input:focus,select:focus{outline:2px solid var(--bleu);outline-offset:1px;border-color:var(--bleu);}
-  .duo{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-  @media(max-width:520px){.duo{grid-template-columns:1fr;}}
-  .session{background:#eef3fe;border:1px solid #cfe0ff;border-radius:12px;padding:14px 16px;}
-  .session .t{font-weight:700;font-size:16px;color:#16325c;}
-  .session .d{color:#44608f;font-size:14px;margin-top:3px;}
-  .ligne{display:flex;justify-content:space-between;gap:12px;font-size:14px;padding:7px 0;border-bottom:1px solid #eef1f7;}
-  .ligne:last-child{border-bottom:0;}
-  .total{display:flex;justify-content:space-between;font-weight:700;font-size:17px;padding-top:10px;margin-top:4px;border-top:2px solid #1f2430;}
-  .urgence{background:#fff4e5;border:1px solid #ffd9a8;border-radius:10px;padding:11px 13px;font-size:13px;color:#7a4a00;margin-top:10px;line-height:1.5;}
-  .obl{color:#c00;}
-  button{width:100%;margin-top:22px;padding:15px;border:0;border-radius:11px;background:var(--bleu);color:#fff;font-size:16px;font-weight:700;cursor:pointer;}
-  button:disabled{opacity:.55;cursor:progress;}
-  .hp{position:absolute;left:-9999px;}
-  .note{font-size:12px;color:#7a8296;margin-top:16px;line-height:1.6;}
-  .err{background:#fdeaea;border:1px solid #f5c2c2;color:#8a1c1c;border-radius:10px;padding:12px 14px;font-size:14px;margin-bottom:14px;}
-  .ok{background:#e9f7ee;border:1px solid #b6e4c6;color:#155e2e;border-radius:12px;padding:20px;text-align:center;}
-  a{color:var(--bleu);}
-</style></head><body>
-<div class="bandeau"><b>MYSTORY Formation</b></div>
-<div class="enveloppe">${corps}</div>
-</body></html>`;
-}
+// 09/10/2026 — l'habillage (couleurs, polices, enveloppe, mentions légales) vit
+// désormais dans lib/pagePublique.ts, partagé avec les autres pages publiques. Le
+// bleu #2F72DE qui était codé ici n'existait nulle part sur mystoryformation.fr.
 
 function opts(liste: readonly string[]) {
   return liste.map((o) => `<option value="${ech(o)}">${ech(o)}</option>`).join("");
@@ -80,12 +42,12 @@ export async function GET(req: NextRequest) {
 
   if (!s) {
     return new NextResponse(
-      page("Session indisponible", `<div class="carte">
+      pagePublique({ titre: "Session indisponible", largeur: 620, corps: `<div class="carte">
         <h1>Cette session n'est plus disponible</h1>
         <p class="sous">Elle est peut-être complète, ou la date est passée. Choisissez une autre
         date sur <a href="https://www.mystoryformation.fr/prochaines-sessions-examen">le calendrier
         des sessions</a>, ou appelez-nous au <b>06 81 43 16 54</b> — nous vous trouverons une place.</p>
-      </div>`),
+      </div>` }),
       { status: 404, headers: { "content-type": "text/html; charset=utf-8" } },
     );
   }
@@ -105,7 +67,9 @@ export async function GET(req: NextRequest) {
 
   <div class="session">
     <div class="t">${estTef ? "TEF IRN" : "Examen civique"} — ${ech(jourLisible(s.date_examen))}</div>
-    <div class="d">${ech(s.horaire)} · ${ech(s.centre_nom)} · ${s.places_restantes} place${s.places_restantes > 1 ? "s" : ""} restante${s.places_restantes > 1 ? "s" : ""}</div>
+    <div class="d">${ech(s.horaire)} · ${ech(s.centre_nom)} · ${s.places_restantes} place${s.places_restantes > 1 ? "s" : ""} restante${s.places_restantes > 1 ? "s" : ""}
+      ${adresseCentre(s.centre_nom) ? `<span class="ou">${ech(adresseCentre(s.centre_nom))}</span>` : ""}
+    </div>
   </div>
 
   <h2>Montant</h2>
@@ -115,11 +79,14 @@ export async function GET(req: NextRequest) {
   ${devis.urgence ? `<div class="urgence"><b>Tarif d'urgence.</b> Cette session a lieu dans moins de
    7 jours : nous rouvrons une liste déjà arrêtée, prévenons la CCI et produisons votre convocation
    dans la journée.</div>` : ""}
+  <p class="note"><b>Paiement sécurisé par carte bancaire.</b> Vos coordonnées bancaires sont saisies
+  chez notre prestataire de paiement, jamais chez nous. Dès le règlement enregistré, votre convocation
+  et votre facture partent automatiquement par e-mail.</p>
 </div>
 
 <form id="f" class="carte" novalidate>
   <div id="erreur"></div>
-  <h1 style="font-size:18px">Vos informations</h1>
+  <h1 class="h1b">Vos informations</h1>
   <p class="sous">Elles sont transmises à la CCI Paris Île-de-France pour votre inscription :
   merci de les saisir <b>exactement comme sur votre pièce d'identité</b>.</p>
 
@@ -192,8 +159,7 @@ export async function GET(req: NextRequest) {
   <button id="b" type="submit">Continuer vers le paiement · ${euros(devis.montant)}</button>
   <p class="note">En validant, vous acceptez que ces informations servent à votre inscription à
   l'examen et soient transmises à la CCI Paris Île-de-France. Conservation 5 ans. Droits d'accès et
-  de rectification : contact@mystoryformation.fr.<br>
-  MYSTORY (SASU) — SIRET 913 423 083 00017 — NDA 11756521775 (ne vaut pas agrément de l'État).</p>
+  de rectification : contact@mystoryformation.fr.</p>
 </form>
 
 <script>
@@ -231,7 +197,7 @@ f.addEventListener('submit',async function(ev){
 });
 </script>`;
 
-  return new NextResponse(page("Inscription à l'examen", corps), {
+  return new NextResponse(pagePublique({ titre: "Inscription à l'examen", corps }), {
     headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
   });
 }

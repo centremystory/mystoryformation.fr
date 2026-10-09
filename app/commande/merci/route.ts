@@ -16,31 +16,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { ech } from "@/lib/html";
+import { pagePublique, TEL_PUBLIC, TEL_LIEN } from "@/lib/pagePublique";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const TEL = "06 81 43 16 54";
-
-function page(corps: string) {
-  return `<!DOCTYPE html><html lang="fr"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex, nofollow"><title>Votre commande — MYSTORY Formation</title>
-<style>
-  body{margin:0;background:#f4f6fb;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:#1f2430;}
-  .bandeau{background:#2F72DE;color:#fff;padding:18px 20px;font-weight:700;font-size:17px;}
-  .env{max-width:620px;margin:0 auto;padding:26px 16px 60px;}
-  .carte{background:#fff;border:1px solid #e3e8f2;border-radius:14px;padding:26px;text-align:center;}
-  h1{font-size:21px;margin:0 0 10px;}
-  p{line-height:1.6;color:#445;margin:10px 0;}
-  .rond{width:58px;height:58px;border-radius:50%;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-size:29px;}
-  .vert{background:#e9f7ee;color:#157a3a;}
-  .ambre{background:#fff4e5;color:#a05b00;}
-  .tel{display:inline-block;margin-top:16px;background:#2F72DE;color:#fff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:700;}
-</style></head><body>
-<div class="bandeau">MYSTORY Formation</div><div class="env"><div class="carte">${corps}</div></div>
-</body></html>`;
-}
+// L'habillage vient de lib/pagePublique.ts : pour le candidat, c'est la suite
+// immédiate de la page où il vient de régler — elle doit lui ressembler trait pour trait.
+const TEL = TEL_PUBLIC;
 
 export async function GET(req: NextRequest) {
   const ref = req.nextUrl.searchParams.get("r") ?? "";
@@ -79,9 +62,10 @@ export async function GET(req: NextRequest) {
             prochaines minutes. Si vous n'avez pas terminé le paiement, votre commande
             est conservée : rappelez-nous et nous la finalisons.</p>`}
        <p>Besoin d'aide tout de suite ?</p>
-       <a class="tel" href="tel:+33681431654">${TEL}</a>`;
+       <a class="tel" href="tel:${TEL_LIEN}">${TEL}</a>`;
 
-  return new NextResponse(page(corps), {
+  return new NextResponse(
+    pagePublique({ titre: "Votre commande", largeur: 620, corps: `<div class="carte centre">${corps}</div>` }), {
     headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
   });
 }

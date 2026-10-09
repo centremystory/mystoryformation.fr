@@ -36,61 +36,14 @@ import {
 } from "@/lib/commande";
 import { fractionnePour } from "@/lib/lenbox";
 import { ech } from "@/lib/html";
+import { pagePublique, adresseCentre, TEL_PUBLIC } from "@/lib/pagePublique";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const BLEU = "#2F72DE";
-const TEL = "06 81 43 16 54";
-
-function page(titre: string, corps: string) {
-  return `<!DOCTYPE html><html lang="fr"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex, nofollow"><title>${ech(titre)} — MYSTORY Formation</title>
-<style>
-  :root{--bleu:${BLEU};}
-  *{box-sizing:border-box;}
-  body{margin:0;background:#f4f6fb;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:#1f2430;}
-  .bandeau{background:var(--bleu);color:#fff;padding:18px 20px;}
-  .bandeau b{font-size:17px;letter-spacing:.2px;}
-  .enveloppe{max-width:720px;margin:0 auto;padding:22px 16px 60px;}
-  .carte{background:#fff;border:1px solid #e3e8f2;border-radius:14px;padding:20px;margin-bottom:16px;}
-  h1{font-size:21px;margin:0 0 6px;}
-  h2{font-size:15px;margin:22px 0 2px;color:#334;}
-  .sous{color:#667;font-size:14px;margin:0 0 14px;line-height:1.5;}
-  label{display:block;font-size:13px;font-weight:600;margin:14px 0 5px;}
-  input,select{width:100%;padding:11px 12px;border:1px solid #cfd6e4;border-radius:9px;font-size:16px;background:#fff;font-family:inherit;color:inherit;}
-  input:focus,select:focus{outline:2px solid var(--bleu);outline-offset:1px;border-color:var(--bleu);}
-  .duo{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-  @media(max-width:520px){.duo{grid-template-columns:1fr;}}
-  .session{background:#eef3fe;border:1px solid #cfe0ff;border-radius:12px;padding:14px 16px;margin-bottom:10px;}
-  .session .t{font-weight:700;font-size:16px;color:#16325c;}
-  .session .d{color:#44608f;font-size:14px;margin-top:3px;}
-  .ligne{display:flex;justify-content:space-between;gap:12px;font-size:14px;padding:7px 0;border-bottom:1px solid #eef1f7;}
-  .ligne:last-child{border-bottom:0;}
-  .ligne small{display:block;color:#7a8296;font-size:12px;margin-top:2px;}
-  .total{display:flex;justify-content:space-between;font-weight:700;font-size:17px;padding-top:10px;margin-top:4px;border-top:2px solid #1f2430;}
-  .urgence{background:#fff4e5;border:1px solid #ffd9a8;border-radius:10px;padding:11px 13px;font-size:13px;color:#7a4a00;margin-top:10px;line-height:1.5;}
-  .obl{color:#c00;}
-  button{width:100%;margin-top:22px;padding:15px;border:0;border-radius:11px;background:var(--bleu);color:#fff;font-size:16px;font-weight:700;cursor:pointer;}
-  button:disabled{opacity:.55;cursor:progress;}
-  .hp{position:absolute;left:-9999px;}
-  .note{font-size:12px;color:#7a8296;margin-top:16px;line-height:1.6;}
-  .err{background:#fdeaea;border:1px solid #f5c2c2;color:#8a1c1c;border-radius:10px;padding:12px 14px;font-size:14px;margin-bottom:14px;line-height:1.5;}
-  .mat{display:flex;justify-content:space-between;font-size:14px;padding:8px 0;border-bottom:1px solid #eef1f7;}
-  .mat.pleine{color:#8a1c1c;text-decoration:line-through;text-decoration-color:#e0a0a0;}
-  .mat.pleine span.r{text-decoration:none;font-weight:600;}
-  .moyens{display:grid;gap:10px;margin-top:10px;}
-  .moyen{border:1px solid #cfd6e4;border-radius:11px;padding:13px 15px;display:flex;gap:11px;align-items:flex-start;cursor:pointer;}
-  .moyen input{width:auto;margin-top:3px;flex:0 0 auto;}
-  .moyen .l{font-weight:700;font-size:15px;}
-  .moyen .m{color:#667;font-size:13px;margin-top:3px;line-height:1.5;}
-  a{color:var(--bleu);}
-</style></head><body>
-<div class="bandeau"><b>MYSTORY Formation</b></div>
-<div class="enveloppe">${corps}</div>
-</body></html>`;
-}
+// 09/10/2026 — l'habillage vient de lib/pagePublique.ts, partagé avec les autres
+// pages publiques : une seule charte, un seul pied de page légal.
+const TEL = TEL_PUBLIC;
 
 function opts(liste: readonly string[]) {
   return liste.map((o) => `<option value="${ech(o)}">${ech(o)}</option>`).join("");
@@ -121,14 +74,14 @@ async function refus(erreurs: string[], dateExamen: string | null, centre: strin
   }
 
   return new NextResponse(
-    page("Commande à revoir", `<div class="carte">
+    pagePublique({ titre: "Commande à revoir", atouts: false, corps: `<div class="carte">
       <h1>Nous ne pouvons pas valider cette commande</h1>
       ${erreurs.map((e) => `<div class="err">${ech(e)}</div>`).join("")}
       <p class="sous">Reprenez votre choix sur
       <a href="https://www.mystoryformation.fr/prochaines-sessions-examen">le calendrier des sessions</a>,
       ou appelez-nous au <b>${TEL}</b> — nous finalisons votre inscription avec vous.</p>
       ${liste}
-    </div>`),
+    </div>` }),
     { status: 409, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } },
   );
 }
@@ -138,11 +91,15 @@ function recapitulatif(c: Commande): string {
   const sessions = [
     c.tef ? `<div class="session">
         <div class="t">TEF IRN — ${ech(jourLisible(c.tef.date_examen))}</div>
-        <div class="d">${ech(c.tef.horaire)} · ${ech(c.tef.centre_nom)}</div>
+        <div class="d">${ech(c.tef.horaire)} · ${ech(c.tef.centre_nom)}
+          ${adresseCentre(c.tef.centre_nom) ? `<span class="ou">${ech(adresseCentre(c.tef.centre_nom))}</span>` : ""}
+        </div>
       </div>` : "",
     c.civique ? `<div class="session">
         <div class="t">Examen civique — ${ech(jourLisible(c.civique.date_examen))}</div>
-        <div class="d">${ech(c.civique.horaire)} · ${ech(c.civique.centre_nom)} · mention ${ech(c.mention)}</div>
+        <div class="d">${ech(c.civique.horaire)} · ${ech(c.civique.centre_nom)} · mention ${ech(c.mention)}
+          ${adresseCentre(c.civique.centre_nom) ? `<span class="ou">${ech(adresseCentre(c.civique.centre_nom))}</span>` : ""}
+        </div>
       </div>` : "",
     c.matinees.length ? `<div class="session">
         <div class="t">Préparation — ${c.heures} h en ${c.matinees.length} matinée${c.matinees.length > 1 ? "s" : ""}</div>
@@ -197,7 +154,11 @@ function moyensDePaiement(c: Commande): string {
   const { echeanciers, motif } = fractionnePour(total, dateExamenLaPlusProche(c));
 
   if (echeanciers.length === 0) {
+    // Sans choix à faire, le candidat ne voit sinon RIEN sur le paiement avant de
+    // cliquer : on lui dit au moins ce qu'il va trouver derrière le bouton.
     return `<input type="hidden" name="moyen" value="mollie">
+    <p class="note"><b>Paiement sécurisé par carte bancaire ou Klarna.</b> Vos coordonnées bancaires
+    sont saisies chez notre prestataire de paiement, jamais chez nous.</p>
     ${motif ? `<p class="note"><b>Paiement en plusieurs fois :</b> ${ech(motif)}</p>` : ""}`;
   }
 
@@ -246,7 +207,7 @@ ${recapitulatif(c)}
 
 <form id="f" class="carte" novalidate>
   <div id="erreur"></div>
-  <h1 style="font-size:18px">Vos informations</h1>
+  <h1 class="h1b">Vos informations</h1>
   <p class="sous">Elles sont transmises à la CCI Paris Île-de-France pour votre inscription :
   merci de les saisir <b>exactement comme sur votre pièce d'identité</b>.</p>
 
@@ -329,8 +290,7 @@ ${recapitulatif(c)}
   l'examen et soient transmises à la CCI Paris Île-de-France. Conservation 5 ans. Droits d'accès et
   de rectification : contact@mystoryformation.fr.<br>
   Une matinée de préparation accueille ${CAPACITE_MATINEE} personnes au maximum et se tient dans les
-  ${FENETRE_MATINEES_JOURS} jours précédant votre examen.<br>
-  MYSTORY (SASU) — SIRET 913 423 083 00017 — NDA 11756521775 (ne vaut pas agrément de l'État).</p>
+  ${FENETRE_MATINEES_JOURS} jours précédant votre examen.</p>
 </form>
 
 <script>
@@ -368,7 +328,7 @@ f.addEventListener('submit',async function(ev){
 });
 </script>`;
 
-  return new NextResponse(page("Votre commande", corps), {
+  return new NextResponse(pagePublique({ titre: "Votre commande", corps }), {
     headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
   });
 }
