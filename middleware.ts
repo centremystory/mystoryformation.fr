@@ -100,6 +100,32 @@ const CHEMINS_PUBLICS = [
   // et elle est distincte du jeton de passation que le candidat connaît.
   "/tests/corriger",
   "/api/tests/corriger",
+  // 09/10/2026 (soir) — les quatre pages à LIEN NOMINATIF envoyées au candidat :
+  // voie de vérification d'identité, devis finalisé, participation forfaitaire CPF
+  // de 150 €, relecture de l'état civil. Chacune s'ouvre sur un jeton de 32 octets
+  // d'aléa rangé en base (table `liens_candidat`, migration 84), vérifié DANS la
+  // route — type, péremption et révocation compris.
+  //
+  // ⚠️ Publiques au sens du middleware seulement : le candidat n'a pas de compte,
+  // mais rien ne s'ouvre sans un jeton nominatif, et chaque jeton n'ouvre qu'UNE
+  // porte (le type est vérifié, sinon un lien de coordonnées ouvrirait
+  // l'acceptation du devis). Un refus ne dit JAMAIS laquelle des raisons
+  // s'applique : « ce dossier existe » est déjà une information qu'on ne confirme
+  // à personne, s'agissant de démarches de titre de séjour.
+  //
+  // 🔴 `/api/liens-candidat` — qui FABRIQUE ces jetons — n'est volontairement PAS
+  // dans cette liste : elle exige une session d'équipe. L'y ajouter donnerait à
+  // n'importe qui le moyen de s'ouvrir un lien vers n'importe quel dossier.
+  "/identite",                    // choix de la voie (en ligne / courrier / les deux)
+  "/api/identite",                // dépôt du choix (honeypot + limite par IP)
+  "/devis",                       // « votre devis est finalisé » + acceptation horodatée
+  "/api/devis",                   // dépôt de l'acceptation (instantané figé côté serveur)
+  "/participation",               // participation forfaitaire CPF + sa page de retour /merci
+  "/api/participation",           // ouverture du paiement, demande d'exonération,
+                                  // et webhook /api/participation/paiement (Mollie : ne
+                                  // transmet qu'un identifiant, l'état est relu à la source)
+  "/coordonnees",                 // relecture de l'état civil, pré-remplie
+  "/api/coordonnees",             // dépôt de la confirmation ou des corrections
 ];
 
 export async function middleware(req: NextRequest) {
