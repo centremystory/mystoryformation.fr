@@ -132,28 +132,33 @@ async function authentifier(req: NextRequest): Promise<NextResponse | SessionUse
  *    et pour peutFacturer (/api/factures). Signale pour correction de fond.
  *    -> ici on le ferme tout de suite, en SUPPRIMANT le filet « aucun role ».
  *
- * Passent donc, et RIEN d autre :
+ * 09/10/2026, SECOND RESSERRAGE — « l export de la base : que moi ». Arudhan a tranche.
+ * La garde ci-dessus laissait encore passer le role "direction" ET la session d equipe
+ * partagee "staff". Or "staff" est le MOT DE PASSE D EQUIPE : quiconque le connait
+ * pouvait telecharger 4 813 lignes, numeros de piece d identite compris. Et "direction"
+ * n est pas le proprietaire (lavania@ le porte aussi).
+ *
+ * Passent donc desormais, et RIEN d autre — exactement comme /api/backup/database et
+ * /api/backup/documents, qui sont sous `requireProprietaire` depuis l origine :
  *   - le proprietaire (Arudhan), par e-mail exact ;
- *   - un compte portant le role "direction" ;
- *   - la session d equipe partagee "staff" (etat d avant, conserve pour ne pas casser
- *     le telechargement depuis le back-office) ;
  *   - un automate de confiance : JWT valide dont AUCUN role n appartient a la matrice
  *     staff. Un humain porte toujours un role de la matrice : l exemption ne peut donc
- *     pas etre usurpee en rejouant un cookie de session dans un en-tete Bearer.
+ *     pas etre usurpee en rejouant un cookie de session dans un en-tete Bearer. C est
+ *     par la que passe la sauvegarde hebdo n8n (K6ftE7ViYhEsS27y), qu il ne faut PAS casser.
  *
- * Sont REFUSES, y compris ce qui passait avant : tout jeton SANS role (jeton partenaire,
- * jeton ephemere du cron — qui ne vise pas cette route), et tout compte individuel dont
- * le role appartient a la matrice sans etre "direction".
+ * Sont REFUSES : la session d equipe "staff", le role "direction" non proprietaire,
+ * tout jeton SANS role (jeton partenaire, jeton ephemere du cron), et tout compte
+ * individuel. Le bouton du back-office (/comptes) disparait en consequence pour qui
+ * n est pas proprietaire — c est voulu, et c est /api/me qui le dit a la page.
  */
 function autoriseExport(u: SessionUser): boolean {
   const rs = u.roles && u.roles.length > 0 ? u.roles : (u.role ? [u.role] : []);
   if (estProprietaire(u.email)) return true;
-  if (rs.includes("direction") || rs.includes("staff")) return true;
   return estAutomate(rs); // faux sur une liste vide : aucun filet « sans role »
 }
 
 const refusExport = () => NextResponse.json(
-  { ok: false, erreur: "Reserve a la Direction." },
+  { ok: false, erreur: "Reserve au proprietaire du compte." },
   { status: 403 },
 );
 

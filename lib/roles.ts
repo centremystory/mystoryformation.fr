@@ -95,7 +95,9 @@ export function peut(role: string | string[] | undefined | null, action: ActionS
  * un compte humain porte TOUJOURS un rôle de la matrice, donc on ne peut pas usurper
  * l'exemption en rejouant un cookie de session humain en en-tête Bearer.
  */
-const ROLES_MATRICE = new Set<string>([...ROLES, "staff"]);
+/** Les rôles d'un HUMAIN de l'équipe. Exporté : `verifySession` (lib/auth) s'en sert pour
+ *  distinguer un compte individuel — qu'il faut relire en base — d'un jeton d'automate. */
+export const ROLES_MATRICE = new Set<string>([...ROLES, "staff"]);
 export function estAutomate(role: string | string[] | undefined | null): boolean {
   const rs = asRoles(role);
   return rs.length > 0 && rs.every((r) => !ROLES_MATRICE.has(r));

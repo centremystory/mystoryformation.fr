@@ -13,10 +13,102 @@
  */
 
 import { jwtVerify } from "jose";
-import { estProprietaire, estAutomate, audienceHorsEquipe } from "./roles";
+import { estProprietaire, estAutomate, audienceHorsEquipe, ROLES_MATRICE } from "./roles";
 
 const AUTH_SECRET = process.env.AUTH_SECRET ?? "";
 const AUTH_COOKIE = process.env.AUTH_COOKIE ?? "mystory_session";
+
+/* ──────────────────────────────────────────────────────────────────────────────
+ * « IL GARDE L'ACCÈS TANT QU'IL EST LÀ » — relecture du compte à chaque requête.
+ *
+ * LE DÉFAUT, MESURÉ LE 09/10/2026 EN PRODUCTION. Le jeton de session vit 30 jours
+ * (app/api/auth/login) et `verifySession` ne vérifiait QUE sa signature. Un compte
+ * supprimé de `utilisateurs`, ou passé `actif = false`, continuait donc à répondre
+ * 200 jusqu'à l'expiration naturelle du jeton. Mesure : compte de sonde créé,
+ * connecté, puis DÉSACTIVÉ puis SUPPRIMÉ — son cookie rendait toujours 200 sur
+ * /dossiers. Un départ d'équipe ne fermait rien avant un mois.
+ *
+ * LE MODÈLE EST CELUI DU PORTAIL PARTENAIRE (lib/prescripteurAuth) : il relit
+ * `partenaires.actif` à chaque requête et refuse tout de suite. On applique ici le
+ * même principe à l'équipe.
+ *
+ * ── CE QUI EST RELU, ET CE QUI NE PEUT PAS L'ÊTRE ────────────────────────────
+ * On ne relit QUE les comptes individuels, reconnus à DEUX conditions cumulées :
+ *   (a) `sub` est un UUID (identifiant de ligne `utilisateurs`), et
+ *   (b) le jeton porte au moins un rôle de la MATRICE staff.
+ * Ce double filtre est volontaire — il garantit qu'aucun automate ne tombe dedans :
+ *   — le filet « mot de passe d'équipe » a `sub = "equipe-mystory"` : pas un UUID,
+ *     et AUCUNE ligne en base à relire. Il ne se révoque qu'en changeant
+ *     ACCESS_PASSWORD. ⚠️ C'est la limite connue de ce verrou : ce mot de passe là
+ *     reste un passe-partout de 30 jours ;
+ *   — le jeton du cron Vercel (`sub = "cron-tick"`) ne porte aucun rôle ;
+ *   — le jeton de service n8n porte des rôles HORS matrice (c'est ce qui le fait
+ *     passer par `estAutomate`) : la condition (b) l'exclut quel que soit son `sub`,
+ *     qui n'est pas lisible depuis le dépôt. Sans ce garde-fou, un `sub` en forme
+ *     d'UUID aurait fait tomber TOUS les robots d'un coup.
+ *
+ * ── CE QUE LA RELECTURE CORRIGE EN PLUS ──────────────────────────────────────
+ * Les rôles et l'adresse sont repris de la LIGNE, pas du jeton. Un compte rétrogradé
+ * perdait sinon ses droits seulement au bout de 30 jours, lui aussi.
+ *
+ * ── EN PANNE, ON N'ENFERME PERSONNE DEHORS ───────────────────────────────────
+ * Supabase injoignable, variable d'environnement absente du runtime Edge, délai
+ * dépassé : on LAISSE PASSER le jeton (déjà valablement signé). Refuser ferait
+ * d'une panne Supabase une panne totale du CRM, alors que la faille qu'on ferme
+ * est « un ancien garde l'accès », pas « un attaquant force la porte ». Une
+ * réponse FERME de la base (ligne absente, ou `actif = false`) refuse, elle,
+ * immédiatement.
+ *
+ * ── LE COÛT, ET LE CACHE ─────────────────────────────────────────────────────
+ * Une lecture PostgREST par requête, middleware Edge compris. Cache mémoire par
+ * instance, TTL ci-dessous : un compte supprimé survit donc au PIRE la durée de ce
+ * TTL, pas 30 jours. `fetch` nu plutôt que supabaseAdmin : ce module est importé
+ * par middleware.ts (runtime Edge), où l'on ne veut pas tirer tout @supabase/supabase-js.
+ * ────────────────────────────────────────────────────────────────────────────── */
+const SUPABASE_URL = (process.env.SUPABASE_URL ?? "").replace(/\/+$/, "");
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+/** Durée de vie du cache de comptes. C'est AUSSI la survie maximale d'un compte supprimé. */
+export const TTL_COMPTE_MS = 10_000;
+const DELAI_LECTURE_MS = 2500;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+interface LigneCompte { actif: boolean; email: string | null; role: string | null; roles: string[] | null }
+/** `undefined` = indéterminé (on laisse passer) · `null` = ligne absente (on refuse). */
+type Verdict = LigneCompte | null | undefined;
+
+const _comptes = new Map<string, { at: number; v: Verdict }>();
+
+async function lireCompte(id: string): Promise<Verdict> {
+  if (!SUPABASE_URL || !SUPABASE_KEY) return undefined; // env absente du runtime → on laisse passer
+  const now = Date.now();
+  const cache = _comptes.get(id);
+  if (cache && now - cache.at < TTL_COMPTE_MS) return cache.v;
+
+  let v: Verdict;
+  try {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), DELAI_LECTURE_MS);
+    const r = await fetch(
+      `${SUPABASE_URL}/rest/v1/utilisateurs?id=eq.${encodeURIComponent(id)}&select=actif,email,role,roles&limit=1`,
+      {
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, Accept: "application/json" },
+        cache: "no-store",
+        signal: ctl.signal,
+      },
+    );
+    clearTimeout(t);
+    if (!r.ok) return undefined;                       // 5xx / quota → indéterminé, on laisse passer
+    const lignes = (await r.json()) as LigneCompte[];
+    v = Array.isArray(lignes) && lignes.length > 0 ? lignes[0] : null; // [] = compte SUPPRIMÉ
+  } catch {
+    return undefined;                                   // réseau / délai dépassé → on laisse passer
+  }
+  // On ne met en cache qu'une réponse FERME : un « indéterminé » ne doit pas
+  // figer 10 s de doute, il doit être retenté à la requête suivante.
+  if (_comptes.size > 500) _comptes.clear();            // borne mémoire par instance
+  _comptes.set(id, { at: now, v });
+  return v;
+}
 
 export interface SessionUser {
   id: string;
@@ -103,6 +195,46 @@ export async function verifySession(req: Request): Promise<SessionUser | null> {
       ? (payload.roles as string[]).filter(Boolean)
       : (payload.role ? [payload.role as string] : []);
     const nom = typeof payload.nom === "string" ? payload.nom.trim() || undefined : undefined;
+
+    /* Compte individuel → on relit la LIGNE (voir le long commentaire en tête de
+     * fichier). LES DEUX CONDITIONS SONT INDISPENSABLES, chacune écarte un chemin
+     * qui n'a PAS de ligne en base et qu'il ne faut surtout pas refuser :
+     *   — `UUID.test(id)` écarte le filet « mot de passe d'équipe » (sub
+     *     "equipe-mystory", rôle "staff") et le cron Vercel (sub "cron-tick") ;
+     *   — le rôle de matrice écarte le jeton de service n8n, dont TOUS les rôles
+     *     sont hors matrice (c'est ce qui le fait passer par `estAutomate`) et dont
+     *     le `sub` n'est pas lisible depuis le dépôt : sans cette condition, un
+     *     `sub` en forme d'UUID aurait fait tomber tous les robots d'un coup.
+     * Ne restent donc que les comptes humains adossés à une ligne `utilisateurs`. */
+    if (UUID.test(id) && rolesArr.some((r) => ROLES_MATRICE.has(r))) {
+      const ligne = await lireCompte(id);
+      if (ligne === null || (ligne && !ligne.actif)) return null; // supprimé ou désactivé
+      if (ligne) {
+        /* ⚠️ UNE RELECTURE NE DOIT JAMAIS ÉLARGIR LES DROITS, seulement les
+         * CONFIRMER ou les RETIRER. Signalé par une revue de sécurité le
+         * 09/10/2026 sur la première version de ce bloc, et le piège est réel :
+         *
+         *  — rendre une liste de rôles VIDE aurait ÉLARGI les droits, parce que
+         *    « aucun rôle » vaut encore « tous les droits » dans `peutAgir`,
+         *    `peutVoirPage` et `estDirection`. Vider les rôles d'un compte en base
+         *    — le geste naturel quand quelqu'un s'en va — l'aurait rendu PLUS
+         *    puissant. D'où le refus sec si la ligne ne porte plus aucun rôle ;
+         *  — reprendre des rôles ABSENTS du jeton aurait élargi aussi. On
+         *    intersecte donc avec le jeton : une promotion prend effet à la
+         *    prochaine connexion, une rétrogradation mord tout de suite ;
+         *  — l'adresse reste CELLE DU JETON, jamais celle de la ligne : c'est elle
+         *    que lit `estProprietaire`, et le verrou finance en dépend.
+         */
+        const enBase = Array.isArray(ligne.roles) && ligne.roles.length > 0
+          ? ligne.roles.filter(Boolean)
+          : (ligne.role ? [ligne.role] : []);
+        const frais = enBase.filter((r) => ROLES_MATRICE.has(r) && rolesArr.includes(r));
+        if (frais.length === 0) return null; // plus aucun rôle d'équipe → plus de session
+        return { id, email: payload.email as string | undefined, nom, role: frais[0], roles: frais };
+      }
+      // `undefined` = indéterminé (panne / env absente) → on garde le jeton tel quel.
+    }
+
     return { id, email: payload.email as string | undefined, nom, role: rolesArr[0] ?? (payload.role as string | undefined), roles: rolesArr };
   } catch {
     return null; // signature/exp invalide

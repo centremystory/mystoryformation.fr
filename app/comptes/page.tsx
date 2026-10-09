@@ -206,9 +206,32 @@ export default function PageComptes() {
   );
 }
 
+/**
+ * Export de la base — RÉSERVÉ AU PROPRIÉTAIRE depuis le 09/10/2026.
+ *
+ * La page /comptes est ouverte au rôle "direction" et à la session d'équipe. L'API
+ * /api/admin/backup, elle, ne répond plus qu'au propriétaire : laisser les deux
+ * boutons visibles aurait produit un 403 brut dans l'onglet du navigateur (le
+ * téléchargement est un simple <a href>, il n'y a personne pour rattraper l'erreur).
+ * On demande donc au serveur, via /api/me, si l'utilisateur est le propriétaire :
+ *   — oui  → les boutons ;
+ *   — non  → une phrase qui EXPLIQUE, pas un bouton qui casse ;
+ *   — tant qu'on ne sait pas → rien (on n'affiche pas un bouton qu'on retirerait).
+ */
 function SauvegardeSection() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [proprietaire, setProprietaire] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let vivant = true;
+    fetch("/api/me", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => { if (vivant) setProprietaire(j?.ok ? Boolean(j.user?.proprietaire) : false); })
+      .catch(() => { if (vivant) setProprietaire(false); });
+    return () => { vivant = false; };
+  }, []);
+
   async function envoyer() {
     setBusy(true); setMsg(null);
     try {
