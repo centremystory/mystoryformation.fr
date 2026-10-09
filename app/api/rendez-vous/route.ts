@@ -486,6 +486,7 @@ export async function POST(req: NextRequest) {
   ).eq("id", ref);
 
   const confirmationPossible = CONFIRMATION_AU_CANDIDAT && !!contexte.lienConfirmer;
+  let confirmationEnvoyee = false;
 
   if (confirmationPossible) {
     const c = await envoyerEmail({
@@ -494,6 +495,7 @@ export async function POST(req: NextRequest) {
       html: htmlConfirmationCandidat(contexte),
       entite: "rendez_vous", entiteId: ref, auteur: "site",
     });
+    confirmationEnvoyee = c.ok;
     if (c.ok) {
       await supabaseAdmin.from("rendez_vous")
         .update({ confirmation_envoyee_le: new Date().toISOString() }).eq("id", ref);
@@ -543,6 +545,12 @@ export async function POST(req: NextRequest) {
          avoir fini et son créneau retombe douze heures plus tard. */
       a_confirmer: confirmationPossible,
       delai_confirmation_heures: DELAI_CONFIRMATION_HEURES,
+      /* 🔴 DIRE LA VÉRITÉ SUR L'ENVOI. Relevé en recette, en production : l'écran
+         « c'est réservé » annonçait « un e-mail de confirmation part à l'instant »
+         alors que le budget d'envoi était atteint et qu'AUCUN message n'était parti.
+         Promettre un courriel qui n'arrive jamais, c'est fabriquer un appel
+         mécontent — et faire douter de tout le reste de la page. */
+      confirmation_envoyee: confirmationEnvoyee,
       // Visible seulement dans la réponse technique : le candidat n'a pas à savoir
       // que notre serveur de messagerie a eu un hoquet, mais nos journaux, oui.
       recap_envoye: envoi.ok,
