@@ -1,0 +1,52 @@
+-- ============================================================================
+-- La RELECTURE DE L'ÉTAT CIVIL par le candidat (/coordonnees)
+-- Date : 09/10/2026 (soir) — complète la migration 84, le même jour
+--
+-- ✅ APPLIQUÉE le 09/10/2026 sur le projet svepgknbbonrtwyvzaar (migration
+--    `stagiaires_coordonnees_confirmees`). Purement additive : deux colonnes
+--    nullables sur `stagiaires`. Aucun DROP, aucun DELETE, aucune donnée de
+--    production modifiée. `if not exists` : elle se rejoue sans effet.
+--
+-- ── POURQUOI CES DEUX COLONNES ──────────────────────────────────────────────
+--
+-- Relevé du 09/10/2026 : les quatre mêmes informations — heures · dates des
+-- cours · date d'examen · dossier complet ou non — sont recopiées CINQ fois à
+-- la main. L'état civil, lui, est recopié encore plus souvent : il part sur
+-- EDOF, à la CCI, sur la convention, sur l'attestation, sur le certificat.
+--
+-- Et c'est là que les dossiers CPF meurent. Pas sur le choix de la formation :
+-- sur la vérification d'identité, parce qu'un prénom inversé, une ville de
+-- naissance approximative ou un nom marital là où l'état civil attend un nom de
+-- naissance font échouer l'identification sur moncompteformation.gouv.fr. Le
+-- candidat est alors renvoyé vers un second rendez-vous, et nous avons perdu
+-- trois semaines.
+--
+-- La seule personne qui sache écrire son nom correctement est le candidat. La
+-- page /coordonnees le lui fait RELIRE, pré-rempli, avant que ces données
+-- partent ailleurs.
+--
+-- `coordonnees_confirmees_le` : le candidat a relu et dit « tout est exact ».
+--   C'est l'information qui manquait vraiment — aujourd'hui personne ne sait si
+--   l'état civil d'un dossier a été vérifié auprès de l'intéressé ou recopié
+--   d'une fiche d'appel.
+--
+-- `coordonnees_corrigees_le` : il a relu ET corrigé quelque chose.
+--   Distinct du précédent à dessein : un dossier corrigé mérite un coup d'œil
+--   (les pièces déjà générées portent l'ancienne orthographe), un dossier
+--   simplement confirmé ne mérite rien du tout. Fondre les deux dans une seule
+--   colonne ferait perdre exactement la distinction qui déclenche une action.
+--
+-- ⚠️ Le détail de ce qui a changé n'est PAS dans une colonne : il va dans
+-- `journal` (avant/après), seule table de ce CRM qui se remplisse vraiment
+-- (841 lignes en 90 jours, écrites par des machines, là où `taches`,
+-- `remarques`, `messages_internes` et `reclamations` sont à 0). Une colonne
+-- « dernier changement » serait écrasée au changement suivant ; le journal, non.
+-- ============================================================================
+
+alter table stagiaires
+  add column if not exists coordonnees_confirmees_le timestamptz,
+  add column if not exists coordonnees_corrigees_le timestamptz;
+
+-- ============================================================================
+-- À reporter dans migrations/MANIFEST.md sous le n° 85.
+-- ============================================================================
