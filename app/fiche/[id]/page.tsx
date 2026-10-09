@@ -464,6 +464,15 @@ export default function PageFiche() {
                   <span className="text-sm text-gray-700">
                     {dateFr(v.date_inscription)} · <strong>{v.formule_label ?? "—"}</strong>
                     {v.agence_vente && <span className="text-gray-500"> · {v.agence_vente}</span>}
+                    {/* Le statut de la vente est affiché AVANT le bouton : 10 des 158 ventes
+                        sont annulées, et une vente annulée n'appelle aucune liasse Qualiopi.
+                        On ne bloque pas (le statut est du texte libre importé, pas une
+                        garantie), on montre. */}
+                    {v.statut && (
+                      <span className={`ml-1 badge ${/annul/i.test(v.statut) ? "bg-rose-100 text-rose-700" : "bg-gray-100 text-gray-500"}`}>
+                        {v.statut}
+                      </span>
+                    )}
                   </span>
                   <CreerDossierDepuisVente vente={v} niveauSuggere={niveauSuggere} onCree={recharger} />
                 </div>

@@ -22,6 +22,13 @@ function dateFr(iso: string | null): string {
 }
 const euro = (n: number | null) => (n == null ? "—" : `${Number(n).toLocaleString("fr-FR")} €`);
 
+/**
+ * Le statut vient du suivi de ventes importé : c'est du texte libre saisi à la main
+ * (« Annulé », « Dossier complet », « Reste à payer »…). On ne teste donc pas une égalité
+ * exacte, qui raterait une variante de casse ou d'accent.
+ */
+const estAnnulee = (v: Vente) => /annul/i.test(v.statut ?? "");
+
 export default function VentesFormationPage() {
   const [ventes, setVentes] = useState<Vente[]>([]);
   const [voitMontants, setVoitMontants] = useState(false);
@@ -62,7 +69,7 @@ export default function VentesFormationPage() {
       if (fStatut !== "tous" && (v.statut ?? "") !== fStatut) return false;
       if (fVendeur !== "tous" && (v.vendeur ?? "") !== fVendeur) return false;
       if (relance && !/payer/i.test(v.statut ?? "")) return false;
-      if (sansDossier && v.dossierId) return false;
+      if (sansDossier && (v.dossierId || estAnnulee(v))) return false;
       if (t && !`${v.nom} ${v.email ?? ""} ${v.formule ?? ""}`.toLowerCase().includes(t)) return false;
       return true;
     });
@@ -70,7 +77,15 @@ export default function VentesFormationPage() {
 
   // Ventes qui n'ont produit aucun dossier. C'est le reste à faire de la chaîne Formation,
   // et il se compte tout seul : personne n'a rien à saisir pour que ce chiffre soit juste.
-  const nbSansDossier = useMemo(() => ventes.filter((v) => !v.dossierId).length, [ventes]);
+  //
+  // Les ventes annulées en sont EXCLUES (10 sur 158 au 09/10/2026) : une vente annulée
+  // n'appelle aucune liasse Qualiopi, et un compteur qui gonfle d'un travail qui n'existe
+  // pas est un compteur qu'on cesse de regarder. Le filtre applique la même règle que le
+  // compteur, pour qu'ils ne se contredisent jamais.
+  const nbSansDossier = useMemo(
+    () => ventes.filter((v) => !v.dossierId && !estAnnulee(v)).length,
+    [ventes]
+  );
 
   const totalMontant = useMemo(
     () => (voitMontants ? visibles.reduce((s, v) => s + (Number(v.montant) || 0), 0) : 0),
@@ -98,7 +113,7 @@ export default function VentesFormationPage() {
         <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
           <span>
             <strong>{nbSansDossier}</strong> vente{nbSansDossier > 1 ? "s" : ""} sans dossier de formation
-            <span className="text-amber-700"> — ni convention, ni émargement, ni certificat</span>
+            <span className="text-amber-700"> — ni convention, ni émargement, ni certificat (hors ventes annulées)</span>
           </span>
           <button
             onClick={() => setSansDossier((v) => !v)}
