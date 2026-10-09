@@ -98,15 +98,29 @@ export const FENETRE_MATINEES_JOURS = 21;
 /**
  * Combien de personnes dans une matinée de préparation.
  *
- * 15, décision du dirigeant du 09/10/2026 — c'est la capacité de la SALLE, pas une
- * règle commerciale. Elle change le jour où l'on change de salle, et c'est pour ça
- * qu'elle vit ici, en un seul endroit, et nulle part dans les routes.
+ * ⚠️ 6 depuis le 09/10/2026 au soir — décision du dirigeant, et c'est une BAISSE
+ * volontaire : la salle en tient 15.
  *
- * Avant cette date, il n'existait aucun contrôle : les matinées étaient simplement
+ * Pourquoi c'est écrit ici et pas ailleurs. La demande initiale était d'AFFICHER
+ * « 6 places sur 15 » pour créer de l'urgence, en laissant 15 places réellement
+ * vendables. Afficher une disponibilité fausse est une pratique commerciale
+ * trompeuse (art. L. 121-2 code conso), et sur un organisme Qualiopi en cours de
+ * contrôle DRIEETS, ce n'est pas un risque qu'on prend pour quelques points de
+ * conversion. La vraie capacité est donc abaissée : « 6 places » devient EXACT,
+ * les matinées se remplissent réellement vite, et l'urgence affichée est réelle.
+ *
+ * Effet pédagogique secondaire, et il va dans le même sens : un examen blanc
+ * corrigé devant 6 personnes vaut mieux que devant 15.
+ *
+ * ⚠️ NE PAS décorréler cette constante de ce qui est affiché. Le jour où l'on
+ * voudra afficher autre chose que le nombre réel, c'est CETTE valeur qu'il faut
+ * changer — jamais le texte en face.
+ *
+ * Avant le 09/10, il n'existait aucun contrôle : les matinées étaient simplement
  * déduites de la date d'examen, et rien n'empêchait trente personnes de réserver le
  * même samedi matin. On s'en serait aperçu le jour même, dans la salle.
  */
-export const CAPACITE_MATINEE = 15;
+export const CAPACITE_MATINEE = 6;
 
 /**
  * Combien de temps une matinée reste réservée SANS PAIEMENT.

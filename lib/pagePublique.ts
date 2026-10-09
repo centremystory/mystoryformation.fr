@@ -298,6 +298,7 @@ button:disabled{opacity:.6;cursor:progress;box-shadow:none}
  font-size:11.5px;line-height:1.75}
 .pied .dedans{max-width:var(--mys-largeur);margin:0 auto}
 .pied a{color:rgba(255,255,255,.78)}
+.ou.rare{color:var(--mys-rouge-600);font-weight:700}
 .pied .liens{display:flex;flex-wrap:wrap;gap:6px 18px;margin:0 0 12px;padding:0;list-style:none}
 .pied .liens a{font-weight:600;text-decoration:none}
 .pied .liens a:hover{text-decoration:underline}

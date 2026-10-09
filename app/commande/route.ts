@@ -110,15 +110,26 @@ async function refus(erreurs: string[], dateExamen: string | null, centre: strin
  * refusent la commande. Deux comptes qui se recalculent séparément finissent
  * toujours par se contredire.
  *
- * Volontairement FACTUEL, sans « plus que » ni compte à rebours : une rareté
- * inventée ou gonflée est une pratique commerciale trompeuse (art. L. 121-2 du
- * code de la consommation), et un candidat qui se présente sur une place
- * inexistante coûte infiniment plus cher qu'une vente perdue. Un nombre qu'on
- * n'a pas ne s'affiche pas : l'appelant passe alors `null`.
+ * Toujours FACTUEL : une rareté inventée ou gonflée est une pratique commerciale
+ * trompeuse (art. L. 121-2 du code de la consommation), et un candidat qui se
+ * présente sur une place inexistante coûte infiniment plus cher qu'une vente
+ * perdue. Un nombre qu'on n'a pas ne s'affiche pas : l'appelant passe `null`.
+ *
+ * 09/10/2026 (soir) — on MET EN AVANT la rareté quand elle est VRAIE. En dessous
+ * de `SEUIL_RARETE`, le compte passe en rouge et s'écrit « plus que N places ».
+ * C'est la réponse à la demande du dirigeant (« que ça parte vite, pour donner
+ * envie ») : la pression vient du stock réel, jamais d'un chiffre arrangé. La
+ * capacité d'une matinée a d'ailleurs été ramenée de 15 à 6 le même soir pour
+ * que cette rareté EXISTE au lieu d'être simulée — voir `CAPACITE_MATINEE`.
  */
+const SEUIL_RARETE = 3;
+
 function places(n: number | null | undefined): string {
   if (typeof n !== "number" || !isFinite(n) || n <= 0) return "";
-  return `<span class="ou">${n} place${n > 1 ? "s" : ""} restante${n > 1 ? "s" : ""}</span>`;
+  const pl = n > 1 ? "s" : "";
+  return n <= SEUIL_RARETE
+    ? `<span class="ou rare">Plus que ${n} place${pl}</span>`
+    : `<span class="ou">${n} place${pl} restante${pl}</span>`;
 }
 
 /** Le récapitulatif, ligne à ligne, au montant recalculé. */
