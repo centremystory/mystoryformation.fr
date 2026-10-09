@@ -19,15 +19,15 @@ import { calculerMontant } from "@/lib/tarifsExamen";
 import {
   MOTIVATIONS_CCI, MENTIONS_CIVIQUE, lireSession, jourLisible, euros,
 } from "@/lib/inscriptionEnLigne";
+import { ech } from "@/lib/html";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const BLEU = "#2F72DE";
 
-const ech = (v: unknown) =>
-  String(v ?? "").replace(/[&<>"']/g, (c) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
+// 09/10/2026 — l'échappement vit désormais dans lib/html.ts : il était en double
+// dans ce dépôt, et deux copies finissent par diverger. Comportement identique.
 
 function page(titre: string, corps: string) {
   return `<!DOCTYPE html><html lang="fr"><head>

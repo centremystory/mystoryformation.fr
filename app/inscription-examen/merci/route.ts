@@ -10,13 +10,12 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { ech } from "@/lib/html";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const ech = (v: unknown) =>
-  String(v ?? "").replace(/[&<>"']/g, (c) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
+// L'échappement est partagé (lib/html.ts) : voir le commentaire qui l'accompagne.
 
 function page(corps: string) {
   return `<!DOCTYPE html><html lang="fr"><head>

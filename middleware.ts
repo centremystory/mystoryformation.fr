@@ -62,6 +62,15 @@ const CHEMINS_PUBLICS = [
   "/inscription-examen",          // page publique d'inscription à une session (28/09/2026)
   "/api/inscription-examen",      // dépôt du formulaire d'inscription en ligne (honeypot + rate-limit)
   "/api/paiements/mollie",        // webhook Mollie : ne transmet qu'un identifiant, l'état est relu à la source
+  // 09/10/2026 — la commande composée (examen(s) + préparation + plateformes). Même
+  // nature que /inscription-examen : le candidat n'a pas de compte, et la page ne lit
+  // que des sessions publiques. Aucun montant ne circule dans l'URL, tout est recalculé.
+  "/commande",                    // page publique de commande + sa page de retour /commande/merci
+  "/api/commande",                // dépôt du formulaire + webhook /api/commande/paiement (honeypot + rate-limit)
+  // Récepteur Lenbox (paiement fractionné). Public par nécessité : Lenbox appelle sans
+  // s'authentifier. ⚠️ La route ne croit JAMAIS le corps du POST — aucune signature
+  // n'existe côté Lenbox — elle relit le statut du dossier à la source. Voir la route.
+  "/api/paiements/lenbox",
   "/partenaire",                  // portail partenaire par jeton (capability)
   "/api/partenaire",              // données + dépôts partenaire (jeton vérifié côté serveur)
   // Portail des organismes prescripteurs. Public au sens du middleware d'ÉQUIPE

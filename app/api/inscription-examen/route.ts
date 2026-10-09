@@ -151,7 +151,18 @@ export async function POST(req: NextRequest) {
     `${session.type === "TEF_IRN" ? "Examen TEF IRN" : "Examen civique"} — ` +
     `${jourLisible(session.date_examen)}, ${session.horaire}, ${session.centre_nom}`;
 
-  const lien = await lienDePaiement(req, ref, devis.montant, intitule, email);
+  const lien = await lienDePaiement(
+    req, ref, devis.montant, intitule, email,
+    devis.detail.map((d) => ({ libelle: d.libelle, prix: d.prix })),
+    {
+      prenom: s((corps as any).prenom),
+      nom: s((corps as any).nom).toUpperCase(),
+      adresse: s((corps as any).adresse),
+      codePostal: s((corps as any).code_postal),
+      ville: s((corps as any).ville),
+      pays: s((corps as any).pays) || "France",
+    },
+  );
 
   if (lien) {
     await supabaseAdmin.from("preinscriptions_examen")
@@ -195,6 +206,11 @@ export async function POST(req: NextRequest) {
  */
 async function lienDePaiement(
   req: NextRequest, reference: string, montant: number, intitule: string, email: string,
+  lignes?: Array<{ libelle: string; prix: number }>,
+  adresse?: {
+    prenom?: string; nom?: string; adresse?: string;
+    codePostal?: string; ville?: string; pays?: string;
+  },
 ): Promise<string | null> {
   if (!molliePret()) return null;
   const base = urlDeBase(req);
@@ -206,6 +222,16 @@ async function lienDePaiement(
       email,
       urlRetour: `${base}/inscription-examen/merci?r=${encodeURIComponent(reference)}`,
       urlWebhook: `${base}/api/paiements/mollie`,
+      /* 09/10/2026 — `lignes` et `adresse` ne servent à rien pour nous : elles servent à
+         faire apparaître KLARNA. Une vraie page de paiement n'offrait que « Cartes de
+         crédit » et « iDEAL » alors que Klarna est bel et bien activé sur le compte
+         Mollie ; la cause était ici, dans un paiement envoyé sans détail de commande ni
+         adresse de facturation. Mollie masque alors Klarna SANS message d'erreur.
+         Le formulaire collectait déjà tout : il n'y avait qu'à transmettre.
+         ⚠️ La somme des lignes doit faire EXACTEMENT le total, sinon Mollie rejette le
+         paiement entier — ici elles viennent du même devis que le montant. */
+      lignes,
+      adresse: adresse ? { ...adresse, email } : undefined,
     });
     await supabaseAdmin.from("preinscriptions_examen")
       .update({ reference_paiement: p.id }).eq("id", reference);
