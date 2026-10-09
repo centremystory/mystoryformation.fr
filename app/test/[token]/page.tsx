@@ -453,6 +453,52 @@ export default function Passation({ params }: { params: { token: string } }) {
               </p>
             </div>
 
+            {/* 09/10/2026 — DEUXIÈME VOIE : celui qui tient déjà son niveau n'a pas besoin
+                d'un parcours CPF de 36 h, il a besoin d'une DATE. Demande du dirigeant :
+                « il faut qu'à la fin du test on le relie sur les packs de formations et sur
+                le site pour continuer et finaliser leur parcours s'ils ont le niveau ».
+
+                Jusqu'ici l'écran ne proposait qu'un chemin : la pré-inscription CPF. Pour un
+                candidat qui tient déjà le B2 exigé par sa naturalisation, c'était lui vendre
+                onze jours de délai et un dossier de financement dont il n'a aucun besoin —
+                donc, le plus souvent, le perdre.
+
+                ⚠️ CE QU'ON NE DIT PAS : « vous avez le niveau ». Le niveau affiché ici est
+                CALIBRÉ SUR LA COMPRÉHENSION SEULE ; l'expression écrite et orale attendent
+                une correction humaine (c'est écrit plus haut sur la même page). Affirmer un
+                résultat qu'on n'a pas mesuré serait faux, et surtout cruel le jour de
+                l'épreuve. On énonce donc le fait — « sur les épreuves de compréhension, vous
+                tenez déjà X » — et on laisse le candidat décider. */}
+            {(() => {
+              const ECHELLE = ["A1", "A2", "B1", "B2", "C1", "C2"];
+              const atteint = ECHELLE.indexOf(String(bilan?.niveau_calibre ?? ""));
+              const vise = ECHELLE.indexOf(String(coord.niveauVise ?? ""));
+              if (atteint < 0 || vise < 0 || atteint < vise) return null;
+              return (
+                <div className="mb-5 rounded-2xl border-2 border-green-400 bg-green-50 p-6 text-center">
+                  <p className="text-lg font-bold text-gray-900">
+                    Sur les épreuves de compréhension, vous tenez déjà le&nbsp;
+                    {bilan.niveau_calibre}.
+                  </p>
+                  <p className="mx-auto mt-1 max-w-lg text-sm text-gray-700">
+                    C&apos;est le niveau demandé pour votre démarche. Vous pouvez réserver
+                    votre date d&apos;examen dès maintenant, et y ajouter une matinée de
+                    préparation si vous voulez vous rassurer avant l&apos;épreuve.
+                  </p>
+                  <a
+                    href="https://www.mystoryformation.fr/prochaines-sessions-examen"
+                    className="mt-4 inline-block rounded-xl bg-green-700 px-8 py-3.5 text-base font-semibold text-white"
+                  >
+                    Voir les prochaines dates d&apos;examen
+                  </a>
+                  <p className="mt-2 text-xs text-gray-600">
+                    Votre expression écrite et orale sont encore en correction&nbsp;: si elles
+                    changent la donne, nous vous le dirons avant votre inscription.
+                  </p>
+                </div>
+              );
+            })()}
+
             {/* 17/09/2026 — le candidat est chaud MAINTENANT : il vient de voir son niveau et
                 le nombre d'heures qu'il lui faut. Lui demander d'attendre un rappel, c'est le
                 perdre. Le bouton mène au formulaire de pré-inscription, pré-rempli par son
