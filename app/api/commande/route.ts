@@ -44,7 +44,9 @@ import { urlDeBase } from "@/lib/appUrl";
 import { MOTIVATIONS_CCI, euros, jourLisible } from "@/lib/inscriptionEnLigne";
 import {
   lireCommande, reserverMatinees, libererMatinees, resumeCommande,
-  MATINEE_HORAIRE, PREPARATION_TAUX_HORAIRE, dateExamenLaPlusProche, type Commande,
+  MATINEE_HORAIRE, PREPARATION_TAUX_HORAIRE, dateExamenLaPlusProche,
+  libererReservationsPerimees, COMMANDES_IMPAYEES_MAX_PAR_EMAIL, RESERVATION_MINUTES,
+  type Commande,
 } from "@/lib/commande";
 import { ech, enTete } from "@/lib/html";
 
@@ -119,6 +121,32 @@ export async function POST(req: NextRequest) {
       { ok: false, erreur: "Cette adresse e-mail ne semble pas valide — c'est par là que partira votre convocation." },
       { status: 400 },
     );
+  }
+
+  /* ── 0. Plafond de commandes impayées par adresse ──────────────────────────
+   *
+   * La limite par IP ci-dessus ne protège pas la SALLE : cinq commandes abandonnées
+   * suffisent à retenir cinq chaises, et une adresse jetable change d'IP. Les
+   * réservations se périment en 30 minutes, ce qui borne la DURÉE de l'abus ; ce
+   * plafond en borne l'AMPLEUR.
+   *
+   * On nettoie d'abord : sans ça, le candidat qui revient une heure après un abandon
+   * serait refusé au nom de commandes déjà mortes. */
+  await libererReservationsPerimees();
+  const { count: enCours } = await supabaseAdmin
+    .from("commandes_en_ligne")
+    .select("id", { count: "exact", head: true })
+    .eq("candidat_email", email)
+    .eq("statut", "en_attente")
+    .is("paye_le", null);
+
+  if ((enCours ?? 0) >= COMMANDES_IMPAYEES_MAX_PAR_EMAIL) {
+    return NextResponse.json({
+      ok: false,
+      erreur:
+        `Vous avez déjà ${enCours} commande${(enCours ?? 0) > 1 ? "s" : ""} en attente de paiement. ` +
+        `Terminez-en une, patientez ${RESERVATION_MINUTES} minutes, ou appelez-nous au ${TEL}.`,
+    }, { status: 429 });
   }
 
   // ── 1. La commande, recalculée. C'est le seul prix qui existe. ─────────────

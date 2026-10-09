@@ -155,6 +155,21 @@ alter table commandes_en_ligne enable row level security;
 -- alors écrit à UN SEUL endroit, `CAPACITE_MATINEE` dans lib/commande.ts. Un
 -- trigger aurait dupliqué la capacité dans le schéma, et les deux auraient
 -- divergé le jour du changement de salle.
+--
+-- ⚠️ UNE RÉSERVATION IMPAYÉE NE VIT QUE 30 MINUTES (`RESERVATION_MINUTES`).
+-- Une place est retenue dès la création de la commande, donc avant paiement —
+-- sinon deux candidats simultanés achètent la même chaise. Mais la retenue est
+-- COURTE : sans cela, il suffirait de créer des commandes jamais payées pour
+-- stériliser les 15 places d'un samedi matin, et de simples abandons y
+-- suffiraient. La péremption est appliquée par l'application, à la lecture
+-- suivante (« tiré, pas poussé », comme l'occupation des sessions d'examen) :
+-- elle passe `actif` à false et la commande à `expiree`.
+--
+-- La péremption DOIT être matérialisée dans `actif`, et non calculée à la
+-- lecture : l'index d'unicité ci-dessous ne porte que sur les lignes actives,
+-- donc une ligne périmée restée active continuerait d'interdire son numéro de
+-- place à tout le monde — le compteur dirait « libre » et l'insertion
+-- échouerait quand même.
 create table if not exists matinees_preparation (
   id            uuid primary key default gen_random_uuid(),
   commande_id   uuid not null references commandes_en_ligne(id),

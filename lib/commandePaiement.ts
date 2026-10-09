@@ -22,7 +22,10 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { envoyerEmail, gabaritEmail } from "@/lib/email";
 import { euros, jourLisible } from "@/lib/inscriptionEnLigne";
-import { MATINEE_HORAIRE, PREPARATION_TAUX_HORAIRE } from "@/lib/commande";
+import {
+  MATINEE_HORAIRE, PREPARATION_TAUX_HORAIRE, reassurerMatinees,
+  CENTRE_MATINEES_PAR_DEFAUT,
+} from "@/lib/commande";
 import { ech, enTete } from "@/lib/html";
 
 /**
@@ -37,7 +40,7 @@ export type ResultatValidation = {
   /** Si `ok` : nombre de pré-inscriptions ouvertes à la conversion. */
   lignes?: number;
   /** Si `!ok` : pourquoi. */
-  motif?: "introuvable" | "montant" | "ecriture";
+  motif?: "introuvable" | "montant" | "ecriture" | "reference_deja_utilisee";
   detail?: string;
 };
 
@@ -110,6 +113,44 @@ export async function validerCommandePayee(args: {
     return { ok: false, motif: "montant" };
   }
 
+  /* ── UNE RÉFÉRENCE DE PAIEMENT NE RÈGLE QU'UNE COMMANDE ───────────────────────
+   *
+   * Contrôle EXPLICITE, en plus de l'index d'unicité posé en base sur
+   * `reference_paiement`. Les deux ne sont pas redondants :
+   *   — l'index est le seul qui tienne en cas de course, mais il n'existera qu'une fois
+   *     la migration appliquée, et son rejet arrive sous la forme d'une erreur
+   *     d'écriture générique, qu'on prendrait pour un incident technique ;
+   *   — ce contrôle-ci dit la vérité dans le journal et dans l'alerte : « ce paiement a
+   *     déjà servi », ce qui est une information d'une autre nature.
+   *
+   * Sans cela, un même dossier Lenbox (ou un même paiement Mollie) pourrait valider
+   * plusieurs commandes : un encaissement, plusieurs convocations. */
+  const { data: deja } = await supabaseAdmin
+    .from("commandes_en_ligne")
+    .select("id")
+    .eq("reference_paiement", args.referencePaiement)
+    .neq("id", args.commandeId)
+    .limit(1);
+
+  if (deja && deja.length) {
+    const autre = String((deja[0] as any).id);
+    await journal("commande_reference_deja_utilisee", args.commandeId, {
+      paiement: args.referencePaiement, moyen: args.moyen, autre_commande: autre,
+    }, args.auteur);
+    await envoyerEmail({
+      a: process.env.EMAIL_CORRECTIONS || "secretariat@mystoryformation.fr",
+      objet: enTete(`Paiement déjà utilisé — ${ech(c.candidat_nom)} ${ech(c.candidat_prenom)}`),
+      html: gabaritEmail("Un paiement veut régler deux commandes", `
+        <p>Le paiement <code>${ech(args.referencePaiement)}</code> (${ech(args.moyen)}) est
+        déjà rattaché à la commande <code>${ech(autre)}</code>, et prétend maintenant régler
+        <code>${ech(args.commandeId)}</code>.</p>
+        <p><b>Rien n'a été validé.</b> Un encaissement ne paie qu'une commande.</p>
+        <p>👉 À vérifier avant toute convocation.</p>`),
+      entite: "commandes_en_ligne", entiteId: args.commandeId,
+    });
+    return { ok: false, motif: "reference_deja_utilisee" };
+  }
+
   const maintenant = new Date().toISOString();
 
   // Course : deux notifications simultanées n'encaissent qu'une fois. Le filtre
@@ -152,6 +193,42 @@ export async function validerCommandePayee(args: {
     paiement: args.referencePaiement, moyen: args.moyen, montant: args.montantRecu,
     preinscriptions_ouvertes: nb,
   }, args.auteur);
+
+  /* Les matinées, revérifiées MAINTENANT que la commande est payée.
+   *
+   * Une réservation impayée se périme en 30 minutes, et un financement Lenbox peut
+   * mettre plus longtemps à être accordé : la chaise a pu être rendue, voire reprise.
+   * On la reprend si elle est libre ; sinon on le DIT, parce que l'argent est encaissé
+   * et qu'il faut replacer le candidat — pas le découvrir le samedi matin dans la salle.
+   *
+   * Appelé après la mise à jour du statut, et pas avant : le nettoyage des réservations
+   * périmées ne considère que les commandes « en_attente » et impayées, donc cette
+   * commande-ci n'est plus balayable. */
+  const matinees: string[] = Array.isArray(c.matinees) ? c.matinees.map(String) : [];
+  if (matinees.length) {
+    const r = await reassurerMatinees(
+      String(c.id), matinees, String(c.centre_matinees ?? CENTRE_MATINEES_PAR_DEFAUT),
+    );
+    if (!r.ok) {
+      const perdues = r.perdues ?? [];
+      await journal("commande_matinee_perdue", args.commandeId, { matinees: perdues }, args.auteur);
+      await envoyerEmail({
+        a: process.env.EMAIL_CORRECTIONS || "secretariat@mystoryformation.fr",
+        objet: enTete(`⚠️ Matinée à replacer — ${ech(c.candidat_nom)} ${ech(c.candidat_prenom)}`),
+        html: gabaritEmail("Commande payée, matinée complète", `
+          <p>La commande est <b>payée</b>, mais ${perdues.length > 1 ? "des matinées" : "une matinée"}
+          de préparation ${perdues.length > 1 ? "ont" : "a"} été reprise${perdues.length > 1 ? "s" : ""}
+          entre-temps (financement plus long que la durée de réservation).</p>
+          <p>À replacer : <b>${perdues.map((d) => ech(jourLisible(d))).join(" · ")}</b></p>
+          <p><b>${ech(c.candidat_nom)} ${ech(c.candidat_prenom)}</b><br>
+          ${ech(c.candidat_email)} · ${ech(c.candidat_telephone ?? "")}</p>
+          <p>👉 Appelez le candidat pour convenir d'une autre matinée. Son examen et sa
+          facture, eux, suivent leur cours normalement.</p>
+          <p style="color:#888;font-size:12px">Commande ${ech(String(c.id))}</p>`),
+        entite: "commandes_en_ligne", entiteId: args.commandeId,
+      });
+    }
+  }
 
   await prevenirSecretariat(c, nb, args.moyen);
   return { ok: true, dejaTraitee: false, lignes: nb };

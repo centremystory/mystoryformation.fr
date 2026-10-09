@@ -105,6 +105,81 @@ export const FENETRE_MATINEES_JOURS = 21;
 export const CAPACITE_MATINEE = 15;
 
 /**
+ * Combien de temps une matinée reste réservée SANS PAIEMENT.
+ *
+ * 09/10/2026 — défaut relevé en revue, et il était réel : les matinées étaient
+ * réservées à la création de la commande, donc avant paiement, et ne se libéraient
+ * qu'à l'expiration de la pré-inscription (J+3). Il suffisait donc de créer des
+ * commandes jamais payées pour bloquer les 15 places d'un samedi matin — et sans
+ * aucune malveillance, de simples abandons y suffisaient, puisque c'est le cas le
+ * plus fréquent d'un tunnel d'achat.
+ *
+ * 30 minutes : de quoi finir un paiement par carte sans se presser, pas de quoi
+ * stériliser une salle. Trois durées ont été pesées :
+ *   — réserver seulement AU PAIEMENT : écarté, parce qu'un candidat pourrait payer
+ *     puis se voir refuser sa matinée. Argent encaissé, pas de place : le pire des cas ;
+ *   — J+3 (l'existant) : trop long pour une chaise de salle ;
+ *   — 30 minutes : retenu.
+ *
+ * ⚠️ Un financement Lenbox peut dépasser 30 minutes (réponse bancaire, action du
+ * client). La place peut donc avoir été reprise quand l'accord arrive : c'est pour ça
+ * que `reassurerMatinees()` existe et qu'elle est appelée à la validation du paiement.
+ * On ne convoque jamais quelqu'un sur une chaise qui n'existe plus sans le dire.
+ */
+export const RESERVATION_MINUTES = 30;
+
+/**
+ * Nombre de commandes impayées simultanées tolérées pour une même adresse e-mail.
+ *
+ * La péremption limite la durée de l'abus ; ce plafond en limite l'ampleur. Sans lui,
+ * une boucle crée trente commandes en trente secondes et remplit la salle pour la
+ * demi-heure qui vient. Trois : un candidat qui se trompe deux fois reste servi.
+ */
+export const COMMANDES_IMPAYEES_MAX_PAR_EMAIL = 3;
+
+/**
+ * Libère les réservations des commandes impayées trop vieilles.
+ *
+ * **Tiré, pas poussé** — même principe que `occupationDe()` pour les sessions d'examen :
+ * personne ne balaie en tâche de fond, c'est la lecture suivante qui nettoie. Un cron
+ * tournerait toutes les cinq minutes pour rien l'essentiel du temps, alors que la seule
+ * fois où le compte doit être juste, c'est quand quelqu'un regarde.
+ *
+ * La péremption est MATÉRIALISÉE (`actif = false`) et non calculée à la lecture, et ce
+ * n'est pas un détail : l'index d'unicité porte sur `(date, centre, place) where actif`.
+ * Une réservation périmée restée `actif` continuerait d'interdire son numéro de place à
+ * tout le monde — le compteur dirait « libre » et l'insertion échouerait quand même.
+ */
+export async function libererReservationsPerimees(): Promise<void> {
+  const limite = new Date(Date.now() - RESERVATION_MINUTES * 60_000).toISOString();
+  const { data: perimees } = await supabaseAdmin
+    .from("commandes_en_ligne")
+    .select("id")
+    .eq("statut", "en_attente")
+    .is("paye_le", null)
+    .lt("cree_le", limite);
+
+  const ids = (perimees ?? []).map((c: any) => String(c.id));
+  if (!ids.length) return;
+
+  await supabaseAdmin
+    .from("matinees_preparation")
+    .update({ actif: false })
+    .in("commande_id", ids)
+    .eq("actif", true);
+
+  // La commande passe « expiree » : elle ne compte plus, et on voit dans le CRM que
+  // ce n'est pas un abandon silencieux. Les pré-inscriptions, elles, gardent leur
+  // propre cycle (relance J+1, expiration J+3) : on ne touche pas à l'existant.
+  await supabaseAdmin
+    .from("commandes_en_ligne")
+    .update({ statut: "expiree" })
+    .in("id", ids)
+    .eq("statut", "en_attente")
+    .is("paye_le", null);
+}
+
+/**
  * Centre où se tiennent les matinées.
  *
  * Rosny aujourd'hui — Rosny est le centre principal depuis le 03/09/2026. Volontairement
@@ -169,15 +244,20 @@ export function datesMatineesRecevables(dateExamenIso: string, maintenant = new 
  *
  * Une place est « prise » dès qu'une commande la réserve, AVANT paiement — exactement
  * comme `lireSession` compte les pré-inscriptions « en_attente » pour les sièges
- * d'examen. Sans ça, deux candidats simultanés achètent la même chaise. Le prix est
- * qu'une commande abandonnée immobilise sa place jusqu'à son expiration ; c'est le
- * compromis déjà retenu pour les examens, et on ne va pas en inventer un second.
+ * d'examen. Sans ça, deux candidats simultanés achètent la même chaise.
+ *
+ * Mais contrairement aux sièges d'examen, cette retenue est COURTE :
+ * `RESERVATION_MINUTES`. Une commande abandonnée rend sa chaise au bout d'une
+ * demi-heure, sans quoi il suffirait de commandes jamais payées pour stériliser un
+ * samedi matin. Le nettoyage est fait ici même, juste avant de compter.
  */
 export async function placesPrisesMatinees(
   dates: readonly string[], centre: string,
 ): Promise<Map<string, number>> {
   const prises = new Map<string, number>();
   if (dates.length === 0) return prises;
+  // On nettoie AVANT de compter : sinon une salle paraît pleine de commandes mortes.
+  await libererReservationsPerimees();
   const { data } = await supabaseAdmin
     .from("matinees_preparation")
     .select("date_matinee")
@@ -208,8 +288,20 @@ export async function placesPrisesMatinees(
  */
 export async function reserverMatinees(
   commandeId: string, dates: readonly string[], centre: string,
+  /**
+   * `true` (défaut) : si une seule matinée manque, on relâche TOUTES celles qu'on
+   * vient de prendre. `false` : on garde ce qui a pu être pris et on signale le reste.
+   *
+   * Le `false` sert à la REPRISE après paiement (`reassurerMatinees`). Y relâcher tout
+   * serait destructeur : on jetterait les chaises intactes de la commande pour punir
+   * celle qui manque, sur un dossier déjà encaissé.
+   */
+  toutOuRien = true,
 ): Promise<{ ok: boolean; pleines?: string[] }> {
   const pleines: string[] = [];
+  // Idem avant d'écrire : la place qu'on s'apprête à prendre est peut-être retenue
+  // par une commande abandonnée il y a une heure.
+  await libererReservationsPerimees();
 
   for (const date of dates) {
     let pris = false;
@@ -240,10 +332,46 @@ export async function reserverMatinees(
   }
 
   if (pleines.length) {
-    await libererMatinees(commandeId);
+    if (toutOuRien) await libererMatinees(commandeId);
     return { ok: false, pleines };
   }
   return { ok: true };
+}
+
+/**
+ * Au moment du paiement : vérifie que la commande a TOUJOURS ses chaises, et les
+ * reprend si la péremption les a rendues entre-temps.
+ *
+ * Nécessaire parce qu'un financement Lenbox peut dépasser `RESERVATION_MINUTES` :
+ * réponse bancaire, action demandée au client… L'accord peut donc arriver après que la
+ * place a été libérée, voire reprise par quelqu'un d'autre.
+ *
+ * Trois cas, et aucun ne doit être silencieux :
+ *   — les réservations sont intactes → rien à faire ;
+ *   — elles étaient périmées mais les places sont libres → on les reprend ;
+ *   — une place a été prise par un autre → on renvoie la liste. L'argent est encaissé,
+ *     on ne refuse donc pas la commande : on alerte pour qu'un humain replace le
+ *     candidat. Convoquer quelqu'un sur une chaise qui n'existe plus, sans le dire,
+ *     serait le découvrir le samedi matin dans la salle.
+ */
+export async function reassurerMatinees(
+  commandeId: string, dates: readonly string[], centre: string,
+): Promise<{ ok: boolean; perdues?: string[] }> {
+  if (!dates.length) return { ok: true };
+
+  const { data: vives } = await supabaseAdmin
+    .from("matinees_preparation")
+    .select("date_matinee")
+    .eq("commande_id", commandeId)
+    .eq("actif", true);
+  const tenues = new Set((vives ?? []).map((l: any) => String(l.date_matinee)));
+
+  const aReprendre = dates.filter((d) => !tenues.has(d));
+  if (!aReprendre.length) return { ok: true };
+
+  const r = await reserverMatinees(commandeId, aReprendre, centre, false);
+  if (r.ok) return { ok: true };
+  return { ok: false, perdues: r.pleines };
 }
 
 /** Rend les chaises d'une commande. Jamais de DELETE : on désactive (règle MYSTORY). */
