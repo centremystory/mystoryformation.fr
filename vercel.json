@@ -1,5 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "regions": [
+    "cdg1"
+  ],
   "functions": {
     "app/api/conventions/send/route.ts": {
       "memory": 3009,

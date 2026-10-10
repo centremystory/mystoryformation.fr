@@ -127,7 +127,7 @@ export const MONTANT_MAX = 4500;
  * Tout le reste — codes envoyés, mensualités affichées, règle des 14 jours — en
  * découle. Rien d'autre n'est à modifier, et c'est le but de cette constante.
  */
-export const FRAIS_A_LA_CHARGE_DU_CLIENT = true;
+export const FRAIS_A_LA_CHARGE_DU_CLIENT = false;
 
 /**
  * ⚠️ Les taux ci-dessous sont ceux du client. En variante `…XG` ils tombent à zéro :
