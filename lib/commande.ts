@@ -98,8 +98,11 @@ export const FENETRE_MATINEES_JOURS = 21;
 /**
  * Combien de personnes dans une matinée de préparation.
  *
- * ⚠️ 6 depuis le 09/10/2026 au soir — décision du dirigeant, et c'est une BAISSE
- * volontaire : la salle en tient 15.
+ * ⚠️ 10 depuis le 10/10/2026 — décision du dirigeant : « jamais de formation
+ * individuelle, 10 personnes ». Elle vaut pour TOUT, formations comme matinées.
+ *
+ * Historique à garder : la valeur était 15 (capacité de la salle), ramenée à 6 le
+ * 09/10 au soir, puis portée à 10 le lendemain.
  *
  * Pourquoi c'est écrit ici et pas ailleurs. La demande initiale était d'AFFICHER
  * « 6 places sur 15 » pour créer de l'urgence, en laissant 15 places réellement
@@ -120,7 +123,7 @@ export const FENETRE_MATINEES_JOURS = 21;
  * déduites de la date d'examen, et rien n'empêchait trente personnes de réserver le
  * même samedi matin. On s'en serait aperçu le jour même, dans la salle.
  */
-export const CAPACITE_MATINEE = 6;
+export const CAPACITE_MATINEE = 10;
 
 /**
  * Combien de temps une matinée reste réservée SANS PAIEMENT.
