@@ -173,8 +173,64 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ ok: mail.ok, erreur: mail.ok ? undefined : mail.erreur });
   }
 
-  // ----- Convertir (paiement constaté → vraie inscription) -----
+  /* ----- Marquer « portée au classeur » (12/10/2026) -----
+   *
+   * Appelée par le robot « Ventes du site vers le classeur » après qu'il a écrit la
+   * ligne dans l'onglet Examens et coché l'envoi. Elle ne crée AUCUNE vente et
+   * n'émet aucun document : elle ferme seulement la pré-inscription pour qu'elle ne
+   * soit pas traitée deux fois au passage suivant.
+   *
+   * `vente_id` reste vide, et c'est voulu : la vente vit dans le classeur, qui est
+   * l'émetteur de la série. Prétendre le contraire en inventant un identifiant
+   * Supabase donnerait un lien mort. */
+  if (action === "porte_au_classeur") {
+    if ((p as any).statut === "convertie") return NextResponse.json({ ok: true, deja: true });
+    if ((p as any).statut === "annulee") return NextResponse.json({ ok: false, erreur: "Pré-inscription annulée." }, { status: 400 });
+    if (!(p as any).paye_le) return NextResponse.json({ ok: false, erreur: "Pré-inscription non payée : rien à porter au classeur." }, { status: 409 });
+    const numero = String(b?.numero_attestation ?? "").trim();
+    if (!/^MYS-\d{4}-\d{5}$/.test(numero)) {
+      return NextResponse.json({ ok: false, erreur: "numero_attestation attendu au format MYS-AAAA-NNNNN." }, { status: 400 });
+    }
+    await supabaseAdmin.from("preinscriptions_examen").update({
+      statut: "convertie",
+      converti_par: u.email ?? "robot@mystoryformation.fr",
+      converti_le: new Date().toISOString(),
+    }).eq("id", id);
+    await journal("preinscriptions_examen", id, "preinscription_portee_au_classeur",
+      { numero_attestation: numero }, u.email ?? "robot@mystoryformation.fr");
+    return NextResponse.json({ ok: true, numero_attestation: numero });
+  }
+
+  /* ----- Convertir : CHEMIN FERMÉ depuis le 12/10/2026 -----
+   *
+   * Ce chemin créait la vente dans Supabase avec `numero_attestation` à
+   * 'ATTRIBUE_PAR_LE_SERVEUR', en attendant un trigger qui le remplace. Ce trigger a
+   * été retiré le 09/10 quand le classeur Examens est devenu le seul émetteur de la
+   * série. Résultat : toute vente créée ici depuis cette date portait ce texte en
+   * guise de numéro, et il partait imprimé sur l'attestation du candidat. ZAKRI
+   * Mohamed en a reçu une le 12/10 à 10h35.
+   *
+   * On ne le répare pas, on le ferme : le CRM ne peut pas écrire dans le classeur,
+   * donc il ne peut pas émettre un numéro juste. C'est le robot « Ventes du site
+   * vers le classeur » qui fait le travail, toutes les 15 minutes, et la base refuse
+   * désormais le mot-clé à l'insertion.
+   *
+   * ⚠️ Ne pas rouvrir ce chemin sans régler d'abord la question de l'émetteur. */
   if (action === "convertir") {
+    return NextResponse.json({
+      ok: false,
+      erreur:
+        "La bascule est automatique depuis le 12/10/2026 : le robot porte la vente au classeur " +
+        "et envoie convocation et attestation dans les 15 minutes qui suivent le paiement. " +
+        "Il n'y a rien à cliquer. Si une vente payée n'est pas partie au bout d'une heure, " +
+        "prévenir Arudhan plutôt que de la créer à la main : le numéro d'attestation vient " +
+        "du classeur, et le CRM ne sait pas l'attribuer.",
+      recap: ["Chemin fermé : la bascule se fait toute seule."],
+    }, { status: 409 });
+  }
+
+  // ----- Ancien chemin de conversion, conservé pour mémoire mais inatteignable -----
+  if (action === "convertir_desactive_le_12102026") {
     if ((p as any).statut === "convertie") return NextResponse.json({ ok: false, erreur: "Déjà convertie." }, { status: 400 });
     if ((p as any).statut === "annulee") return NextResponse.json({ ok: false, erreur: "Pré-inscription annulée." }, { status: 400 });
 

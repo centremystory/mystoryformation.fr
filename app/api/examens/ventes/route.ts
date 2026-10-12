@@ -185,6 +185,24 @@ export async function POST(req: NextRequest) {
   }
 
   // ----- Vente : le trigger SQL attribue le numéro et applique les verrous -----
+    /* 12/10/2026 — CHEMIN FERMÉ. Cette route posait `numero_attestation` à
+       'ATTRIBUE_PAR_LE_SERVEUR' en attendant un trigger qui le remplace. Ce trigger a
+       été retiré le 09/10 quand le classeur Examens est devenu le seul émetteur de la
+       série, et la base refuse maintenant ce mot-clé à l'insertion. Sans correctif,
+       cette page rendait donc une erreur technique illisible à la vendeuse.
+       Les ventes au guichet passent par le formulaire d'intake, qui écrit dans le
+       classeur et y prend le numéro. Aucune vente n'a été créée ici depuis le 09/10.
+       ⚠️ Ne pas rouvrir sans régler d'abord la question de l'émetteur du numéro. */
+    return NextResponse.json({
+      ok: false,
+      erreur:
+        "Cette page de vente ne peut plus émettre de numéro d'attestation : depuis le " +
+        "09/10/2026 la série est tenue par le classeur Examens, et le CRM ne sait pas y " +
+        "écrire. Passer par le formulaire d'inscription habituel, qui crée la ligne dans " +
+        "le classeur et envoie convocation et attestation.",
+      recap: ["Chemin fermé le 12/10/2026 : utiliser le formulaire d'inscription."],
+    }, { status: 409 });
+
   const { data: vente, error: venteErr } = await supabaseAdmin
     .from("ventes_examen")
     .insert({
