@@ -224,8 +224,6 @@ export async function PATCH(req: NextRequest) {
         }
         throw e;
       }
-      await journal("preinscriptions_examen", id, "preinscription_payee_annulee_par_direction",
-        { montant: (p as any).montant, paye_le: (p as any).paye_le }, u.email ?? null);
     }
 
     /* Conditionnelle elle aussi : une annulation ne doit pas écraser une conversion
@@ -240,6 +238,14 @@ export async function PATCH(req: NextRequest) {
     if (eAnn) return NextResponse.json({ ok: false, erreur: eAnn.message }, { status: 500 });
     if (!annulee || annulee.length === 0) {
       return NextResponse.json({ ok: false, erreur: "La pré-inscription a changé d'état entre-temps : rien n'a été annulé." }, { status: 409 });
+    }
+    /* Le journal vient APRÈS l'écriture, jamais avant.
+       Je l'avais placé avant la mise à jour conditionnelle : la trace affirmait donc
+       une annulation qui pouvait ne pas avoir eu lieu, et un journal qui raconte des
+       faits qui ne se sont pas produits est pire que pas de journal du tout. */
+    if ((p as any).paye_le) {
+      await journal("preinscriptions_examen", id, "preinscription_payee_annulee_par_direction",
+        { montant: (p as any).montant, paye_le: (p as any).paye_le }, u.email ?? null);
     }
     await journal("preinscriptions_examen", id, "preinscription_annulee", {}, u.email ?? null);
     return NextResponse.json({ ok: true });
@@ -295,8 +301,19 @@ export async function PATCH(req: NextRequest) {
       .select("id");
     if (eMaj) return NextResponse.json({ ok: false, erreur: eMaj.message }, { status: 500 });
     if (!maj || maj.length === 0) {
-      // Quelqu'un d'autre est passé entre-temps : ce n'est pas une erreur, c'est déjà fait.
-      return NextResponse.json({ ok: true, deja: true });
+      /* Zéro ligne mise à jour ne veut PAS dire « déjà fait ». Je l'avais écrit, et
+         c'était un échec silencieux : la ligne peut aussi être passée à `annulee`
+         entre la lecture et l'écriture. Répondre `ok` au robot dans ce cas, c'est lui
+         faire croire que la vente est portée alors qu'elle ne l'est pas, et la laisser
+         sortir de la file pour de bon. On relit l'état réel avant de conclure. */
+      const { data: apres } = await supabaseAdmin
+        .from("preinscriptions_examen").select("statut").eq("id", id).maybeSingle();
+      const statutReel = (apres as any)?.statut ?? "inconnu";
+      if (statutReel === "convertie") return NextResponse.json({ ok: true, deja: true });
+      return NextResponse.json({
+        ok: false,
+        erreur: `La pré-inscription a changé d'état entre-temps (statut « ${statutReel} ») : elle n'a PAS été portée au classeur. Vérifier qu'une ligne existe bien dans le classeur pour ce candidat.`,
+      }, { status: 409 });
     }
 
     await journal("preinscriptions_examen", id, "preinscription_portee_au_classeur",
