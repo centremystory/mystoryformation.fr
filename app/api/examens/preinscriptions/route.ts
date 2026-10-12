@@ -158,6 +158,42 @@ export async function PATCH(req: NextRequest) {
   // ----- Annuler -----
   if (action === "annuler") {
     if ((p as any).statut === "convertie") return NextResponse.json({ ok: false, erreur: "Déjà convertie en inscription." }, { status: 400 });
+
+    /* 12/10/2026 — une pré-inscription PAYÉE ne s'annule pas d'un clic.
+     *
+     * Depuis que la bascule est automatique, cette file est le seul chemin par
+     * lequel une vente du site devient une inscription. Annuler une ligne payée la
+     * fait sortir de la file définitivement : le robot l'ignore, et
+     * `porte_au_classeur` la refuse ensuite. L'argent est encaissé et le candidat
+     * n'a plus ni convocation ni attestation, sans que rien ne le signale.
+     *
+     * Je venais de restreindre `porte_au_classeur` à la Direction en laissant cette
+     * action-ci ouverte à toute l'équipe : la protection ne valait rien, puisque les
+     * deux chemins font disparaître le même encaissement.
+     *
+     * Un encaissement qu'il faut vraiment défaire est un remboursement, et le
+     * remboursement a son propre circuit, avec son avoir et sa trace. */
+    if ((p as any).paye_le) {
+      try {
+        await requireRole(req, ["direction"]);
+      } catch (e) {
+        if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Non authentifié" }, { status: 401 });
+        if (e instanceof ForbiddenError) {
+          return NextResponse.json({
+            ok: false,
+            erreur:
+              "Cette pré-inscription est PAYÉE : elle ne peut pas être annulée ici. " +
+              "L'annuler ferait disparaître l'encaissement de la file d'inscription, " +
+              "sans convocation ni attestation pour le candidat. Passer par le circuit " +
+              "Report et Remboursement, ou en parler à la Direction.",
+          }, { status: 403 });
+        }
+        throw e;
+      }
+      await journal("preinscriptions_examen", id, "preinscription_payee_annulee_par_direction",
+        { montant: (p as any).montant, paye_le: (p as any).paye_le }, u.email ?? null);
+    }
+
     await supabaseAdmin.from("preinscriptions_examen").update({ statut: "annulee" }).eq("id", id);
     await journal("preinscriptions_examen", id, "preinscription_annulee", {}, u.email ?? null);
     return NextResponse.json({ ok: true });
