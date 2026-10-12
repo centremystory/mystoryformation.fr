@@ -46,6 +46,30 @@ export const TARIFS_URGENCE: Record<TypeExamen, number> = {
   Examen_civique: 100,
 };
 
+/**
+ * Le créneau du SAMEDI de l'examen civique — 100 €, quel que soit le délai.
+ *
+ * 12/10/2026, décision d'Arudhan. Ouvrir le samedi suppose de mobiliser une salle et
+ * un examinateur un jour où le centre ne tourne pas pour les examens ; c'est ce que
+ * paie l'écart avec les 80 € de la semaine.
+ *
+ * Le montant coïncide avec le tarif d'urgence, mais la RÈGLE est distincte : le samedi
+ * est à 100 € même réservé deux mois à l'avance. Les fondre dans l'urgence ferait
+ * facturer « tarif d'urgence » une inscription prise très en avance — et c'est une
+ * mention qui figure sur le détail envoyé au candidat.
+ *
+ * ⚠️ Existe en DEUX exemplaires : ici (le CRM FACTURE) et dans `src/lib/tarifs-examen.ts`
+ * du site public (le site AFFICHE). Modifier l'un sans l'autre = un prix vu, un autre payé.
+ */
+export const TARIF_SAMEDI_CIVIQUE = 100;
+
+/** Vrai si cette session est un examen civique qui tombe un samedi. */
+export function estCreneauSamediCivique(type: TypeExamen, dateExamen: string): boolean {
+  if (type !== "Examen_civique") return false;
+  // Midi : ni le fuseau ni le changement d'heure ne peuvent décaler le jour.
+  return new Date(`${dateExamen}T12:00:00`).getDay() === 6;
+}
+
 /* ─────────────────────────────────────────────────────────────────────────────
    🗑️ LA TABLE DES PLATEFORMES A ÉTÉ SUPPRIMÉE D'ICI — 09/10/2026
    ─────────────────────────────────────────────────────────────────────────────
@@ -112,14 +136,21 @@ export type Devis = {
  * dans `lib/commande.ts`). Voir le pavé ci-dessus pour le pourquoi.
  */
 export function calculerMontant(type: TypeExamen, dateExamen: string): Devis {
+  const samedi = estCreneauSamediCivique(type, dateExamen);
   const jours = joursOuvresAvant(dateExamen);
-  const urgence = jours < DELAI_TARIF_PUBLIC_JOURS_OUVRES;
-  const prixExamen = urgence ? TARIFS_URGENCE[type] : TARIFS_PUBLICS[type];
+  // Le samedi a son propre tarif : il ne relève jamais de l'urgence, même à J-1.
+  const urgence = !samedi && jours < DELAI_TARIF_PUBLIC_JOURS_OUVRES;
+  const prixExamen = samedi
+    ? TARIF_SAMEDI_CIVIQUE
+    : urgence
+      ? TARIFS_URGENCE[type]
+      : TARIFS_PUBLICS[type];
 
   const detail: Array<{ libelle: string; prix: number }> = [
     {
       libelle:
         (type === "TEF_IRN" ? "Examen TEF IRN" : "Examen civique") +
+        (samedi ? " — créneau du samedi" : "") +
         (urgence ? " — tarif d'urgence (session à moins de 7 jours ouvrés)" : ""),
       prix: prixExamen,
     },
