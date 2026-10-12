@@ -26,7 +26,7 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { occupationDe } from "@/lib/occupationSessions";
 import {
-  TARIFS_PUBLICS, TARIFS_URGENCE, joursOuvresAvant,
+  TARIFS_PUBLICS, TARIFS_URGENCE, joursOuvresAvant, prixExamen,
   DELAI_TARIF_PUBLIC_JOURS_OUVRES, type TypeExamen,
 } from "@/lib/tarifsExamen";
 import { lireSession, jourLisible, type SessionPublique } from "@/lib/inscriptionEnLigne";
@@ -1027,15 +1027,20 @@ export async function lireCommande(
   }
 
   if (civique) {
+    /* 12/10/2026 — le prix vient de prixExamen(), la source unique, et non plus des
+       deux tables lues ici. Ce chemin ignorait la règle du samedi à 100 € : il la
+       connaît désormais sans avoir à la répéter. */
+    const t = prixExamen("Examen_civique", civique.date_examen);
     lignes.push({
       ligne: "examen",
       libelle: `Examen civique — mention ${mention} — ${jourLisible(civique.date_examen)}, ${civique.horaire}` +
-        (civiqueUrgent ? " (tarif d'urgence)" : ""),
-      prix: civiqueUrgent ? TARIFS_URGENCE.Examen_civique : TARIFS_PUBLICS.Examen_civique,
+        (t.samedi ? " (créneau du samedi)" : "") +
+        (t.urgence ? " (tarif d'urgence)" : ""),
+      prix: t.prix,
       typeExamen: "Examen_civique",
       sousType: mention,
       sessionId: civique.id,
-      urgence: civiqueUrgent,
+      urgence: t.urgence,
     });
   }
 

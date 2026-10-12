@@ -121,6 +121,26 @@ export function joursOuvresAvant(dateExamen: string): number {
   return n;
 }
 
+/**
+ * LE prix d'un examen, et sous quel régime — source unique.
+ *
+ * 12/10/2026. Cette fonction existe parce que la règle du samedi avait été posée dans
+ * `calculerMontant()` seulement, alors que `lib/commande.ts` facture le civique par un
+ * autre chemin en lisant les deux tables directement. Un candidat passant par /commande
+ * aurait payé 80 € un samedi. Deux endroits qui décident d'un prix finissent toujours
+ * par diverger : il n'y en a plus qu'un.
+ */
+export function prixExamen(
+  type: TypeExamen,
+  dateExamen: string,
+): { prix: number; urgence: boolean; samedi: boolean } {
+  const samedi = estCreneauSamediCivique(type, dateExamen);
+  // Le samedi a son propre tarif : il ne relève jamais de l'urgence, même à J-1.
+  const urgence = !samedi && joursOuvresAvant(dateExamen) < DELAI_TARIF_PUBLIC_JOURS_OUVRES;
+  const prix = samedi ? TARIF_SAMEDI_CIVIQUE : urgence ? TARIFS_URGENCE[type] : TARIFS_PUBLICS[type];
+  return { prix, urgence, samedi };
+}
+
 export type Devis = {
   montant: number;
   urgence: boolean;
@@ -136,15 +156,7 @@ export type Devis = {
  * dans `lib/commande.ts`). Voir le pavé ci-dessus pour le pourquoi.
  */
 export function calculerMontant(type: TypeExamen, dateExamen: string): Devis {
-  const samedi = estCreneauSamediCivique(type, dateExamen);
-  const jours = joursOuvresAvant(dateExamen);
-  // Le samedi a son propre tarif : il ne relève jamais de l'urgence, même à J-1.
-  const urgence = !samedi && jours < DELAI_TARIF_PUBLIC_JOURS_OUVRES;
-  const prixExamen = samedi
-    ? TARIF_SAMEDI_CIVIQUE
-    : urgence
-      ? TARIFS_URGENCE[type]
-      : TARIFS_PUBLICS[type];
+  const { prix, urgence, samedi } = prixExamen(type, dateExamen);
 
   const detail: Array<{ libelle: string; prix: number }> = [
     {
@@ -152,7 +164,7 @@ export function calculerMontant(type: TypeExamen, dateExamen: string): Devis {
         (type === "TEF_IRN" ? "Examen TEF IRN" : "Examen civique") +
         (samedi ? " — créneau du samedi" : "") +
         (urgence ? " — tarif d'urgence (session à moins de 7 jours ouvrés)" : ""),
-      prix: prixExamen,
+      prix,
     },
   ];
 
