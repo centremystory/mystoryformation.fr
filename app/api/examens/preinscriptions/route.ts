@@ -229,12 +229,19 @@ export async function PATCH(req: NextRequest) {
     /* Conditionnelle elle aussi : une annulation ne doit pas écraser une conversion
        survenue entre la lecture et l'écriture. Le contrôle `statut === "convertie"`
        plus haut porte sur une valeur déjà périmée au moment où l'on écrit. */
-    const { data: annulee, error: eAnn } = await supabaseAdmin
+    /* Et la condition de paiement va DANS la requête, pas seulement dans le test
+       au-dessus. Le contrôle de rôle porte sur `p.paye_le` lu avant lui : si le
+       paiement arrive entre cette lecture et cette écriture, une session sans le rôle
+       Direction annulerait une pré-inscription devenue payée entre-temps. En
+       exigeant `paye_le is null` côté base pour ce cas, la fenêtre se ferme. */
+    const estDirectionAnnulation = Boolean((p as any).paye_le);
+    let q = supabaseAdmin
       .from("preinscriptions_examen")
       .update({ statut: "annulee" })
       .eq("id", id)
-      .eq("statut", "en_attente")
-      .select("id");
+      .eq("statut", "en_attente");
+    if (!estDirectionAnnulation) q = q.is("paye_le", null);
+    const { data: annulee, error: eAnn } = await q.select("id");
     if (eAnn) return NextResponse.json({ ok: false, erreur: eAnn.message }, { status: 500 });
     if (!annulee || annulee.length === 0) {
       return NextResponse.json({ ok: false, erreur: "La pré-inscription a changé d'état entre-temps : rien n'a été annulé." }, { status: 409 });
