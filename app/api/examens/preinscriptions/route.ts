@@ -144,6 +144,23 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true, id: (p as any).id, mailEnvoye: mail.ok, mailErreur: mail.ok ? undefined : mail.erreur });
 }
 
+/* Les droits, EN UN SEUL ENDROIT (12/10/2026).
+ *
+ * Ils étaient imbriqués dans chaque branche d'action, et ça s'est mal passé deux fois
+ * de suite le même soir : j'ai ajouté `porte_au_classeur` sans contrôle de rôle, puis
+ * je l'ai restreinte en laissant `annuler` ouverte à toute l'équipe alors que les deux
+ * font disparaître le même encaissement. Une table d'autorisation déclarative rend
+ * l'oubli visible : une action absente de cette table est refusée, point.
+ *
+ * `null` = toute session d'équipe authentifiée suffit.
+ * Un tableau de rôles = `requireRole`, qui laisse passer le jeton de service n8n. */
+const ROLES_PAR_ACTION: Record<string, readonly string[] | null> = {
+  annuler: null,                      // affiné plus bas : Direction si la ligne est PAYÉE
+  renvoyer: null,                      // renvoie au candidat son propre lien de paiement
+  porte_au_classeur: ["direction"],    // clôt une vente payée : robot et Direction
+  convertir: null,                     // chemin fermé, refus explicite et sans effet
+};
+
 export async function PATCH(req: NextRequest) {
   const g = await garde(req); if (g instanceof NextResponse) return g;
   const u = g.user;
@@ -151,6 +168,23 @@ export async function PATCH(req: NextRequest) {
   const id = String(b?.id ?? "").trim();
   const action = String(b?.action ?? "").trim();
   if (!id) return NextResponse.json({ ok: false, erreur: "id requis." }, { status: 400 });
+
+  /* Action inconnue : on refuse AVANT de lire quoi que ce soit. Sans ça, la route
+     tombait jusqu'au bout de la fonction, et toute action future oubliée dans la
+     table ci-dessus aurait été silencieusement sans effet plutôt que refusée. */
+  if (!Object.prototype.hasOwnProperty.call(ROLES_PAR_ACTION, action)) {
+    return NextResponse.json({ ok: false, erreur: `Action inconnue : « ${action} ».` }, { status: 400 });
+  }
+  const rolesRequis = ROLES_PAR_ACTION[action];
+  if (rolesRequis) {
+    try {
+      await requireRole(req, rolesRequis);
+    } catch (e) {
+      if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Non authentifié" }, { status: 401 });
+      if (e instanceof ForbiddenError) return NextResponse.json({ ok: false, erreur: "Réservé au robot et à la Direction" }, { status: 403 });
+      throw e;
+    }
+  }
 
   const { data: p } = await supabaseAdmin.from("preinscriptions_examen").select("*").eq("id", id).maybeSingle();
   if (!p) return NextResponse.json({ ok: false, erreur: "Pré-inscription introuvable." }, { status: 404 });
@@ -194,7 +228,19 @@ export async function PATCH(req: NextRequest) {
         { montant: (p as any).montant, paye_le: (p as any).paye_le }, u.email ?? null);
     }
 
-    await supabaseAdmin.from("preinscriptions_examen").update({ statut: "annulee" }).eq("id", id);
+    /* Conditionnelle elle aussi : une annulation ne doit pas écraser une conversion
+       survenue entre la lecture et l'écriture. Le contrôle `statut === "convertie"`
+       plus haut porte sur une valeur déjà périmée au moment où l'on écrit. */
+    const { data: annulee, error: eAnn } = await supabaseAdmin
+      .from("preinscriptions_examen")
+      .update({ statut: "annulee" })
+      .eq("id", id)
+      .eq("statut", "en_attente")
+      .select("id");
+    if (eAnn) return NextResponse.json({ ok: false, erreur: eAnn.message }, { status: 500 });
+    if (!annulee || annulee.length === 0) {
+      return NextResponse.json({ ok: false, erreur: "La pré-inscription a changé d'état entre-temps : rien n'a été annulé." }, { status: 409 });
+    }
     await journal("preinscriptions_examen", id, "preinscription_annulee", {}, u.email ?? null);
     return NextResponse.json({ ok: true });
   }
@@ -223,19 +269,7 @@ export async function PATCH(req: NextRequest) {
    * l'émetteur de la série. Prétendre le contraire en inventant un identifiant
    * Supabase donnerait un lien mort. */
   if (action === "porte_au_classeur") {
-    /* Garde renforcée, comme `/api/examens/ventes-en-ligne` : cette action CLÔT une
-       vente payée. Avec le seul `requireUser` de `garde()`, n'importe quelle session
-       d'équipe pouvait la marquer traitée avec un numéro inventé, et l'encaissement
-       disparaissait de la file sans qu'aucun document ne soit parti. `requireRole`
-       laisse passer le jeton de service n8n (exemption `estAutomate`), donc le robot
-       fonctionne, et personne d'autre que la Direction ne peut l'appeler à la main. */
-    try {
-      await requireRole(req, ["direction"]);
-    } catch (e) {
-      if (e instanceof UnauthorizedError) return NextResponse.json({ ok: false, erreur: "Non authentifié" }, { status: 401 });
-      if (e instanceof ForbiddenError) return NextResponse.json({ ok: false, erreur: "Réservé au robot et à la Direction" }, { status: 403 });
-      throw e;
-    }
+    // Le contrôle de rôle a eu lieu en tête de route, via ROLES_PAR_ACTION.
     if ((p as any).statut === "convertie") return NextResponse.json({ ok: true, deja: true });
     if ((p as any).statut === "annulee") return NextResponse.json({ ok: false, erreur: "Pré-inscription annulée." }, { status: 400 });
     if (!(p as any).paye_le) return NextResponse.json({ ok: false, erreur: "Pré-inscription non payée : rien à porter au classeur." }, { status: 409 });
@@ -243,11 +277,28 @@ export async function PATCH(req: NextRequest) {
     if (!/^MYS-\d{4}-\d{5}$/.test(numero)) {
       return NextResponse.json({ ok: false, erreur: "numero_attestation attendu au format MYS-AAAA-NNNNN." }, { status: 400 });
     }
-    await supabaseAdmin.from("preinscriptions_examen").update({
-      statut: "convertie",
-      converti_par: u.email ?? "robot@mystoryformation.fr",
-      converti_le: new Date().toISOString(),
-    }).eq("id", id);
+
+    /* Écriture CONDITIONNELLE sur l'état lu, comme le webhook Mollie le fait déjà
+       pour l'encaissement. Entre la lecture de `p` et cette écriture, un second
+       appel peut avoir clôturé la ligne : le robot a deux tentatives, et deux
+       passages peuvent se chevaucher. Sans la condition, les deux croyaient avoir
+       porté la vente et le journal comptait deux fois le même encaissement. */
+    const { data: maj, error: eMaj } = await supabaseAdmin
+      .from("preinscriptions_examen")
+      .update({
+        statut: "convertie",
+        converti_par: u.email ?? "robot@mystoryformation.fr",
+        converti_le: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .eq("statut", "en_attente")
+      .select("id");
+    if (eMaj) return NextResponse.json({ ok: false, erreur: eMaj.message }, { status: 500 });
+    if (!maj || maj.length === 0) {
+      // Quelqu'un d'autre est passé entre-temps : ce n'est pas une erreur, c'est déjà fait.
+      return NextResponse.json({ ok: true, deja: true });
+    }
+
     await journal("preinscriptions_examen", id, "preinscription_portee_au_classeur",
       { numero_attestation: numero }, u.email ?? "robot@mystoryformation.fr");
     return NextResponse.json({ ok: true, numero_attestation: numero });
