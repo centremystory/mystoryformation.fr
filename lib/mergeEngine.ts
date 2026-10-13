@@ -23,6 +23,25 @@ import { programmeTefIrnAnnexe } from "@/lib/programmesTefIrn";
 // 1. Types
 // ---------------------------------------------------------------------------
 export type Certif = "TEF_IRN" | "LEVELTEL";
+
+/**
+ * Diplômes et expérience de chaque formatrice.
+ *
+ * L'article L. 6353-4 impose, à peine de nullité, que le contrat porte « les
+ * diplômes, titres ou références des personnes chargées de la formation ». Une
+ * formule générique ne satisfait pas la mention : il faut le diplôme de la
+ * formatrice désignée. Source : les CV déposés au dossier de l'organisme.
+ */
+export const TITRES_FORMATRICES: Record<string, { titres: string; experience: string }> = {
+  "Neyutha PATHMANESAN": {
+    titres: "titulaire d'une licence de lettres modernes",
+    experience: "quatre ans d'expérience en français langue étrangère auprès d'adultes allophones, et en préparation aux certifications TEF et TCF",
+  },
+  "Sofinnisha BASHEER": {
+    titres: "titulaire d'un master de français langue étrangère",
+    experience: "trois ans d'expérience en pédagogie individualisée, en préparation au TEF IRN et en évaluation sur grilles critériées",
+  },
+};
 export type Site = "Gagny" | "Sarcelles" | "Rosny";
 export type DurationSource = "prevues" | "realisees";
 
@@ -217,6 +236,20 @@ export function todayParisFR(): string {
   return `${now.getDate()} ${MOIS[now.getMonth()]} ${now.getFullYear()}`;
 }
 
+/**
+ * Première demi-journée du planning, dans la forme imprimée sur la convocation.
+ * Le stagiaire a besoin d'un jour et d'un horaire, pas d'une date seule.
+ */
+export function premierJour(fiche: FicheStagiaire): string | null {
+  const s = fiche.planning?.[0];
+  if (!s?.date) return null;
+  const jour = new Date(s.date + "T12:00:00").toLocaleDateString("fr-FR", {
+    weekday: "long", day: "numeric", month: "long", year: "numeric",
+  });
+  const matin = (s.demiJournee ?? "").toLowerCase().startsWith("mat");
+  return `${jour.charAt(0).toUpperCase()}${jour.slice(1)}, ${matin ? "matin, 9h30 – 12h30" : "après-midi, 14h00 – 17h00"}`;
+}
+
 export function computeDateFin(fiche: FicheStagiaire): string | null {
   if (fiche.dateFin) return formatDateFR(fiche.dateFin);
   return null;
@@ -260,6 +293,19 @@ function resolveBalises(fiche: FicheStagiaire, cfg: TemplateConfig): Record<stri
     email:            fiche.email ?? null,
     telephone:        fiche.telephone ?? null,
     numero_dossier:   fiche.numeroDossier ?? null,
+    // Adresse en trois champs : le contrat identifie la partie ligne par ligne,
+    // là où `adresse_complete` sert aux pièces qui n'ont qu'une case.
+    adresse:          fiche.adresse ?? null,
+    code_postal:      fiche.cp ?? null,
+    ville:            fiche.ville ?? null,
+    // Facture : renseignés par la pièce qui les porte, sinon laissés vides.
+    numero_facture:   (fiche as { numeroFacture?: string }).numeroFacture ?? null,
+    date_facture:     formatDateFR((fiche as { dateFacture?: string }).dateFacture),
+    // Première demi-journée, telle qu'elle s'imprime sur la convocation.
+    premier_jour:     premierJour(fiche),
+    // Diplômes de la formatrice désignée (L. 6353-4).
+    formateur_titres:     TITRES_FORMATRICES[fiche.formatrice ?? ""]?.titres ?? null,
+    formateur_experience: TITRES_FORMATRICES[fiche.formatrice ?? ""]?.experience ?? null,
     numero_session:   fiche.sessionEdof ?? null,
     formateur:        fiche.formatrice ?? null,
     niveau_cecrl:     fiche.niveauAtteint ?? null,
@@ -469,6 +515,36 @@ export const TEMPLATES: Record<string, TemplateConfig> = {
     id: "satisfaction_froid",
     durationSource: "prevues",
     required: ["nom", "prenom", "date_debut", "date_fin"],
+  },
+
+  // ---- Chemise à 9 pièces, refonte du 13/10/2026 -------------------------
+  // Les cinq annexes séparées (programme, règlement intérieur, planning, liste
+  // des formateurs, livret d'accueil, CGV) n'étaient imposées par aucun texte
+  // comme documents autonomes. Leur CONTENU l'est : L. 6353-8 oblige à le
+  // remettre avant l'inscription définitive. Il tient dans une seule pièce,
+  // dont le bordereau de la convocation prouve la remise.
+  document_information: {
+    id: "document_information",
+    durationSource: "prevues",
+    required: ["duree_heures", "montant"],
+  },
+  // Analyse du besoin et positionnement : un seul entretien, un seul document,
+  // une seule signature. La durée s'y arrête APRÈS le test, jamais avant.
+  entretien_positionnement: {
+    id: "entretien_positionnement",
+    durationSource: "prevues",
+    required: ["nom", "prenom"],
+  },
+  // Évaluation des acquis et satisfaction : même séance, même signature.
+  bilan_fin_formation: {
+    id: "bilan_fin_formation",
+    durationSource: "realisees",
+    required: ["nom", "prenom", "date_debut", "date_fin"],
+  },
+  facture: {
+    id: "facture",
+    durationSource: "realisees",
+    required: ["nom", "prenom", "duree_heures", "montant"],
   },
 };
 

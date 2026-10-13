@@ -1,109 +1,57 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="utf-8">
-<style>
-  @page { size: A4; margin: 16mm 16mm 16mm 16mm; }
-  * { box-sizing: border-box; }
-  body { font-family: "Helvetica Neue", Arial, sans-serif; color: #1c2433; font-size: 10pt; line-height: 1.45; margin: 0; }
-  .brandbar { height: 5px; background: #2F72DE; border-radius: 3px; }
-  header { display: flex; justify-content: space-between; align-items: flex-start; margin-top: 10px; }
-  .org h1 { color: #2F72DE; font-size: 16pt; margin: 0 0 2px; letter-spacing: .5px; }
-  .org .legal { font-size: 7.4pt; color: #5b6472; line-height: 1.35; }
-  .doctype { text-align: right; }
-  .doctype .tag { display: inline-block; background: #2F72DE; color: #fff; font-size: 7.4pt; padding: 3px 8px; border-radius: 3px; letter-spacing: .5px; }
-  .doctype .ref { font-size: 7.6pt; color: #5b6472; margin-top: 6px; }
-  h2.title { text-align: center; font-size: 14pt; margin: 18px 0 4px; }
-  .to { background: #f3f7fe; border: 1px solid #d8e4fb; border-radius: 6px; padding: 8px 12px; margin: 12px 0; font-size: 9.6pt; }
-  .to .who { font-weight: 700; }
-  p.intro { margin: 10px 0; text-align: justify; }
-  h3 { color: #2F72DE; font-size: 9.8pt; margin: 13px 0 4px; border-bottom: 1px solid #e3e8f0; padding-bottom: 2px; }
-  table.fields { width: 100%; border-collapse: collapse; font-size: 9.4pt; margin: 4px 0; }
-  table.fields td { padding: 4px 7px; vertical-align: top; border: 1px solid #cfdcf3; }
-  table.fields td.k { color: #5b6472; width: 32%; background: #f3f7fe; }
-  table.fields td.v { font-weight: 600; }
-  table.plan { width: 100%; border-collapse: collapse; font-size: 8.8pt; margin: 6px 0; }
-  table.plan th { background: #2F72DE; color: #fff; font-size: 7.8pt; padding: 5px 6px; text-align: left; }
-  table.plan td { border: 1px solid #d8e4fb; padding: 4px 6px; }
-  table.plan tr:nth-child(even) td { background: #f7faff; }
-  ul { margin: 4px 0; padding-left: 18px; }
-  li { margin: 2px 0; }
-  .madeat { margin-top: 16px; font-size: 9.6pt; }
-  .ofsign { margin-top: 6px; min-height: 90px; position: relative; }
-  .ofsign .who { font-size: 8.6pt; font-weight: 700; color: #2F72DE; }
-  .ofsign .sub { font-size: 7.6pt; color: #5b6472; }
-  .ofsign .sig-img { max-height: 50px; margin-top: 6px; display: block; }
-  .cachet { position: absolute; right: 8px; top: 8px; width: 74px; height: 74px; border: 2px solid #2F72DE; border-radius: 50%; color: #2F72DE; font-size: 6pt; line-height: 1.25; text-align: center; display: flex; align-items: center; justify-content: center; transform: rotate(-9deg); opacity: .9; padding: 4px; }
-  .cachet-img { position: absolute; right: 6px; top: 6px; width: 80px; height: auto; opacity: .95; }
-  .ofsign, .sign, .sign .box, .signbox, .cachet-wrap { break-inside: avoid; page-break-inside: avoid; }
-  footer { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #e3e8f0; padding-top: 4px; font-size: 6.6pt; color: #7a8290; text-align: center; line-height: 1.3; }
-  table.sheet { width: 100%; border-collapse: collapse; }
-  table.sheet > tbody > tr > td, table.sheet > tfoot > tr > td { padding: 0; border: none; }
-  table.sheet > tfoot { display: table-footer-group; }
-  table.sheet > tfoot td { height: 15mm; }
+<!doctype html><html lang=fr><meta charset=utf-8><title>Certificat de réalisation</title><style>
+@page{size:A4;margin:13mm 15mm 13mm}
+*{box-sizing:border-box}
+body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:9.6pt;color:#1b1b1b;margin:0;line-height:1.5}
+.hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2.5px solid #2F72DE;padding-bottom:7px;margin-bottom:14px}
+.hd .l{font-weight:700;font-size:15pt;color:#2F72DE;letter-spacing:2px}
+.hd .r{font-size:7.4pt;color:#555;text-align:right;line-height:1.45}
+h1{font-size:13pt;color:#2F72DE;margin:0 0 3px;letter-spacing:.4px}
+.sub{font-size:8.6pt;color:#666;margin:0 0 14px;font-style:italic}
+h2{font-size:10pt;color:#2F72DE;margin:15px 0 5px;border-bottom:1px solid #dfe6f2;padding-bottom:2px}
+table{width:100%;border-collapse:collapse;margin:7px 0}
+td,th{border:1px solid #d6dce8;padding:4.5px 7px;vertical-align:top;font-size:9.1pt}
+th{background:#eef3fc;font-weight:700;text-align:left;color:#1a3f7a}
+td.k{background:#f7f9fd;font-weight:600;width:27%;color:#334}
+p{margin:5px 0;text-align:justify}
+.enc{background:#f7f9fd;border-left:3px solid #2F72DE;padding:7px 11px;margin:9px 0;font-size:9.1pt}
+.sig{display:flex;justify-content:space-between;margin-top:14px;gap:26px}
+.sig div{flex:1;font-size:9pt}
+.box{border:1px dashed #b9c3d4;height:48px;margin-top:4px;border-radius:3px}
+.box.tampon{border:0;height:auto;min-height:48px}
+.box.tampon img{height:76px;display:block;margin:2px 0 0 4px}
+table.sheet{width:100%;border-collapse:collapse;border:0}
+table.sheet>tbody>tr>td,table.sheet>tfoot>tr>td{border:0;padding:0}
+.ftspace{height:15mm}
+.ft{position:fixed;bottom:4mm;left:0;right:0;font-size:6.6pt;color:#888;text-align:center;line-height:1.4;
+    border-top:.5px solid #e3e8f0;padding-top:3px}
+.lg{font-size:8.3pt;color:#555}
+ul{margin:4px 0 4px 16px;padding:0}li{margin:2px 0;font-size:9.1pt}
+.note{font-size:8.2pt;color:#666;font-style:italic;margin-top:4px}
 
-  .rgpd { margin-top: 14px; font-size: 7.4pt; color: #5b6472; border-top: 1px solid #e3e8f0; padding-top: 6px; }
-  .check { font-size: 10.5pt; }
-  .sigline { margin-top: 22px; border-top: 1px dotted #9aa1ad; width: 60%; }
-  .twocol { display: flex; gap: 24px; margin-top: 14px; }
-  .twocol > div { flex: 1; }
-  .attbox { border: 1px solid #d8e4fb; background: #f3f7fe; border-radius: 6px; padding: 10px 12px; margin-top: 16px; font-size: 9.4pt; }
+.enc{page-break-inside:avoid}
+.sig{page-break-inside:avoid;page-break-before:avoid;break-before:avoid}
+tr{page-break-inside:avoid}
+h2{page-break-after:avoid}
+p{orphans:3;widows:3}
 </style>
-</head>
-<body>
-<table class="sheet"><tfoot><tr><td></td></tr></tfoot><tbody><tr><td>
-
-  
-
-  <div class="brandbar"></div>
-  <header>
-    <div class="org">
-      <h1>MYSTORY</h1>
-      <div class="legal">
-        SASU · {{of_rcs}} · SIRET {{of_siret}}<br>
-        Déclaration d'activité n° {{of_nda}}<br>
-        {{of_tel}} · {{of_email}}
-      </div>
-    </div>
-    <div class="doctype">
-      <span class="tag">CERTIFICAT DE RÉALISATION</span>
-      <div class="ref">N° dossier EDOF : {{numero_dossier}}<br>{{certif_intitule}} ({{certif_code}})</div>
-    </div>
-  </header>
-
-  <h2 class="title">Certificat de réalisation</h2>
-  <p style="text-align:center; font-size:8.6pt; color:#5b6472; margin-top:-2px;"><em>Modèle Ministère du travail · contrôle de service fait</em></p>
-
-  <p class="intro">Je soussigné, <strong>Arudhan NATKUNASINGAM</strong>, représentant légal de MYSTORY (NDA {{of_nda}}), atteste de la réalisation de l'action suivante :</p>
-
-  <table class="fields">
-    <tr><td class="k">Bénéficiaire</td><td class="v">{{civilite}} {{nom}} {{prenom}}</td></tr>
-    <tr><td class="k">Intitulé</td><td class="v">{{certif_intitule}} — {{certif_code}}</td></tr>
-    <tr><td class="k">Nature</td><td class="v">Action de formation</td></tr>
-    <tr><td class="k">Dates</td><td class="v">du {{date_debut}} au {{date_fin}}</td></tr>
-    <tr><td class="k">Durée réalisée</td><td class="v">{{duree_heures}} heures (présentiel)</td></tr>
-  </table>
-
-  <p class="check"><strong>Exécution :</strong>
-    {{#if execution_totale}}☑ Action réalisée en totalité &nbsp;&nbsp; ☐ Action réalisée partiellement{{/if}}{{#if execution_partielle}}☐ Action réalisée en totalité &nbsp;&nbsp; ☑ Action réalisée partiellement : {{heures_realisees}} h sur {{heures_prevues}} h{{/if}}
-  </p>
-
-  <p class="intro">Les feuilles d'émargement justifiant la réalisation sont conservées par l'organisme et tenues à disposition du financeur. Assiduité déclarée sur EDOF (Mon Compte Formation).</p>
-
-  <p class="madeat">Fait à {{lieu_signature}}, le {{date_signature}}.</p>
-  <div class="ofsign">
-    <div class="who">Pour l'Organisme de formation</div>
-    <div class="sub">Arudhan NATKUNASINGAM, Président</div>
-    {{#if of_signature_img}}<img class="sig-img" src="{{of_signature_img}}" alt="Signature du Président">{{/if}}
-    {{#if cachet_img}}<img class="cachet-img" src="{{cachet_img}}" alt="Cachet MYSTORY">{{/if}}
-    {{#if cachet_absent}}<div class="cachet">MYSTORY<br>Gagny<br>NDA {{of_nda}}</div>{{/if}}
-  </div>
-  <p class="rgpd"><strong>Données personnelles (RGPD).</strong> Données traitées par MYSTORY (SASU) pour le suivi de la formation et les obligations liées au financement CPF. Conservation : 5 ans. Droits d'accès, rectification, effacement, opposition : {{of_email}} — réclamation possible auprès de la CNIL (www.cnil.fr).</p>
-
-</td></tr></tbody></table>
-<footer>
-    {{of_raison}} · {{of_rcs}} · SIRET {{of_siret}} · Déclaration d'activité n° {{of_nda}} (ne vaut pas agrément de l'État)<br>
-    Gagny : 3 bis av. de Gagny, 93220 · Sarcelles : 18 av. du 8 Mai 1945, 95200 · Rosny : 46 bis rue d'Estienne d'Orves, 93110 Rosny-sous-Bois · {{of_tel}} · {{of_email}}
-  </footer>
-</body>
-</html>
+<table class=sheet><tfoot><tr><td><div class=ftspace></div></td></tr></tfoot><tbody><tr><td>
+<div class=hd><div class=l>MYSTORY</div><div class=r>SASU · RCS Paris 913 423 083<br>SIRET 913 423 083 00017<br>
+NDA 11756521775 · 14 rue Bichat, 75010 Paris<br>06 81 43 16 54 · contact@mystoryformation.fr</div></div>
+<h1>Certificat de réalisation</h1><p class=sub>Contrôle de service fait · arrêté du 21 décembre 2018</p>
+<p class=lg>Établi conformément au modèle du <b>certificat de réalisation</b> fixé par l'<b>arrêté du 21 décembre 2018</b>.</p>
+<p>Je soussigné <b>Arudhan NATKUNASINGAM</b>, représentant légal de <b>MYSTORY</b>, organisme de formation déclaré sous le numéro <b>11756521775</b>, cet enregistrement ne valant pas agrément de l'État, atteste de la réalisation de l'action suivante.</p><table>
+<tr><td class=k>Bénéficiaire</td><td><b>{{civilite}} {{prenom}} {{nom}}</b>, né le {{date_naissance}}</td>
+<td class=k>N° de dossier</td><td>{{numero_dossier}}</td></tr>
+<tr><td class=k>Action</td><td colspan=3>{{certif_intitule}}<br><span class=lg>Certification <b>TEF IRN</b> · répertoire spécifique <b>RS6775</b> · certificateur Le français des affaires (CCI Paris Île-de-France)</span></td></tr>
+<tr><td class=k>Durée · Période</td><td>{{duree_heures}} h · du {{date_debut}} au {{date_fin}}</td>
+<td class=k>Lieu</td><td>Gagny — 3 bis av. de Gagny, 93220</td></tr>
+<tr><td class=k>Formatrice</td><td colspan=3><b>{{formateur}}</b> — formatrice en français langue étrangère, salariée de MYSTORY</td></tr><tr><td class=k>Effectif</td><td colspan=3><b>1 stagiaire</b> au titre du présent contrat · groupe de 1 à 8 personnes maximum</td></tr></table>
+<table><tr><td class=k>Employeur du bénéficiaire</td><td>Sans objet, stagiaire particulier mobilisant son compte personnel de formation</td></tr>
+<tr><td class=k>Nature de l'action</td><td>Action de formation (art. L. 6313-1, 1° du Code du travail)</td></tr>
+<tr><td class=k>Durée prévue au contrat</td><td>{{duree_heures}} heures, en présentiel</td></tr>
+<tr><td class=k>Durée réellement réalisée</td><td><b>........ heures</b>, reportées de la feuille d'émargement</td></tr>
+<tr><td class=k>Exécution</td><td>☐ Action réalisée en totalité, soit {{duree_heures}} heures &nbsp;&nbsp;&nbsp; ☐ Action réalisée partiellement</td></tr>
+<tr><td class=k>Assiduité</td><td>Attestée par les feuilles d'émargement signées par le stagiaire et la formatrice à chaque demi-journée</td></tr>
+<tr><td class=k>Financeur</td><td>Caisse des Dépôts et consignations, au titre du compte personnel de formation</td></tr></table>
+<div class=sig><div>Fait à Gagny, le ........ / ........ / 2026<br><br><b>Pour l'organisme de formation</b><br>Arudhan NATKUNASINGAM, Président<div class="box tampon"><img src="{{cachet_img}}" alt="Cachet et signature MYSTORY"></div></div><div>&nbsp;</div></div>
+</td></tr></tbody></table><div class=ft>MYSTORY — SASU au capital de 1 000 € · RCS Paris 913 423 083 · SIRET 913 423 083 00017 · Déclaration d'activité n° 11756521775 (ne vaut pas agrément de l'État)<br>Gagny : 3 bis av. de Gagny, 93220 · Sarcelles : 18 av. du 8 Mai 1945, 95200 · Rosny : 46 bis rue d'Estienne d'Orves, 93110 · 06 81 43 16 54 · contact@mystoryformation.fr</div></html>

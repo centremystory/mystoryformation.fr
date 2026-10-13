@@ -26,6 +26,11 @@ const LIBELLE_PIECE: Record<string, string> = {
   certificat_realisation: "Certificat de réalisation",
   satisfaction_froid: "Satisfaction à froid (3 mois)",
   justificatif_examen: "Résultat de l'examen (TEF IRN)",
+  // Chemise à 9 pièces (13/10/2026). Chacune remplace plusieurs pièces du
+  // dessus : le contenu reste dû, c'est le nombre de documents qui tombe.
+  document_information: "Document d'information (programme + règlement + tarifs)",
+  entretien_positionnement: "Entretien et test de positionnement",
+  bilan_fin_formation: "Bilan de fin de formation (acquis + satisfaction)",
 };
 
 // Pièces déposées (fichier externe → archives du dossier). Affichées même si absentes en base.
@@ -38,6 +43,7 @@ const IMPORTABLES = new Set([
   "fiche_analyse_besoin", "test_positionnement", "convention", "programme", "reglement_interieur",
   "planning", "convocation", "feuille_emargement", "test_final", "satisfaction_chaud",
   "attestation_fin", "certificat_realisation",
+  "document_information", "entretien_positionnement", "bilan_fin_formation",
 ]);
 
 const STATUT_PIECE: Record<string, { label: string; classes: string }> = {
@@ -60,6 +66,9 @@ const GENERABLES: Record<string, string> = {
   planning: "planning",
   attestation_fin: "attestation_fin",
   certificat_realisation: "certificat_realisation",
+  document_information: "document_information",
+  entretien_positionnement: "entretien_positionnement",
+  bilan_fin_formation: "bilan_fin_formation",
 };
 
 // Pièces complétées via un petit formulaire CRM → PDF archivé (route /api/documents/completer).

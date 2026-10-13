@@ -1,260 +1,112 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="utf-8">
-<style>
-  @page { size: A4; margin: 14mm 14mm 14mm 14mm; }
-  * { box-sizing: border-box; }
-  body { font-family: "Helvetica Neue", Arial, sans-serif; color: #1c2433; font-size: 9.8pt; line-height: 1.42; margin: 0; }
-  .brandbar { height: 5px; background: #2F72DE; border-radius: 3px; }
-  header { display: flex; justify-content: space-between; align-items: flex-start; margin-top: 10px; }
-  .org h1 { color: #2F72DE; font-size: 16pt; margin: 0 0 2px; letter-spacing: .5px; }
-  .org .legal { font-size: 7.2pt; color: #5b6472; line-height: 1.35; }
-  .doctype { text-align: right; }
-  .doctype .tag { display: inline-block; background: #2F72DE; color: #fff; font-size: 7.2pt; padding: 3px 8px; border-radius: 3px; letter-spacing: .5px; }
-  .doctype .ref { font-size: 7.4pt; color: #5b6472; margin-top: 6px; }
-  h2.title { text-align: center; font-size: 13pt; margin: 16px 0 2px; }
-  h2.title small { display: block; font-size: 7.8pt; color: #5b6472; font-weight: normal; font-style: italic; margin-top: 3px; }
-  table.parties { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 9.2pt; }
-  table.parties td { border: 1px solid #d8e4fb; padding: 7px 10px; vertical-align: top; }
-  table.parties td.lbl { background: #f3f7fe; color: #2F72DE; font-weight: 700; width: 22%; }
-  .intro { font-size: 9.2pt; margin: 8px 0; }
-  h3 { color: #2F72DE; font-size: 9.8pt; margin: 13px 0 4px; border-bottom: 1px solid #e3e8f0; padding-bottom: 2px; }
-  table.fields { width: 100%; border-collapse: collapse; font-size: 9.2pt; margin: 4px 0; }
-  table.fields td { padding: 4px 7px; vertical-align: top; border: 1px solid #cfdcf3; }
-  table.fields td.k { color: #5b6472; width: 30%; background: #f3f7fe; }
-  table.fields td.v { font-weight: 600; }
-  p.clause { margin: 5px 0; text-align: justify; }
-  p.clause .h { font-weight: 700; }
-  .madeat { margin-top: 14px; font-size: 9.6pt; font-weight: 600; }
-  .sign { display: flex; gap: 16px; margin-top: 12px; }
-  .sign .box { flex: 1; border: 1px solid #c9d3e4; border-radius: 6px; padding: 8px 10px; min-height: 130px; position: relative; }
-  .sign .who { font-size: 8.6pt; font-weight: 700; color: #2F72DE; }
-  .sign .sub { font-size: 7.6pt; color: #5b6472; margin-bottom: 4px; }
-  .sign .presign { font-size: 7.4pt; color: #5b6472; margin-top: 6px; }
-  .sign .sig-img { max-height: 50px; margin-top: 6px; display: block; }
-  .sign .mention { font-size: 7.8pt; color: #1c2433; margin-top: 6px; }
-  .sign .daterow { font-size: 7.8pt; color: #5b6472; margin-top: 8px; }
-  .cachet { position: absolute; right: 8px; bottom: 8px; width: 74px; height: 74px; border: 2px solid #2F72DE; border-radius: 50%; color: #2F72DE; font-size: 6pt; line-height: 1.25; text-align: center; display: flex; align-items: center; justify-content: center; transform: rotate(-9deg); opacity: .9; padding: 4px; }
-  .cachet-img { position: absolute; right: 6px; bottom: 6px; width: 80px; height: auto; opacity: .95; }
-  .ofsign, .sign, .sign .box, .signbox, .cachet-wrap { break-inside: avoid; page-break-inside: avoid; }
-  .annexe { page-break-before: always; }
-  .annexe-tag { display: inline-block; background: #eaf1fd; color: #2F72DE; font-size: 7.6pt; font-weight: 700; padding: 3px 9px; border-radius: 3px; letter-spacing: .4px; }
-  .annexe h2 { font-size: 12.5pt; margin: 8px 0 2px; color: #1c2433; }
-  .annexe .subt { font-size: 8pt; color: #5b6472; font-style: italic; margin-bottom: 6px; }
-  h4 { color: #2F72DE; font-size: 9.2pt; margin: 10px 0 3px; }
-  ul { margin: 4px 0 4px 0; padding-left: 18px; }
-  li { margin: 2px 0; text-align: justify; }
-  table.plan { width: 100%; border-collapse: collapse; font-size: 8.8pt; margin: 6px 0; }
-  table.plan th { background: #2F72DE; color: #fff; font-size: 7.8pt; padding: 5px 6px; text-align: left; }
-  table.plan td { border: 1px solid #d8e4fb; padding: 4px 6px; }
-  table.plan tr:nth-child(even) td { background: #f7faff; }
-  .plan-total { margin-top: 6px; font-size: 9.2pt; font-weight: 700; color: #2F72DE; }
-  .accept-note { font-size: 7.8pt; color: #5b6472; font-style: italic; margin-top: 8px; border-left: 3px solid #d8e4fb; padding-left: 8px; }
-  footer { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #e3e8f0; padding: 4px 0 2mm; font-size: 6.4pt; color: #7a8290; text-align: center; line-height: 1.3; }
-  table.sheet { width: 100%; border-collapse: collapse; }
-  table.sheet > tbody > tr > td, table.sheet > tfoot > tr > td { padding: 0; border: none; }
-  table.sheet > tfoot { display: table-footer-group; }
-  table.sheet > tfoot td { height: 15mm; }
+<!doctype html><html lang=fr><meta charset=utf-8><title>Contrat de formation professionnelle</title><style>
+@page{size:A4;margin:13mm 15mm 13mm}
+*{box-sizing:border-box}
+body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:9.6pt;color:#1b1b1b;margin:0;line-height:1.5}
+.hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2.5px solid #2F72DE;padding-bottom:7px;margin-bottom:14px}
+.hd .l{font-weight:700;font-size:15pt;color:#2F72DE;letter-spacing:2px}
+.hd .r{font-size:7.4pt;color:#555;text-align:right;line-height:1.45}
+h1{font-size:13pt;color:#2F72DE;margin:0 0 3px;letter-spacing:.4px}
+.sub{font-size:8.6pt;color:#666;margin:0 0 14px;font-style:italic}
+h2{font-size:10pt;color:#2F72DE;margin:15px 0 5px;border-bottom:1px solid #dfe6f2;padding-bottom:2px}
+table{width:100%;border-collapse:collapse;margin:7px 0}
+td,th{border:1px solid #d6dce8;padding:4.5px 7px;vertical-align:top;font-size:9.1pt}
+th{background:#eef3fc;font-weight:700;text-align:left;color:#1a3f7a}
+td.k{background:#f7f9fd;font-weight:600;width:27%;color:#334}
+p{margin:5px 0;text-align:justify}
+.enc{background:#f7f9fd;border-left:3px solid #2F72DE;padding:7px 11px;margin:9px 0;font-size:9.1pt}
+.sig{display:flex;justify-content:space-between;margin-top:14px;gap:26px}
+.sig div{flex:1;font-size:9pt}
+.box{border:1px dashed #b9c3d4;height:48px;margin-top:4px;border-radius:3px}
+.box.tampon{border:0;height:auto;min-height:48px}
+.box.tampon img{height:76px;display:block;margin:2px 0 0 4px}
+table.sheet{width:100%;border-collapse:collapse;border:0}
+table.sheet>tbody>tr>td,table.sheet>tfoot>tr>td{border:0;padding:0}
+.ftspace{height:15mm}
+.ft{position:fixed;bottom:4mm;left:0;right:0;font-size:6.6pt;color:#888;text-align:center;line-height:1.4;
+    border-top:.5px solid #e3e8f0;padding-top:3px}
+.lg{font-size:8.3pt;color:#555}
+ul{margin:4px 0 4px 16px;padding:0}li{margin:2px 0;font-size:9.1pt}
+.note{font-size:8.2pt;color:#666;font-style:italic;margin-top:4px}
+
+.enc{page-break-inside:avoid}
+.sig{page-break-inside:avoid;page-break-before:avoid;break-before:avoid}
+tr{page-break-inside:avoid}
+h2{page-break-after:avoid}
+p{orphans:3;widows:3}
 </style>
-</head>
-<body>
-<table class="sheet"><tfoot><tr><td></td></tr></tfoot><tbody><tr><td>
-
-  
-
-  <!-- ================= CONTRAT ================= -->
-  <div class="brandbar"></div>
-  <header>
-    <div class="org">
-      <h1>MYSTORY</h1>
-      <div class="legal">
-        SASU · {{of_rcs}} · SIRET {{of_siret}}<br>
-        Déclaration d'activité n° {{of_nda}} · 14 rue Bichat, 75010 Paris<br>
-        {{of_tel}} · {{of_email}}
-      </div>
-    </div>
-    <div class="doctype">
-      <span class="tag">CONTRAT DE FORMATION</span>
-      <div class="ref">{{certif_intitule}} ({{certif_code}})</div>
-    </div>
-  </header>
-
-  <h2 class="title">Contrat de formation professionnelle
-    <small>Articles L.6353-3 à L.6353-7 et L.6353-8 du Code du travail · Contrat conclu à titre individuel · Action financée par le compte personnel de formation (CPF)</small>
-  </h2>
-
-  <table class="parties">
-    <tr>
-      <td class="lbl">Organisme</td>
-      <td><strong>{{of_raison}}</strong>, 14 rue Bichat, 75010 Paris · SIRET {{of_siret}} · NDA {{of_nda}}. Représentée par Arudhan NATKUNASINGAM, Président.</td>
-    </tr>
-    <tr>
-      <td class="lbl">Bénéficiaire</td>
-      <td><strong>{{civilite}} {{prenom}} {{nom}}</strong> · né(e) le {{date_naissance}} à {{lieu_naissance}} · {{adresse_complete}} · {{email}} · {{telephone}}</td>
-    </tr>
-    {{#if finance_cpf}}<tr>
-      <td class="lbl">Financeur</td>
-      <td><strong>Caisse des Dépôts et Consignations</strong> — Mon Compte Formation, 56 rue de Lille, 75356 Paris 07 SP — en subrogation de paiement au titre du Compte personnel de formation (CPF) du Bénéficiaire.</td>
-    </tr>{{/if}}
-  </table>
-
-  <p class="intro">Il est conclu, entre les parties ci-dessus, le présent contrat de formation professionnelle, conclu à titre individuel et régi par les articles L.6353-3 à L.6353-7 et L.6353-8 du Code du travail.</p>
-
-  <h3>Article 1 — Objet et nature de l'action</h3>
-  <table class="fields">
-    <tr><td class="k">Intitulé</td><td class="v">Préparer son test d'évaluation de français — TEF IRN</td></tr>
-    <tr><td class="k">Certification</td><td class="v">{{certif_intitule}} — Répertoire spécifique {{certif_code}} (CCI Paris Île-de-France)</td></tr>
-    <tr><td class="k">Nature</td><td class="v">Action de formation (art. L.6313-1, 1° du Code du travail)</td></tr>
-    <tr><td class="k">Public visé</td><td class="v">Personne étrangère ou non francophone en situation régulière (art. L.6313-3 du Code du travail) ; aucune qualification préalable requise, niveau d'entrée vérifié au positionnement.</td></tr>
-    <tr><td class="k">Durée · Période</td><td class="v">{{duree_heures}} heures · du {{date_debut}} au {{date_fin}}</td></tr>
-    <tr><td class="k">Modalité · Lieu</td><td class="v">100 % présentiel · Gagny — 3 bis av. de Gagny, 93220 Gagny</td></tr>
-    <tr><td class="k">Programme</td><td class="v">Détaillé en Annexe 1 (objectifs, contenu, moyens, évaluation)</td></tr>
-  </table>
-
-  <h3>Article 2 — Prix et financement</h3>
-  <p class="clause"><span class="h">Prix total : {{montant}}</span> net de taxes — exonéré de TVA (art. 261-4-4° a du CGI). Action financée par le CPF du Bénéficiaire via la Caisse des Dépôts (CDC), qui règle l'Organisme après validation du service fait (art. L.6323-12 du Code du travail).</p>
-  <p class="clause">Le Bénéficiaire s'acquitte, lors de la souscription sur Mon Compte Formation, de la participation forfaitaire obligatoire dont le montant en vigueur à la date de souscription lui est communiqué (150 € en 2026, montant révisable par voie réglementaire). En sont dispensés notamment les demandeurs d'emploi et les bénéficiaires d'un abondement (employeur, France Travail). Hors cette participation, aucun coût direct n'est supporté, sauf reste à charge complémentaire expressément accepté au préalable.</p>
-  <p class="clause"><span class="h">Plafond CPF.</span> Conformément à l'article D.6323-1 A du Code du travail (décret n° 2026-127 du 24 février 2026), la prise en charge par le CPF des actions sanctionnées par une certification enregistrée au Répertoire spécifique est plafonnée à 1 500 €. Si le prix de la formation excède ce plafond, la différence constitue un reste à charge complémentaire, financé par le Bénéficiaire ou par un cofinancement (employeur, OPCO, France Travail) expressément accepté avant l'entrée en formation.</p>
-  <p class="clause"><span class="h">Protections légales du contrat individuel.</span> Conformément à l'article L.6353-6 du Code du travail, <strong>aucune somme ne peut être exigée du Bénéficiaire avant l'expiration du délai de rétractation</strong> prévu à l'article 5. Conformément à l'article L.6353-7, à l'expiration de ce délai, il ne peut être exigé <strong>plus de 30 % du prix convenu</strong>, le solde n'étant dû qu'au fur et à mesure du déroulement de l'action. Le manquement à ces règles est puni de 4 500 € d'amende (art. L.6355-2). Lorsque l'action est financée par le compte personnel de formation, aucune somme n'est demandée au Bénéficiaire à ce titre, la Caisse des Dépôts réglant l'Organisme après validation du service fait ; lorsqu'elle est financée par le Bénéficiaire lui-même, les factures sont payables à réception.</p>
-
-  <h3>Article 3 — Déroulement, suivi et évaluation</h3>
-  <ul>
-    <li>Formation dispensée par {{#if formateur}}<strong>{{formateur}}</strong>, {{/if}}formateur(trice) FLE qualifié(e) (CV, diplômes et références disponibles sur demande — art. L.6353-4, 3° du Code du travail).</li>
-    <li>Présence attestée par feuilles d'émargement signées par le stagiaire et le formateur, par demi-journée.</li>
-    <li>Positionnement initial sur les 4 compétences du CECRL (CO, CE, EO, EE), puis évaluation finale mesurant l'atteinte des objectifs.</li>
-    <li>Questionnaire de satisfaction à l'issue de la formation.</li>
-    <li>Remise d'une attestation de fin de formation (objectifs, nature, durée, résultats de l'évaluation des acquis — art. L.6353-1).</li>
-  </ul>
-  <p class="clause"><span class="h">Engagements du Bénéficiaire.</span> Le Bénéficiaire s'engage à : assister à l'intégralité des séances aux dates, lieux et horaires prévus et émarger à chaque demi-journée ; réaliser les travaux et les évaluations demandés ; en cas de mobilisation du CPF, se présenter aux épreuves de la certification sanctionnant l'action (conditions générales d'utilisation de Mon Compte Formation) ; signaler et justifier toute absence dans les meilleurs délais.</p>
-
-  <h3>Article 4 — Sanction de la formation</h3>
-  <p class="clause">À l'issue de l'action, l'Organisme délivre l'attestation de fin de formation et procède à l'inscription au TEF IRN auprès de la CCI. Le TEF IRN évalue le niveau de français de A1 à B2 (CECRL) ; l'attestation de résultats est remise au candidat par la CCI. Les exigences administratives liées au titre de séjour ou à la naturalisation relèvent de l'autorité préfectorale et sont susceptibles d'évolution ; l'Organisme informe le Bénéficiaire des exigences en vigueur à la date de son inscription.</p>
-
-  <h3>Article 5 — Rétractation, abandon, force majeure</h3>
-  <p class="clause"><span class="h">Rétractation.</span> La formation est souscrite sur Mon Compte Formation : le Bénéficiaire peut annuler sa demande sans frais, directement via la plateforme, avant le démarrage, dans les conditions et délais prévus par les CGU EDOF. Un délai d'accès minimum de 11 jours ouvrés est respecté entre la validation de la commande et l'entrée en formation. Indépendamment de la plateforme, le Bénéficiaire dispose d'un délai légal de rétractation de <strong>dix (10) jours</strong> à compter de la signature du présent contrat (art. L.6353-5 du Code du travail), porté à <strong>quatorze (14) jours</strong> en cas de conclusion à distance ou hors établissement (art. L.221-18 du Code de la consommation) ; il en informe l'Organisme par tout moyen conférant date certaine, aucune somme ne pouvant alors être exigée.</p>
-  <p class="clause"><span class="h">Abandon.</span> En cas d'abandon, seules les heures effectivement suivies sont dues ; la CDC est facturée au prorata du taux de réalisation (art. L.6323-12).</p>
-  <p class="clause"><span class="h">Force majeure.</span> En cas de force majeure dûment justifiée (art. 1218 du Code civil ; cf. art. L.6354-1 du Code du travail), le Bénéficiaire est libéré de toute obligation au-delà des prestations effectivement réalisées, sans pénalité.</p>
-
-  <h3>Article 6 — Accessibilité, réclamations, données personnelles</h3>
-  <p class="clause"><span class="h">Référent handicap.</span> Arudhan NATKUNASINGAM — {{of_email}} — {{of_tel}}. Toute adaptation est étudiée ; locaux accessibles PMR.</p>
-  <p class="clause"><span class="h">Réclamations.</span> Toute réclamation est adressée par écrit à {{of_email}} (accusé de réception sous 48 h, réponse sous 15 jours ouvrés). À défaut de solution, le Bénéficiaire, en sa qualité de consommateur, peut saisir gratuitement le médiateur de la consommation dont relève MYSTORY : CM2C — 49 rue de Ponthieu, 75008 Paris — www.cm2c.net (litiges@cm2c.net).</p>
-  <p class="clause"><span class="h">Données personnelles (RGPD).</span> Responsable de traitement : MYSTORY (SASU), 14 rue Bichat 75010 Paris. Référent RGPD : Arudhan NATKUNASINGAM — {{of_email}}. Les données collectées (identité, coordonnées, n° CPF, pièces justificatives) sont traitées pour l'exécution du présent contrat, le suivi qualité et le respect des obligations légales liées au financement CPF (bases légales : exécution du contrat et obligation légale). Destinataires : MYSTORY, la Caisse des Dépôts et consignations, le certificateur (CCI Paris Île-de-France) et, le cas échéant, les financeurs. Durée de conservation : 5 ans à compter de la fin de la relation contractuelle. Le Bénéficiaire dispose des droits d'accès, de rectification, d'effacement, de limitation, de portabilité et d'opposition, exerçables auprès de {{of_email}}, ainsi que du droit d'introduire une réclamation auprès de la CNIL (www.cnil.fr).</p>
-
-  <h3>Article 7 — Médiation et litiges</h3>
-  <p class="clause">En cas de différend, les parties recherchent en priorité une solution amiable. À défaut de résolution dans les 30 jours suivant la première réclamation écrite, et après recours éventuel au médiateur de la consommation (cf. article 6), le litige peut être porté devant la juridiction compétente selon les règles de droit commun ; le Bénéficiaire, en sa qualité de consommateur, peut notamment saisir à son choix la juridiction de son lieu de domicile.</p>
-
-  <h3>Article 8 — Propriété intellectuelle</h3>
-  <p class="clause">Les supports pédagogiques et contenus mis à disposition dans le cadre de la formation (textes, exercices, sujets d'entraînement, enregistrements audio, visuels, méthodes et bases de données) demeurent la <strong>propriété exclusive de MYSTORY</strong> et sont protégés par le droit d'auteur et le droit des producteurs de bases de données. Ils sont réservés à l'usage strictement personnel du Bénéficiaire pour les besoins de la formation. Toute reproduction, représentation, diffusion, extraction ou réutilisation, totale ou partielle, ainsi que tout enregistrement ou captation des sessions, sans l'autorisation écrite préalable de MYSTORY, sont interdits et susceptibles de poursuites.</p>
-
-  <h3>Documents remis et acceptés</h3>
-  <p class="clause">Le Bénéficiaire reconnaît avoir reçu, préalablement à son entrée en formation : le <strong>programme de formation (Annexe 1)</strong>, le <strong>règlement intérieur (Annexe 2)</strong>, le <strong>planning des sessions (Annexe 3)</strong>, le <strong>livret d'accueil du stagiaire</strong>, ainsi que les <strong>conditions générales de vente et de service</strong> de MYSTORY. Il déclare en avoir pris connaissance et les accepter ; sa signature de la présente convention vaut acceptation de ces documents.</p>
-
-  <p class="madeat">Fait à {{lieu_signature}}, le {{date_signature}}, en deux exemplaires.</p>
-
-  <div class="sign">
-    <div class="box">
-      <div class="who">Pour l'Organisme de formation</div>
-      <div class="sub">Arudhan NATKUNASINGAM, Président</div>
-      {{#if of_signature_img}}<img class="sig-img" src="{{of_signature_img}}" alt="Signature du Président">{{/if}}
-      <div class="presign">Convention pré-signée par l'organisme.</div>
-      {{#if cachet_img}}<img class="cachet-img" src="{{cachet_img}}" alt="Cachet MYSTORY">{{/if}}
-      {{#if cachet_absent}}<div class="cachet">MYSTORY<br>Gagny<br>NDA {{of_nda}}</div>{{/if}}
-    </div>
-    <div class="box">
-      <div class="who">Le Bénéficiaire</div>
-      <div class="sub">{{civilite}} {{prenom}} {{nom}}</div>
-      <div class="mention">Mention « Lu et approuvé » :
-        <text-field name="Mention lu et approuve" role="Stagiaire" required="true" style="width: 150px; height: 18px; display: inline-block;"></text-field>
-      </div>
-      <signature-field name="Signature stagiaire" role="Stagiaire" required="true" style="width: 200px; height: 52px; display: block; margin-top: 6px;"></signature-field>
-      <div class="daterow">Le <date-field name="Date stagiaire" role="Stagiaire" format="DD/MM/YYYY" required="true" style="width: 100px; height: 18px; display: inline-block;"></date-field></div>
-    </div>
-  </div>
-
-  <!-- ================= ANNEXE 1 — PROGRAMME ================= -->
-  <div class="annexe">
-    <span class="annexe-tag">ANNEXE 1 — PROGRAMME DE FORMATION</span>
-    <!--PROGRAMME_OFFRE-->
-  </div>
-
-  <!-- ================= ANNEXE 2 — RÈGLEMENT INTÉRIEUR ================= -->
-  <div class="annexe">
-    <span class="annexe-tag">ANNEXE 2 — RÈGLEMENT INTÉRIEUR DU STAGIAIRE</span>
-    <h2>Règlement intérieur</h2>
-    <div class="subt">Articles L.6352-3, L.6352-4 et R.6352-1 à R.6352-15 du Code du travail</div>
-
-    <p class="clause"><span class="h">Article 1 — Objet et champ d'application.</span> Le présent règlement détermine les principales mesures applicables en matière de santé, de sécurité et de discipline aux stagiaires de MYSTORY. Tout stagiaire en respecte les termes pendant toute la durée de l'action. Lorsque la formation se déroule dans une entreprise dotée de son propre règlement, les mesures de santé et de sécurité applicables sont celles de cette entreprise.</p>
-    <p class="clause"><span class="h">Article 2 — Hygiène et sécurité.</span> Chaque stagiaire respecte les consignes d'hygiène et de sécurité, sous peine de sanctions. Propreté des locaux (interdiction d'y manger). Introduction et consommation de stupéfiants ou d'alcool strictement interdites ; interdiction de se présenter en état d'ivresse ou sous l'emprise de stupéfiants. Consignes incendie et issues de secours affichées ; évacuation sans délai. Tout accident est immédiatement déclaré (art. R.6342-3). Interdiction de fumer et de vapoter dans les locaux.</p>
-    <p class="clause"><span class="h">Article 3 — Horaires, absences et retards.</span> Les horaires communiqués doivent être respectés. Sauf autorisation, le stagiaire ne s'absente pas et émarge par demi-journée. Toute absence ou retard est signalé et justifié sous 48 h ; l'employeur est informé le cas échéant. Pour les formations financées, les absences non justifiées entraînent une retenue proportionnelle sur la prise en charge.</p>
-    <p class="clause"><span class="h">Article 4 — Comportement.</span> Comportement respectueux des règles de savoir-vivre et de la vie en collectivité. Interdiction de modifier/diffuser les supports sans autorisation, de modifier les réglages des ordinateurs, d'utiliser son téléphone à des fins étrangères. Conformément aux art. L.1152-1 et L.1153-1, aucun harcèlement moral ou sexuel ni agissement sexiste n'est toléré ; tout fait est signalé au référent.</p>
-    <p class="clause"><span class="h">Article 5 — Accès aux locaux.</span> Accès exclusivement pour suivre la formation ; pas d'accompagnant non inscrit sauf autorisation.</p>
-    <p class="clause"><span class="h">Article 6 — Utilisation du matériel.</span> Le stagiaire conserve en bon état le matériel et la documentation ; usage personnel interdit ; ne diffuse pas ses codes d'accès. Restitution en fin de stage (hors supports distribués). Documentation protégée par le droit d'auteur, usage strictement personnel. Sauf dérogation, interdiction d'enregistrer ou de filmer les sessions.</p>
-    <p class="clause"><span class="h">Article 7 — Vidéosurveillance.</span> Pour la sécurité des personnes et des biens, les sessions font l'objet d'un enregistrement vidéo (finalité sécurité, intérêt légitime). Images conservées un mois maximum, accessibles aux seules personnes habilitées. Droits d'accès, d'effacement et d'opposition auprès de {{of_email}} ; saisine possible de la CNIL. En signant, le stagiaire reconnaît être informé de ce dispositif.</p>
-    <p class="clause"><span class="h">Article 8 — Vol ou dégradation.</span> L'organisme décline toute responsabilité en cas de perte, vol ou détérioration des objets personnels déposés dans les locaux.</p>
-    <p class="clause"><span class="h">Article 9 — Sanctions.</span> Tout agissement fautif peut donner lieu, selon sa gravité : rappel à l'ordre, avertissement écrit, blâme, exclusion temporaire ou définitive. Aucune sanction pécuniaire. L'employeur/l'administration et/ou le financeur sont informés le cas échéant.</p>
-    <p class="clause"><span class="h">Article 10 — Procédure disciplinaire.</span> Aucune sanction sans information préalable des griefs (art. R.6352-4). Convocation par LRAR ou remise contre décharge précisant objet, date, heure et lieu de l'entretien (sauf sanction sans incidence). Le stagiaire peut se faire assister. Sanction motivée, notifiée par écrit entre un jour franc et quinze jours après l'entretien. Une mesure conservatoire d'exclusion temporaire peut être prise dans le respect des droits de la défense.</p>
-    <p class="clause"><span class="h">Article 11 — Représentation des stagiaires.</span> Pour les stages de plus de 500 heures, élection de délégués (art. R.6352-9 et s.). Les formations MYSTORY étant d'une durée inférieure à 500 heures, l'élection n'est pas requise ; le stagiaire adresse ses réclamations au référent.</p>
-    <p class="clause"><span class="h">Article 12 — Référent handicap et réclamations.</span> Référent : Arudhan NATKUNASINGAM — {{of_email}} — {{of_tel}}. Locaux accessibles PMR. Réclamations par écrit à la même adresse (accusé sous 48 h, réponse sous 15 jours ouvrés).</p>
-    <p class="clause"><span class="h">Article 13 — Publicité.</span> Le règlement est affiché dans les locaux et sur le site ; un exemplaire est remis à chaque stagiaire.</p>
-
-    <div class="sign">
-      <div class="box">
-        <div class="who">Pour l'organisme</div>
-        <div class="sub">Arudhan NATKUNASINGAM, Président — Fait à Gagny, le {{date_signature}}</div>
-        {{#if of_signature_img}}<img class="sig-img" src="{{of_signature_img}}" alt="Signature du Président">{{/if}}
-        {{#if cachet_img}}<img class="cachet-img" src="{{cachet_img}}" alt="Cachet MYSTORY">{{/if}}
-        {{#if cachet_absent}}<div class="cachet">MYSTORY<br>Gagny<br>NDA {{of_nda}}</div>{{/if}}
-      </div>
-      <div class="box">
-        <div class="who">Attestation de prise de connaissance</div>
-        <div class="sub">{{civilite}} {{prenom}} {{nom}}</div>
-        <p class="accept-note">Le stagiaire atteste avoir reçu un exemplaire du présent règlement intérieur et en avoir pris connaissance. Cette attestation est acceptée par la signature de la convention (voir contrat, « Documents remis et acceptés »).</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- ================= ANNEXE 3 — PLANNING ================= -->
-  <div class="annexe">
-    <span class="annexe-tag">ANNEXE 3 — PLANNING DES SESSIONS</span>
-    <h2>Planning des sessions</h2>
-    <div class="subt">Calendrier détaillé pour {{civilite}} {{prenom}} {{nom}}</div>
-
-    <table class="fields">
-      <tr><td class="k">Formation</td><td class="v">TEF IRN ({{certif_code}})</td></tr>
-      <tr><td class="k">Durée totale</td><td class="v">{{duree_heures}} heures</td></tr>
-      <tr><td class="k">Lieu</td><td class="v">Gagny — 3 bis av. de Gagny, 93220 Gagny</td></tr>
-    </table>
-
-    <table class="plan">
-      <tr>
-        <th>Date</th><th>Matin</th><th>Après-midi</th><th>Horaire (début – fin)</th><th>Durée</th>
-      </tr>
-      <!--PLANNING_ROWS-->
-    </table>
-    <div class="plan-total">Total des heures planifiées : {{duree_heures}} heures</div>
-    <p class="accept-note">Cochez la demi-journée concernée (Matin 9h30–12h30 / Après-midi 14h–17h). Les horaires précis de chaque créneau sont repris sur les feuilles d'émargement signées par demi-journée.</p>
-
-    <div class="sign">
-      <div class="box">
-        <div class="who">Pour MYSTORY</div>
-        <div class="sub">Arudhan NATKUNASINGAM, Président — Fait à Gagny, le {{date_signature}}</div>
-        {{#if of_signature_img}}<img class="sig-img" src="{{of_signature_img}}" alt="Signature du Président">{{/if}}
-        {{#if cachet_img}}<img class="cachet-img" src="{{cachet_img}}" alt="Cachet MYSTORY">{{/if}}
-        {{#if cachet_absent}}<div class="cachet">MYSTORY<br>Gagny<br>NDA {{of_nda}}</div>{{/if}}
-      </div>
-      <div class="box">
-        <div class="who">Le Bénéficiaire</div>
-        <div class="sub">{{civilite}} {{prenom}} {{nom}}</div>
-        <p class="accept-note">Le Bénéficiaire accepte le présent planning par la signature de la convention (voir contrat, « Documents remis et acceptés »).</p>
-      </div>
-    </div>
-  </div>
-
-</td></tr></tbody></table>
-<footer>
-    {{of_raison}} · {{of_rcs}} · SIRET {{of_siret}} · Déclaration d'activité n° {{of_nda}} (ne vaut pas agrément de l'État)<br>
-    Gagny : 3 bis av. de Gagny, 93220 · Sarcelles : 18 av. du 8 Mai 1945, 95200 · Rosny : 46 bis rue d'Estienne d'Orves, 93110 Rosny-sous-Bois · {{of_tel}} · {{of_email}}
-  </footer>
-</body>
-</html>
+<table class=sheet><tfoot><tr><td><div class=ftspace></div></td></tr></tfoot><tbody><tr><td>
+<div class=hd><div class=l>MYSTORY</div><div class=r>SASU · RCS Paris 913 423 083<br>SIRET 913 423 083 00017<br>
+NDA 11756521775 · 14 rue Bichat, 75010 Paris<br>06 81 43 16 54 · contact@mystoryformation.fr</div></div>
+<h1>Contrat de formation professionnelle</h1><p class=sub>Conclu à titre individuel · articles L. 6353-3 à L. 6353-7 du Code du travail</p>
+<p class=lg><b>Contrat de formation professionnelle conclu à titre individuel</b> — articles <b>L. 6353-3 à L. 6353-7</b> et <b>L. 6353-8</b> du Code du travail. Action financée par le compte personnel de formation, la Caisse des Dépôts et consignations réglant l'organisme en subrogation.</p>
+<table><tr><td class=k>Organisme</td><td><b>MYSTORY</b>, SASU au capital de 1 000 €, 14 rue Bichat, 75010 Paris · RCS Paris 913 423 083 · SIRET 913 423 083 00017 · TVA FR55 913 423 083 · NDA 11756521775, qui ne vaut pas agrément de l'État. Représentée par Arudhan NATKUNASINGAM, Président.</td></tr>
+<tr><td class=k>Bénéficiaire</td><td><b>{{civilite}} {{prenom}} {{nom}}</b>, né le {{date_naissance}}, demeurant <b>{{adresse}}, {{code_postal}} {{ville}}</b> · {{telephone}} · {{email}}</td></tr>
+<tr><td class=k>Financeur</td><td>Caisse des Dépôts et consignations, Mon Compte Formation, 56 rue de Lille, 75356 Paris 07 SP, <b>en subrogation de paiement</b> au titre du compte personnel de formation du bénéficiaire.</td></tr></table>
+<h2>Article 1 — Objet, nature et modalités de l'action</h2><table>
+<tr><td class=k>Bénéficiaire</td><td colspan=3><b>{{civilite}} {{prenom}} {{nom}}</b>, né le {{date_naissance}}</td>
+</tr>
+<tr><td class=k>Action</td><td colspan=3>{{certif_intitule}}<br><span class=lg>Certification <b>TEF IRN</b> · répertoire spécifique <b>RS6775</b> · certificateur Le français des affaires (CCI Paris Île-de-France)</span></td></tr>
+<tr><td class=k>Durée · Période</td><td>{{duree_heures}} h · du {{date_debut}} au {{date_fin}}</td>
+<td class=k>Lieu</td><td>Gagny — 3 bis av. de Gagny, 93220</td></tr>
+<tr><td class=k>Formatrice</td><td colspan=3><b>{{formateur}}</b> — formatrice en français langue étrangère, salariée de MYSTORY</td></tr><tr><td class=k>Effectif</td><td colspan=3><b>1 stagiaire</b> au titre du présent contrat · groupe de 1 à 8 personnes maximum</td></tr></table>
+<p>L'action relève du <b>1° de l'article L. 6313-1</b> du Code du travail. Elle s'adresse à une personne étrangère ou non francophone en situation régulière (art. L. 6313-3).</p>
+<p><b>Niveau de connaissances préalables requis</b> (art. L. 6353-4 2°) : avoir seize ans au moins, savoir lire des phrases simples et ne pas être en situation d'analphabétisme. Le niveau d'entrée est constaté par le test de positionnement, dont le résultat détermine la durée du parcours.</p>
+<p><b>Objet.</b> Atteindre le niveau de français visé au cadre européen commun de référence pour les langues et le faire valider par le TEF IRN, afin de servir un projet professionnel : accéder à un emploi, s'y maintenir ou y évoluer.</p>
+<p><b>Programme.</b> Le parcours développe les quatre compétences attestées par la fiche RS6775 : analyser des documents écrits courts, analyser des énoncés oraux personnels et professionnels, rédiger des textes courts en situation courante ou professionnelle, interagir à l'oral avec le registre et le vocabulaire adéquats. Il se déroule en six séquences :</p>
+<table><tr><th style="width:31%">Séquence</th><th>Objectif</th></tr>
+<tr><td>Positionnement initial</td><td>Évaluer le niveau réel sur les quatre compétences et arrêter la durée du parcours</td></tr>
+<tr><td>Consolidation des acquis</td><td>Sécuriser les structures du niveau d'entrée indispensables à la montée vers le niveau visé</td></tr>
+<tr><td>Compréhension orale et écrite</td><td>Repérer l'information explicite puis implicite dans des documents authentiques, formulaires et courriers administratifs</td></tr>
+<tr><td>Expression orale</td><td>Obtenir une information, puis argumenter pour convaincre : les deux sections de l'épreuve</td></tr>
+<tr><td>Expression écrite</td><td>Rédiger un fait divers, puis exprimer un point de vue : les deux sections de l'épreuve</td></tr>
+<tr><td>Examens blancs</td><td>Passation en conditions réelles, correction commentée, remédiation ciblée</td></tr></table>
+<p class=note>Le <b>document d'information</b> remis au bénéficiaire avant son inscription vaut annexe au présent contrat : il en détaille le programme, les moyens, les horaires, les tarifs et le règlement intérieur.</p>
+<h2>Article 2 — Prix, financement et modalités de règlement</h2>
+<p><b>Prix total : {{montant}} € nets de taxes</b>, exonérés de TVA en application de l'article 261-4-4° a du Code général des impôts. L'action est financée par le compte personnel de formation du bénéficiaire ; la Caisse des Dépôts règle l'organisme <b>après validation du service fait</b> (art. L. 6323-12).</p>
+<p>Le bénéficiaire s'acquitte, lors de la souscription sur Mon Compte Formation, de la <b>participation forfaitaire obligatoire</b>, dont le montant en vigueur lui est communiqué sur la plateforme (<b>150 € depuis le 2 avril 2026</b>, montant révisable par voie réglementaire). En sont dispensés notamment les demandeurs d'emploi et les bénéficiaires d'un abondement. <b>Hors cette participation, aucune somme n'est due par le bénéficiaire</b>, sauf reste à charge complémentaire expressément accepté par écrit avant l'entrée en formation.</p>
+<p><b>Aucun reste à charge.</b> Le prix convenu est celui de l'offre souscrite sur Mon Compte Formation. Il est intégralement couvert par le financement mobilisé, sous réserve de la participation forfaitaire mentionnée ci-dessus. <b>Aucune autre somme n'est due par le bénéficiaire</b>, et aucun reste à charge complémentaire ne peut lui être demandé sans son accord écrit, recueilli avant l'entrée en formation.</p>
+<div class=enc><b>Protections légales du contrat individuel.</b> Conformément à l'article <b>L. 6353-6</b>, <b>aucune somme ne peut être exigée du bénéficiaire avant l'expiration du délai de rétractation</b> prévu à l'article 3. Conformément à l'article <b>L. 6353-7</b>, à l'expiration de ce délai, il ne peut être exigé plus de <b>30 % du prix convenu</b>, le solde n'étant dû qu'au fur et à mesure du déroulement de l'action.</div>
+<h2>Article 3 — Rétractation, abandon, interruption et force majeure</h2>
+<p><b>Rétractation : quatorze jours.</b> Le bénéficiaire dispose d'un délai de <b>quatorze jours</b> à compter de la signature du présent contrat pour se rétracter, sans motif et sans frais, par lettre recommandée avec avis de réception, par courriel ou par tout moyen conférant date certaine. La souscription étant faite <b>à distance</b> sur Mon Compte Formation, c'est le délai de quatorze jours de l'article <b>L. 221-18</b> du Code de la consommation qui s'applique, plus favorable que les dix jours de l'article L. 6353-5 du Code du travail. L'organisme accorde ce délai de quatorze jours <b>quel que soit le mode de signature</b>, y compris sur place. <b>Aucune somme ne peut être exigée pendant ce délai</b>, à aucun titre. Le bénéficiaire peut exercer ce droit au moyen du <b>formulaire type annexé au présent contrat</b> (art. L. 221-20 du Code de la consommation), par lettre, par courriel ou par tout autre moyen conférant date certaine.</p>
+<p><b>Si la formation commence pendant le délai de rétractation.</b> Lorsque la première séance se situe avant l'expiration des quatorze jours, le bénéficiaire demande expressément que la formation commence avant la fin de ce délai, en cochant la case ci-dessous. Il conserve l'intégralité de son droit de rétractation. S'il se rétracte après le début des séances, <b>seules les heures effectivement suivies sont dues</b> et aucune autre somme ne peut lui être réclamée.</p>
+<p>☐ Je demande que ma formation commence avant l'expiration du délai de quatorze jours. &nbsp;&nbsp;&nbsp; Signature : ....................................</p>
+<p>La formation étant souscrite sur Mon Compte Formation, le bénéficiaire peut en outre annuler sa demande sans frais sur la plateforme avant le démarrage. Un <b>délai d'accès minimum de onze jours ouvrés</b> est respecté entre la validation de la commande et l'entrée en formation.</p>
+<p><b>Abandon et interruption.</b> En cas d'abandon ou d'interruption en cours d'action, <b>seules les heures effectivement suivies sont dues</b> et facturées au prorata du taux de réalisation (art. L. 6323-12). <b>Aucune indemnité ni pénalité de dédit n'est due</b> par le bénéficiaire.</p>
+<p><b>Force majeure.</b> En cas de force majeure dûment constatée au sens de l'article 1218 du Code civil, et par application de l'article <b>L. 6354-1</b> du Code du travail, le bénéficiaire est libéré de toute obligation au-delà des prestations effectivement réalisées, sans pénalité.</p>
+<p><b>Résiliation par le bénéficiaire.</b> Le bénéficiaire peut à tout moment, sans motif et sans frais, mettre fin à sa participation. Seules les heures effectivement suivies sont dues. Aucune indemnité ni pénalité ne peut lui être réclamée.</p>
+<p><b>Résiliation par l'organisme.</b> L'organisme peut résilier le contrat en cas de manquement grave du bénéficiaire au règlement intérieur, après mise en œuvre de la procédure disciplinaire garantissant les droits de la défense (art. R. 6352-4 et suivants). Les heures suivies restent seules dues.</p>
+<h2>Article 4 — Déroulement, assiduité et évaluation</h2>
+<p><b>Diplômes, titres et références de la personne chargée de la formation</b> (art. L. 6353-4 4°). La formation est dispensée par <b>{{formateur}}</b>, formatrice en français langue étrangère, {{formateur_titres}}, justifiant de {{formateur_experience}}. Son curriculum vitae, ses titres et ses diplômes sont joints au dossier et tenus à la disposition du bénéficiaire et des autorités de contrôle (art. L. 6352-1).</p>
+<p><b>Moyens pédagogiques et techniques</b> (art. L. 6353-4 3°). Formation <b>100 % en présentiel</b>, aucune séquence à distance. Salle équipée, supports papier et audio, livrets d'entraînement par niveau, sujets au format officiel du certificateur. Pédagogie individualisée : l'enseignement s'adapte au niveau constaté au positionnement et à la progression du bénéficiaire.</p>
+<p>La présence est attestée par des <b>feuilles d'émargement signées par le stagiaire et par la formatrice, pour chaque demi-journée</b> suivie. Le positionnement initial porte sur les quatre compétences du cadre européen commun de référence pour les langues ; une évaluation finale mesure l'atteinte des objectifs. À l'issue de l'action, un <b>bilan de fin de formation</b> recueille l'évaluation des acquis et l'appréciation du bénéficiaire sur la formation.</p>
+<p><b>Engagements du bénéficiaire.</b> Assister à l'intégralité des séances et émarger à chaque demi-journée ; réaliser les travaux et évaluations demandés ; se présenter aux épreuves de la certification sanctionnant l'action ; signaler et justifier toute absence dans les meilleurs délais.</p>
+<p class=note>Le non-respect de ces engagements n'entraîne <b>aucune conséquence financière</b> pour le bénéficiaire. Il peut seulement conduire l'organisme à constater une réalisation partielle de l'action.</p>
+<h2>Article 5 — Sanction de l'action</h2>
+<p>À l'issue de l'action, l'organisme délivre une <b>attestation de fin de formation</b> mentionnant les objectifs, la nature, la durée et les résultats de l'évaluation des acquis (art. L. 6353-1), ainsi qu'un <b>certificat de réalisation</b> conforme au modèle de l'arrêté du 21 décembre 2018, et procède à l'inscription du bénéficiaire à une session du TEF IRN auprès du certificateur, Le français des affaires (CCI Paris Île-de-France). L'attestation de résultats est remise au candidat par le certificateur.</p>
+<p>L'organisme est tenu, au titre du présent contrat, d'une <b>obligation de moyens</b> : il met en œuvre les moyens pédagogiques, humains et matériels décrits au document d'information pour conduire le bénéficiaire au niveau visé et le présenter à la certification. L'obtention de la certification dépend de la performance du candidat le jour de l'épreuve et relève du certificateur.</p>
+<p class=note>Les exigences liées au titre de séjour ou à la naturalisation relèvent de l'autorité préfectorale et sont susceptibles d'évolution. L'organisme ne garantit aucun résultat auprès de l'administration.</p>
+<h2>Article 6 — Accessibilité, réclamations, médiation</h2>
+<p><b>Référent handicap</b> : Arudhan NATKUNASINGAM, contact@mystoryformation.fr, 06 81 43 16 54. Toute demande d'adaptation est étudiée ; les locaux sont accessibles aux personnes à mobilité réduite.</p>
+<p><b>Réclamations</b> : par écrit à contact@mystoryformation.fr, accusé de réception sous 48 heures, réponse sous 15 jours ouvrés. À défaut de solution, le bénéficiaire, en sa qualité de consommateur, peut saisir gratuitement le médiateur de la consommation dont relève MYSTORY : <b>CM2C</b>, 49 rue de Ponthieu, 75008 Paris, www.cm2c.net.</p>
+<h2>Article 7 — Données personnelles</h2>
+<p>Responsable de traitement : MYSTORY. Référent : Arudhan NATKUNASINGAM, contact@mystoryformation.fr. Les données collectées sont traitées pour l'exécution du contrat, le suivi qualité et le respect des obligations légales liées au financement, sur les bases légales de l'exécution du contrat et de l'obligation légale. Destinataires : MYSTORY, la Caisse des Dépôts et consignations, le certificateur et, le cas échéant, les financeurs. <b>Conservation</b> : pendant la durée de la formation, puis cinq ans au titre du contrôle du financement, et dix ans pour les pièces comptables. Droits d'accès, de rectification, d'effacement, de limitation, de portabilité et d'opposition auprès de l'adresse ci-dessus, et droit de réclamation auprès de la CNIL.</p>
+<p class=note>L'identité du bénéficiaire est vérifiée par la Caisse des dépôts lors de la souscription sur Mon Compte Formation. Lorsqu'une copie d'une pièce d'identité est nécessaire à l'inscription à l'épreuve de certification, elle est conservée pour la seule durée nécessaire à cette inscription, puis supprimée.</p>
+<h2>Article 8 — Litiges</h2>
+<p>Les parties s'efforcent de rechercher une solution amiable, <b>sans que cette démarche constitue un préalable obligatoire à la saisine du juge</b>. Le bénéficiaire peut à tout moment saisir gratuitement le médiateur de la consommation ou la juridiction compétente. En sa qualité de consommateur, il peut saisir <b>à son choix la juridiction du lieu où il demeurait lors de la conclusion du contrat</b> ou celle du lieu de survenance du fait dommageable (art. R. 631-3 du Code de la consommation).</p>
+<h2>Article 9 — Propriété intellectuelle</h2>
+<p>Les supports et contenus pédagogiques demeurent la propriété exclusive de MYSTORY et sont réservés à l'usage personnel du bénéficiaire pour les besoins de la formation. Toute reproduction, diffusion ou captation sans autorisation écrite préalable est interdite.</p>
+<div class=enc>Le bénéficiaire reconnaît avoir reçu, <b>avant son inscription définitive et avant tout paiement</b>, le <b>document d'information remis au stagiaire</b>, qui contient les objectifs et le contenu de la formation, les moyens pédagogiques, les horaires, la liste des formatrices avec leurs titres et qualités, les modalités d'évaluation, les tarifs et les conditions financières, les coordonnées de la personne chargée des relations avec les stagiaires et le règlement intérieur. Il déclare en avoir pris connaissance et les accepter. <b>Ce document vaut annexe au présent contrat.</b></div>
+<div class=sig><div>Fait à Gagny, le ......................................, en deux exemplaires.<br><br><b>Pour l'organisme</b><br>Arudhan NATKUNASINGAM, Président<div class="box tampon"><img src="{{cachet_img}}" alt="Cachet et signature MYSTORY"></div></div>
+<div><br><br><br><b>Le bénéficiaire</b><br>{{civilite}} {{prenom}} {{nom}}<div class=box><signature-field name="Signature stagiaire" role="Stagiaire" required="true" style="width:200px;height:52px;display:block;margin-top:6px"></signature-field><div style="font-size:8.6pt;color:#555;margin-top:4px">Le <date-field name="Date stagiaire" role="Stagiaire" format="DD/MM/YYYY" required="true" style="width:100px;height:18px;display:inline-block"></date-field></div></div></div></div>
+<h2>Annexe — Formulaire type de rétractation</h2>
+<p class=note>À compléter et à renvoyer uniquement si vous souhaitez vous rétracter du contrat.</p>
+<div class=enc>
+<p>À l'attention de <b>MYSTORY</b>, 14 rue Bichat, 75010 Paris — contact@mystoryformation.fr</p>
+<p>Je vous notifie par la présente ma rétractation du contrat de formation professionnelle portant sur la prestation ci-dessous.</p>
+<p>Action commandée le : ..............................&nbsp;&nbsp; Début prévu le : ..............................<br>
+Nom et prénom du bénéficiaire : ..................................................................................<br>
+Adresse du bénéficiaire : ...............................................................................................<br>
+Date : ........ / ........ / ............</p>
+<p>Signature du bénéficiaire, uniquement en cas d'envoi du présent formulaire sur papier :</p>
+<div class=box></div></div>
+</td></tr></tbody></table><div class=ft>MYSTORY — SASU au capital de 1 000 € · RCS Paris 913 423 083 · SIRET 913 423 083 00017 · Déclaration d'activité n° 11756521775 (ne vaut pas agrément de l'État)<br>Gagny : 3 bis av. de Gagny, 93220 · Sarcelles : 18 av. du 8 Mai 1945, 95200 · Rosny : 46 bis rue d'Estienne d'Orves, 93110 · 06 81 43 16 54 · contact@mystoryformation.fr</div></html>

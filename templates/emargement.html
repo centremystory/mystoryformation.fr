@@ -1,111 +1,57 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="utf-8">
-<style>
-  @page { size: A4; margin: 16mm 16mm 16mm 16mm; }
-  * { box-sizing: border-box; }
-  body { font-family: "Helvetica Neue", Arial, sans-serif; color: #1c2433; font-size: 10pt; line-height: 1.45; margin: 0; }
-  .brandbar { height: 5px; background: #2F72DE; border-radius: 3px; }
-  header { display: flex; justify-content: space-between; align-items: flex-start; margin-top: 10px; }
-  .org h1 { color: #2F72DE; font-size: 16pt; margin: 0 0 2px; letter-spacing: .5px; }
-  .org .legal { font-size: 7.4pt; color: #5b6472; line-height: 1.35; }
-  .doctype { text-align: right; }
-  .doctype .tag { display: inline-block; background: #2F72DE; color: #fff; font-size: 7.4pt; padding: 3px 8px; border-radius: 3px; letter-spacing: .5px; }
-  .doctype .ref { font-size: 7.6pt; color: #5b6472; margin-top: 6px; }
-  h2.title { text-align: center; font-size: 14pt; margin: 18px 0 4px; }
-  .to { background: #f3f7fe; border: 1px solid #d8e4fb; border-radius: 6px; padding: 8px 12px; margin: 12px 0; font-size: 9.6pt; }
-  .to .who { font-weight: 700; }
-  h3 { color: #2F72DE; font-size: 9.8pt; margin: 13px 0 4px; border-bottom: 1px solid #e3e8f0; padding-bottom: 2px; }
-  table.fields { width: 100%; border-collapse: collapse; font-size: 9.4pt; margin: 4px 0; }
-  table.fields td { padding: 4px 7px; vertical-align: top; border: 1px solid #cfdcf3; }
-  table.fields td.k { color: #5b6472; width: 32%; background: #f3f7fe; }
-  table.fields td.v { font-weight: 600; }
-  .consigne { background: #fff8e9; border: 1px solid #f3e2b8; border-radius: 6px; padding: 7px 11px; margin: 8px 0; font-size: 8.8pt; color: #6b5a2a; }
-  table.emarg { width: 100%; border-collapse: collapse; font-size: 8.8pt; margin: 6px 0; }
-  table.emarg th { background: #2F72DE; color: #fff; font-size: 7.8pt; padding: 6px 6px; text-align: left; }
-  table.emarg td { border: 1px solid #d8e4fb; padding: 4px 6px; vertical-align: bottom; }
-  table.emarg .sig { width: 27%; }
-  table.emarg tr:nth-child(even) td { background: #f7faff; }
-  .recap { margin-top: 10px; font-size: 9.2pt; }
-  .recap b { color: #2F72DE; }
-  .attest { margin-top: 14px; display: flex; justify-content: space-between; gap: 20px; }
-  .attest .box { flex: 1; border: 1px solid #d8e4fb; border-radius: 6px; padding: 8px 10px; min-height: 80px; }
-  .attest .lbl { font-size: 8.2pt; font-weight: 700; color: #2F72DE; }
-  .attest .sub { font-size: 7.4pt; color: #5b6472; }
-  footer { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #e3e8f0; padding-top: 4px; font-size: 6.6pt; color: #7a8290; text-align: center; line-height: 1.3; }
-  table.sheet { width: 100%; border-collapse: collapse; }
-  table.sheet > tbody > tr > td, table.sheet > tfoot > tr > td { padding: 0; border: none; }
-  table.sheet > tfoot { display: table-footer-group; }
-  table.sheet > tfoot td { height: 15mm; }
+<!doctype html><html lang=fr><meta charset=utf-8><title>Feuille d'émargement</title><style>
+@page{size:A4;margin:13mm 15mm 13mm}
+*{box-sizing:border-box}
+body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:9.6pt;color:#1b1b1b;margin:0;line-height:1.5}
+.hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2.5px solid #2F72DE;padding-bottom:7px;margin-bottom:14px}
+.hd .l{font-weight:700;font-size:15pt;color:#2F72DE;letter-spacing:2px}
+.hd .r{font-size:7.4pt;color:#555;text-align:right;line-height:1.45}
+h1{font-size:13pt;color:#2F72DE;margin:0 0 3px;letter-spacing:.4px}
+.sub{font-size:8.6pt;color:#666;margin:0 0 14px;font-style:italic}
+h2{font-size:10pt;color:#2F72DE;margin:15px 0 5px;border-bottom:1px solid #dfe6f2;padding-bottom:2px}
+table{width:100%;border-collapse:collapse;margin:7px 0}
+td,th{border:1px solid #d6dce8;padding:4.5px 7px;vertical-align:top;font-size:9.1pt}
+th{background:#eef3fc;font-weight:700;text-align:left;color:#1a3f7a}
+td.k{background:#f7f9fd;font-weight:600;width:27%;color:#334}
+p{margin:5px 0;text-align:justify}
+.enc{background:#f7f9fd;border-left:3px solid #2F72DE;padding:7px 11px;margin:9px 0;font-size:9.1pt}
+.sig{display:flex;justify-content:space-between;margin-top:14px;gap:26px}
+.sig div{flex:1;font-size:9pt}
+.box{border:1px dashed #b9c3d4;height:48px;margin-top:4px;border-radius:3px}
+.box.tampon{border:0;height:auto;min-height:48px}
+.box.tampon img{height:76px;display:block;margin:2px 0 0 4px}
+table.sheet{width:100%;border-collapse:collapse;border:0}
+table.sheet>tbody>tr>td,table.sheet>tfoot>tr>td{border:0;padding:0}
+.ftspace{height:15mm}
+.ft{position:fixed;bottom:4mm;left:0;right:0;font-size:6.6pt;color:#888;text-align:center;line-height:1.4;
+    border-top:.5px solid #e3e8f0;padding-top:3px}
+.lg{font-size:8.3pt;color:#555}
+ul{margin:4px 0 4px 16px;padding:0}li{margin:2px 0;font-size:9.1pt}
+.note{font-size:8.2pt;color:#666;font-style:italic;margin-top:4px}
+
+.enc{page-break-inside:avoid}
+.sig{page-break-inside:avoid;page-break-before:avoid;break-before:avoid}
+tr{page-break-inside:avoid}
+h2{page-break-after:avoid}
+p{orphans:3;widows:3}
 </style>
-</head>
-<body>
-<table class="sheet"><tfoot><tr><td></td></tr></tfoot><tbody><tr><td>
-
-  
- 
-  <div class="brandbar"></div>
-  <header>
-    <div class="org">
-      <h1>MYSTORY</h1>
-      <div class="legal">
-        SASU · {{of_rcs}} · SIRET {{of_siret}}<br>
-        Déclaration d'activité n° {{of_nda}}<br>
-        {{of_tel}} · {{of_email}}
-      </div>
-    </div>
-    <div class="doctype">
-      <span class="tag">ÉMARGEMENT</span>
-      <div class="ref">N° dossier EDOF : {{numero_dossier}}<br>{{certif_intitule}} ({{certif_code}})</div>
-    </div>
-  </header>
- 
-  <h2 class="title">Feuille d'émargement</h2>
- 
-  <div class="to">
-    <div class="who">{{civilite}} {{prenom}} {{nom}}</div>
-    Formation : {{certif_intitule}} — {{certif_code}}
-  </div>
- 
-  <h3>Informations</h3>
-  <table class="fields">
-    <tr><td class="k">Durée prévue</td><td class="v">{{duree_heures}} heures</td></tr>
-    <tr><td class="k">Période</td><td class="v">du {{date_debut}} au {{date_fin}}</td></tr>
-    <tr><td class="k">Lieu de formation</td><td class="v">Gagny — 3 bis av. de Gagny, 93220 Gagny</td></tr>
-    <tr><td class="k">Formateur / formatrice</td><td class="v">{{formateur}}</td></tr>
-    <tr><td class="k">Horaires</td><td class="v">Matin 9h30 – 12h30 · Après-midi 14h – 17h</td></tr>
-  </table>
- 
-  <div class="consigne">
-    <strong>Émargement par demi-journée.</strong> Chaque présence est signée le jour même, à chaque demi-journée suivie, par le stagiaire <em>et</em> par le formateur. Aucune signature anticipée ou différée. Une demi-journée non suivie est laissée vierge.
-  </div>
- 
-  <table class="emarg">
-    <tr><th>Date</th><th>Demi-journée</th><th class="sig">Signature du stagiaire</th><th class="sig">Signature du formateur</th></tr>
-    <!--EMARGEMENT_ROWS-->
-  </table>
- 
-  <div class="recap">
-    Total demi-journées planifiées : <b>{{nb_seances}}</b> · Durée prévue : <b>{{duree_heures}} h</b> · Total heures réalisées (à compléter en fin de formation) : <b>__________ h</b>
-  </div>
- 
-  <div class="attest">
-    <div class="box">
-      <div class="lbl">Le formateur</div>
-      <div class="sub">Certifie l'exactitude des présences ci-dessus.<br>Nom, date et signature :</div>
-    </div>
-    <div class="box">
-      <div class="lbl">Pour l'Organisme de formation</div>
-      <div class="sub">Arudhan NATKUNASINGAM, Président<br>Cachet et signature :</div>
-    </div>
-  </div>
-
-</td></tr></tbody></table>
-<footer>
-    {{of_raison}} · {{of_rcs}} · SIRET {{of_siret}} · Déclaration d'activité n° {{of_nda}} (ne vaut pas agrément de l'État)<br>
-    Gagny : 3 bis av. de Gagny, 93220 · Sarcelles : 18 av. du 8 Mai 1945, 95200 · Rosny : 46 bis rue d'Estienne d'Orves, 93110 Rosny-sous-Bois · {{of_tel}} · {{of_email}}
-  </footer>
-</body>
-</html>
- 
+<table class=sheet><tfoot><tr><td><div class=ftspace></div></td></tr></tfoot><tbody><tr><td>
+<div class=hd><div class=l>MYSTORY</div><div class=r>SASU · RCS Paris 913 423 083<br>SIRET 913 423 083 00017<br>
+NDA 11756521775 · 14 rue Bichat, 75010 Paris<br>06 81 43 16 54 · contact@mystoryformation.fr</div></div>
+<h1>Feuille d'émargement</h1><p class=sub>Présences attestées par demi-journée · art. L. 6362-5 du Code du travail</p><table>
+<tr><td class=k>Bénéficiaire</td><td colspan=3><b>{{civilite}} {{prenom}} {{nom}}</b>, né le {{date_naissance}}</td></tr>
+<tr><td class=k>Action</td><td>{{certif_intitule}}</td>
+<td class=k>Formatrice</td><td>{{formateur}}</td></tr>
+<tr><td class=k>Durée · Période</td><td>{{duree_heures}} h · du {{date_debut}} au {{date_fin}}</td>
+<td class=k>Lieu</td><td>Gagny</td></tr></table>
+<p class=note><b>Chaque présence est signée le jour même</b>, par le stagiaire et par la formatrice. Aucune
+signature anticipée ni différée. Une demi-journée non suivie est laissée en blanc et barrée.</p>
+<table><tr><th style="width:25%">Date</th><th style="width:10%">Demi-journée</th><th style="width:13%">Horaires</th><th style="width:7%">Durée</th>
+<th style="width:22%">Signature du stagiaire</th><th style="width:23%">Signature de la formatrice</th></tr><!--EMARGEMENT_ROWS-->
+<tr><td colspan=3 style="text-align:right;font-weight:700;background:#f7f9fd">Total réalisé
+<span class=lg>· prévu au contrat : {{duree_heures}} h, soit {{nb_seances}} demi-journées</span></td>
+<td style="font-weight:700;text-align:center;background:#f7f9fd">........ h</td><td colspan=2 style="background:#f7f9fd"></td></tr></table>
+<div class=sig><div><b>La formatrice</b> certifie l'exactitude des présences ci-dessus.<br>
+Nom : ..............................................................<br>
+Fait à Gagny, le ........ / ........ / ............<div class=box></div></div>
+<div><span class=lg>Pour l'organisme de formation<br>Arudhan NATKUNASINGAM, Président</span><div class="box tampon"><img src="{{cachet_img}}" alt="Cachet et signature MYSTORY"></div></div></div>
+</td></tr></tbody></table><div class=ft>MYSTORY — SASU au capital de 1 000 € · RCS Paris 913 423 083 · SIRET 913 423 083 00017 · Déclaration d'activité n° 11756521775 (ne vaut pas agrément de l'État)<br>Gagny : 3 bis av. de Gagny, 93220 · Sarcelles : 18 av. du 8 Mai 1945, 95200 · Rosny : 46 bis rue d'Estienne d'Orves, 93110 · 06 81 43 16 54 · contact@mystoryformation.fr</div></html>

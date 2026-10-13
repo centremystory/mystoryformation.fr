@@ -40,7 +40,9 @@ const PIECE_TYPE: Record<string, string> = {
 };
 
 // Documents de FIN de formation : générables uniquement quand la formation est terminée.
-const DOCS_FIN = new Set(["attestation_fin", "certificat_realisation"]);
+// Le bilan constate des acquis : comme l'attestation et le certificat, il ne
+// peut pas être produit avant la fin réelle de la formation.
+const DOCS_FIN = new Set(["attestation_fin", "certificat_realisation", "bilan_fin_formation"]);
 
 /** Date du jour (Europe/Paris) au format YYYY-MM-DD. */
 function aujourdHuiParisISO(): string {
